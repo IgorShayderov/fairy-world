@@ -22,6 +22,6 @@
       "ignoreTemplateLiterals": true
     }],
     "no-console": ["error", { "allow": ["warn", "error"] }],
-    "key-spacing": ["warn", {"align": {"on": "value"}, "multiLine": {"mode": "minimum"}}]
+    // "key-spacing": ["warn", {"align": {"on": "value"}, "multiLine": {"mode": "minimum"}}]
   }
 }
