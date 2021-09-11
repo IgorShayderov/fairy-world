@@ -1,10 +1,13 @@
-.header {
-  background-color: red;
-  display: flex;
-  height: 10vh;
-  position: relative;
+body {
+  margin: 0;
 }
 
-.footer {
+.header {
+  background-color: red;
+  height: 10vh;
+}
 
+.content {
+  background-color: yellow;
+  height: 90vh;
 }

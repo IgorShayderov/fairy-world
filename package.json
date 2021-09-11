@@ -4,9 +4,9 @@
   "description": "",
   "main": "webpack.config.js",
   "scripts": {
-    "build": "webpack",
-    "dev": "webpack-dev-server",
-    "test": "jest"
+    "build": "NODE_ENV=production webpack",
+    "dev": "NODE_ENV=development webpack-dev-server",
+    "test": "NODE_ENV=test jest"
   },
   "repository": {
     "type": "git",

@@ -8,7 +8,7 @@ Weapon.prototype = new Item();
 Object.defineProperty(Weapon.prototype, 'contructor', {
   enumerable: false,
   value: Weapon,
-  writable: true
+  writable: true,
 });
 
 export default Weapon;
