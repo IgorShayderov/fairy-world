@@ -2,6 +2,8 @@ const path = require('path');
 
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 
+const { NODE_ENV } = process.env;
+
 module.exports = (env, options) => {
   return {
     devServer: {
@@ -15,7 +17,7 @@ module.exports = (env, options) => {
         watch: true,
       },
     },
-    devtool: process.env.NODE_ENV === 'development' ? 'eval-cheap-module-source-map' : false,
+    devtool: NODE_ENV === 'development' ? 'eval-cheap-module-source-map' : false,
     entry: './src/index.ts',
     mode: 'development',
     module: {
@@ -41,5 +43,11 @@ module.exports = (env, options) => {
       filename: 'main.js',
     },
     plugins: [new HtmlWebpackPlugin({ template: './public/app.html' })],
+    resolve: {
+      alias: {
+        '@src': path.resolve(__dirname, 'src'),
+      },
+      extensions: ['.ts', '.js'],
+    },
   };
 };
