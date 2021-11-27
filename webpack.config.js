@@ -1,6 +1,7 @@
 const path = require('path');
 
 const HtmlWebpackPlugin = require('html-webpack-plugin');
+const { VueLoaderPlugin } = require('vue-loader');
 
 const { NODE_ENV } = process.env;
 
@@ -23,6 +24,12 @@ module.exports = (env, options) => {
     module: {
       rules: [
         {
+          test: /\.vue$/,
+          use: [
+            'vue-loader',
+          ],
+        },
+        {
           test: /\.ts$/,
           use: [
             'babel-loader',
@@ -42,12 +49,16 @@ module.exports = (env, options) => {
       path: path.resolve(__dirname, 'dist'),
       filename: 'main.js',
     },
-    plugins: [new HtmlWebpackPlugin({ template: './public/app.html' })],
+    plugins: [
+      new HtmlWebpackPlugin({ template: './public/app.html' }),
+      new VueLoaderPlugin(),
+    ],
     resolve: {
       alias: {
         '@src': path.resolve(__dirname, 'src'),
+        '@components': path.resolve(__dirname, 'src/components'),
       },
-      extensions: ['.ts', '.js'],
+      extensions: ['.ts', '.js', '.vue'],
     },
   };
 };

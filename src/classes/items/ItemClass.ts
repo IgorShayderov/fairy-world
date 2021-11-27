@@ -1,3 +1,4 @@
+// TODO Factory
 /**
  * Abstract class for items
  * @param {string} name - Item name
