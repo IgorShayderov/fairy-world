@@ -1,10 +1,31 @@
 import Inventory from './InventoryClass';
 
+type Player = {
+  inventory: Inventory;
+  name: string;
+  level: number;
+  experience: number;
+  experienceToLvlUp: number;
+  gold: number;
+  enemiesKilled: number;
+  hitpoints: number;
+  damage: number;
+  defence: number;
+  critticalDamage: number;
+  critticalChance: number;
+  strength: number;
+  endurance: number;
+  vitality: number;
+  freeAttributes: number;
+  location: null;
+}
+
 /**
  * Player information
+ * @param {Player} this - Player costructor
  * @param {string} name - Player name
  */
-function PlayerInfo(name: string): void {
+function Player(this: Player, name: string): void {
   this.inventory = new Inventory();
   // basicInfo
   this.name = name;
@@ -23,9 +44,9 @@ function PlayerInfo(name: string): void {
   this.strength = 5;
   this.endurance = 5;
   this.vitality = 5;
-  this.freeAtttributes = 3;
+  this.freeAttributes = 3;
   // extra
   this.location = null;
 }
 
-export default PlayerInfo;
+export default Player;

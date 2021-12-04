@@ -1,27 +1,3 @@
 body {
   margin: 0;
 }
-
-.header {
-  background-color: red;
-  height: 10vh;
-}
-
-.content {
-  background-color: yellow;
-  height: 80vh;
-}
-
-.footer {
-  background-color: purple;
-  height: 10vh;
-}
-
-.console {
-  display: flex;
-  margin: 0;
-
-  li {
-    list-style: none;
-  }
-}

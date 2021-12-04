@@ -4,6 +4,11 @@
     "paths": {
       "@src/*": ["src/*"],
       "@components/*": ["src/components/*"]
-    }
+    },
+    "target": "esnext",
+    "module": "esnext",
+    "strict": true,
+    "moduleResolution": "node",
+    "sourceMap": true
   }
 }

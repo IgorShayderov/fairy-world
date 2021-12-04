@@ -31,9 +31,11 @@ module.exports = (env, options) => {
         },
         {
           test: /\.ts$/,
-          use: [
-            'babel-loader',
-          ],
+          loader: 'ts-loader',
+          options: {
+            appendTsSuffixTo: [/\.vue$/],
+          },
+          exclude: /node_modules/,
         },
         {
           test: /\.scss$/,

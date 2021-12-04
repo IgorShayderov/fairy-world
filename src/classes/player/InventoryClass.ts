@@ -1,9 +1,33 @@
+import Item from '../items/ItemClass';
 import Backpack from './BackpackClass';
+
+type EquipedItems = {
+  necklace: null | Item;
+  helmet: null | Item;
+  ring: null | Item;
+  weapon: null | Item;
+  armor: null | Item;
+  shield: null | Item;
+  gloves: null | Item;
+  pants: null | Item;
+  shoes: null | Item;
+}
+
+type Inventory = {
+  equipedItems: EquipedItems;
+  backpackedItems: Backpack;
+  quickSlots: Set<Item>;
+
+  new (): Inventory;
+  // equipItem: () => void
+  // unequipItem: Function;
+}
 
 /**
  * Player inventory
+ * @param {Inventory} this - Inventory constructor
  */
-function Inventory(): void {
+function Inventory(this: Inventory): void {
   this.equipedItems = {
     necklace: null,
     helmet: null,
@@ -22,15 +46,15 @@ function Inventory(): void {
   this.quickSlots = new Set();
 }
 
-Inventory.prototype.equipItem = function(item): void {
+Inventory.prototype.equipItem = function(this: Inventory, item: Item): void {
   const { itemType } = item;
 
   this.equipedItems[itemType] = item;
   console.info(`%c${item} item is successfully equiped.`, 'color: red;');
 };
 
-Inventory.prototype.unequipItem = function(itemType: 'string'): void {
-  if (Object.prototype.hasOwnProperty.call(this.equipedItems)) {
+Inventory.prototype.unequipItem = function(this: Inventory, itemType: 'string'): void {
+  if (Object.prototype.hasOwnProperty.call(this.equipedItems, itemType)) {
     this.equipedItems[itemType] = null;
   } else {
     throw new Error('Wrong item type');
