@@ -3,7 +3,6 @@ import Item from '@src/classes/items/ItemClass';
 
 /**
  * Player backpack
- * @param {Backpack} this - Backpack constructor
  */
 class Backpack {
   maxItemsAmount: number;

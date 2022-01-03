@@ -13,45 +13,39 @@ type EquipedItems = {
   shoes: null | Item;
 }
 
-type Inventory = {
+/**
+ * Player inventory
+ */
+class Inventory {
   equipedItems: EquipedItems;
   backpackedItems: Backpack;
   quickSlots: Set<Item>;
 
-  new (): Inventory;
-  // equipItem: () => void
-  // unequipItem: Function;
-}
+  constructor() {
+    this.equipedItems = {
+      necklace: null,
+      helmet: null,
+      ring: null,
+      weapon: null,
+      armor: null,
+      shield: null,
+      gloves: null,
+      pants: null,
+      shoes: null,
+    };
+    Object.seal(this.equipedItems);
+    this.backpackedItems = new Backpack();
+    this.quickSlots = new Set();
+  }
 
-/**
- * Player inventory
- * @param {Inventory} this - Inventory constructor
- */
-function Inventory(this: Inventory): void {
-  this.equipedItems = {
-    necklace: null,
-    helmet: null,
-    ring: null,
-    weapon: null,
-    armor: null,
-    shield: null,
-    gloves: null,
-    pants: null,
-    shoes: null,
+  equipItem(this: Inventory, item: Item): void {
+    const { itemType } = item;
+
+    this.equipedItems[itemType] = item;
+    console.info(`%c${item} item is successfully equiped.`, 'color: red;');
   };
-
-  Object.seal(this.equipedItems);
-
-  this.backpackedItems = new Backpack();
-  this.quickSlots = new Set();
 }
 
-Inventory.prototype.equipItem = function(this: Inventory, item: Item): void {
-  const { itemType } = item;
-
-  this.equipedItems[itemType] = item;
-  console.info(`%c${item} item is successfully equiped.`, 'color: red;');
-};
 
 Inventory.prototype.unequipItem = function(this: Inventory, itemType: 'string'): void {
   if (Object.prototype.hasOwnProperty.call(this.equipedItems, itemType)) {
