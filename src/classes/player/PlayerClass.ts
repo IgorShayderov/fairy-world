@@ -1,5 +1,7 @@
 import Inventory from './InventoryClass';
 
+const playerLevel = new WeakMap();
+
 type Player = {
   inventory: Inventory;
   name: string;
@@ -29,6 +31,8 @@ function Player(this: Player, name: string): void {
   this.inventory = new Inventory();
   // basicInfo
   this.name = name;
+
+  playerLevel.set(this, 0);
   this.level = 0;
   this.experience = 0;
   this.experienceToLvlUp = 1000;

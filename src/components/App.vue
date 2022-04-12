@@ -1,11 +1,11 @@
 <template>
   <main>
-    <header class="header"></header>
+    <header class="header" />
 
-    <main class="content"></main>
+    <main class="content" />
 
     <footer class="footer">
-      <ul class="console"></ul>
+      <ul class="console" />
     </footer>
   </main>
 </template>
@@ -15,22 +15,21 @@ import { defineComponent } from 'vue';
 
 export default defineComponent({
 
-})
+});
 </script>
 
 <style lang="scss" scoped>
 .header {
-  background-color: red;
+  border-bottom: 1px solid red;
   height: 10vh;
 }
 
 .content {
-  background-color: yellow;
   height: 80vh;
 }
 
 .footer {
-  background-color: purple;
+  border-top: 1px solid purple;
   height: 10vh;
 }
 

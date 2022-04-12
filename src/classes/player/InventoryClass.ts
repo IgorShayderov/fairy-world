@@ -2,6 +2,8 @@ import Item from '../items/ItemClass';
 import Backpack from './BackpackClass';
 
 type EquipedItems = {
+  [index: string]: null | Item;
+
   necklace: null | Item;
   helmet: null | Item;
   ring: null | Item;
@@ -38,21 +40,21 @@ class Inventory {
     this.quickSlots = new Set();
   }
 
-  equipItem(this: Inventory, item: Item): void {
+  equipItem(item: Item): void {
     const { itemType } = item;
 
     this.equipedItems[itemType] = item;
     console.info(`%c${item} item is successfully equiped.`, 'color: red;');
-  };
+  }
+
+  unequipItem(itemType: string): void {
+    if (Object.prototype.hasOwnProperty.call(this.equipedItems, itemType)) {
+      this.equipedItems[itemType] = null;
+    } else {
+      throw new Error('Wrong item type');
+    }
+  }
 }
 
-
-Inventory.prototype.unequipItem = function(this: Inventory, itemType: 'string'): void {
-  if (Object.prototype.hasOwnProperty.call(this.equipedItems, itemType)) {
-    this.equipedItems[itemType] = null;
-  } else {
-    throw new Error('Wrong item type');
-  }
-};
 
 export default Inventory;

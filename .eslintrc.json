@@ -25,6 +25,11 @@
       "ignoreStrings": true,
       "ignoreTemplateLiterals": true
     }],
-    "no-console": ["error", { "allow": ["warn", "error"] }]
-  }
+    "no-console": ["error", { "allow": ["warn", "error", "info"] }],
+    "require-jsdoc": 0
+  },
+  "overrides": [{
+    "files": ["*.vue"],
+    "parser": "vue-eslint-parser"
+  }]
 }

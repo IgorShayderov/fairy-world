@@ -1,21 +1,11 @@
-// import Item from './ItemClass';
+import Item from './ItemClass';
+class Weapon extends Item {
+  weaponType: string;
 
-// /**
-//  * Weapon item
-//  * @param {string} name - Weapon name
-//  * @param {string} weaponType - Weapon type
-//  */
-// function Weapon(name: string, weaponType: string): void {
-//   Item.call(this, name, 'weapon');
+  constructor(name = '', itemType = 'common', cost = 0, weaponType: string) {
+    super(name, itemType, cost);
+    this.weaponType = weaponType;
+  }
+}
 
-//   this.weaponType = weaponType;
-// }
-
-// Weapon.prototype = new Item();
-// Object.defineProperty(Weapon.prototype, 'contructor', {
-//   enumerable: false,
-//   value: Weapon,
-//   writable: true,
-// });
-
-// export default Weapon;
+export default Weapon;

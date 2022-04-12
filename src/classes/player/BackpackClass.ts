@@ -1,4 +1,3 @@
-/* eslint-disable require-jsdoc */
 import Item from '@src/classes/items/ItemClass';
 
 /**
