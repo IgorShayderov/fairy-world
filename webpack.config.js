@@ -25,9 +25,7 @@ module.exports = (env, options) => {
       rules: [
         {
           test: /\.vue$/,
-          use: [
-            'vue-loader',
-          ],
+          use: ['vue-loader'],
         },
         {
           test: /\.ts$/,
@@ -45,6 +43,10 @@ module.exports = (env, options) => {
             'sass-loader',
           ],
         },
+        {
+          test: /\.(svg|png|jpe?g|gif)$/i,
+          use: ['file-loader'],
+        },
       ],
     },
     output: {
@@ -59,6 +61,7 @@ module.exports = (env, options) => {
       alias: {
         '@src': path.resolve(__dirname, 'src'),
         '@components': path.resolve(__dirname, 'src/components'),
+        '@images': path.resolve(__dirname, 'public/images'),
       },
       extensions: ['.ts', '.js', '.vue'],
     },

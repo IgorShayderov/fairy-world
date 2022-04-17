@@ -1,26 +1,30 @@
 <template>
-  <main>
-    <header class="header" />
+  <header class="header">
+    <PlayerInventory />
+  </header>
 
-    <main class="content" />
+  <main class="content" />
 
-    <footer class="footer">
-      <ul class="console" />
-    </footer>
-  </main>
+  <footer class="footer">
+    <ul class="console" />
+  </footer>
 </template>
 
 <script lang="ts">
+import PlayerInventory from './PlayerInventory.vue';
 import { defineComponent } from 'vue';
 
 export default defineComponent({
-
+  components: { PlayerInventory },
+  setup() {
+    console.info('setup');
+  },
 });
 </script>
 
 <style lang="scss" scoped>
 .header {
-  border-bottom: 1px solid red;
+  border-bottom: 1px solid black;
   height: 10vh;
 }
 
@@ -29,7 +33,7 @@ export default defineComponent({
 }
 
 .footer {
-  border-top: 1px solid purple;
+  border-top: 1px solid black;
   height: 10vh;
 }
 
