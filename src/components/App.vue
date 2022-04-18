@@ -1,6 +1,6 @@
 <template>
   <header class="header">
-    <PlayerInventory />
+    <PlayerInventory :player-name="playerName" />
   </header>
 
   <main class="content" />
@@ -11,13 +11,18 @@
 </template>
 
 <script lang="ts">
+
 import PlayerInventory from './PlayerInventory.vue';
 import { defineComponent } from 'vue';
 
 export default defineComponent({
   components: { PlayerInventory },
   setup() {
-    console.info('setup');
+    const playerName = 'Hero';
+
+    return {
+      playerName,
+    };
   },
 });
 </script>
@@ -26,6 +31,8 @@ export default defineComponent({
 .header {
   border-bottom: 1px solid black;
   height: 10vh;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .content {

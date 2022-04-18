@@ -1,4 +1,7 @@
 {
+  "files": [
+    "./vue-shims.d.ts"
+  ],
   "compilerOptions": {
     "baseUrl": "./",
     "paths": {
@@ -9,6 +12,6 @@
     "module": "esnext",
     "strict": true,
     "moduleResolution": "node",
-    "sourceMap": true
+    "sourceMap": true,
   }
 }

@@ -1,0 +1,11 @@
+.inventory-icon {
+  background: center / contain no-repeat url('~@images/inventory/inventory-button.svg');
+}
+
+$player-equipment: ("ring", "helmet", "necklace", "first-hand", "armor", "second-hand", "gloves", "pants", "shoes");
+
+@each $itemType in $player-equipment {
+  .#{$itemType}-icon {
+    background: center / contain no-repeat url('~@images/inventory/#{$itemType}.svg');
+  }
+}

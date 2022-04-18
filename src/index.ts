@@ -1,6 +1,7 @@
 import './scss/main.scss';
 import './scss/indentation.scss';
 import './scss/buttons.scss';
+import './scss/icons.scss';
 
 import { createApp } from 'vue';
 import App from '@components/App.vue';

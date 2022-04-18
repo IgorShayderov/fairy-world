@@ -45,7 +45,7 @@ module.exports = (env, options) => {
         },
         {
           test: /\.(svg|png|jpe?g|gif)$/i,
-          use: ['file-loader'],
+          type: 'asset',
         },
       ],
     },
@@ -63,7 +63,7 @@ module.exports = (env, options) => {
         '@components': path.resolve(__dirname, 'src/components'),
         '@images': path.resolve(__dirname, 'public/images'),
       },
-      extensions: ['.ts', '.js', '.vue'],
+      extensions: ['.ts', '.js', '.vue', '.scss'],
     },
   };
 };
