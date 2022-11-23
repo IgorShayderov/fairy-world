@@ -1,6 +1,6 @@
 {
   "files": [
-    "./vue-shims.d.ts"
+    "vue-shims.d.ts"
   ],
   "compilerOptions": {
     "baseUrl": "./",
@@ -8,10 +8,11 @@
       "@src/*": ["src/*"],
       "@components/*": ["src/components/*"]
     },
-    "target": "es2015",
+    "target": "ESNext",
     "module": "esnext",
+    "moduleResolution": "nodenext",
     "strict": true,
-    "moduleResolution": "node",
     "sourceMap": true,
+    "strictPropertyInitialization": true
   }
 }

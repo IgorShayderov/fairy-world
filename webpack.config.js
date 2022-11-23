@@ -21,6 +21,14 @@ module.exports = (env, options) => {
     devtool: NODE_ENV === 'development' ? 'eval-cheap-module-source-map' : false,
     entry: './src/index.ts',
     mode: 'development',
+    resolve: {
+      alias: {
+        '@src': path.resolve(__dirname, 'src'),
+        '@components': path.resolve(__dirname, 'src/components'),
+        '@images': path.resolve(__dirname, 'public/images'),
+      },
+      extensions: ['.ts', '.js', '.vue', '.scss'],
+    },
     module: {
       rules: [
         {
@@ -57,13 +65,5 @@ module.exports = (env, options) => {
       new HtmlWebpackPlugin({ template: './public/app.html' }),
       new VueLoaderPlugin(),
     ],
-    resolve: {
-      alias: {
-        '@src': path.resolve(__dirname, 'src'),
-        '@components': path.resolve(__dirname, 'src/components'),
-        '@images': path.resolve(__dirname, 'public/images'),
-      },
-      extensions: ['.ts', '.js', '.vue', '.scss'],
-    },
   };
 };

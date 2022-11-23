@@ -1,9 +1,7 @@
 import Item from '../items/ItemClass';
 import Backpack from './BackpackClass';
 
-type EquipedItems = {
-  [index: string]: null | Item;
-
+interface EquipedItems {
   necklace: null | Item;
   helmet: null | Item;
   ring: null | Item;

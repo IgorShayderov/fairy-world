@@ -1,17 +1,19 @@
 // TODO Factory
 
+export type ItemType = 'common' | 'weapon' | 'armor';
+
 /**
  * Abstract class for items
  * @param {string} name - Item name
- * @param {string} itemType - Item type
+ * @param {ItemType} itemType - Item type
  * @param {number} cost - Item cost
  */
 class Item {
   name: string;
-  itemType: string;
-  cost: number
+  itemType: ItemType;
+  cost: number;
 
-  constructor(name = '', itemType = 'common', cost = 0) {
+  constructor(name = '', itemType = 'common' as ItemType, cost = 0) {
     this.name = name;
     this.itemType = itemType;
     this.cost = cost;

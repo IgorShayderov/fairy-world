@@ -4,17 +4,21 @@ import './scss/buttons.scss';
 import './scss/icons.scss';
 
 import { createApp } from 'vue';
+import mitt, { Emitter } from 'mitt';
+
 import App from '@components/App.vue';
-// import Player from '@src/classes/player/PlayerClass';
-// import Weapon from '@src/classes/items/WeaponClass';
+import { store } from '@src/store/main';
 
-// import Log from '@src/helpers/LogClass';
+const app = createApp(App);
 
-'use strict';
+app.use(store);
 
-createApp(App).mount('#app');
+type Events = {
+  'close': void;
+}
 
-// const chaosSword = new Weapon('Chaos Sword', 'sword');
-// const player = new Player('Hero');
+const emitter: Emitter<Events> = mitt<Events>();
 
-// player.inventory.equipItem(chaosSword);
+app.config.globalProperties.emitter = emitter;
+
+app.mount('#app');

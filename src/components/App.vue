@@ -1,6 +1,7 @@
 <template>
   <header class="header">
-    <PlayerInventory :player-name="playerName" />
+    <PlayerAttributes />
+    <PlayerInventory />
   </header>
 
   <main class="content" />
@@ -11,17 +12,15 @@
 </template>
 
 <script lang="ts">
-
-import PlayerInventory from './PlayerInventory.vue';
 import { defineComponent } from 'vue';
 
-export default defineComponent({
-  components: { PlayerInventory },
-  setup() {
-    const playerName = 'Hero';
+import PlayerInventory from './PlayerInventory.vue';
+import PlayerAttributes from './PlayerAttributes.vue';
 
+export default defineComponent({
+  components: { PlayerInventory, PlayerAttributes },
+  setup() {
     return {
-      playerName,
     };
   },
 });
