@@ -1,7 +1,6 @@
 const path = require('path');
 
 const HtmlWebpackPlugin = require('html-webpack-plugin');
-const { VueLoaderPlugin } = require('vue-loader');
 
 const { NODE_ENV } = process.env;
 
@@ -27,20 +26,13 @@ module.exports = (env, options) => {
         '@components': path.resolve(__dirname, 'src/components'),
         '@images': path.resolve(__dirname, 'public/images'),
       },
-      extensions: ['.ts', '.js', '.vue', '.scss'],
+      extensions: ['.ts', '.js', '.scss'],
     },
     module: {
       rules: [
         {
-          test: /\.vue$/,
-          use: ['vue-loader'],
-        },
-        {
           test: /\.ts$/,
           loader: 'ts-loader',
-          options: {
-            appendTsSuffixTo: [/\.vue$/],
-          },
           exclude: /node_modules/,
         },
         {
@@ -63,7 +55,6 @@ module.exports = (env, options) => {
     },
     plugins: [
       new HtmlWebpackPlugin({ template: './public/app.html' }),
-      new VueLoaderPlugin(),
     ],
   };
 };

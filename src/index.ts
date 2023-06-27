@@ -3,15 +3,15 @@ import './scss/indentation.scss';
 import './scss/buttons.scss';
 import './scss/icons.scss';
 
-import { createApp } from 'vue';
-import mitt, { Emitter } from 'mitt';
+// import { createApp } from 'vue';
+// import mitt, { Emitter } from 'mitt';
 
-import App from '@components/App.vue';
-import { store } from '@src/store/main';
+// import App from '@components/App.vue';
+// import { store } from '@src/store/main';
 
-const app = createApp(App);
+// const app = createApp(App);
 
-app.use(store);
+// app.use(store);
 
 type Events = {
   'close': void;
@@ -19,6 +19,6 @@ type Events = {
 
 const emitter: Emitter<Events> = mitt<Events>();
 
-app.config.globalProperties.emitter = emitter;
+// app.config.globalProperties.emitter = emitter;
 
-app.mount('#app');
+// app.mount('#app');
