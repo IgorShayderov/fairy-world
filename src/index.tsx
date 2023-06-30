@@ -9,4 +9,3 @@ ReactDOM.createRoot(document.getElementById('app') as HTMLElement).render(
       <App />
     </React.StrictMode>,
 );
-// const emitter: Emitter<Events> = mitt<Events>();
