@@ -9,7 +9,7 @@ jobs:
         run: npm ci
 
       - name: lint
-        run: npx eslint .
+        run: make lint
 
       - name: test
-        run: npm run test
+        run: make test
