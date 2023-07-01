@@ -1,10 +1,12 @@
 import { useTranslation } from 'react-i18next';
 
+import styles from './LoginPage.module.scss';
+
 const LoginPage = () => {
   const { t } = useTranslation();
 
   return (
-    <div>
+    <div className={styles.example}>
       <h2>{ t('pages.loginPage.title') }</h2>
     </div>
   );
