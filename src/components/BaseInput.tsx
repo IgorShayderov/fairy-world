@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import cn from 'classnames';
 
-import styles from 'BaseInput.module.scss';
+import styles from './BaseInput.module.scss';
 
 interface IProps {
   id: string;

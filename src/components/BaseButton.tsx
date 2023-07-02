@@ -1,6 +1,6 @@
 import cn from 'classnames';
 
-import styles from 'BaseButton.module.scss';
+import styles from './BaseButton.module.scss';
 
 interface IProps {
   text?: string;
@@ -14,5 +14,7 @@ const BaseButton = (props: IProps) => {
     [styles.btn_disabled]: !isValid,
   });
 
-  return <button>{text}</button>;
+  return <button className={buttonClasses}>{text}</button>;
 };
+
+export default BaseButton;

@@ -7,12 +7,10 @@ const initI18n = () => {
   const defaultLanguage = 'en';
   const i18nInstance = i18n.createInstance();
 
-  i18nInstance
-      .use(initReactI18next)
-      .init(({
-        lng: defaultLanguage,
-        resources,
-      }));
+  i18nInstance.use(initReactI18next).init({
+    lng: defaultLanguage,
+    resources,
+  });
 
   return i18nInstance;
 };
