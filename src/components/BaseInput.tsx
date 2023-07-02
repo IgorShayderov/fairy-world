@@ -9,10 +9,12 @@ interface IProps {
   value: string;
   isValid?: boolean;
   errors?: string[];
+  inputCallback?: (event: Event) => void;
+  changeCallback?: (event: Event) => void;
 }
 
 const BaseInput = (props: IProps) => {
-  const { id, value, labelText = '', errors = [], isValid } = props;
+  const { id, value, labelText = '', errors = [], isValid, inputCallback, changeCallback } = props;
   const isTouched = useRef(false);
 
   const inputClasses = cn(styles.input, {
@@ -26,12 +28,20 @@ const BaseInput = (props: IProps) => {
 
   });
 
-  const handleInput = () => {
+  const handleInput = () => (event: Event) => {
     isTouched.current = false;
+
+    if (inputCallback !== undefined) {
+      inputCallback(event);
+    }
   };
 
-  const handleChange = () => {
+  const handleChange = () => (event: Event) => {
     isTouched.current = Boolean(value);
+
+    if (changeCallback !== undefined) {
+      changeCallback(event);
+    }
   };
 
   return (
