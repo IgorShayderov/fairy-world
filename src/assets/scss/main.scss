@@ -1,11 +1,18 @@
-@import './buttons.scss';
 @import './icons.scss';
 @import './indentation.scss';
 
 :root {
-  --background-color: lightgray;
+  height: 100%;
+
+  --background-color: #041325;
+  --sub-background-color: #232e3a;
+  --border-color: #d6dbfc;
+  --text-color: #ffffff;
+  --success-color: #3d982c;
+  --alert-color: #f20b0b;
 }
 
 body {
   margin: 0;
+  height: 100%;
 }

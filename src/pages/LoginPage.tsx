@@ -5,9 +5,17 @@ import styles from './LoginPage.module.scss';
 const LoginPage = () => {
   const { t } = useTranslation();
 
+  const handleSubmit = () => {
+    //
+  };
+
   return (
     <div className={styles.example}>
-      <h2>{ t('pages.loginPage.title') }</h2>
+      <h1>{ t('pages.loginPage.title') }</h1>
+
+      <form onSubmit={handleSubmit}>
+        
+      </form>
     </div>
   );
 };
