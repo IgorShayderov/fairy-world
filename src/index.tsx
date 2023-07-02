@@ -14,15 +14,14 @@ const initApp = async () => {
   const i18n = await initI18n();
 
   ReactDOM.createRoot(document.getElementById('app') as HTMLElement).render(
-      <React.StrictMode>
-        <Provider store={store}>
-          <I18nextProvider i18n={i18n}>
-            <App />
-          </I18nextProvider>
-        </Provider>
-      </React.StrictMode>,
+    <React.StrictMode>
+      <Provider store={store}>
+        <I18nextProvider i18n={i18n}>
+          <App />
+        </I18nextProvider>
+      </Provider>
+    </React.StrictMode>
   );
 };
 
 initApp();
-

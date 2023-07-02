@@ -11,11 +11,9 @@ const LoginPage = () => {
 
   return (
     <div className={styles.example}>
-      <h1>{ t('pages.loginPage.title') }</h1>
+      <h1>{t('pages.loginPage.title')}</h1>
 
-      <form onSubmit={handleSubmit}>
-        
-      </form>
+      <form onSubmit={handleSubmit}></form>
     </div>
   );
 };

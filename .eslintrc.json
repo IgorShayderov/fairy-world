@@ -8,17 +8,20 @@
     "eslint:recommended",
     "google",
     "plugin:@typescript-eslint/recommended",
-    "plugin:react-hooks/recommended"
+    "plugin:react-hooks/recommended",
+    "plugin:prettier/recommended"
   ],
   "parser": "@typescript-eslint/parser",
   "parserOptions": {
     "ecmaVersion": "latest",
     "sourceType": "module"
   },
-  "plugins": ["@typescript-eslint", "react-refresh"],
+  "plugins": ["@typescript-eslint", "react-refresh", "import"],
   "rules": {
     "object-curly-spacing": ["error", "always"],
-    "max-len": ["error", 100, 2, {
+    "max-len": ["error", {
+      "code": 100,
+      "tabWidth": 2,
       "ignoreUrls": true,
       "ignoreComments": false,
       "ignoreRegExpLiterals": true,
@@ -27,6 +30,10 @@
     }],
     "no-console": ["error", { "allow": ["warn", "error", "info"] }],
     "require-jsdoc": 0,
-    "react-refresh/only-export-components": "warn"
+    "react-refresh/only-export-components": "warn",
+    "object-property-newline": ["error", { "allowAllPropertiesOnSameLine": true }],
+    "no-case-declarations": "error",
+    "array-bracket-spacing": "error",
+    "import/no-duplicates": "error"
   }
 }

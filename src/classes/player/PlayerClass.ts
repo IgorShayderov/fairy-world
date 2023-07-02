@@ -4,10 +4,10 @@ type PlayerInfo = {
   name: string;
   level: number;
   experience: number;
-  experienceToLvlUp : number;
+  experienceToLvlUp: number;
   gold: number;
   enemiesKilled: number;
-}
+};
 
 type PlayerStats = {
   hitpoints: number;
@@ -15,19 +15,18 @@ type PlayerStats = {
   defence: number;
   critticalDamage: number;
   critticalChance: number;
-}
+};
 
 type PlayerAttributes = {
   strength: number;
   endurance: number;
   vitality: number;
   freeAttributes: number;
-}
+};
 
 type PlayerExtraData = {
   location: null;
-}
-
+};
 
 /**
  * Player information

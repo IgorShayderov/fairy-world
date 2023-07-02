@@ -2,7 +2,7 @@ type Range = {
   from: number;
   to: number;
   isExclusive: boolean;
-}
+};
 
 /**
  * Range
@@ -11,13 +11,18 @@ type Range = {
  * @param {number} to - End number
  * @param {boolean} isExclusive - Exclude last number
  */
-function Range(this: Range, from: number, to: number, isExclusive = false): void {
+function Range(
+  this: Range,
+  from: number,
+  to: number,
+  isExclusive = false
+): void {
   if (to === 0) {
-    throw new Error('To can\'t be zero.');
+    throw new Error("To can't be zero.");
   }
 
   if (to < from) {
-    throw new Error('To can\'t be lower than from.');
+    throw new Error("To can't be lower than from.");
   }
 
   if (isExclusive && to <= from) {
@@ -29,7 +34,7 @@ function Range(this: Range, from: number, to: number, isExclusive = false): void
   this.isExclusive = isExclusive;
 }
 
-Range.prototype[Symbol.iterator] = function() {
+Range.prototype[Symbol.iterator] = function () {
   return {
     current: this.from,
     last: this.isExclusive ? this.to - 1 : this.to,
