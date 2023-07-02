@@ -32,8 +32,8 @@
     "require-jsdoc": 0,
     "react-refresh/only-export-components": "warn",
     "object-property-newline": ["error", { "allowAllPropertiesOnSameLine": true }],
-    "no-duplicate-imports": "error",
     "no-case-declarations": "error",
-    "array-bracket-spacing": "error"
+    "array-bracket-spacing": "error",
+    "import/no-duplicates": "error"
   }
 }
