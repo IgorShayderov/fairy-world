@@ -14,7 +14,15 @@ interface IProps {
 }
 
 const BaseInput = (props: IProps) => {
-  const { id, value, labelText = '', errors = [], isValid, inputCallback, changeCallback } = props;
+  const {
+    id,
+    value,
+    labelText = '',
+    errors = [],
+    isValid = true,
+    inputCallback,
+    changeCallback,
+  } = props;
   const isTouched = useRef(false);
 
   const inputClasses = cn(styles.input, {
@@ -25,7 +33,6 @@ const BaseInput = (props: IProps) => {
   const shouldBeVisible = isTouched.current && errors.length > 0 && !isValid;
   const errorMessagesClasses = cn(styles['error-message'], {
     [styles['error-message_visible']]: shouldBeVisible,
-
   });
 
   const handleInput = () => (event: Event) => {
@@ -47,11 +54,8 @@ const BaseInput = (props: IProps) => {
   return (
     <template>
       <>
-        <label
-          htmlFor={id}
-          className={styles.label}
-        >
-          { labelText }
+        <label htmlFor={id} className={styles.label}>
+          {labelText}
           <input
             id={id}
             aria-describedby={`${id}-errorMessages`}
@@ -62,11 +66,8 @@ const BaseInput = (props: IProps) => {
           />
         </label>
 
-        <p
-          id={`${id}-errorMessages`}
-          className={errorMessagesClasses}
-        >
-          { errors.join(', ') }
+        <p id={`${id}-errorMessages`} className={errorMessagesClasses}>
+          {errors.join(', ')}
         </p>
       </>
     </template>
