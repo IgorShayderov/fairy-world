@@ -6,7 +6,7 @@ export const signIn = ({ login, password }: ISignData) => {
   return {
     token: '',
     username: '',
-  }
+  };
 };
 
 export const signUp = ({ login, password }: ISignData) => {
@@ -15,5 +15,5 @@ export const signUp = ({ login, password }: ISignData) => {
   return {
     token: '',
     username: '',
-  }
+  };
 };

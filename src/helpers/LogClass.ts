@@ -1,6 +1,6 @@
 type Log = {
   message: string;
-}
+};
 
 /**
  * Logs message to the console
