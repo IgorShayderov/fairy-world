@@ -31,7 +31,6 @@
     "no-console": ["error", { "allow": ["warn", "error", "info"] }],
     "require-jsdoc": 0,
     "react-refresh/only-export-components": "warn",
-    "object-curly-newline": ["error", { "minProperties": 2, "consistent": true }],
     "object-property-newline": ["error", { "allowAllPropertiesOnSameLine": true }],
     "no-duplicate-imports": "error",
     "no-case-declarations": "error",
