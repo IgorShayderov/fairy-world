@@ -1,6 +1,6 @@
-#Game project.
+# Game project.
 
-##Description:
+## Description:
 
 Simple RPG game.
 
