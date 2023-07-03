@@ -22,7 +22,8 @@
     "paths": {
       "@assets/*": ["./src/assets/*"],
       "@classes/*": ["./src/classes/*"],
-      "@components/*": ["./src/components/*"]
+      "@components/*": ["./src/components/*"],
+      "@hooks/*": ["./src/hooks/*"],
     }
   },
   "include": ["src"],
