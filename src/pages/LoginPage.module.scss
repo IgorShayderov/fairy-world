@@ -1,3 +1,46 @@
-.example {
-  background-color: yellowgreen;
+$small-screen-size: 576px;
+
+.form-wrapper {
+  background-color: var(--sub-background-color);
+  border-radius: 5px;
+  border: 1px solid var(--border-color);
+  margin: auto 20px;
+  padding: 15px;
+
+  @media screen and (min-width: $small-screen-size) {
+    width: 350px;
+  }
+}
+
+.title {
+  margin: 0 0 15px;
+  font-size: 1.8rem;
+}
+.input {
+  margin: 0 0 10px;
+}
+
+.password-input {
+  padding: 5px 40px 5px 5px;
+}
+
+.show-password-btn {
+  background: no-repeat center/20px 20px url('@/assets/icons/eye.svg');
+  position: absolute;
+
+  bottom: 11px;
+  height: 30px;
+  right: 10px;
+  width: 30px;
+}
+
+.show-password-btn_password-visible {
+  background: no-repeat center/24px 24px url('@/assets/icons/eye-crossed.svg');
+}
+
+.submit-btn {
+  background-color: var(--success-color);
+  color: var(--text-color);
+  margin: 15px 0 0;
+  width: 100%;
 }

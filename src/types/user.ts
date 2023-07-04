@@ -1,4 +1,4 @@
 export interface ISignData {
-  login: string;
+  email: string;
   password: string;
 }

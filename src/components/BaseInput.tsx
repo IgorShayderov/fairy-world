@@ -1,9 +1,11 @@
 import { useRef } from 'react';
 import cn from 'classnames';
 
+import type { ReactNode, InputHTMLAttributes } from 'react';
+
 import styles from './BaseInput.module.scss';
 
-interface IProps {
+interface IProps extends InputHTMLAttributes<HTMLInputElement> {
   id: string;
   labelText?: string;
   value: string;
@@ -11,6 +13,8 @@ interface IProps {
   errors?: string[];
   inputCallback?: (event: Event) => void;
   changeCallback?: (event: Event) => void;
+  children: ReactNode;
+  attrs?: object;
 }
 
 const BaseInput = (props: IProps) => {
@@ -22,6 +26,8 @@ const BaseInput = (props: IProps) => {
     isValid = true,
     inputCallback,
     changeCallback,
+    children,
+    ...attrs
   } = props;
   const isTouched = useRef(false);
 
@@ -55,7 +61,7 @@ const BaseInput = (props: IProps) => {
     <template>
       <>
         <label htmlFor={id} className={styles.label}>
-          {labelText}
+          {children || labelText}
           <input
             id={id}
             aria-describedby={`${id}-errorMessages`}
@@ -63,6 +69,7 @@ const BaseInput = (props: IProps) => {
             className={inputClasses}
             onInput={handleInput}
             onChange={handleChange}
+            {...attrs}
           />
         </label>
 
