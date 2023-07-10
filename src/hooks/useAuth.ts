@@ -7,29 +7,26 @@ const useAuth = () => {
   const savedUser = localStorage.getItem('currentUser');
   const [currentUser, setUser] = useState(savedUser);
 
-  const signIn = async ({ login, password }: ISignData) => {
-    const { token, username } = await userAPI.signIn({ login, password });
+  const signIn = async ({ email, password }: ISignData) => {
+    const { token, username } = await userAPI.signIn({ email, password });
 
     localStorage.setItem('token', token);
     localStorage.setItem('currentUser', username);
     setUser(username);
   };
 
-  const signUp = async ({ login, password }: ISignData) => {
-    const { token, username } = await userAPI.signIn({ login, password });
+  const signUp = async ({ email, password }: ISignData) => {
+    const { token, username } = await userAPI.signIn({ email, password });
 
     localStorage.setItem('token', token);
     localStorage.setItem('currentUser', username);
     setUser(username);
   };
 
-  const signOut = () => {
-    return new Promise((resolve) => {
-      localStorage.removeItem('token');
-      localStorage.removeItem('currentUser');
-      setUser(null);
-      resolve(null);
-    });
+  const signOut = async () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('currentUser');
+    setUser(null);
   };
 
   const getToken = () => {
