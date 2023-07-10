@@ -80,23 +80,22 @@ const LoginPage = () => {
   };
 
   return (
-    <div className={styles.example}>
-      <h1>{t('pages.loginPage.title')}</h1>
-
-      <form onSubmit={handleSubmit}>
+    <div className={styles['form-wrapper']}>
+      <h1 className={styles.title}>{t('pages.loginPage.title')}</h1>
+      <form className={styles['form']} onSubmit={handleSubmit}>
         <BaseInput
           value={email}
           id="email"
           autoComplete="email"
           type="email"
           name="email"
+          className={styles.input}
           maxLength={60}
           minLength={5}
           placeholder="Type your email"
           required
           pattern={emailRegex.toString().replaceAll('/', '')}
           isValid={isEmailValid()}
-          className={styles.input}
           errors={getEmailErrors()}
           onInput={handleEmailInput}
         >

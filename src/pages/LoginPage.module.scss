@@ -16,8 +16,11 @@ $small-screen-size: 576px;
   margin: 0 0 15px;
   font-size: 1.8rem;
 }
+
 .input {
-  margin: 0 0 10px;
+  box-sizing: border-box;
+  height: 30px;
+  min-width: 100%;
 }
 
 .password-input {
@@ -25,7 +28,7 @@ $small-screen-size: 576px;
 }
 
 .show-password-btn {
-  background: no-repeat center/20px 20px url('@/assets/icons/eye.svg');
+  background: no-repeat center/20px 20px url('@assets/icons/eye.svg');
   position: absolute;
 
   bottom: 11px;
@@ -35,7 +38,7 @@ $small-screen-size: 576px;
 }
 
 .show-password-btn_password-visible {
-  background: no-repeat center/24px 24px url('@/assets/icons/eye-crossed.svg');
+  background: no-repeat center/24px 24px url('@assets/icons/eye-crossed.svg');
 }
 
 .submit-btn {

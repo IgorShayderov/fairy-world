@@ -13,7 +13,7 @@ interface IProps extends InputHTMLAttributes<HTMLInputElement> {
   errors?: string[];
   inputCallback?: (event: Event) => void;
   changeCallback?: (event: Event) => void;
-  children: ReactNode;
+  children?: ReactNode;
   attrs?: object;
 }
 
@@ -58,26 +58,24 @@ const BaseInput = (props: IProps) => {
   };
 
   return (
-    <template>
-      <>
-        <label htmlFor={id} className={styles.label}>
-          {children || labelText}
-          <input
-            id={id}
-            aria-describedby={`${id}-errorMessages`}
-            value={value}
-            className={inputClasses}
-            onInput={handleInput}
-            onChange={handleChange}
-            {...attrs}
-          />
-        </label>
+    <>
+      <label htmlFor={id} className={styles.label}>
+        {children || labelText}
+        <input
+          id={id}
+          aria-describedby={`${id}-errorMessages`}
+          value={value}
+          className={inputClasses}
+          onInput={handleInput}
+          onChange={handleChange}
+          {...attrs}
+        />
+      </label>
 
-        <p id={`${id}-errorMessages`} className={errorMessagesClasses}>
-          {errors.join(', ')}
-        </p>
-      </>
-    </template>
+      <p id={`${id}-errorMessages`} className={errorMessagesClasses}>
+        {errors.join(', ')}
+      </p>
+    </>
   );
 };
 

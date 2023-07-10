@@ -7,7 +7,7 @@ import styles from './BaseButton.module.scss';
 interface IProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   text?: string;
   isValid?: boolean;
-  children: ReactNode;
+  children?: ReactNode;
   attrs?: object;
 }
 
