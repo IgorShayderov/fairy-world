@@ -1,7 +1,11 @@
 import { useRef } from 'react';
 import cn from 'classnames';
 
+<<<<<<< HEAD:front/src/components/BaseInput.tsx
 import type { ReactNode, InputHTMLAttributes, SyntheticEvent } from 'react';
+=======
+import type { ReactNode, InputHTMLAttributes } from 'react';
+>>>>>>> 941c720 (Develop (#2)):src/components/BaseInput.tsx
 
 import styles from './BaseInput.module.scss';
 
@@ -11,9 +15,15 @@ interface IProps extends InputHTMLAttributes<HTMLInputElement> {
   value: string;
   isValid?: boolean;
   errors?: string[];
+<<<<<<< HEAD:front/src/components/BaseInput.tsx
   changeCallback?: (event: SyntheticEvent) => void;
   children?: ReactNode;
   className?: string;
+=======
+  inputCallback?: (event: Event) => void;
+  changeCallback?: (event: Event) => void;
+  children?: ReactNode;
+>>>>>>> 941c720 (Develop (#2)):src/components/BaseInput.tsx
   attrs?: object;
 }
 
@@ -26,7 +36,10 @@ const BaseInput = (props: IProps) => {
     isValid = true,
     changeCallback,
     children,
+<<<<<<< HEAD:front/src/components/BaseInput.tsx
     className = '',
+=======
+>>>>>>> 941c720 (Develop (#2)):src/components/BaseInput.tsx
     ...attrs
   } = props;
   const isTouched = useRef(false);
@@ -58,6 +71,10 @@ const BaseInput = (props: IProps) => {
           aria-describedby={`${id}-errorMessages`}
           value={value}
           className={inputClasses}
+<<<<<<< HEAD:front/src/components/BaseInput.tsx
+=======
+          onInput={handleInput}
+>>>>>>> 941c720 (Develop (#2)):src/components/BaseInput.tsx
           onChange={handleChange}
           {...attrs}
         />
