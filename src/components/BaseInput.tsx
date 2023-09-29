@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import cn from 'classnames';
 
-import type { ReactNode, InputHTMLAttributes } from 'react';
+import type { ReactNode, InputHTMLAttributes, SyntheticEvent } from 'react';
 
 import styles from './BaseInput.module.scss';
 
@@ -11,8 +11,7 @@ interface IProps extends InputHTMLAttributes<HTMLInputElement> {
   value: string;
   isValid?: boolean;
   errors?: string[];
-  inputCallback?: (event: Event) => void;
-  changeCallback?: (event: Event) => void;
+  changeCallback?: (event: SyntheticEvent) => void;
   children?: ReactNode;
   className?: string;
   attrs?: object;
@@ -25,8 +24,7 @@ const BaseInput = (props: IProps) => {
     labelText = '',
     errors = [],
     isValid = true,
-    onInput,
-    onChange,
+    changeCallback,
     children,
     className = '',
     ...attrs
@@ -43,19 +41,11 @@ const BaseInput = (props: IProps) => {
     [styles['error-message_visible']]: shouldBeVisible,
   });
 
-  const handleInput = () => (event: Event) => {
-    isTouched.current = false;
-
-    if (onInput !== undefined) {
-      onInput(event);
-    }
-  };
-
-  const handleChange = () => (event: Event) => {
+  const handleChange = (event: SyntheticEvent) => {
     isTouched.current = Boolean(value);
 
-    if (onChange !== undefined) {
-      onChange(event);
+    if (changeCallback !== undefined) {
+      changeCallback(event);
     }
   };
 
@@ -68,7 +58,6 @@ const BaseInput = (props: IProps) => {
           aria-describedby={`${id}-errorMessages`}
           value={value}
           className={inputClasses}
-          onInput={handleInput}
           onChange={handleChange}
           {...attrs}
         />

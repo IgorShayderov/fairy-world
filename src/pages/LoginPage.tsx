@@ -2,6 +2,8 @@ import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import cn from 'classnames';
 
+import type { SyntheticEvent } from 'react';
+
 import BaseInput from '@components/BaseInput';
 import BaseButton from '@components/BaseButton';
 
@@ -21,9 +23,11 @@ const LoginPage = () => {
 
   const emailRegex = /^\S+@\S+\.\S+$/;
   const isEmailValid = () => email.trim().match(emailRegex) !== null;
-  const passwordRegex =
-    /^(?=.*[0-9])(?=.*[!@#$%^&*])[a-zA-Z0-9!@#$%^&*]{6,16}$/;
-  const isPasswordValid = () => password.trim().match(passwordRegex) !== null;
+  // FIXME
+  // const passwordRegex =
+  //   /^(?=.*[0-9])(?=.*[!@#$%^&*])[a-zA-Z0-9!@#$%^&*]{6,16}$/;
+  // const isPasswordValid = () => password.trim().match(passwordRegex) !== null;
+  const isPasswordValid = () => password.trim().length > 0;
   const isFormValid = () => {
     const areFieldsValid = isPasswordValid() && isEmailValid();
 
@@ -64,12 +68,15 @@ const LoginPage = () => {
       passwordInputType === 'text',
   });
 
-  const handleEmailInput = () => (event: Event) => {
-    //
-    console.log(event, '??');
+  const handleEmailInput = (event: SyntheticEvent) => {
+    setEmail((event.target as HTMLInputElement).value);
   };
 
-  const handleSubmit = () => async (event: Event) => {
+  const handlePasswordInput = (event: SyntheticEvent) => {
+    setPassword((event.target as HTMLInputElement).value);
+  };
+
+  const handleSubmit = async (event: SyntheticEvent) => {
     event.preventDefault();
 
     if (isFormValid()) {
@@ -97,7 +104,7 @@ const LoginPage = () => {
           pattern={emailRegex.toString().replaceAll('/', '')}
           isValid={isEmailValid()}
           errors={getEmailErrors()}
-          onInput={handleEmailInput}
+          changeCallback={handleEmailInput}
         >
           Email:
         </BaseInput>
@@ -112,10 +119,10 @@ const LoginPage = () => {
           minLength={6}
           placeholder="Type your password"
           required
-          pattern={passwordRegex.toString().replaceAll('/', '')}
           isValid={isPasswordValid()}
           className={passwordInputClasses}
           errors={getPasswordErrors()}
+          changeCallback={handlePasswordInput}
         >
           Password:
           <BaseButton

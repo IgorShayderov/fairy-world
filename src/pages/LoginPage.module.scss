@@ -4,7 +4,7 @@ $small-screen-size: 576px;
   background-color: var(--sub-background-color);
   border-radius: 5px;
   border: 1px solid var(--border-color);
-  margin: 100px auto 0;
+  margin: 0 auto 0;
   padding: 15px;
 
   @media screen and (min-width: $small-screen-size) {
