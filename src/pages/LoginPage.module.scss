@@ -4,7 +4,7 @@ $small-screen-size: 576px;
   background-color: var(--sub-background-color);
   border-radius: 5px;
   border: 1px solid var(--border-color);
-  margin: auto 20px;
+  margin: 100px auto 0;
   padding: 15px;
 
   @media screen and (min-width: $small-screen-size) {
@@ -31,7 +31,7 @@ $small-screen-size: 576px;
   background: no-repeat center/20px 20px url('@assets/icons/eye.svg');
   position: absolute;
 
-  bottom: 11px;
+  bottom: 0;
   height: 30px;
   right: 10px;
   width: 30px;

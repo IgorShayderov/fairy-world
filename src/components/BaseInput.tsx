@@ -14,6 +14,7 @@ interface IProps extends InputHTMLAttributes<HTMLInputElement> {
   inputCallback?: (event: Event) => void;
   changeCallback?: (event: Event) => void;
   children?: ReactNode;
+  className?: string;
   attrs?: object;
 }
 
@@ -24,14 +25,15 @@ const BaseInput = (props: IProps) => {
     labelText = '',
     errors = [],
     isValid = true,
-    inputCallback,
-    changeCallback,
+    onInput,
+    onChange,
     children,
+    className = '',
     ...attrs
   } = props;
   const isTouched = useRef(false);
 
-  const inputClasses = cn(styles.input, {
+  const inputClasses = cn(styles.input, className, {
     [styles.input_valid]: isTouched.current && isValid,
     [styles.input_invalid]: isTouched.current && !isValid,
   });
@@ -44,16 +46,16 @@ const BaseInput = (props: IProps) => {
   const handleInput = () => (event: Event) => {
     isTouched.current = false;
 
-    if (inputCallback !== undefined) {
-      inputCallback(event);
+    if (onInput !== undefined) {
+      onInput(event);
     }
   };
 
   const handleChange = () => (event: Event) => {
     isTouched.current = Boolean(value);
 
-    if (changeCallback !== undefined) {
-      changeCallback(event);
+    if (onChange !== undefined) {
+      onChange(event);
     }
   };
 
