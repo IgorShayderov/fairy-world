@@ -4,9 +4,9 @@
   "description": "RPG game",
   "scripts": {
     "install": "npm ci",
-    "dev": "npm run dev-front && npm run dev-back",
+    "dev": "npm run dev-back && npm run dev-front",
     "dev-front": "npm --prefix ./front run dev",
-    "dev-back": "npm --prefix ./back start:dev",
+    "dev-back": "npm --prefix ./back run start:dev",
     "build": "npm run build-front && npm run build-back",
     "build-front": "npm --prefix ./front run build",
     "build-back": "npm --prefix ./back run build",
