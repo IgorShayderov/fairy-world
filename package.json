@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "RPG game",
   "scripts": {
-    "postinstall": "cd front && npm ci"
+    "postinstall": "cd front && npm ci && cd ../back && npm ci"
   },
   "author": "",
   "license": "ISC",
