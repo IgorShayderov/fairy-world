@@ -1,0 +1,14 @@
+{
+  "name": "fairy-world",
+  "version": "1.0.0",
+  "description": "RPG game",
+  "scripts": {
+    "postinstall": "cd front && npm ci"
+  },
+  "author": "",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/IgorShayderov/fairy-world.git"
+  }
+}

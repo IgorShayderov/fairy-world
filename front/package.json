@@ -1,8 +1,4 @@
 {
-  "name": "fairy_world",
-  "version": "1.0.0",
-  "description": "",
-  "main": "webpack.config.js",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,10 +6,6 @@
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "test": "NODE_OPTIONS=--experimental-vm-modules npx jest --bail"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/IgorShayderov/fairy-world.git"
   },
   "author": "",
   "license": "ISC",
