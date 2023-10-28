@@ -6,11 +6,6 @@
     "install": "npm ci",
     "dev-front": "npm --prefix ./front run dev",
     "dev-back": "npm --prefix ./back run start:dev",
-    "build-back": "npm --prefix ./back run build",
-    "test-front": "npm --prefix ./front run test",
-    "test-back": "npm --prefix ./back run test",
-    "lint-front": "npm --prefix ./front run lint",
-    "lint-back": "npm --prefix ./back run lint",
     "postinstall": ""
   },
   "author": "",

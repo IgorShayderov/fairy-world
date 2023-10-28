@@ -83,8 +83,6 @@ const LoginPage = () => {
 
     if (isFormValid()) {
       await signIn({ email, password });
-
-      alert('Successfully authenticated!');
     }
   };
 
