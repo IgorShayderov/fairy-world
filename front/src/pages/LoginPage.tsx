@@ -55,7 +55,9 @@ const LoginPage = () => {
   const getEmailErrors = () => getErrors(emailErrors);
   const getPasswordErrors = () => getErrors(passwordErrors);
 
-  const togglePasswordInputType = () => {
+  const togglePasswordInputType = (event: SyntheticEvent) => {
+    event.stopPropagation();
+
     const newInputType = passwordInputType === 'password' ? 'text' : 'password';
 
     setPasswordInputType(newInputType);
