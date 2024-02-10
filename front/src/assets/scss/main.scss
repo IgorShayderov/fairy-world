@@ -20,6 +20,7 @@ body {
 }
 
 main {
+  display: flex;
   height: 100%;
-  margin: 0;
+  justify-content: center;
 }
