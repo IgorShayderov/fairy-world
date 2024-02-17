@@ -3,10 +3,9 @@
   "version": "1.0.0",
   "description": "RPG game",
   "scripts": {
-    "install": "npm ci",
+    "install": "npm ci --prefix ./front && npm ci --prefix ./back",
     "dev-front": "npm --prefix ./front run dev",
-    "dev-back": "npm --prefix ./back run start:dev",
-    "postinstall": ""
+    "dev-back": "npm --prefix ./back run start:dev"
   },
   "author": "",
   "license": "ISC",
