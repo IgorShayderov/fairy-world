@@ -1,16 +1,47 @@
 {
   "name": "fairy-world",
-  "version": "1.0.0",
-  "description": "RPG game",
+  "version": "0.0.1",
+  "type": "module",
   "scripts": {
-    "install": "npm ci --prefix ./front && npm ci --prefix ./back",
-    "dev-front": "npm --prefix ./front run dev",
-    "dev-back": "npm --prefix ./back run start:dev"
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "preview": "vite preview",
+    "test": "NODE_OPTIONS=--experimental-vm-modules npx jest --bail"
   },
   "author": "",
   "license": "ISC",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/IgorShayderov/fairy-world.git"
+  "bugs": {
+    "url": "https://github.com/IgorShayderov/fairy-world/issues"
+  },
+  "homepage": "https://github.com/IgorShayderov/fairy-world#readme",
+  "devDependencies": {
+    "@types/react": "^18.3.9",
+    "@types/react-dom": "^18.3.0",
+    "@typescript-eslint/eslint-plugin": "^5.62.0",
+    "@typescript-eslint/parser": "^5.62.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "eslint": "^8.57.1",
+    "eslint-config-google": "^0.14.0",
+    "eslint-config-prettier": "^8.10.0",
+    "eslint-plugin-import": "^2.30.0",
+    "eslint-plugin-prettier": "^4.2.1",
+    "eslint-plugin-react-hooks": "^4.6.2",
+    "eslint-plugin-react-refresh": "^0.3.5",
+    "jest": "^27.5.1",
+    "prettier": "^2.8.8",
+    "react-i18next": "^13.5.0",
+    "sass": "^1.79.3",
+    "typescript": "^5.6.2",
+    "vite": "^4.5.5"
+  },
+  "dependencies": {
+    "@reduxjs/toolkit": "^1.9.7",
+    "classnames": "^2.5.1",
+    "i18next": "^23.15.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-redux": "^8.1.3",
+    "react-router-dom": "^6.26.2"
   }
 }

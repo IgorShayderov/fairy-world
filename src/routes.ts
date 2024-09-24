@@ -4,6 +4,6 @@ export default {
   rootPagePath: () => '/',
   loginPagePath: () => '/login',
   api: {
-    signIn: ['/sign_in'].join('/'),
+    signInPath: () => ['/sign_in'].join('/'),
   },
 };

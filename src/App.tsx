@@ -7,6 +7,7 @@ import {
 } from 'react-router-dom';
 
 import LoginPage from './pages/LoginPage';
+import RootPage from './pages/RootPage';
 import NotFoundPage from './pages/NotFoundPage';
 import DefaultLayout from './layouts/DefaultLayout';
 
@@ -25,7 +26,9 @@ const App = () => {
       <BrowserRouter>
         <Routes>
           <Route path={routes.loginPagePath()} element={<LoginPage />} />
-          <Route path={routes.rootPagePath()} element={<PrivateOutlet />} />
+          <Route path={routes.rootPagePath()} element={<PrivateOutlet />}>
+            <Route path="" element={<RootPage />} />
+          </Route>
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </BrowserRouter>

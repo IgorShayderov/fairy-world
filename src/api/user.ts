@@ -1,11 +1,14 @@
-import { api } from '../api';
+import { api } from '.';
 
-import { ISignData } from '../types/user';
+import type { ISignData } from '../types/user';
+
+import routes from '@/routes';
 
 export const signIn = async ({ login, password }: ISignData) => {
   console.info(login, password);
 
   const response = await api({
+    url: routes.api.signInPath(),
     method: 'POST',
     body: JSON.stringify({
       username: login,
