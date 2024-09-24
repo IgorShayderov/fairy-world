@@ -28,8 +28,8 @@ const App = () => {
           <Route path={routes.loginPagePath()} element={<LoginPage />} />
           <Route path={routes.rootPagePath()} element={<PrivateOutlet />}>
             <Route path="" element={<RootPage />} />
+            <Route path="*" element={<NotFoundPage />} />
           </Route>
-          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </BrowserRouter>
     </DefaultLayout>
