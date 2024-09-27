@@ -2,20 +2,20 @@ export default {
   translation: {
     pages: {
       loginPage: {
-        title: 'Login page',
+        title: 'Страница аутентификации',
         form: {
           email: {
             label: 'Email',
-            placeholder: 'Type your email',
+            placeholder: 'Введите ваш email',
             errors: {},
           },
           password: {
-            label: 'Password',
-            placeholder: 'Type your password',
+            label: 'Пароль',
+            placeholder: 'Введите ваш пароль',
             errors: {},
           },
           submitBtn: {
-            label: 'Sign in',
+            label: 'Войти',
           },
         },
       },

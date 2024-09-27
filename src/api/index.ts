@@ -14,7 +14,7 @@ const api = (url, options: Request = {}) => {
   };
   const timeoutId = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT);
 
-  return fetch({
+  return fetch(url, {
     // TODO сделать вложенный мерж или вручную append каждый хедер
     ...defaultOptions,
     ...options,

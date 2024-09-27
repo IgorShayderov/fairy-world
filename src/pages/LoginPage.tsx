@@ -17,7 +17,9 @@ const LoginPage = () => {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [passwordInputType, setPasswordInputType] = useState('');
+  const [passwordInputType, setPasswordInputType] = useState<
+    'password' | 'text'
+  >('password');
 
   const isLoading = useRef(false);
 
@@ -97,16 +99,14 @@ const LoginPage = () => {
           type="email"
           name="email"
           className={styles.input}
-          maxLength={60}
-          minLength={5}
-          placeholder="Type your email"
+          placeholder={t('pages.loginPage.form.email.placeholder')}
           required
           pattern={emailRegex.toString().replaceAll('/', '')}
           isValid={isEmailValid()}
           errors={getEmailErrors()}
           changeCallback={handleEmailInput}
         >
-          Email:
+          {t('pages.loginPage.form.email.label')}:
         </BaseInput>
 
         <BaseInput
@@ -117,14 +117,14 @@ const LoginPage = () => {
           name="password"
           maxLength={16}
           minLength={6}
-          placeholder="Type your password"
+          placeholder={t('pages.loginPage.form.password.placeholder')}
           required
           isValid={isPasswordValid()}
           className={passwordInputClasses}
           errors={getPasswordErrors()}
           changeCallback={handlePasswordInput}
         >
-          Password:
+          {t('pages.loginPage.form.password.label')}:
           <BaseButton
             className={passwordBtnClasses}
             aria-label="toggle-password"
@@ -133,7 +133,7 @@ const LoginPage = () => {
         </BaseInput>
 
         <BaseButton type="submit" className={styles['submit-btn']}>
-          Sign in
+          {t('pages.loginPage.form.submitBtn.label')}
         </BaseButton>
       </form>
     </div>

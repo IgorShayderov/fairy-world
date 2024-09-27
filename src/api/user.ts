@@ -4,23 +4,22 @@ import type { ISignData } from '../types/user';
 
 import routes from '@/routes';
 
-export const signIn = async ({ login, password }: ISignData) => {
-  console.info(login, password);
-
-  const response = await api({
-    url: routes.api.signInPath(),
+export const signIn = async ({ email, password }: ISignData) => {
+  const response = await api(routes.api.signInPath(), {
     method: 'POST',
     body: JSON.stringify({
-      username: login,
+      email,
       password,
     }),
   });
 
-  const data = response.json();
+  const data = await response.json();
+
+  console.log({ data });
 
   return {
     token: data.access_token,
-    username: login,
+    username: data.login,
   };
 };
 
