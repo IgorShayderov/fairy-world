@@ -2,6 +2,12 @@ export default {
   translation: {
     pages: {
       loginPage: {
+        messages: {
+          auth: {
+            success: 'Вы успешно вошли!',
+            failure: 'Неверный email или пароль',
+          },
+        },
         title: 'Страница аутентификации',
         form: {
           email: {

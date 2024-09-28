@@ -2,6 +2,12 @@ export default {
   translation: {
     pages: {
       loginPage: {
+        messages: {
+          auth: {
+            success: 'You have successfully authenticated!',
+            failure: 'Incorrect email or password',
+          },
+        },
         title: 'Login page',
         form: {
           email: {

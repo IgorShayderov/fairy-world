@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'react-toastify';
 import cn from 'classnames';
 
 import type { SyntheticEvent } from 'react';
@@ -83,8 +84,13 @@ const LoginPage = () => {
   const handleSubmit = async (event: SyntheticEvent) => {
     event.preventDefault();
 
-    if (isFormValid()) {
-      await signIn({ email, password });
+    try {
+      if (isFormValid()) {
+        await signIn({ email, password });
+        toast.success(t('pages.loginPage.messages.auth.success'));
+      }
+    } catch {
+      toast.error(t('pages.loginPage.messages.auth.failure'));
     }
   };
 

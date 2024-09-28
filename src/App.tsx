@@ -5,6 +5,8 @@ import {
   Outlet,
   Navigate,
 } from 'react-router-dom';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 import LoginPage from './pages/LoginPage';
 import RootPage from './pages/RootPage';
@@ -15,6 +17,8 @@ import useAuth from './hooks/useAuth';
 import routes from './routes';
 
 const PrivateOutlet = () => {
+    // сделать запрос на получение пользователя
+
   const { currentUser } = useAuth();
 
   return currentUser ? <Outlet /> : <Navigate to={routes.loginPagePath()} />;
@@ -32,6 +36,8 @@ const App = () => {
           </Route>
         </Routes>
       </BrowserRouter>
+
+      <ToastContainer />
     </DefaultLayout>
   );
 };
