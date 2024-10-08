@@ -1,15 +1,25 @@
-import * as userAPI from './user';
+import * as authAPI from './auth';
 
 import HttpError from './HttpError';
 
 export interface IApi {
   (url: string, options?: RequestInit): Promise<Response>;
   get: (url: string, options?: RequestInit) => Promise<Response>;
+  // post: (url: string, options?: RequestInit) => Promise<Response>;
 }
 
 export interface IApiError extends Error {
   status: number;
 }
+
+const convertBody = (body: string | object, contentType: string | null) => {
+  switch (contentType) {
+    case 'application/json':
+      return JSON.stringify(body);
+    default:
+      return body as string;
+  }
+};
 
 const makeRequest = async (url: string, options: RequestInit = {}) => {
   const DEFAULT_TIMEOUT = 4000;
@@ -25,22 +35,29 @@ const makeRequest = async (url: string, options: RequestInit = {}) => {
   headers.append('Accept', 'application/json');
   headers.append('Content-Type', 'application/json;charset=UFC-8');
 
-  const accessToken = localStorage.getItem('access');
+  const accessToken = localStorage.getItem('access_token');
 
   if (accessToken) {
     headers.append('Authorization', accessToken);
   }
 
-  const timeoutId = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT);
+  options.headers?.forEach((value, key) => headers.append(key, value));
 
-  const response = await fetch(url, {
+  const params = {
     ...defaultOptions,
     ...options,
-    headers: {
-      ...defaultOptions.headers,
-      ...(options.headers ?? {}),
-    },
-  });
+    headers,
+  };
+
+  if (options.body != undefined) {
+    const contentType = headers.get('Content-Type')?.split(';')?.at(0) ?? null;
+
+    params.body = convertBody(options.body, contentType);
+  }
+
+  const timeoutId = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT);
+
+  const response = await fetch(url, { ...params });
 
   if (!response.ok) {
     const message = `Reponse status: ${response.status}`;
@@ -62,7 +79,7 @@ makeRequest.get = (...params: Parameters<typeof makeRequest>) => {
     method: 'GET',
   };
 
-  return makeRequest(url, getOptions);
+  return makeRequest(url, { ...getOptions });
 };
 
-export { api, userAPI };
+export { api, authAPI };

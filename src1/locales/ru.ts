@@ -25,6 +25,11 @@ export default {
           },
         },
       },
+      root: {
+        buttons: {
+          logout: 'Logout',
+        },
+      },
     },
   },
 };

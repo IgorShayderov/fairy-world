@@ -19,21 +19,28 @@
   "plugins": ["@typescript-eslint", "react-refresh", "import"],
   "rules": {
     "object-curly-spacing": ["error", "always"],
-    "max-len": ["error", {
-      "code": 100,
-      "tabWidth": 2,
-      "ignoreUrls": true,
-      "ignoreComments": false,
-      "ignoreRegExpLiterals": true,
-      "ignoreStrings": true,
-      "ignoreTemplateLiterals": true
-    }],
+    "max-len": [
+      "error",
+      {
+        "code": 100,
+        "tabWidth": 2,
+        "ignoreUrls": true,
+        "ignoreComments": false,
+        "ignoreRegExpLiterals": true,
+        "ignoreStrings": true,
+        "ignoreTemplateLiterals": true
+      }
+    ],
     "no-console": ["error", { "allow": ["warn", "error", "info"] }],
     "require-jsdoc": 0,
     "react-refresh/only-export-components": "warn",
-    "object-property-newline": ["error", { "allowAllPropertiesOnSameLine": true }],
+    "object-property-newline": [
+      "error",
+      { "allowAllPropertiesOnSameLine": true }
+    ],
     "no-case-declarations": "error",
     "array-bracket-spacing": "error",
-    "import/no-duplicates": "error"
+    "import/no-duplicates": "error",
+    "camelcase": "off"
   }
 }

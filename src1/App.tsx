@@ -13,12 +13,10 @@ import RootPage from './pages/RootPage';
 import NotFoundPage from './pages/NotFoundPage';
 import DefaultLayout from './layouts/DefaultLayout';
 
-import useAuth from './hooks/useAuth';
+import { useAuth } from './hooks/useAuth';
 import routes from './routes';
 
 const PrivateOutlet = () => {
-    // сделать запрос на получение пользователя
-
   const { currentUser } = useAuth();
 
   return currentUser ? <Outlet /> : <Navigate to={routes.loginPagePath()} />;
@@ -30,13 +28,14 @@ const App = () => {
       <BrowserRouter>
         <Routes>
           <Route path={routes.loginPagePath()} element={<LoginPage />} />
+
           <Route path={routes.rootPagePath()} element={<PrivateOutlet />}>
             <Route path="" element={<RootPage />} />
-            <Route path="*" element={<NotFoundPage />} />
           </Route>
+
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </BrowserRouter>
-
       <ToastContainer />
     </DefaultLayout>
   );

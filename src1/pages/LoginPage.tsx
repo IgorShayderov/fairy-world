@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
+import { useNavigate } from 'react-router-dom';
 import cn from 'classnames';
 
 import type { SyntheticEvent } from 'react';
@@ -8,11 +9,13 @@ import type { SyntheticEvent } from 'react';
 import BaseInput from '@components/BaseInput';
 import BaseButton from '@components/BaseButton';
 
-import useAuth from '@hooks/useAuth';
+import { useAuth } from '@hooks/useAuth';
 
 import styles from './LoginPage.module.scss';
+import routes from '@/routes';
 
 const LoginPage = () => {
+  const navigate = useNavigate();
   const { t } = useTranslation();
   const { signIn } = useAuth();
 
@@ -87,9 +90,11 @@ const LoginPage = () => {
     try {
       if (isFormValid()) {
         await signIn({ email, password });
+        navigate(routes.rootPagePath());
         toast.success(t('pages.loginPage.messages.auth.success'));
       }
-    } catch {
+    } catch (e) {
+      console.error(e);
       toast.error(t('pages.loginPage.messages.auth.failure'));
     }
   };
@@ -134,6 +139,7 @@ const LoginPage = () => {
           <BaseButton
             className={passwordBtnClasses}
             aria-label="toggle-password"
+            type="button"
             onClick={togglePasswordInputType}
           />
         </BaseInput>
