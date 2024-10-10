@@ -11,7 +11,7 @@ import BaseButton from '@components/BaseButton';
 
 import { useAuth } from '@hooks/useAuth';
 
-import styles from './LoginPage.module.scss';
+import styles from './login.module.scss';
 import routes from '@/routes';
 
 const LoginPage = () => {
