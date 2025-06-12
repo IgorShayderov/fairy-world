@@ -1,27 +1,30 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import { I18nextProvider } from 'react-i18next';
-import { Provider } from 'react-redux';
+import { createApp } from 'vue';
+import { VueQueryPlugin } from '@tanstack/vue-query';
+import dayjs from 'dayjs';
+import I18nextVue from 'i18next-vue';
+import App from '@/App.vue';
+import router from '@/router';
+import initI18n, { DEFAULT_LANGUAGE } from '@/i18n.ts';
 
-import App from './App.tsx';
+import '@assets/scss/main.scss';
 
-import initI18n from './i18n.ts';
-// import store from './slices';
+dayjs.locale(DEFAULT_LANGUAGE);
 
-import './assets/scss/main.scss';
-
-const initApp = async () => {
-  const i18n = await initI18n();
-
-  ReactDOM.createRoot(document.getElementById('app') as HTMLElement).render(
-    <React.StrictMode>
-      {/* <Provider store={store}> */}
-      <I18nextProvider i18n={i18n}>
-        <App />
-      </I18nextProvider>
-      {/* </Provider> */}
-    </React.StrictMode>
-  );
+const vueQueryOptions = {
+  enableDevtoolsV6Plugin: true,
+  queryClientConfig: {
+    defaultOptions: {
+      queries: {
+        refetchOnWindowFocus: false,
+        refetchOnMount: false,
+      },
+    },
+  },
 };
 
-initApp();
+const app = createApp(App);
+
+app.use(router);
+app.use(I18nextVue, { i18next: initI18n() });
+app.use(VueQueryPlugin, vueQueryOptions);
+app.mount('#app');
