@@ -1,5 +1,0 @@
-node_modules
-dist
-public
-.github
-src/vite-env.d.ts
