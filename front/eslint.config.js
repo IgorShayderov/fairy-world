@@ -1,9 +1,24 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import js from '@eslint/js'
 import globals from 'globals'
 import pluginVue from 'eslint-plugin-vue'
 import pluginQuasar from '@quasar/app-vite/eslint'
 import { defineConfigWithVueTs, vueTsConfigs } from '@vue/eslint-config-typescript'
 import prettierSkipFormatting from '@vue/eslint-config-prettier/skip-formatting'
+import pluginImport from 'eslint-plugin-import';
+import typescriptEslint from '@typescript-eslint/eslint-plugin';
+import { fixupConfigRules, fixupPluginRules } from '@eslint/compat';
+import stylisticTs from '@stylistic/eslint-plugin-ts';
+import { FlatCompat } from '@eslint/eslintrc';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const compat = new FlatCompat({
+  baseDirectory: __dirname,
+  recommendedConfig: js.configs.recommended,
+  allConfig: js.configs.all,
+});
 
 export default defineConfigWithVueTs(
   {
@@ -18,8 +33,20 @@ export default defineConfigWithVueTs(
     // ignores: []
   },
 
+  ...fixupConfigRules(
+    compat.extends(
+      'eslint:recommended',
+      'plugin:import/recommended',
+      'plugin:import/typescript',
+      'prettier'
+    )
+  ),
+
   pluginQuasar.configs.recommended(),
   js.configs.recommended,
+
+  pluginVue.configs['flat/essential'],
+  pluginVue.configs['flat/strongly-recommended'],
 
   /**
    * https://eslint.vuejs.org
@@ -33,15 +60,36 @@ export default defineConfigWithVueTs(
    * pluginVue.configs["flat/recommended"]
    *   -> Above, plus rules to enforce subjective community defaults to ensure consistency.
    */
-  pluginVue.configs[ 'flat/essential' ],
+  pluginVue.configs['flat/essential'],
 
   {
     files: ['**/*.ts', '**/*.vue'],
+    plugins: {
+      '@stylistic/ts': fixupPluginRules(stylisticTs),
+      import: fixupPluginRules(pluginImport)
+    },
     rules: {
       '@typescript-eslint/consistent-type-imports': [
         'error',
         { prefer: 'type-imports' }
       ],
+
+      'vue/component-api-style': ['error', ['script-setup', 'composition']],
+      'vue/no-undef-components': 'error',
+
+      'vue/component-definition-name-casing': ['error', 'PascalCase'],
+      'vue/component-options-name-casing': ['error', 'PascalCase'],
+      'vue/component-name-in-template-casing': [
+        'error',
+        'PascalCase',
+        {
+          ignores: ['component', '/v-/'],
+          registeredComponentsOnly: false,
+        },
+      ],
+
+      'import/no-unresolved': 'off',
+      'import/no-named-as-default-member': 'off'
     }
   },
   // https://github.com/vuejs/eslint-config-typescript
@@ -74,7 +122,7 @@ export default defineConfigWithVueTs(
   },
 
   {
-    files: [ 'src-pwa/custom-service-worker.ts' ],
+    files: ['src-pwa/custom-service-worker.ts'],
     languageOptions: {
       globals: {
         ...globals.serviceworker

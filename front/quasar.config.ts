@@ -6,6 +6,8 @@ import { defineConfig } from '#q-app/wrappers';
 
 export default defineConfig((/* ctx */) => {
   return {
+    autoImportComponentCase: 'pascal',
+    autoImport: false,
     // https://v2.quasar.dev/quasar-cli-vite/prefetch-feature
     // preFetch: true,
 
@@ -17,7 +19,7 @@ export default defineConfig((/* ctx */) => {
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#css
     // front/src/assets/scss/main.scss
     // 'app.sass', // referring to /src/css/app.sass
-    // css: ['app.scss'],
+    css: ['app.css'],
 
     // https://github.com/quasarframework/quasar/tree/dev/extras
     extras: [

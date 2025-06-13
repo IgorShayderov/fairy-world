@@ -6,12 +6,10 @@ const appRoutes: RouteRecordRaw[] = [
   {
     path: routes.rootPath(),
     component: () => import('@pages/RootPage.vue'),
-    children: [
-      {
-        path: routes.loginPath(),
-        component: () => import('@pages/LoginPage.vue'),
-      },
-    ],
+  },
+  {
+    path: routes.loginPath(),
+    component: () => import('@pages/LoginPage.vue'),
   },
 
   // Always leave this as last one,
