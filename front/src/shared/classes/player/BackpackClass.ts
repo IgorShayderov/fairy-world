@@ -1,4 +1,4 @@
-import Item from '@src/classes/items/ItemClass';
+import type Item from '../items/ItemClass';
 
 /**
  * Player backpack

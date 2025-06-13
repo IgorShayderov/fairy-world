@@ -1,18 +1,25 @@
 import type { RouteRecordRaw } from 'vue-router';
+import routes from '@/routes';
 
-const routes: RouteRecordRaw[] = [
+const appRoutes: RouteRecordRaw[] = [
+  { path: '/:path(.*)', redirect: routes.rootPath() },
   {
-    path: '/',
-    component: () => import('layouts/MainLayout.vue'),
-    children: [{ path: '', component: () => import('pages/IndexPage.vue') }],
+    path: routes.rootPath(),
+    component: () => import('@pages/RootPage.vue'),
+    children: [
+      {
+        path: routes.loginPath(),
+        component: () => import('@pages/LoginPage.vue'),
+      },
+    ],
   },
 
   // Always leave this as last one,
   // but you can also remove it
-  {
-    path: '/:catchAll(.*)*',
-    component: () => import('pages/ErrorNotFound.vue'),
-  },
+  // {
+  //   path: '/:catchAll(.*)*',
+  //   component: () => import('pages/ErrorNotFound.vue'),
+  // },
 ];
 
-export default routes;
+export default appRoutes;

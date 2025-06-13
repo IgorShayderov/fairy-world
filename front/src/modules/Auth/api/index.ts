@@ -1,10 +1,8 @@
-import { api } from '.';
+import { api } from '@shared/api';
 
-import type { ISignData } from '../types/user';
+import type { ISignData } from '../../../shared/types/user';
 
 import routes from '@/routes';
-
-// TODO переименовать из user на auth
 
 export const signIn = async ({ email, password }: ISignData) => {
   const response = await api(routes.api.signInPath(), {

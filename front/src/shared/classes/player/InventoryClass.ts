@@ -1,7 +1,7 @@
-import Item from '../items/ItemClass';
+import type Item from '../items/ItemClass';
 import Backpack from './BackpackClass';
 
-interface EquipedItems {
+export interface EquipedItems {
   necklace: null | Item;
   helmet: null | Item;
   ring: null | Item;
@@ -38,20 +38,20 @@ class Inventory {
     this.quickSlots = new Set();
   }
 
-  equipItem(item: Item): void {
-    const { itemType } = item;
+  // equipItem(item: Item): void {
+  //   const { itemType } = item;
 
-    this.equipedItems[itemType] = item;
-    console.info(`%c${item} item is successfully equiped.`, 'color: red;');
-  }
+  //   this.equipedItems[itemType] = item;
+  //   console.info(`%c${item} item is successfully equiped.`, 'color: red;');
+  // }
 
-  unequipItem(itemType: string): void {
-    if (Object.prototype.hasOwnProperty.call(this.equipedItems, itemType)) {
-      this.equipedItems[itemType] = null;
-    } else {
-      throw new Error('Wrong item type');
-    }
-  }
+  // unequipItem(itemType: ItemType): void {
+  //   if (itemType in this.equipedItems) {
+  //     this.equipedItems[itemType] = null;
+  //   } else {
+  //     throw new Error('Wrong item type');
+  //   }
+  // }
 }
 
 export default Inventory;

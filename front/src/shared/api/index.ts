@@ -1,5 +1,3 @@
-import * as userAPI from './user';
-
 import HttpError from './HttpError';
 
 export interface IApi {
@@ -65,4 +63,4 @@ makeRequest.get = (...params: Parameters<typeof makeRequest>) => {
   return makeRequest(url, getOptions);
 };
 
-export { api, userAPI };
+export { api };

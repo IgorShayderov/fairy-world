@@ -15,7 +15,9 @@ export default defineConfig((/* ctx */) => {
     boot: [],
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#css
-    css: ['app.scss'],
+    // front/src/assets/scss/main.scss
+    // 'app.sass', // referring to /src/css/app.sass
+    // css: ['app.scss'],
 
     // https://github.com/quasarframework/quasar/tree/dev/extras
     extras: [

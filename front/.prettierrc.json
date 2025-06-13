@@ -8,5 +8,6 @@
   "tabWidth": 2,
   "trailingComma": "es5",
   "useTabs": false,
-  "bracketSameLine": false
+  "bracketSameLine": false,
+  "plugins": ["prettier-plugin-tailwindcss"]
 }
