@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@quasar/extras": "^1.16.4",
+    "@tailwindcss/vite": "^4.1.10",
     "@tanstack/vue-query": "^5.80.7",
     "dayjs": "^1.11.13",
     "i18next": "^25.2.1",
