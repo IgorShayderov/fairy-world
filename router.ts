@@ -1,27 +1,28 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import qs from 'qs';
-
 import type { LocationQueryRaw } from 'vue-router';
+import routes from './routes';
 
-const routes = [
-  // { path: '/:path(.*)', redirect: paths.rootPath() },
-  // path: paths.rootPath(),
-  // name: 'Home',
-  // meta: { roles: [], layout: 'AuthorizedUserLayout' },
-  // component: () => import('@/pages/RootPage.vue'),
-  // children: [
-  //         {
-  //     path: paths.eventPath(),
-  //     name: 'Event',
-  //     component: () => import('@/modules/Event/components/CurrentEvent.vue'),
-  //     meta: { roles: [ORGANIZER_ROLE] },
-  //   },
-  // ]
+const appRoutes = [
+  {
+    path: '/:path(.*)',
+    component: () => import('@pages/NotFoundPage.vue'),
+  },
+  {
+    path: routes.rootPath(),
+    name: 'Root',
+    component: () => import('@pages/RootPage.vue'),
+  },
+  {
+    path: routes.rootPath(),
+    name: 'Root',
+    component: () => import('@pages/LoginPage.vue'),
+  },
 ];
 
 const router = createRouter({
   history: createWebHistory(),
-  routes,
+  routes: appRoutes,
   parseQuery: (query: string) => qs.parse(query),
   stringifyQuery: (query: LocationQueryRaw) => qs.stringify(query, { encodeValuesOnly: true }),
 });

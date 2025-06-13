@@ -1,5 +1,7 @@
-const RootPage = () => {
-  return <div>Root</div>;
-};
+<template>
+  <div>Root</div>
+</template>
 
-export default RootPage;
+<script lang="ts" setup></script>
+
+<style lang="scss" module></style>

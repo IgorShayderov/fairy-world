@@ -1,11 +1,40 @@
-# Game project.
+# Quasar App (quasar-project)
 
-## Description:
+A Quasar Project
 
-Simple RPG game.
+## Install the dependencies
+```bash
+yarn
+# or
+npm install
+```
 
-## Requirements:
+### Start the app in development mode (hot-code reloading, error reporting, etc.)
+```bash
+quasar dev
+```
 
-Node v22
 
-[![Project status](https://github.com/IgorShayderov/fairy-world/actions/workflows/project-check.yml/badge.svg)](https://github.com/IgorShayderov/fairy-world/actions)
+### Lint the files
+```bash
+yarn lint
+# or
+npm run lint
+```
+
+
+### Format the files
+```bash
+yarn format
+# or
+npm run format
+```
+
+
+### Build the app for production
+```bash
+quasar build
+```
+
+### Customize the configuration
+See [Configuring quasar.config.js](https://v2.quasar.dev/quasar-cli-vite/quasar-config-js).
