@@ -1,7 +1,6 @@
 // Configuration for your app
 // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file
 import { fileURLToPath } from 'node:url';
-
 import { defineConfig } from '#q-app/wrappers';
 
 export default defineConfig((/* ctx */) => {
@@ -19,7 +18,10 @@ export default defineConfig((/* ctx */) => {
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#css
     // front/src/assets/scss/main.scss
     // 'app.sass', // referring to /src/css/app.sass
-    css: ['app.css'],
+    css: [
+      'app.scss',
+      // '~tailwind.css'
+    ],
 
     // https://github.com/quasarframework/quasar/tree/dev/extras
     extras: [

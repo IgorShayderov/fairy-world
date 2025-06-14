@@ -1,45 +1,47 @@
 <template>
-  <QCard class="w-full max-w-md rounded-lg p-6 shadow-lg">
-    <QCardSection>
-      <h2 class="mb-6 text-center text-2xl font-bold text-gray-800">Вход в систему</h2>
+  <article class="d-flex w-[500px] justify-center">
+    <QCard class="w-full max-w-md rounded-lg p-6 shadow-lg">
+      <QCardSection>
+        <h2 class="mb-6 text-center text-2xl font-bold text-gray-800">Вход в систему</h2>
 
-      <QForm @submit.prevent="handleSubmit" class="space-y-4">
-        <QInput v-model="form.email" label="Email" type="email" outlined :rules="emailRules" lazy-rules class="mb-4">
-          <template #prepend>
-            <QIcon name="mail" />
-          </template>
-        </QInput>
+        <QForm @submit.prevent="handleSubmit" class="space-y-4">
+          <QInput v-model="form.email" label="Email" type="email" outlined :rules="emailRules" lazy-rules class="mb-4">
+            <template #prepend>
+              <QIcon name="mail" />
+            </template>
+          </QInput>
 
-        <QInput
-          v-model="form.password"
-          label="Пароль"
-          :type="showPassword ? 'text' : 'password'"
-          outlined
-          :rules="passwordRules"
-          lazy-rules
-        >
-          <template #prepend>
-            <QIcon name="lock" />
-          </template>
-          <template #append>
-            <QIcon
-              :name="showPassword ? 'visibility_off' : 'visibility'"
-              class="cursor-pointer"
-              @click="showPassword = !showPassword"
-            />
-          </template>
-        </QInput>
+          <QInput
+            v-model="form.password"
+            label="Пароль"
+            :type="showPassword ? 'text' : 'password'"
+            outlined
+            :rules="passwordRules"
+            lazy-rules
+          >
+            <template #prepend>
+              <QIcon name="lock" />
+            </template>
+            <template #append>
+              <QIcon
+                :name="showPassword ? 'visibility_off' : 'visibility'"
+                class="cursor-pointer"
+                @click="showPassword = !showPassword"
+              />
+            </template>
+          </QInput>
 
-        <footer class="flex w-[200px] justify-center px-4">
-          <QBtn type="submit" label="Войти" color="primary" class="w-full" />
-        </footer>
-      </QForm>
+          <footer class="flex justify-center px-4">
+            <QBtn type="submit" label="Войти" color="primary" class="w-[200px]" />
+          </footer>
+        </QForm>
 
-      <div class="mt-6 text-center">
-        <RouterLink to="/forgot-password" class="text-sm text-blue-600 hover:underline"> Забыли пароль? </RouterLink>
-      </div>
-    </QCardSection>
-  </QCard>
+        <div class="mt-6 text-center">
+          <RouterLink to="/forgot-password" class="text-sm text-blue-600 hover:underline"> Забыли пароль? </RouterLink>
+        </div>
+      </QCardSection>
+    </QCard>
+  </article>
 </template>
 
 <script lang="ts" setup>
