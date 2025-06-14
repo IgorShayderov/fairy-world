@@ -7,5 +7,6 @@ import { RouterView } from 'vue-router';
 </script>
 
 <style>
-@import 'tailwindcss';
+@import 'tailwindcss' important;
+@import 'sanitize.css';
 </style>

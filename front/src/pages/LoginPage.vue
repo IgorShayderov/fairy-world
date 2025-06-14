@@ -1,8 +1,8 @@
 <template>
-  <article class="d-flex w-[500px] justify-center">
+  <article class="flex h-full w-[500px] w-full items-center justify-center">
     <QCard class="w-full max-w-md rounded-lg p-6 shadow-lg">
       <QCardSection>
-        <h2 class="mb-6 text-center text-2xl font-bold text-gray-800">Вход в систему</h2>
+        <h2 class="mb-6 text-center text-xl! font-bold text-gray-800">Вход в систему</h2>
 
         <QForm @submit.prevent="handleSubmit" class="space-y-4">
           <QInput v-model="form.email" label="Email" type="email" outlined :rules="emailRules" lazy-rules class="mb-4">
@@ -102,7 +102,5 @@ const handleSubmit = async () => {
 </script>
 
 <style lang="scss" scoped>
-.q-card {
-  @apply bg-white;
-}
+//
 </style>

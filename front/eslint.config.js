@@ -9,7 +9,6 @@ import prettierSkipFormatting from '@vue/eslint-config-prettier/skip-formatting'
 import pluginImport from 'eslint-plugin-import';
 import typescriptEslint from '@typescript-eslint/eslint-plugin';
 import { fixupConfigRules, fixupPluginRules } from '@eslint/compat';
-import stylisticTs from '@stylistic/eslint-plugin-ts';
 import { FlatCompat } from '@eslint/eslintrc';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -65,7 +64,6 @@ export default defineConfigWithVueTs(
   {
     files: ['**/*.ts', '**/*.vue'],
     plugins: {
-      '@stylistic/ts': fixupPluginRules(stylisticTs),
       import: fixupPluginRules(pluginImport)
     },
     rules: {
