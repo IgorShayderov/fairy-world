@@ -1,6 +1,9 @@
 front-dev:
 	cd ./front && npm run dev
 
+back-dev:
+	cd ./back && npn run start:dev
+
 front-install:
 	cd ./front && npm i
 
