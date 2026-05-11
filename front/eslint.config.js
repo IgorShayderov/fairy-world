@@ -7,7 +7,6 @@ import pluginQuasar from '@quasar/app-vite/eslint'
 import { defineConfigWithVueTs, vueTsConfigs } from '@vue/eslint-config-typescript'
 import prettierSkipFormatting from '@vue/eslint-config-prettier/skip-formatting'
 import pluginImport from 'eslint-plugin-import';
-import typescriptEslint from '@typescript-eslint/eslint-plugin';
 import { fixupConfigRules, fixupPluginRules } from '@eslint/compat';
 import { FlatCompat } from '@eslint/eslintrc';
 
@@ -40,6 +39,13 @@ export default defineConfigWithVueTs(
       'prettier'
     )
   ),
+
+  {
+    rules: {
+      'import/no-unresolved': 'off',
+      'import/no-named-as-default-member': 'off'
+    }
+  },
 
   pluginQuasar.configs.recommended(),
   js.configs.recommended,
@@ -85,9 +91,6 @@ export default defineConfigWithVueTs(
           registeredComponentsOnly: false,
         },
       ],
-
-      'import/no-unresolved': 'off',
-      'import/no-named-as-default-member': 'off'
     }
   },
   // https://github.com/vuejs/eslint-config-typescript

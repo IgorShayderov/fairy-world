@@ -1,0 +1,25 @@
+services:
+  front:
+    build:
+      context: ./front
+      target: development
+    ports:
+      - "9000:9000"
+    volumes:
+      - ./front:/app
+      - /app/node_modules
+    environment:
+      # Force file polling if hot-reloading isn't inherently picked up by Docker on your OS
+      - CHOKIDAR_USEPOLLING=true
+      # Required in some Vite/Quasar environments to accept external connections
+      - HOST=0.0.0.0
+
+  back:
+    build:
+      context: ./back
+      target: development
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./back:/app
+      - /app/node_modules
