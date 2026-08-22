@@ -4,4 +4,10 @@ front-dev:
 front-install:
 	cd ./front && npm i
 
-.PHONY: dev
+lint:
+	cd ./front && npm run lint
+
+test:
+	cd ./front && npm run test
+
+.PHONY: dev lint test
