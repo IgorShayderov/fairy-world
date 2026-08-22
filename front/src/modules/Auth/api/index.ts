@@ -15,9 +15,8 @@ export const signIn = async ({ email, password }: ISignData) => {
 
   const data = await response.json();
 
-  // FIXME заменить на http-only cookie
-  localStorage.setItem('acess_token', data.access);
-  localStorage.setItem('acess_token_expires_at', data.access_expires_at);
+  localStorage.setItem('access_token', data.access);
+  localStorage.setItem('access_token_expires_at', data.access_expires_at);
 
   return data;
 };

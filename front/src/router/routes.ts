@@ -5,7 +5,11 @@ const appRoutes: RouteRecordRaw[] = [
   { path: '/:path(.*)', redirect: routes.rootPath() },
   {
     path: routes.rootPath(),
-    component: () => import('@pages/RootPage.vue'),
+    component: () => import('@layouts/DefaultLayout.vue'),
+    meta: { requiresAuth: true },
+    children: [
+      { path: '', component: () => import('@pages/RootPage.vue') }
+    ]
   },
   {
     path: routes.loginPath(),

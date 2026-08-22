@@ -70,10 +70,7 @@ const emailRules = [
   (val: string) => /.+@.+\..+/.test(val) || 'Введите корректный email',
 ];
 
-const passwordRules = [
-  (val: string) => !!val || 'Пароль обязателен',
-  (val: string) => val.length >= 6 || 'Пароль должен быть не менее 6 символов',
-];
+const passwordRules = [(val: string) => !!val || 'Пароль обязателен'];
 
 const handleSubmit = async () => {
   try {
