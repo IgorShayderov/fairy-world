@@ -8,7 +8,7 @@ front-install:
 	cd ./front && npm i
 
 install:
-	cd ./front && npm ci
+	cd ./front && npm i
 
 lint:
 	cd ./front && npm run lint
