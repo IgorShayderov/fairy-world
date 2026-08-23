@@ -104,11 +104,10 @@ const handleLogin = async () => {
   }
 };
 
-const handleRegister = async () => {
+const handleRegister = () => {
   loading.value = true;
   error.value = '';
   // Регистрация пока не реализована — заглушка
-  await void 0;
   $q.notify({ type: 'warning', message: 'Регистрация временно недоступна' });
   loading.value = false;
 };
