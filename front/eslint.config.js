@@ -102,6 +102,8 @@ export default defineConfigWithVueTs(
     rules: {
       '@typescript-eslint/await-thenable': 'off',
       '@typescript-eslint/no-array-delete': 'off',
+      '@typescript-eslint/no-base-to-string': 'off',
+      '@typescript-eslint/no-unnecessary-type-constraints': 'off',
     },
   },
 
