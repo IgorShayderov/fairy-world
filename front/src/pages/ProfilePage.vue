@@ -8,52 +8,54 @@
 
     <!-- Основной контент -->
     <main class="flex-1 p-4 overflow-auto">
-      <!-- Инвентарь -->
+      <!-- Инвентарь (drag-n-drop: тащить предмет из инвентаря в слот экипировки) -->
       <section class="mb-6">
         <h2 class="text-xl font-bold text-gray-800 mb-3">Инвентарь</h2>
         <div class="grid grid-cols-6 gap-3">
-          <div
+          <InventoryItem
             v-for="(item, idx) in inventory"
             :key="idx"
-            class="inventory-slot"
-            :class="{ 'border-blue-400 bg-blue-50': item }"
-          >
-            <template v-if="item">
-              <div class="flex flex-col items-center text-xs">
-                <QIcon :name="item.icon" size="32px" class="text-gray-700" />
-                <span class="mt-1 truncate w-full text-center">{{ item.name }}</span>
-              </div>
-            </template>
-            <template v-else>
-              <QIcon name="inventory_2" size="32px" class="text-gray-300" />
-            </template>
-          </div>
+            :item="item"
+            :is-hovered="isHoveredSlot === null"
+            :is-dragging="dragItem === item"
+            @drag-start="onInventoryDragStart(idx)"
+            @drag-end="onInventoryDragEnd"
+          />
         </div>
       </section>
 
-      <!-- Экипировка (одетые предметы) -->
+      <!-- Экипировка (drop-слоты: голова, тело, руки, ноги, обувь, аксессуар) -->
       <section class="mb-6">
         <h2 class="text-xl font-bold text-gray-800 mb-3">Экипировка</h2>
         <div class="grid grid-cols-3 gap-4">
           <div
             v-for="slot in equipmentSlots"
             :key="slot.id"
-            class="q-pa-md q-card q-card--dark rounded-borders"
-            :class="slot.equipped ? 'bg-gray-100' : 'bg-gray-50'"
+            :class="['rounded-borders', slot.equipped ? 'bg-gray-100 q-pa-md' : 'bg-gray-50 q-pa-md']"
+            @dragover.prevent="onSlotDragOver()"
+            @dragenter.prevent="isHoveredSlot = slot.id"
+            @dragleave="isHoveredSlot = null"
+            @drop.prevent="onSlotDrop(slot.id)"
           >
             <div class="text-sm font-medium text-gray-600 mb-2">{{ slot.label }}</div>
-            <div v-if="slot.equipped" class="flex items-center gap-2">
-              <QIcon :name="slot.item.icon" size="28px" class="text-gray-700" />
-              <QCard class="flex-1 q-px-none q-py-xs">
-                <div class="text-sm">{{ slot.item.name }}</div>
-                <div class="text-xs text-gray-500">{{ slot.item.rarity }}</div>
-              </QCard>
-              <QBtn flat dense round icon="close" size="sm" @click="unequip(slot.id)" />
-            </div>
-            <template v-else>
-              <QIcon name="inventory_2" size="28px" class="text-gray-300 mx-auto" />
-              <QBtn flat dense class="mt-1 text-xs text-blue-600">Экипировать</QBtn>
-            </template>
+            <InventoryItem
+              :item="slot.item"
+              :slot-id="slot.id"
+              :is-hovered="isHoveredSlot === slot.id"
+              :is-dragging="false"
+              @drop="onSlotDrop(slot.id)"
+            />
+            <!-- Кнопка снять предмет -->
+            <QBtn
+              v-if="slot.item"
+              flat
+              dense
+              round
+              icon="close"
+              size="sm"
+              class="absolute top-1 right-1"
+              @click="unequip(slot.id)"
+            />
           </div>
         </div>
       </section>
@@ -76,31 +78,28 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { QCard, QBtn, QIcon } from 'quasar';
-
-interface InventoryItem {
-  name: string;
-  icon: string;
-}
+import { QCard, QBtn } from 'quasar';
+import InventoryItem from '@/components/InventoryItem.vue';
+import type { InventoryItem, EquipmentSlot } from '@/shared/types/inventory';
 
 const inventory = ref<InventoryItem[]>([
-  { name: 'Меч', icon: 'firearms' },
-  { name: 'Щит', icon: 'shield' },
+  { name: 'Меч', icon: 'firearms', rarity: 'Редкий' },
+  { name: 'Щит', icon: 'shield', rarity: 'Обычный' },
   { name: 'Лекаство', icon: 'medication' },
   { name: 'Зелье', icon: 'water' },
-  { name: 'Кольцо', icon: 'rings' },
+  { name: 'Кольцо', icon: 'rings', rarity: 'Редкий' },
   { name: 'Свиток', icon: 'menu_book' },
-  { name: 'Кристалл', icon: 'search' },
+  { name: 'Кристалл', icon: 'search', rarity: 'Легендарный' },
   { name: 'Посох', icon: 'science' },
 ]);
 
-const equipmentSlots = ref([
-  { id: 'head', label: 'Голова', equipped: true, item: { name: 'Шлем', icon: 'security', rarity: 'Редкий' } },
-  { id: 'body', label: 'Тело', equipped: true, item: { name: 'Доспехи', icon: 'security', rarity: 'Обычный' } },
-  { id: 'hands', label: 'Руки', equipped: true, item: { name: 'Перчатки', icon: 'pan_tool', rarity: 'Обычный' } },
-  { id: 'legs', label: 'Ноги', equipped: false, item: null },
-  { id: 'feet', label: 'Обувь', equipped: true, item: { name: 'Ботинки', icon: 'directions_walk', rarity: 'Редкий' } },
-  { id: 'accessory', label: 'Аксессуар', equipped: true, item: { name: 'Кольцо', icon: 'stars', rarity: 'Легендарный' } },
+const equipmentSlots = ref<EquipmentSlot[]>([
+  { id: 'head', label: 'Голова', item: { name: 'Шлем', icon: 'security', rarity: 'Редкий' }, equipped: true },
+  { id: 'body', label: 'Тело', item: { name: 'Доспехи', icon: 'security', rarity: 'Обычный' }, equipped: true },
+  { id: 'hands', label: 'Руки', item: { name: 'Перчатки', icon: 'pan_tool', rarity: 'Обычный' }, equipped: true },
+  { id: 'legs', label: 'Ноги', item: null, equipped: false },
+  { id: 'feet', label: 'Обувь', item: { name: 'Ботинки', icon: 'directions_walk', rarity: 'Редкий' }, equipped: true },
+  { id: 'accessory', label: 'Аксессуар', item: { name: 'Кольцо', icon: 'stars', rarity: 'Легендарный' }, equipped: true },
 ]);
 
 const stats = ref([
@@ -111,28 +110,74 @@ const stats = ref([
   { key: 'spd', label: 'Скорость', value: 8 },
 ]);
 
+// Drag state
+const dragItem = ref<InventoryItem | null>(null);
+const dragItemIndex = ref<number | null>(null);
+const isHoveredSlot = ref<string | null>(null);
+
+// Инвентарь: начать drag
+const onInventoryDragStart = (idx: number) => {
+  const item = inventory.value[idx];
+  if (item) {
+    dragItem.value = item;
+    dragItemIndex.value = idx;
+  }
+};
+
+const onInventoryDragEnd = () => {
+  dragItem.value = null;
+  dragItemIndex.value = null;
+  isHoveredSlot.value = null;
+};
+
+// Экипировка: hover slot
+const onSlotDragOver = () => {
+  // подсветка — но не меняем isHoveredSlot (это делает dragenter)
+};
+
+// Экипировка: drop предмета
+const onSlotDrop = (slotId: string) => {
+  const slot = equipmentSlots.value.find(s => s.id === slotId);
+  if (!slot) return;
+
+  // Если в слоте уже есть предмет — вернуть его в инвентарь (swap)
+  if (slot.item) {
+    if (dragItemIndex.value !== null) {
+      // swap: удаляем старый элемент из инвентаря, добавляем старый предмет слота
+      const oldItem = slot.item;
+      inventory.value.splice(dragItemIndex.value, 1, oldItem);
+      dragItemIndex.value = null;
+    } else {
+      // предмет снят (unequip), просто вернуть в инвентарь
+      inventory.value.push(slot.item);
+    }
+    dragItem.value = null;
+  }
+
+  // Экипировать dragged item
+  if (dragItem.value) {
+    slot.item = dragItem.value;
+    slot.equipped = true;
+    dragItem.value = null;
+    dragItemIndex.value = null;
+  }
+  isHoveredSlot.value = null;
+};
+
+// Снять предмет с экипировки
 const unequip = (slotId: string) => {
   const slot = equipmentSlots.value.find(s => s.id === slotId);
-  if (slot) {
-    slot.equipped = false;
+  if (slot && slot.item) {
+    inventory.value.push(slot.item);
     slot.item = null;
+    slot.equipped = false;
   }
 };
 </script>
 
 <style lang="scss" scoped>
-.inventory-slot {
-  aspect-ratio: 1 / 1;
-  border: 2px dashed #d1d5db;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #f9fafb;
-  transition: border-color 0.2s, background 0.2s;
-
-  &:hover {
-    border-color: #9ca3af;
-  }
+// Дополнительные стили для drag-over подсветки слота
+:deep(.q-card) {
+  transition: background-color 0.2s, border-color 0.2s;
 }
 </style>
