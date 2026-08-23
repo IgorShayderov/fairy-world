@@ -82,6 +82,21 @@ describe('AuthController', () => {
     });
   });
 
+  describe('logout', () => {
+    it('should clear refresh_token cookie', async () => {
+      const clearCookieSpy = jest.fn();
+      const mockRes = { clearCookie: clearCookieSpy } as unknown as Response;
+
+      await controller.logout(mockRes);
+
+      expect(clearCookieSpy).toHaveBeenCalledWith('refresh_token', {
+        httpOnly: true,
+        secure: false,
+        sameSite: 'lax',
+      });
+    });
+  });
+
   describe('getProfile', () => {
     it('should return req.user', () => {
       const req = { user: { sub: 1, email: 'john@mail.ru' } } as any;

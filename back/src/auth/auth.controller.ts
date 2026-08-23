@@ -89,6 +89,17 @@ export class AuthController {
     return { access_token: result.access_token, expiresIn: result.expiresIn };
   }
 
+  @Post('logout')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOkResponse({ description: 'Logout successful, cookie cleared' })
+  async logout(@Res({ passthrough: true }) res: Response) {
+    res.clearCookie('refresh_token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+    });
+  }
+
   @UseGuards(AuthGuard)
   @Get('profile')
   @ApiBearerAuth()
