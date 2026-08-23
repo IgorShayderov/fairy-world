@@ -1,3 +1,14 @@
 {
-  "extends": "./.quasar/tsconfig.json"
+  "extends": "./.quasar/tsconfig.json",
+  "compilerOptions": {
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "target": "ESNext",
+    "module": "ESNext",
+    "strict": true,
+    "allowJs": true,
+    "esModuleInterop": true
+  },
+  "include": ["src/**/*.ts", "src/**/*.vue", "test/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
 }

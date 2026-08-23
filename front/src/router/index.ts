@@ -1,9 +1,12 @@
 import { defineRouter } from '#q-app/wrappers';
 import { createMemoryHistory, createRouter, createWebHistory } from 'vue-router';
-import routes from './routes';
+import { checkAuthStatus } from '@/modules/Auth/utils/auth';
+import routerRoutes from './routes';
+import routes from '@/routes';
+
 import qs from 'qs';
 
-import type { LocationQueryRaw } from 'vue-router';
+import type { LocationQueryRaw, LocationQuery } from 'vue-router';
 
 /*
  * If not building with SSR mode, you can
@@ -19,12 +22,12 @@ export default defineRouter(function (/* { store, ssrContext } */) {
 
   const Router = createRouter({
     scrollBehavior: () => ({ left: 0, top: 0 }),
-    routes,
+    routes: routerRoutes,
     // Leave this as is and make changes in quasar.conf.js instead!
     // quasar.conf.js -> build -> vueRouterMode
     // quasar.conf.js -> build -> publicPath
     history: createHistory(process.env.VUE_ROUTER_BASE),
-    parseQuery: (query: string) => qs.parse(query),
+    parseQuery: (query: string) => qs.parse(query) as LocationQuery,
     stringifyQuery: (query: LocationQueryRaw) => qs.stringify(query, { encodeValuesOnly: true }),
   });
 
@@ -44,6 +47,19 @@ export default defineRouter(function (/* { store, ssrContext } */) {
     // } else if (token && noAuthRoutes.includes(from.name as string)) {
     //   return { name: 'Home' };
     // }
+  });
+
+  Router.beforeEach((to, from, next) => {
+    // Вызываем нашу реальную функцию проверки
+    const isAuthenticated = checkAuthStatus();
+
+    if (to.meta.requiresAuth && !isAuthenticated) {
+      next(routes.loginPath());
+    } else if (to.path === routes.loginPath() && isAuthenticated) {
+      next(routes.rootPath());
+    } else {
+      next();
+    }
   });
 
   return Router;

@@ -1,0 +1,23 @@
+services:
+  front:
+    build:
+      context: ./front
+      target: development
+    ports:
+      - "9000:9000"
+    volumes:
+      - ./front:/app
+      - /app/node_modules
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+      - HOST=0.0.0.0
+
+  back:
+    build:
+      context: ./back
+      target: development
+    ports:
+      - "3011:3011"
+    volumes:
+      - ./back:/app
+      - /app/node_modules

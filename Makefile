@@ -1,11 +1,14 @@
 front-dev:
 	cd ./front && npm run dev
 
+back-dev:
+	cd ./back && npn run start:dev
+
 front-install:
 	cd ./front && npm i
 
 install:
-	cd ./front && npm ci
+	cd ./front && rm -f package-lock.json && npm i
 
 lint:
 	cd ./front && npm run lint

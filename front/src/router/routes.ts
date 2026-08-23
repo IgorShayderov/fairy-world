@@ -5,21 +5,21 @@ const appRoutes: RouteRecordRaw[] = [
   { path: '/:path(.*)', redirect: routes.rootPath() },
   {
     path: routes.rootPath(),
-    component: () => import('@pages/RootPage.vue'),
+    component: () => import('@layouts/DefaultLayout.vue'),
+    meta: { requiresAuth: true },
     children: [
-      {
-        path: routes.loginPath(),
-        component: () => import('@pages/LoginPage.vue'),
-      },
-    ],
+      { path: '', component: () => import('@pages/RootPage.vue') }
+    ]
   },
-
-  // Always leave this as last one,
-  // but you can also remove it
-  // {
-  //   path: '/:catchAll(.*)*',
-  //   component: () => import('pages/ErrorNotFound.vue'),
-  // },
+  {
+    path: routes.loginPath(),
+    component: () => import('@pages/LoginPage.vue'),
+  },
+  {
+    path: '/dashboard',
+    name: 'DashboardPage',
+    component: () => import('@pages/RootPage.vue'),
+  },
 ];
 
 export default appRoutes;
