@@ -7,9 +7,7 @@ const appRoutes: RouteRecordRaw[] = [
     path: routes.rootPath(),
     component: () => import('@layouts/DefaultLayout.vue'),
     meta: { requiresAuth: true },
-    children: [
-      { path: '', component: () => import('@pages/RootPage.vue') }
-    ]
+    children: [{ path: '', component: () => import('@pages/RootPage.vue') }],
   },
   {
     path: routes.loginPath(),
@@ -30,9 +28,7 @@ const appRoutes: RouteRecordRaw[] = [
     name: 'ProfilePage',
     component: () => import('@layouts/DefaultLayout.vue'),
     meta: { requiresAuth: true },
-    children: [
-      { path: '', component: () => import('@/pages/ProfilePage.vue') },
-    ],
+    children: [{ path: '', component: () => import('@/pages/ProfilePage.vue') }],
   },
   {
     path: '/auth',
