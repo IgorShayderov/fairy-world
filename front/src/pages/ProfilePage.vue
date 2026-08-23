@@ -83,12 +83,6 @@ interface InventoryItem {
   icon: string;
 }
 
-interface EquippedItem {
-  name: string;
-  icon: string;
-  rarity: string;
-}
-
 const inventory = ref<InventoryItem[]>([
   { name: 'Меч', icon: 'firearms' },
   { name: 'Щит', icon: 'shield' },
