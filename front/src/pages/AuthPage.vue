@@ -1,42 +1,79 @@
 <template>
-  <div class="flex items-center justify-center min-h-screen bg-gray-100">
-    <QCard class="w-full max-w-md rounded-lg shadow-lg p-6 bg-white">
+  <div class="flex min-h-screen items-center justify-center bg-gray-100">
+    <QCard class="w-full max-w-md rounded-lg bg-white p-6 shadow-lg">
       <QCardSection class="mb-4">
-        <h1 class="text-2xl font-bold text-center text-gray-800"> Fairy World </h1>
-        <p class="text-center text-gray-500 text-sm mt-1"> Авторизация </p>
+        <h1 class="text-center text-2xl font-bold text-gray-800">Fairy World</h1>
+        <p class="mt-1 text-center text-sm text-gray-500">Авторизация</p>
       </QCardSection>
 
-      <!-- Вкладки: вход / регистрация -->
       <QTabs v-model="activeTab" class="q-mt-md">
         <QTab name="login" label="Вход" />
         <QTab name="register" label="Регистрация" />
       </QTabs>
 
       <QTabPanel name="login" class="q-mt-md">
-        <h2 class="text-lg font-semibold text-center text-gray-700 mb-4"> Вход </h2>
+        <h2 class="mb-4 text-center text-lg font-semibold text-gray-700">Вход</h2>
         <QForm @submit.prevent="handleLogin" class="space-y-4">
-          <QInput v-model="loginForm.email" label="Email" type="email" outlined :rules="emailRules" lazy-rules class="mb-4" />
-          <QInput v-model="loginForm.password" label="Password" type="password" outlined :rules="passwordRules" lazy-rules />
-          <div class="flex justify-center mt-4">
+          <QInput
+            v-model="loginForm.email"
+            label="Email"
+            type="email"
+            outlined
+            :rules="emailRules"
+            lazy-rules
+            class="mb-4"
+          />
+          <QInput
+            v-model="loginForm.password"
+            label="Password"
+            type="password"
+            outlined
+            :rules="passwordRules"
+            lazy-rules
+          />
+          <div class="mt-4 flex justify-center">
             <QBtn type="submit" label="Войти" color="primary" class="w-full" :loading="loading" />
           </div>
         </QForm>
       </QTabPanel>
 
       <QTabPanel name="register" class="q-mt-md">
-        <h2 class="text-lg font-semibold text-center text-gray-700 mb-4"> Регистрация </h2>
+        <h2 class="mb-4 text-center text-lg font-semibold text-gray-700">Регистрация</h2>
         <QForm @submit.prevent="handleRegister" class="space-y-4">
-          <QInput v-model="registerForm.email" label="Email" type="email" outlined :rules="emailRules" lazy-rules class="mb-4" />
-          <QInput v-model="registerForm.password" label="Password" type="password" outlined :rules="passwordRules" lazy-rules class="mb-4" />
-          <QInput v-model="registerForm.confirmPassword" label="Confirm password" type="password" outlined :rules="confirmPasswordRules" lazy-rules />
-          <div class="flex justify-center mt-4">
+          <QInput
+            v-model="registerForm.email"
+            label="Email"
+            type="email"
+            outlined
+            :rules="emailRules"
+            lazy-rules
+            class="mb-4"
+          />
+          <QInput
+            v-model="registerForm.password"
+            label="Password"
+            type="password"
+            outlined
+            :rules="passwordRules"
+            lazy-rules
+            class="mb-4"
+          />
+          <QInput
+            v-model="registerForm.confirmPassword"
+            label="Confirm password"
+            type="password"
+            outlined
+            :rules="confirmPasswordRules"
+            lazy-rules
+          />
+          <div class="mt-4 flex justify-center">
             <QBtn type="submit" label="Зарегистрироваться" color="primary" class="w-full" :loading="loading" />
           </div>
         </QForm>
       </QTabPanel>
 
       <!-- Сообщения об ошибках -->
-      <div v-if="error" class="mt-4 text-red-600 text-center text-sm">
+      <div v-if="error" class="mt-4 text-center text-sm text-red-600">
         {{ error }}
       </div>
     </QCard>
@@ -78,8 +115,14 @@ const registerForm = reactive<RegisterForm>({
   confirmPassword: '',
 });
 
-const emailRules = [(v: string) => !!v || 'Email обязателен', (v: string) => /.+@.+\..+/.test(v) || 'Некорректный email'];
-const passwordRules = [(v: string) => !!v || 'Password обязателен', (v: string) => v.length >= 6 || 'Минимум 6 символов'];
+const emailRules = [
+  (v: string) => !!v || 'Email обязателен',
+  (v: string) => /.+@.+\..+/.test(v) || 'Некорректный email',
+];
+const passwordRules = [
+  (v: string) => !!v || 'Password обязателен',
+  (v: string) => v.length >= 6 || 'Минимум 6 символов',
+];
 const confirmPasswordRules = [
   (v: string) => !!v || 'Подтверждение обязательно',
   (v: string) => v === registerForm.password || 'Пароли не совпадают',
@@ -112,7 +155,3 @@ const handleRegister = () => {
   loading.value = false;
 };
 </script>
-
-<style lang="scss" scoped>
-// стили для вкладок и формы
-</style>
