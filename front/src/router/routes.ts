@@ -20,6 +20,11 @@ const appRoutes: RouteRecordRaw[] = [
     name: 'DashboardPage',
     component: () => import('@pages/RootPage.vue'),
   },
+  {
+    path: '/rot',
+    name: 'RotPage',
+    component: () => import('@pages/RotPage.vue'),
+  },
 ];
 
 export default appRoutes;
