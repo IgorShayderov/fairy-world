@@ -23,7 +23,16 @@ const appRoutes: RouteRecordRaw[] = [
   {
     path: '/rot',
     name: 'RotPage',
-    component: () => import('@pages/RotPage.vue'),
+    component: () => import('@/pages/RotPage.vue'),
+  },
+  {
+    path: '/profile',
+    name: 'ProfilePage',
+    component: () => import('@layouts/DefaultLayout.vue'),
+    meta: { requiresAuth: true },
+    children: [
+      { path: '', component: () => import('@/pages/ProfilePage.vue') },
+    ],
   },
 ];
 

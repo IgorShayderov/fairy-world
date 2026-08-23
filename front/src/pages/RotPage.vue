@@ -52,7 +52,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { QCard, QBtn, QInput, RouterLink } from 'quasar';
+import { QCard, QBtn, QInput } from 'quasar';
 
 const message = ref('');
 const messages = ref<string[]>(['Привет! Как дела?', 'Хорошо, спасибо!']);

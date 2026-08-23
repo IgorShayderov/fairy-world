@@ -96,6 +96,14 @@ export default defineConfigWithVueTs(
   // https://github.com/vuejs/eslint-config-typescript
   vueTsConfigs.recommendedTypeChecked,
 
+  // Disable await-thenable for .vue files — type info not available
+  {
+    files: ['**/*.vue'],
+    rules: {
+      '@typescript-eslint/await-thenable': 'off',
+    },
+  },
+
   {
     languageOptions: {
       ecmaVersion: 'latest',
