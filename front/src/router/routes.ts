@@ -34,6 +34,11 @@ const appRoutes: RouteRecordRaw[] = [
       { path: '', component: () => import('@/pages/ProfilePage.vue') },
     ],
   },
+  {
+    path: '/auth',
+    name: 'AuthPage',
+    component: () => import('@/pages/AuthPage.vue'),
+  },
 ];
 
 export default appRoutes;

@@ -56,6 +56,7 @@ const props = withDefaults(defineProps<{
   isHovered?: boolean;
   isDragging?: boolean;
 }>(), {
+  slotId: '',
   isHovered: false,
   isDragging: false,
 });

@@ -80,9 +80,9 @@
 import { ref } from 'vue';
 import { QCard, QBtn } from 'quasar';
 import InventoryItem from '@/components/InventoryItem.vue';
-import type { InventoryItem, EquipmentSlot } from '@/shared/types/inventory';
+import type { InventoryItem as IInventoryItem, EquipmentSlot } from '@/shared/types/inventory';
 
-const inventory = ref<InventoryItem[]>([
+const inventory = ref<IInventoryItem[]>([
   { name: 'Меч', icon: 'firearms', rarity: 'Редкий' },
   { name: 'Щит', icon: 'shield', rarity: 'Обычный' },
   { name: 'Лекаство', icon: 'medication' },
@@ -111,7 +111,7 @@ const stats = ref([
 ]);
 
 // Drag state
-const dragItem = ref<InventoryItem | null>(null);
+const dragItem = ref<IInventoryItem | null>(null);
 const dragItemIndex = ref<number | null>(null);
 const isHoveredSlot = ref<string | null>(null);
 
@@ -144,8 +144,7 @@ const onSlotDrop = (slotId: string) => {
   if (slot.item) {
     if (dragItemIndex.value !== null) {
       // swap: удаляем старый элемент из инвентаря, добавляем старый предмет слота
-      const oldItem = slot.item;
-      inventory.value.splice(dragItemIndex.value, 1, oldItem);
+      inventory.value.splice(dragItemIndex.value, 1, slot.item);
       dragItemIndex.value = null;
     } else {
       // предмет снят (unequip), просто вернуть в инвентарь
