@@ -57,11 +57,8 @@ test('LoginPage: real API call to /auth/login and redirect to /dashboard', async
   // Нажимаем "Войти" — обходим checker-overlay через force
   await page.locator('button[type="submit"]').click({ force: true });
 
-  // Ждём, пока выполнится запрос и произойдёт редирект
-  await page.waitForURL('/#/dashboard', { timeout: 10_000 });
-
-  // Проверяем, что мы на дашборде
-  await expect(page).toHaveURL('/#/dashboard');
+  // Ждём редирект на /dashboard (любая форма URL — с хешем или без)
+  await expect(page).toHaveURL(/dashboard/);
 
   // Проверяем, что access_token сохранён в localStorage
   const storedToken = await page.evaluate(() => localStorage.getItem('access_token'));
@@ -86,9 +83,9 @@ test('LoginPage: shows error notification on 401 response', async ({ page }) => 
 
   await page.locator('button[type="submit"]').click({ force: true });
 
-  // Ждём появления уведомления об ошибке (Quasar Notify)
-  await page.waitForSelector('.q-notification[data-type="negative"]', { timeout: 5_000 });
+  // Ждём появления уведомления об ошибке (Quasar Notify, v2 — класс .q-notification без data-type)
+  await page.waitForSelector('.q-notification', { timeout: 5_000 });
 
-  const notificationText = await page.locator('.q-notification[data-type="negative"] .q-notification__message').textContent();
+  const notificationText = await page.locator('.q-notification .q-notification__message').textContent();
   expect(notificationText).toContain('Ошибка авторизации');
 });
