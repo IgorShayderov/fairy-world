@@ -18,7 +18,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-import { AuthGuard } from './auth.guard';
+import { AuthGuard, RefreshGuard } from './auth.guard';
 import { LoginDto } from './login.dto';
 import { Response } from 'express';
 
@@ -34,7 +34,7 @@ export class AuthController {
     description: 'Successfully authenticated',
     schema: {
       example: {
-        access_token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+        access_token: 'eyJhbG...VCJ9...',
         expiresIn: 60,
       },
     },
@@ -54,6 +54,36 @@ export class AuthController {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in ms
+    });
+
+    return { access_token: result.access_token, expiresIn: result.expiresIn };
+  }
+
+  @UseGuards(RefreshGuard)
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  @ApiCookieAuth()
+  @ApiOkResponse({
+    description: 'Refresh successful',
+    schema: {
+      example: {
+        access_token: 'eyJhbG...VCJ9...',
+        expiresIn: 60,
+      },
+    },
+  })
+  @ApiUnauthorizedResponse({ description: 'Invalid refresh token' })
+  async refreshToken(
+    @Request() req,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.refreshTokens(req['user'].sub);
+
+    res.cookie('refresh_token', result.refresh_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
     return { access_token: result.access_token, expiresIn: result.expiresIn };

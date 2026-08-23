@@ -26,8 +26,8 @@ export class AuthService {
     }
 
     const payload = { sub: user.id, email: user.email };
+    const expiresIn = 60;
 
-    const expiresIn = 60; // seconds
     const access_token = await this.jwtService.signAsync(payload, {
       expiresIn: `${expiresIn}s`,
     });
@@ -38,5 +38,23 @@ export class AuthService {
     );
 
     return { access_token, refresh_token, expiresIn };
+  }
+
+  async refreshTokens(
+    sub: number,
+  ): Promise<{ access_token: string; expiresIn: number; refresh_token: string }> {
+    const expiresIn = 60;
+
+    const access_token = await this.jwtService.signAsync(
+      { sub },
+      { expiresIn: `${expiresIn}s` },
+    );
+
+    const refresh_token = await this.jwtService.signAsync(
+      { sub, type: 'refresh' },
+      { expiresIn: '7d' },
+    );
+
+    return { access_token, expiresIn, refresh_token };
   }
 }
