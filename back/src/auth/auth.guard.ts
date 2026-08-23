@@ -1,14 +1,6 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { jwtConstants } from './constants';
 import { Request } from 'express';
-
-export type JwtPayload = { sub: number; email?: string; type?: string };
 
 @Injectable()
 export class AuthGuard implements CanActivate {
@@ -23,11 +15,12 @@ export class AuthGuard implements CanActivate {
     }
 
     try {
-      const payload = await this.jwtService.verifyAsync<JwtPayload>(token, {
-        secret: jwtConstants.secret,
-      });
+      const payload = await this.jwtService.verifyAsync(
+        token,
+        { secret: process.env.JWT_SECRET || 'access-secret' },
+      );
 
-      request['user'] = payload;
+      request['user'] = { sub: payload.sub, email: payload.email };
     } catch {
       throw new UnauthorizedException();
     }
@@ -47,22 +40,19 @@ export class RefreshGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
-    const token = this.extractRefreshTokenFromCookie(request);
+    const refreshToken = this.extractRefreshTokenFromCookie(request);
 
-    if (!token) {
-      throw new UnauthorizedException('Refresh token not found');
+    if (!refreshToken) {
+      throw new UnauthorizedException('Refresh token missing');
     }
 
     try {
-      const payload = await this.jwtService.verifyAsync<JwtPayload>(token, {
-        secret: jwtConstants.secret,
-      });
+      const payload = await this.jwtService.verifyAsync(
+        refreshToken,
+        { secret: process.env.JWT_REFRESH_SECRET || 'refresh-secret' },
+      );
 
-      if (payload.type !== 'refresh') {
-        throw new UnauthorizedException('Invalid refresh token');
-      }
-
-      request['user'] = { sub: payload.sub };
+      request['user'] = { sub: payload.sub, type: 'refresh' };
     } catch {
       throw new UnauthorizedException('Invalid refresh token');
     }
@@ -72,18 +62,13 @@ export class RefreshGuard implements CanActivate {
 
   private extractRefreshTokenFromCookie(request: Request): string | undefined {
     const cookieHeader = request.headers.cookie;
-    if (!cookieHeader) {
-      return undefined;
-    }
+    if (!cookieHeader) return undefined;
 
-    const cookies = cookieHeader.split(';').reduce<Record<string, string>>(
-      (acc, pair) => {
-        const [key, ...vals] = pair.trim().split('=');
-        if (key) acc[key] = decodeURIComponent(vals.join('='));
-        return acc;
-      },
-      {},
-    );
+    const cookies = cookieHeader.split(';').reduce<Record<string, string>>((acc, pair) => {
+      const [key, ...vals] = pair.trim().split('=');
+      if (key) acc[key] = decodeURIComponent(vals.join('='));
+      return acc;
+    }, {});
 
     return cookies['refresh_token'];
   }

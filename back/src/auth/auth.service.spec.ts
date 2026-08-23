@@ -6,15 +6,12 @@ import { JwtService } from '@nestjs/jwt';
 describe('AuthService', () => {
   let service: AuthService;
 
-  const mockUsersService = {
-    findOne: jest.fn(),
-  };
-
-  const mockJwtService = {
-    signAsync: jest.fn(),
-  };
+  const mockUsersService = { findOne: jest.fn() };
+  const mockJwtService = { signAsync: jest.fn() };
 
   beforeEach(async () => {
+    jest.clearAllMocks();
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
@@ -73,6 +70,31 @@ describe('AuthService', () => {
       await expect(
         service.signIn('notfound@mail.ru', 'anypassword'),
       ).rejects.toThrow();
+    });
+  });
+
+  describe('refreshTokens', () => {
+    it('should generate new access and refresh tokens for given sub', async () => {
+      const sub = 1;
+      mockJwtService.signAsync
+        .mockResolvedValueOnce('new_access_token')
+        .mockResolvedValueOnce('new_refresh_token');
+
+      const result = await service.refreshTokens(sub);
+
+      expect(result).toEqual({
+        access_token: 'new_access_token',
+        expiresIn: 60,
+        refresh_token: 'new_refresh_token',
+      });
+      expect(mockJwtService.signAsync).toHaveBeenCalledWith(
+        { sub },
+        expect.objectContaining({ expiresIn: '60s' }),
+      );
+      expect(mockJwtService.signAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ sub, type: 'refresh' }),
+        expect.objectContaining({ expiresIn: '7d' }),
+      );
     });
   });
 });

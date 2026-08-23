@@ -9,6 +9,7 @@ describe('AuthController', () => {
 
   const mockAuthService = {
     signIn: jest.fn(),
+    refreshTokens: jest.fn(),
   };
 
   const mockJwtService = {
@@ -32,7 +33,7 @@ describe('AuthController', () => {
   });
 
   describe('signIn', () => {
-    it('should call AuthService.signIn with email and password and set cookie', async () => {
+    it('should call AuthService.signIn and set cookie', async () => {
       const dto = { email: 'john@mail.ru', password: 'Qwerty123!' };
       const result = {
         access_token: 'token',
@@ -46,16 +47,38 @@ describe('AuthController', () => {
 
       const response = await controller.signIn(dto, mockRes);
 
-      expect(mockAuthService.signIn).toHaveBeenCalledWith(
-        'john@mail.ru',
-        'Qwerty123!',
-      );
+      expect(mockAuthService.signIn).toHaveBeenCalledWith('john@mail.ru', 'Qwerty123!');
       expect(cookieSpy).toHaveBeenCalledWith(
         'refresh_token',
         'refresh',
         expect.objectContaining({ httpOnly: true }),
       );
       expect(response).toEqual({ access_token: 'token', expiresIn: 60 });
+    });
+  });
+
+  describe('refreshToken', () => {
+    it('should call AuthService.refreshTokens and set new cookie', async () => {
+      const result = {
+        access_token: 'new_token',
+        expiresIn: 60,
+        refresh_token: 'new_refresh',
+      };
+      mockAuthService.refreshTokens.mockResolvedValue(result);
+
+      const cookieSpy = jest.fn();
+      const mockRes = { cookie: cookieSpy } as unknown as Response;
+      const mockReq = { user: { sub: 1 } } as any;
+
+      const response = await controller.refreshToken(mockReq, mockRes);
+
+      expect(mockAuthService.refreshTokens).toHaveBeenCalledWith(1);
+      expect(cookieSpy).toHaveBeenCalledWith(
+        'refresh_token',
+        'new_refresh',
+        expect.objectContaining({ httpOnly: true }),
+      );
+      expect(response).toEqual({ access_token: 'new_token', expiresIn: 60 });
     });
   });
 
