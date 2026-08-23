@@ -23,7 +23,7 @@ const makeRequest = async (url: string, options: RequestInit = {}) => {
   headers.append('Accept', 'application/json');
   headers.append('Content-Type', 'application/json;charset=UFC-8');
 
-  const accessToken = localStorage.getItem('access');
+  const accessToken = localStorage.getItem('access_token');
 
   if (accessToken) {
     headers.append('Authorization', accessToken);

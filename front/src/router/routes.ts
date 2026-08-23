@@ -15,6 +15,11 @@ const appRoutes: RouteRecordRaw[] = [
     path: routes.loginPath(),
     component: () => import('@pages/LoginPage.vue'),
   },
+  {
+    path: '/dashboard',
+    name: 'DashboardPage',
+    component: () => import('@pages/RootPage.vue'),
+  },
 ];
 
 export default appRoutes;

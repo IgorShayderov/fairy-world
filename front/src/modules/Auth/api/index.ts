@@ -7,25 +7,12 @@ import routes from '@/routes';
 export const signIn = async ({ email, password }: ISignData) => {
   const response = await api(routes.api.signInPath(), {
     method: 'POST',
-    body: JSON.stringify({
-      email,
-      password,
-    }),
+    body: JSON.stringify({ email, password }),
   });
 
   const data = await response.json();
-
-  localStorage.setItem('access_token', data.access);
-  localStorage.setItem('access_token_expires_at', data.access_expires_at);
+  localStorage.setItem('access_token', data.access_token);
+  localStorage.setItem('access_token_expires_at', String(Date.now() + data.expiresIn * 1000));
 
   return data;
-};
-
-export const signUp = ({ email, password }: ISignData) => {
-  console.info(email, password);
-
-  return {
-    token: '',
-    username: '',
-  };
 };

@@ -32,7 +32,7 @@
           </QInput>
 
           <footer class="flex justify-center px-4">
-            <QBtn type="submit" label="Войти" color="primary" class="w-[200px]" />
+            <QBtn type="submit" label="Войти" color="primary" class="w-[200px]" :loading="loading" />
           </footer>
         </QForm>
 
@@ -48,6 +48,8 @@
 import { useQuasar, QCardSection, QCard, QForm, QInput, QBtn, QIcon } from 'quasar';
 import { ref, reactive } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
+import { signIn } from '@/modules/Auth/api';
+import type { ISignData } from '@/shared/types/user';
 
 interface LoginForm {
   email: string;
@@ -75,11 +77,12 @@ const passwordRules = [(val: string) => !!val || 'Пароль обязател�
 const handleSubmit = async () => {
   try {
     loading.value = true;
-    // Здесь будет логика авторизации
-    console.log('Отправка данных:', form);
 
-    // Имитация запроса
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    // Реальный запрос на бэкенд
+    await signIn({
+      email: form.email,
+      password: form.password,
+    } as ISignData);
 
     $q.notify({
       type: 'positive',
