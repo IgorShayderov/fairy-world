@@ -96,6 +96,17 @@ export default defineConfigWithVueTs(
   // https://github.com/vuejs/eslint-config-typescript
   vueTsConfigs.recommendedTypeChecked,
 
+  // Disable type-requiring rules for .vue files — type info not available
+  {
+    files: ['**/*.vue'],
+    rules: {
+      '@typescript-eslint/await-thenable': 'off',
+      '@typescript-eslint/no-array-delete': 'off',
+      '@typescript-eslint/no-base-to-string': 'off',
+      '@typescript-eslint/no-unnecessary-type-constraints': 'off',
+    },
+  },
+
   {
     languageOptions: {
       ecmaVersion: 'latest',
