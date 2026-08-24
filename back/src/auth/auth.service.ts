@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
+import * as bcrypt from 'bcrypt';
 
 export interface SignInResult {
   access_token: string;
@@ -15,13 +16,16 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  async signIn(
-    email: string,
-    password: string,
-  ): Promise<SignInResult> {
+  async signIn(email: string, password: string): Promise<SignInResult> {
     const user = await this.usersService.findOne(email);
 
-    if (user?.password !== password) {
+    if (!user) {
+      throw new UnauthorizedException();
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordValid) {
       throw new UnauthorizedException();
     }
 
@@ -32,28 +36,21 @@ export class AuthService {
       expiresIn: `${expiresIn}s`,
     });
 
-    const refresh_token = await this.jwtService.signAsync(
-      { sub: user.id, type: 'refresh' },
-      { expiresIn: '7d' },
-    );
+    const refresh_token = await this.jwtService.signAsync({ sub: user.id, type: 'refresh' }, { expiresIn: '7d' });
 
     return { access_token, refresh_token, expiresIn };
   }
 
-  async refreshTokens(
-    sub: number,
-  ): Promise<{ access_token: string; expiresIn: number; refresh_token: string }> {
+  async refreshTokens(sub: number): Promise<{
+    access_token: string;
+    expiresIn: number;
+    refresh_token: string;
+  }> {
     const expiresIn = 60;
 
-    const access_token = await this.jwtService.signAsync(
-      { sub },
-      { expiresIn: `${expiresIn}s` },
-    );
+    const access_token = await this.jwtService.signAsync({ sub }, { expiresIn: `${expiresIn}s` });
 
-    const refresh_token = await this.jwtService.signAsync(
-      { sub, type: 'refresh' },
-      { expiresIn: '7d' },
-    );
+    const refresh_token = await this.jwtService.signAsync({ sub, type: 'refresh' }, { expiresIn: '7d' });
 
     return { access_token, expiresIn, refresh_token };
   }

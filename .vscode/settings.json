@@ -1,3 +1,4 @@
 {
-  "typescript.tsdk": "front/node_modules/typescript/lib"
+  "typescript.tsdk": "front/node_modules/typescript/lib",
+  "js/ts.tsdk.path": "front/node_modules/typescript/lib"
 }

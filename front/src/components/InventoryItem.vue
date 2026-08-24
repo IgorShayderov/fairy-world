@@ -1,10 +1,10 @@
 <template>
   <div
-    class="relative flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-white p-2 cursor-grab active:cursor-grabbing"
+    class="relative flex cursor-grab flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-white p-2 active:cursor-grabbing"
     :class="{
       'border-blue-400 bg-blue-50': !!item,
       'border-red-400 bg-red-50': isHovered,
-      'border-blue-500 bg-blue-100 shadow-md scale-105 z-10': isDragging,
+      'z-10 scale-105 border-blue-500 bg-blue-100 shadow-md': isDragging,
     }"
     :draggable="!!item"
     @dragstart="onDragStart"
@@ -13,7 +13,6 @@
     @dragleave="onDragLeave"
     @drop="onDrop"
   >
-    <!-- Пустой слот -->
     <template v-if="!item">
       <div class="flex flex-col items-center text-gray-400">
         <QIcon name="inventory_2" size="32px" class="mb-1 opacity-50" />
@@ -21,12 +20,11 @@
       </div>
     </template>
 
-    <!-- Предмет -->
     <template v-else>
       <div class="flex flex-col items-center text-xs">
-        <QIcon :name="item.icon" size="32px" class="text-gray-700 mb-1" />
-        <span class="truncate w-full text-center font-medium text-gray-800">{{ item.name }}</span>
-        <span v-if="item.rarity" class="mt-0.5 text-[10px] uppercase tracking-wide" :class="rarityClass">
+        <QIcon :name="item.icon" size="32px" class="mb-1 text-gray-700" />
+        <span class="w-full truncate text-center font-medium text-gray-800">{{ item.name }}</span>
+        <span v-if="item.rarity" class="mt-0.5 text-[10px] tracking-wide uppercase" :class="rarityClass">
           {{ item.rarity }}
         </span>
       </div>
@@ -50,16 +48,19 @@ export interface EquipmentSlot {
   item: InventoryItem | null;
 }
 
-const props = withDefaults(defineProps<{
-  item: InventoryItem | null;
-  slotId?: string;
-  isHovered?: boolean;
-  isDragging?: boolean;
-}>(), {
-  slotId: '',
-  isHovered: false,
-  isDragging: false,
-});
+const props = withDefaults(
+  defineProps<{
+    item: InventoryItem | null;
+    slotId?: string;
+    isHovered?: boolean;
+    isDragging?: boolean;
+  }>(),
+  {
+    slotId: '',
+    isHovered: false,
+    isDragging: false,
+  }
+);
 
 const emit = defineEmits<{
   (e: 'drag-start', item: InventoryItem): void;
@@ -117,7 +118,6 @@ const onDrop = (e: DragEvent) => {
 </script>
 
 <style lang="scss" scoped>
-// Drag ghost opacity
 :deep(.css-1d3zcjo) {
   opacity: 0.6;
 }

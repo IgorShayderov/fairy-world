@@ -49,7 +49,6 @@ import { useQuasar, QCardSection, QCard, QForm, QInput, QBtn, QIcon } from 'quas
 import { ref, reactive } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import { signIn } from '@/modules/Auth/api';
-import type { ISignData } from '@/shared/types/user';
 
 interface LoginForm {
   email: string;
@@ -78,11 +77,10 @@ const handleSubmit = async () => {
   try {
     loading.value = true;
 
-    // Реальный запрос на бэкенд
     await signIn({
       email: form.email,
       password: form.password,
-    } as ISignData);
+    });
 
     $q.notify({
       type: 'positive',

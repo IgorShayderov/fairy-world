@@ -29,7 +29,7 @@ import { QBtn } from 'quasar';
 const route = useRoute();
 
 const links = computed(() => [
-  { to: '/rot', label: 'Ротовая' },
+  { to: '/', label: 'Ротовая' },
   { to: '/profile', label: 'Профиль' },
   { to: '/auth', label: 'Авторизация' },
 ]);

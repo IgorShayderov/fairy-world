@@ -1,9 +1,9 @@
 <template>
   <div>
-    <slot name="default"></slot>
+    <RouterView />
   </div>
 </template>
 
 <script setup lang="ts">
-// import { ref } from 'vue';
+import { RouterView } from 'vue-router';
 </script>

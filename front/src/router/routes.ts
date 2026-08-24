@@ -7,33 +7,18 @@ const appRoutes: RouteRecordRaw[] = [
     path: routes.rootPath(),
     component: () => import('@layouts/DefaultLayout.vue'),
     meta: { requiresAuth: true },
-    children: [{ path: '', component: () => import('@pages/RootPage.vue') }],
+    children: [
+      { path: '', component: () => import('@pages/RootPage.vue') },
+      {
+        path: '/profile',
+        name: 'ProfilePage',
+        component: () => import('@pages/ProfilePage.vue'),
+      },
+    ],
   },
   {
     path: routes.loginPath(),
     component: () => import('@pages/LoginPage.vue'),
-  },
-  {
-    path: '/dashboard',
-    name: 'DashboardPage',
-    component: () => import('@pages/RootPage.vue'),
-  },
-  {
-    path: '/rot',
-    name: 'RotPage',
-    component: () => import('@/pages/RotPage.vue'),
-  },
-  {
-    path: '/profile',
-    name: 'ProfilePage',
-    component: () => import('@layouts/DefaultLayout.vue'),
-    meta: { requiresAuth: true },
-    children: [{ path: '', component: () => import('@/pages/ProfilePage.vue') }],
-  },
-  {
-    path: '/auth',
-    name: 'AuthPage',
-    component: () => import('@/pages/AuthPage.vue'),
   },
 ];
 
