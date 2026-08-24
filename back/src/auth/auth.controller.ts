@@ -1,14 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Post,
-  Request,
-  Res,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, Request, Res, UseGuards } from '@nestjs/common';
 import {
   ApiBody,
   ApiCookieAuth,
@@ -40,14 +30,8 @@ export class AuthController {
     },
   })
   @ApiUnauthorizedResponse({ description: 'Invalid credentials' })
-  async signIn(
-    @Body() signInDto: LoginDto,
-    @Res({ passthrough: true }) res: Response,
-  ) {
-    const result = await this.authService.signIn(
-      signInDto.email,
-      signInDto.password,
-    );
+  async signIn(@Body() signInDto: LoginDto, @Res({ passthrough: true }) res: Response) {
+    const result = await this.authService.signIn(signInDto.email, signInDto.password);
 
     res.cookie('refresh_token', result.refresh_token, {
       httpOnly: true,
@@ -73,10 +57,7 @@ export class AuthController {
     },
   })
   @ApiUnauthorizedResponse({ description: 'Invalid refresh token' })
-  async refreshToken(
-    @Request() req,
-    @Res({ passthrough: true }) res: Response,
-  ) {
+  async refreshToken(@Request() req, @Res({ passthrough: true }) res: Response) {
     const result = await this.authService.refreshTokens(req['user'].sub);
 
     res.cookie('refresh_token', result.refresh_token, {

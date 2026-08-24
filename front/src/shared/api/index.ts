@@ -13,20 +13,19 @@ const makeRequest = async (url: string, options: RequestInit = {}) => {
   const DEFAULT_TIMEOUT = 4000;
   const controller = new AbortController();
 
-  const headers = new Headers();
   const defaultOptions: RequestInit = {
     method: 'GET',
     signal: controller.signal,
-    headers,
   };
-
-  headers.append('Accept', 'application/json');
-  headers.append('Content-Type', 'application/json;charset=UFC-8');
+  const defaultHeaders: Record<string, string> = {
+    Accept: 'application/json',
+    'Content-Type': 'application/json;charset=UTF-8',
+  };
 
   const accessToken = localStorage.getItem('access_token');
 
   if (accessToken) {
-    headers.append('Authorization', accessToken);
+    defaultHeaders['Authorization'] = `Bearer ${accessToken}`;
   }
 
   const timeoutId = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT);
@@ -35,7 +34,7 @@ const makeRequest = async (url: string, options: RequestInit = {}) => {
     ...defaultOptions,
     ...options,
     headers: {
-      ...defaultOptions.headers,
+      ...defaultHeaders,
       ...(options.headers ?? {}),
     },
   });

@@ -13,7 +13,6 @@
     @dragleave="onDragLeave"
     @drop="onDrop"
   >
-    <!-- Пустой слот -->
     <template v-if="!item">
       <div class="flex flex-col items-center text-gray-400">
         <QIcon name="inventory_2" size="32px" class="mb-1 opacity-50" />
@@ -21,7 +20,6 @@
       </div>
     </template>
 
-    <!-- Предмет -->
     <template v-else>
       <div class="flex flex-col items-center text-xs">
         <QIcon :name="item.icon" size="32px" class="text-gray-700 mb-1" />

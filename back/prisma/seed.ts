@@ -1,14 +1,23 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '../generated/prisma/client';
+import { Pool } from 'pg';
+import { PrismaPg } from '@prisma/adapter-pg';
+import * as bcrypt from 'bcrypt';
 
-const prisma = new PrismaClient();
+const connectionString = process.env.DATABASE_URL;
+const pool = new Pool({ connectionString });
+const adapter = new PrismaPg(pool);
+
+const prisma = new PrismaClient({ adapter });
 
 async function main() {
+  const hashedPassword = await bcrypt.hash('Qwerty123!', 10);
+
   const user = await prisma.user.upsert({
-    where: { email: 'flashmob123@gmail.com' },
+    where: { email: 'admin@gmail.com' },
     update: {},
     create: {
-      email: 'flashmob123@gmail.com',
-      password: 'Warcraft3exrg', // В реальном проекте пароль нужно хэшировать
+      email: 'admin@gmail.com',
+      password: hashedPassword,
     },
   });
 
