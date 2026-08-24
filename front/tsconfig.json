@@ -7,8 +7,7 @@
     "module": "ESNext",
     "strict": true,
     "allowJs": true,
-    "esModuleInterop": true,
-    "baseUrl": "./",
+    "esModuleInterop": true
   },
   "include": ["src/**/*.ts", "src/**/*.vue", "test/**/*.ts"],
   "exclude": ["node_modules", "dist"]
