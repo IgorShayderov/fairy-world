@@ -1,10 +1,5 @@
-import { Controller, Get, Post, Body, UseGuards, Req } from '@nestjs/common';
-import { ApiTags, ApiOkResponse, ApiBearerAuth, ApiUnauthorizedResponse } from '@nestjs/swagger';
-import { ShopService } from './shop.service';
-import { BuyDto } from './dto/buy.dto';
-import { AuthGuard } from '../auth/auth.guard';
+import { SellDto } from './dto/sell.dto';
 
-@ApiTags('shop')
 @Controller('shop')
 export class ShopController {
   constructor(private readonly shopService: ShopService) {}
@@ -29,7 +24,7 @@ export class ShopController {
   @ApiBearerAuth()
   @ApiOkResponse({ description: 'Item sold' })
   @ApiUnauthorizedResponse({ description: 'Not authenticated' })
-  async sell(@Body() sellDto: { name: string; quantity: number }, @Req() req: any) {
+  async sell(@Body() sellDto: SellDto, @Req() req: any) {
     return this.shopService.sell(req.user.sub, sellDto);
   }
 

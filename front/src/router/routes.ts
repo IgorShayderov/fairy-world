@@ -8,7 +8,7 @@ const appRoutes: RouteRecordRaw[] = [
     component: () => import('@layouts/DefaultLayout.vue'),
     meta: { requiresAuth: true },
     children: [
-      { path: '', component: () => import('@pages/RootPage.vue') },
+      { path: '', component: () => import('@pages/ShopPage.vue') },
       {
         path: '/profile',
         name: 'ProfilePage',

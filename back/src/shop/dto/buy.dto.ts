@@ -5,21 +5,21 @@ export class BuyDto {
   @ApiProperty({ description: 'ID предмета в магазине', example: 1 })
   @IsInt()
   @Min(1)
-  itemId: number;
+  itemId!: number;
 
   @ApiProperty({ description: 'Количество', example: 1 })
   @IsInt()
   @Min(1)
-  quantity: number;
+  quantity!: number;
 }
 
 export class SellDto {
   @ApiProperty({ description: 'Имя предмета', example: 'Медный меч' })
   @IsString()
-  name: string;
+  name!: string;
 
   @ApiProperty({ description: 'Количество', example: 1 })
   @IsInt()
   @Min(1)
-  quantity: number;
+  quantity!: number;
 }
