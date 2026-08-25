@@ -2,15 +2,20 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService, SignInResult } from './auth.service';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
+import * as bcrypt from 'bcrypt';
+
+jest.mock('bcrypt');
 
 describe('AuthService', () => {
   let service: AuthService;
+
+
 
   const mockUsersService = { findOne: jest.fn() };
   const mockJwtService = { signAsync: jest.fn() };
 
   beforeEach(async () => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -29,11 +34,14 @@ describe('AuthService', () => {
 
   describe('signIn', () => {
     it('should return access_token, refresh_token, expiresIn on success', async () => {
-      const user = { id: 1, email: 'john@mail.ru', password: 'Qwerty123!' };
+      const user = { id: 1, email: 'john@mail.ru', password: 'hashed_password' };
       mockUsersService.findOne.mockResolvedValue(user);
+
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+
       mockJwtService.signAsync.mockResolvedValueOnce('access_token_value').mockResolvedValueOnce('refresh_token_value');
 
-      const result: SignInResult = await service.signIn(user.email, user.password);
+      const result: SignInResult = await service.signIn(user.email, 'Qwerty123!');
 
       expect(result).toEqual({
         access_token: 'access_token_value',
@@ -54,8 +62,10 @@ describe('AuthService', () => {
     });
 
     it('should throw UnauthorizedException on wrong password', async () => {
-      const user = { id: 1, email: 'john@mail.ru', password: 'Qwerty123!' };
+      const user = { id: 1, email: 'john@mail.ru', password: 'hashed_password' };
       mockUsersService.findOne.mockResolvedValue(user);
+
+      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
 
       await expect(service.signIn(user.email, 'wrong_password')).rejects.toThrow();
     });
