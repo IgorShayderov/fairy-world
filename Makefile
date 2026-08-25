@@ -13,11 +13,11 @@ install:
 lint-front:
 	cd ./front && npm run lint
 
-# lint-back:
-# 	cd ./back && npm run lint
+lint-back:
+	cd ./back && npm run lint
 
-# test-back:
-# 	cd ./back && npm run test
+test-back:
+	cd ./back && npm run test
 
 test:
 	cd ./front && npm run test
