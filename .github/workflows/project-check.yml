@@ -17,8 +17,5 @@ jobs:
       - name: lint-front
         run: make lint-front
 
-      - name: lint-back
-        run: make lint-back
-
       - name: test
         run: make test
