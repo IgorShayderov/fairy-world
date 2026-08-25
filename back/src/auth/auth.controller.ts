@@ -12,6 +12,8 @@ import { AuthGuard, RefreshGuard } from './auth.guard';
 import { LoginDto } from './login.dto';
 import { Response } from 'express';
 
+import type { RequestWithUser } from './interfaces/request-with-user.interface';
+
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
@@ -57,7 +59,7 @@ export class AuthController {
     },
   })
   @ApiUnauthorizedResponse({ description: 'Invalid refresh token' })
-  async refreshToken(@Request() req, @Res({ passthrough: true }) res: Response) {
+  async refreshToken(@Request() req: RequestWithUser, @Res({ passthrough: true }) res: Response) {
     const result = await this.authService.refreshTokens(req['user'].sub);
 
     res.cookie('refresh_token', result.refresh_token, {
@@ -73,7 +75,7 @@ export class AuthController {
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOkResponse({ description: 'Logout successful, cookie cleared' })
-  async logout(@Res({ passthrough: true }) res: Response) {
+  logout(@Res({ passthrough: true }) res: Response) {
     res.clearCookie('refresh_token', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -94,7 +96,7 @@ export class AuthController {
     },
   })
   @ApiUnauthorizedResponse({ description: 'Not authenticated' })
-  getProfile(@Request() req) {
+  getProfile(@Request() req: RequestWithUser) {
     return req.user;
   }
 }

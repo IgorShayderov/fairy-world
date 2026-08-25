@@ -12,7 +12,7 @@ const prisma = new PrismaClient({ adapter });
 async function main() {
   const hashedPassword = await bcrypt.hash('Qwerty123!', 10);
 
-  const user = await prisma.user.upsert({
+  await prisma.user.upsert({
     where: { email: 'admin@gmail.com' },
     update: {},
     create: {
@@ -21,7 +21,19 @@ async function main() {
     },
   });
 
-  console.log('Сиды успешно выполнены:', user);
+  await prisma.channel.upsert({
+    where: { name: 'General' },
+    update: {},
+    create: { name: 'General' },
+  });
+
+  await prisma.channel.upsert({
+    where: { name: 'Market' },
+    update: {},
+    create: { name: 'Market' },
+  });
+
+  console.log('Сиды успешно выполнены');
 }
 
 main()

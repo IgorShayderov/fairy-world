@@ -2,15 +2,20 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService, SignInResult } from './auth.service';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
+import * as bcrypt from 'bcrypt';
+
+jest.mock('bcrypt');
 
 describe('AuthService', () => {
   let service: AuthService;
+
+
 
   const mockUsersService = { findOne: jest.fn() };
   const mockJwtService = { signAsync: jest.fn() };
 
   beforeEach(async () => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -29,13 +34,14 @@ describe('AuthService', () => {
 
   describe('signIn', () => {
     it('should return access_token, refresh_token, expiresIn on success', async () => {
-      const user = { id: 1, email: 'john@mail.ru', password: 'Qwerty123!' };
+      const user = { id: 1, email: 'john@mail.ru', password: 'hashed_password' };
       mockUsersService.findOne.mockResolvedValue(user);
-      mockJwtService.signAsync
-        .mockResolvedValueOnce('access_token_value')
-        .mockResolvedValueOnce('refresh_token_value');
 
-      const result: SignInResult = await service.signIn(user.email, user.password);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+
+      mockJwtService.signAsync.mockResolvedValueOnce('access_token_value').mockResolvedValueOnce('refresh_token_value');
+
+      const result: SignInResult = await service.signIn(user.email, 'Qwerty123!');
 
       expect(result).toEqual({
         access_token: 'access_token_value',
@@ -56,29 +62,25 @@ describe('AuthService', () => {
     });
 
     it('should throw UnauthorizedException on wrong password', async () => {
-      const user = { id: 1, email: 'john@mail.ru', password: 'Qwerty123!' };
+      const user = { id: 1, email: 'john@mail.ru', password: 'hashed_password' };
       mockUsersService.findOne.mockResolvedValue(user);
 
-      await expect(
-        service.signIn(user.email, 'wrong_password'),
-      ).rejects.toThrow();
+      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+
+      await expect(service.signIn(user.email, 'wrong_password')).rejects.toThrow();
     });
 
     it('should throw UnauthorizedException when user not found', async () => {
       mockUsersService.findOne.mockResolvedValue(undefined);
 
-      await expect(
-        service.signIn('notfound@mail.ru', 'anypassword'),
-      ).rejects.toThrow();
+      await expect(service.signIn('notfound@mail.ru', 'anypassword')).rejects.toThrow();
     });
   });
 
   describe('refreshTokens', () => {
     it('should generate new access and refresh tokens for given sub', async () => {
       const sub = 1;
-      mockJwtService.signAsync
-        .mockResolvedValueOnce('new_access_token')
-        .mockResolvedValueOnce('new_refresh_token');
+      mockJwtService.signAsync.mockResolvedValueOnce('new_access_token').mockResolvedValueOnce('new_refresh_token');
 
       const result = await service.refreshTokens(sub);
 
@@ -87,10 +89,7 @@ describe('AuthService', () => {
         expiresIn: 60,
         refresh_token: 'new_refresh_token',
       });
-      expect(mockJwtService.signAsync).toHaveBeenCalledWith(
-        { sub },
-        expect.objectContaining({ expiresIn: '60s' }),
-      );
+      expect(mockJwtService.signAsync).toHaveBeenCalledWith({ sub }, expect.objectContaining({ expiresIn: '60s' }));
       expect(mockJwtService.signAsync).toHaveBeenCalledWith(
         expect.objectContaining({ sub, type: 'refresh' }),
         expect.objectContaining({ expiresIn: '7d' }),

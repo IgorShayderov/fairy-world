@@ -1,8 +1,9 @@
+import { JwtService } from '@nestjs/jwt';
+import { Response, Request } from 'express';
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-import { JwtService } from '@nestjs/jwt';
-import { Response } from 'express';
 
 describe('AuthController', () => {
   let controller: AuthController;
@@ -48,11 +49,7 @@ describe('AuthController', () => {
       const response = await controller.signIn(dto, mockRes);
 
       expect(mockAuthService.signIn).toHaveBeenCalledWith('john@mail.ru', 'Qwerty123!');
-      expect(cookieSpy).toHaveBeenCalledWith(
-        'refresh_token',
-        'refresh',
-        expect.objectContaining({ httpOnly: true }),
-      );
+      expect(cookieSpy).toHaveBeenCalledWith('refresh_token', 'refresh', expect.objectContaining({ httpOnly: true }));
       expect(response).toEqual({ access_token: 'token', expiresIn: 60 });
     });
   });
@@ -68,7 +65,7 @@ describe('AuthController', () => {
 
       const cookieSpy = jest.fn();
       const mockRes = { cookie: cookieSpy } as unknown as Response;
-      const mockReq = { user: { sub: 1 } } as any;
+      const mockReq = { user: { sub: 1 } } as unknown as Request;
 
       const response = await controller.refreshToken(mockReq, mockRes);
 
@@ -83,11 +80,11 @@ describe('AuthController', () => {
   });
 
   describe('logout', () => {
-    it('should clear refresh_token cookie', async () => {
+    it('should clear refresh_token cookie', () => {
       const clearCookieSpy = jest.fn();
       const mockRes = { clearCookie: clearCookieSpy } as unknown as Response;
 
-      await controller.logout(mockRes);
+      controller.logout(mockRes);
 
       expect(clearCookieSpy).toHaveBeenCalledWith('refresh_token', {
         httpOnly: true,
@@ -99,8 +96,9 @@ describe('AuthController', () => {
 
   describe('getProfile', () => {
     it('should return req.user', () => {
-      const req = { user: { sub: 1, email: 'john@mail.ru' } } as any;
+      const req = { user: { sub: 1, email: 'john@mail.ru' } } as unknown as Request;
       const result = controller.getProfile(req);
+
       expect(result).toEqual({ sub: 1, email: 'john@mail.ru' });
     });
   });

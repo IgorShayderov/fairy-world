@@ -17,3 +17,18 @@ model User {
   email    String @unique
   password String
 }
+
+model Channel {
+  id        String    @id @default(uuid())
+  name      String    @unique
+  messages  Message[]
+  createdAt DateTime  @default(now())
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  text      String
+  channelId String
+  channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
