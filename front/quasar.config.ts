@@ -13,7 +13,7 @@ export default defineConfig((/* ctx */) => {
     // app boot file (/src/boot)
     // --> boot files are part of "main.js"
     // https://v2.quasar.dev/quasar-cli-vite/boot-files
-    boot: [],
+    boot: ['i18n', 'pinia'],
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#css
     // front/src/assets/scss/main.scss
@@ -48,11 +48,12 @@ export default defineConfig((/* ctx */) => {
         '@modules': fileURLToPath(new URL('./src/modules', import.meta.url)),
         '@pages': fileURLToPath(new URL('./src/pages', import.meta.url)),
         '@shared': fileURLToPath(new URL('./src/shared', import.meta.url)),
+        '@components': fileURLToPath(new URL('./src/components', import.meta.url)),
       },
 
       target: {
         browser: ['es2022', 'firefox115', 'chrome115', 'safari14'],
-        node: 'node20',
+        node: 'node24',
       },
 
       typescript: {

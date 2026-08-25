@@ -2,7 +2,7 @@
   <article class="flex h-full w-[500px] w-full items-center justify-center">
     <QCard class="w-full max-w-md rounded-lg p-6 shadow-lg">
       <QCardSection>
-        <h2 class="mb-6 text-center text-xl! font-bold text-gray-800">Вход в систему</h2>
+        <h2 class="mb-6 text-center text-xl! font-bold text-gray-800">{{ $t('auth.labels.login') }}</h2>
 
         <QForm @submit.prevent="handleSubmit" class="space-y-4">
           <QInput v-model="form.email" label="Email" type="email" outlined :rules="emailRules" lazy-rules class="mb-4">
@@ -13,7 +13,7 @@
 
           <QInput
             v-model="form.password"
-            label="Пароль"
+            :label="$t('auth.fields.password.label')"
             :type="showPassword ? 'text' : 'password'"
             outlined
             :rules="passwordRules"
@@ -32,12 +32,20 @@
           </QInput>
 
           <footer class="flex justify-center px-4">
-            <QBtn type="submit" label="Войти" color="primary" class="w-[200px]" :loading="loading" />
+            <QBtn
+              type="submit"
+              :label="$t('auth.buttons.login')"
+              color="primary"
+              class="w-[200px]"
+              :loading="loading"
+            />
           </footer>
         </QForm>
 
         <div class="mt-6 text-center">
-          <RouterLink to="/forgot-password" class="text-sm text-blue-600 hover:underline"> Забыли пароль? </RouterLink>
+          <RouterLink to="/forgot-password" class="text-sm text-blue-600 hover:underline">
+            {{ $t('auth.buttons.forgotPassword') }}
+          </RouterLink>
         </div>
       </QCardSection>
     </QCard>
@@ -48,6 +56,8 @@
 import { useQuasar, QCardSection, QCard, QForm, QInput, QBtn, QIcon } from 'quasar';
 import { ref, reactive } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
+import { useTranslation } from 'i18next-vue';
+
 import { signIn } from '@/modules/Auth/api';
 
 interface LoginForm {
@@ -62,16 +72,17 @@ const form = reactive<LoginForm>({
 
 const $q = useQuasar();
 const router = useRouter();
+const { t } = useTranslation();
 
 const showPassword = ref(false);
 const loading = ref(false);
 
 const emailRules = [
-  (val: string) => !!val || 'Email обязателен',
-  (val: string) => /.+@.+\..+/.test(val) || 'Введите корректный email',
+  (val: string) => !!val || t('auth.validation.errors.email.required'),
+  (val: string) => /.+@.+\..+/.test(val) || t('auth.validation.errors.email.incorrect'),
 ];
 
-const passwordRules = [(val: string) => !!val || 'Пароль обязателен'];
+const passwordRules = [(val: string) => !!val || t('auth.validation.errors.password.required')];
 
 const handleSubmit = async () => {
   try {
