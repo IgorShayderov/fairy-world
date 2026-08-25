@@ -51,6 +51,16 @@ export const useChatStore = defineStore('chat', () => {
     }
   };
 
+  const receiveMessage = (message: Message) => {
+    if (message.channelId === activeChannelId.value) {
+      messages.value.push(message);
+    } else {
+      // Здесь в будущем можно увеличивать счетчик непрочитанных сообщений
+      // для других каналов в боковом меню
+      console.log(`Новое сообщение в скрытом канале ${message.channelId}`);
+    }
+  };
+
   return {
     channels,
     messages,
@@ -61,5 +71,6 @@ export const useChatStore = defineStore('chat', () => {
     loadChannels,
     selectChannel,
     postMessage,
+    receiveMessage,
   };
 });

@@ -1,7 +1,5 @@
 <template>
-  <!-- 1. Placeholder: Reserves exactly 300px in the layout so content doesn't jump -->
   <div class="mt-auto h-[300px] w-full shrink-0">
-    <!-- 2. Chat Overlay: Anchors to the bottom and expands upwards -->
     <article
       class="absolute bottom-0 left-0 z-20 flex w-full border-t border-gray-200 bg-white transition-all duration-500 ease-in-out"
       :class="isExpanded ? 'h-full shadow-[0_-20px_50px_rgba(0,0,0,0.1)]' : 'h-[300px]'"
