@@ -135,7 +135,7 @@ const handleSend = async () => {
   }
 };
 
-onMounted(() => {
-  chatStore.loadChannels();
+onMounted(async () => {
+  await chatStore.loadChannels();
 });
 </script>
