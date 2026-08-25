@@ -3,7 +3,6 @@ import {
   WebSocketServer,
   SubscribeMessage,
   MessageBody,
-  ConnectedSocket,
   OnGatewayInit,
   OnGatewayConnection,
   OnGatewayDisconnect,
@@ -12,7 +11,7 @@ import { Server, Socket } from 'socket.io';
 
 @WebSocketGateway({
   cors: {
-    origin: 'http://localhost:9001', // URL фронтенда на Quasar
+    origin: process.env.FRONT_URL,
     credentials: true,
   },
 })
@@ -34,7 +33,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
   // Обработчик события, если сообщение отправляется клиентом через WebSocket
   @SubscribeMessage('send_message')
-  handleMessage(@MessageBody() payload: { channelId: string; text: string }, @ConnectedSocket() client: Socket) {
+  handleMessage(@MessageBody() payload: { channelId: string; text: string }) {
     const newMessage = {
       id: Date.now().toString(),
       channelId: payload.channelId,

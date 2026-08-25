@@ -2,12 +2,15 @@ import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from
 import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
 
+import type { RequestWithUser } from './interfaces/request-with-user.interface';
+import type { AccessTokenPayload } from './interfaces/token-payload.interface';
+
 @Injectable()
 export class AuthGuard implements CanActivate {
   constructor(private jwtService: JwtService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest<Request>();
+    const request = context.switchToHttp().getRequest<RequestWithUser>();
     const token = this.extractTokenFromHeader(request);
 
     if (!token) {
@@ -15,10 +18,9 @@ export class AuthGuard implements CanActivate {
     }
 
     try {
-      const payload = await this.jwtService.verifyAsync(
-        token,
-        { secret: process.env.JWT_SECRET || 'access-secret' },
-      );
+      const payload = await this.jwtService.verifyAsync<AccessTokenPayload>(token, {
+        secret: process.env.JWT_SECRET || 'access-secret',
+      });
 
       request['user'] = { sub: payload.sub, email: payload.email };
     } catch {
@@ -47,10 +49,9 @@ export class RefreshGuard implements CanActivate {
     }
 
     try {
-      const payload = await this.jwtService.verifyAsync(
-        refreshToken,
-        { secret: process.env.JWT_REFRESH_SECRET || 'refresh-secret' },
-      );
+      const payload = await this.jwtService.verifyAsync<AccessTokenPayload>(refreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET || 'refresh-secret',
+      });
 
       request['user'] = { sub: payload.sub, type: 'refresh' };
     } catch {

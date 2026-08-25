@@ -14,8 +14,14 @@ jobs:
       - name: installation
         run: make install
 
-      - name: lint
-        run: make lint
+      - name: lint-front
+        run: make lint-front
+
+      - name: lint-back
+        run: make lint-back
+
+      - name: test-back
+        run: make test-back
 
       - name: test
         run: make test
