@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
+
 import { chatApi } from './api';
 import type { Channel, Message } from './types';
 
@@ -19,10 +20,13 @@ export const useChatStore = defineStore('chat', () => {
   const loadChannels = async () => {
     isLoading.value = true;
     try {
-      channels.value = await chatApi.getChannels();
+      const data = await chatApi.getChannels();
 
-      if (channels.value.length > 0 && !activeChannelId.value) {
-        await selectChannel(channels.value[0].id);
+      channels.value = data;
+      const [firstChannel] = channels.value;
+
+      if (firstChannel && !activeChannelId.value) {
+        await selectChannel(firstChannel.id);
       }
     } finally {
       isLoading.value = false;
@@ -33,6 +37,7 @@ export const useChatStore = defineStore('chat', () => {
     activeChannelId.value = channelId;
     isMessagesLoading.value = true;
     messages.value = [];
+
     try {
       messages.value = await chatApi.getMessages(channelId);
     } finally {

@@ -59,6 +59,7 @@ import { RouterLink, useRouter } from 'vue-router';
 import { useTranslation } from 'i18next-vue';
 
 import { signIn } from '@/modules/Auth/api';
+import { socket } from '@/boot/socket';
 
 interface LoginForm {
   email: string;
@@ -98,7 +99,9 @@ const handleSubmit = async () => {
       message: 'Вход выполнен успешно',
     });
 
-    await router.push('/dashboard');
+    await router.push('/');
+    socket.connect();
+    // socket.disconnect();
   } catch {
     $q.notify({
       type: 'negative',

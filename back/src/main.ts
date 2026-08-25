@@ -1,8 +1,10 @@
 import { NestFactory } from '@nestjs/core';
-import * as cookieParser from 'cookie-parser';
-import { AppModule } from './app.module';
+import cookieParser from 'cookie-parser';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
+
+import { TransformInterceptor } from './common/interceptors/transform.interceptor';
+import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -11,7 +13,7 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api/v1');
   app.enableCors({
-    origin: 'http://localhost:9001',
+    origin: process.env.FRONT_URL,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
   });
@@ -37,6 +39,11 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
 
+  app.useGlobalInterceptors(new TransformInterceptor());
+
   await app.listen(process.env.PORT ?? 3333);
 }
-bootstrap();
+bootstrap().catch((err) => {
+  console.error('Критическая ошибка при запуске сервера:', err);
+  process.exit(1);
+});
