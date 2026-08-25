@@ -40,6 +40,11 @@ const modules = {
       send: 'Send',
     },
   },
+  dashboard: {
+    contentBlock: 'Content block {{n}}',
+    sidebarTitle: 'Panel',
+    item: 'Item {{n}}',
+  },
 };
 
 export default modules;
