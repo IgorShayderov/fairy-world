@@ -23,6 +23,11 @@ describe('AuthService', () => {
       create: jest.fn(),
       update: jest.fn(),
     },
+    passwordResetToken: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn(),
+    },
   };
 
   beforeEach(async () => {
@@ -195,43 +200,78 @@ describe('AuthService', () => {
     it('should generate and store a token when user exists', async () => {
       const user = { id: 1, email: 'existing@example.com' };
       mockUsersService.findOne.mockResolvedValue(user);
+      (bcrypt.hash as jest.Mock).mockResolvedValue('hashed_token');
 
       const result = await service.requestPasswordReset({ email: user.email });
 
       expect(result.message).toContain('инструкции для восстановления');
       expect(mockUsersService.findOne).toHaveBeenCalledWith(user.email);
+      expect(mockPrismaService.passwordResetToken.create).toHaveBeenCalled();
     });
   });
 
   describe('resetPassword', () => {
     it('should throw BadRequestException when token is invalid', async () => {
+      mockPrismaService.passwordResetToken.findMany.mockResolvedValue([]);
+
       await expect(service.resetPassword({ token: 'invalid_token', password: 'NewPass123!' })).rejects.toThrow(
         BadRequestException,
       );
     });
 
     it('should reset password when token is valid', async () => {
-      // Set up a valid token manually
       const validToken = 'valid_token_123';
       const user = { id: 1, email: 'test@example.com' };
       mockUsersService.findOne.mockResolvedValue(user);
 
-      // Simulate creating a valid token using a type-cast helper
-      const authServiceAny = service as unknown as {
-        resetTokens: Map<string, { userId: number; expiresAt: Date }>;
-      };
-      authServiceAny.resetTokens.set(validToken, {
-        userId: user.id,
-        expiresAt: new Date(Date.now() + 5 * 60_000), // 5 min in future
-      });
+      mockPrismaService.passwordResetToken.findMany.mockResolvedValue([
+        {
+          id: 1,
+          token: 'hashed_token',
+          userId: user.id,
+          expiresAt: new Date(Date.now() + 5 * 60_000),
+          used: false,
+          user,
+        },
+      ]);
 
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
       (bcrypt.hash as jest.Mock).mockResolvedValue('hashed_new_password');
       mockPrismaService.user.update.mockResolvedValue({});
+      mockPrismaService.passwordResetToken.update.mockResolvedValue({});
 
       const result = await service.resetPassword({ token: validToken, password: 'NewPass123!' });
 
       expect(result.message).toBe('Пароль успешно обновлён.');
       expect(mockPrismaService.user.update).toHaveBeenCalled();
+      expect(mockPrismaService.passwordResetToken.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { used: true },
+      });
+    });
+
+    it('should throw BadRequestException when token is expired', async () => {
+      const user = { id: 1, email: 'test@example.com' };
+      mockUsersService.findOne.mockResolvedValue(user);
+
+      // Query filters by expiresAt > now, so expired tokens won't be found
+      mockPrismaService.passwordResetToken.findMany.mockResolvedValue([]);
+
+      await expect(service.resetPassword({ token: 'valid_token', password: 'NewPass123!' })).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should throw BadRequestException when token is already used', async () => {
+      const user = { id: 1, email: 'test@example.com' };
+      mockUsersService.findOne.mockResolvedValue(user);
+
+      // Query filters by used: false, so used tokens won't be found
+      mockPrismaService.passwordResetToken.findMany.mockResolvedValue([]);
+
+      await expect(service.resetPassword({ token: 'valid_token', password: 'NewPass123!' })).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 });

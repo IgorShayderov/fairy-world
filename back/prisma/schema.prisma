@@ -22,6 +22,7 @@ model User {
   city      String?  // Optional city
   gender    Gender?  // Optional gender enum
   language  String?  // Optional preferred language
+  resetTokens PasswordResetToken[]
 
   @@index([email])
 }
@@ -30,6 +31,19 @@ enum Gender {
   MALE
   FEMALE
   OTHER
+}
+
+model PasswordResetToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([token])
+  @@index([userId])
 }
 
 model Channel {

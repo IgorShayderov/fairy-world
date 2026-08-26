@@ -18,9 +18,6 @@ export interface SignInResult {
  */
 @Injectable()
 export class AuthService {
-  // In-memory map for password reset tokens; in production use Redis or DB
-  private resetTokens: Map<string, { userId: number; expiresAt: Date }> = new Map();
-
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
@@ -114,7 +111,7 @@ export class AuthService {
   }
 
   /**
-   * Handles password reset request: finds user, generates token, logs it (simulate email).
+   * Handles password reset request: finds user, generates token, stores in DB, logs it (simulate email).
    */
   async requestPasswordReset(dto: ForgotPasswordDto): Promise<{ message: string }> {
     const user = await this.usersService.findOne(dto.email);
@@ -127,7 +124,15 @@ export class AuthService {
     const token = this.generateSecureToken();
     const expiresAt = new Date(Date.now() + 15 * 60_000); // 15 minutes
 
-    this.resetTokens.set(token, { userId: user.id, expiresAt });
+    // Store token in database (hashed for security)
+    const tokenHash = await bcrypt.hash(token, 10);
+    await this.prisma.passwordResetToken.create({
+      data: {
+        token: tokenHash,
+        userId: user.id,
+        expiresAt,
+      },
+    });
 
     // TODO: In production, send email with link containing token
     console.log(`🔑 [PASSWORD RESET] Token for ${user.email}: ${token} (expires at ${expiresAt.toISOString()})`);
@@ -136,24 +141,44 @@ export class AuthService {
   }
 
   /**
-   * Resets user password using a valid token.
+   * Resets user password using a valid token from database.
    */
   async resetPassword(dto: ResetPasswordDto): Promise<{ message: string }> {
-    const record = this.resetTokens.get(dto.token);
+    // Find token in database (not expired, not used)
+    const tokens = await this.prisma.passwordResetToken.findMany({
+      where: {
+        expiresAt: { gt: new Date() },
+        used: false,
+      },
+      include: { user: true },
+    });
 
-    if (!record || record.expiresAt < new Date()) {
+    // Check each token hash against the provided token
+    let validToken: typeof tokens[0] | null = null;
+    for (const t of tokens) {
+      const isValid = await bcrypt.compare(dto.token, t.token);
+      if (isValid) {
+        validToken = t;
+        break;
+      }
+    }
+
+    if (!validToken) {
       throw new BadRequestException('Недействительный или просроченный токен.');
     }
 
     const hashedPassword = await bcrypt.hash(dto.password, 10);
 
     await this.prisma.user.update({
-      where: { id: record.userId },
+      where: { id: validToken.userId },
       data: { password: hashedPassword },
     });
 
     // Invalidate token after use
-    this.resetTokens.delete(dto.token);
+    await this.prisma.passwordResetToken.update({
+      where: { id: validToken.id },
+      data: { used: true },
+    });
 
     return { message: 'Пароль успешно обновлён.' };
   }
