@@ -3,82 +3,86 @@ const modules = {
     validation: {
       errors: {
         email: {
-          required: 'Email обязателен',
-          incorrect: 'Введите корректный email',
+          required: 'Email is required',
+          incorrect: 'Enter a valid email',
         },
         password: {
-          required: 'Пароль обязателен',
-          minLength: 'Пароль должен быть не менее 6 символов',
-          mustContainLetter: 'Пароль должен содержать хотя бы одну букву',
-          mustContainDigit: 'Пароль должен содержать хотя бы одну цифру',
+          required: 'Password is required',
+          minLength: 'Password must be at least 6 characters',
+          mustContainLetter: 'Password must contain at least one letter',
+          mustContainDigit: 'Password must contain at least one digit',
         },
         name: {
-          required: 'Имя обязательно',
-          minLength: 'Имя должно быть не менее 2 символов',
-          maxLength: 'Имя должно быть не более 50 символов',
+          required: 'Name is required',
+          minLength: 'Name must be at least 2 characters',
+          maxLength: 'Name must be no more than 50 characters',
         },
       },
     },
     fields: {
       password: {
-        label: 'Пароль',
+        label: 'Password',
       },
       passwordConfirm: {
-        label: 'Подтвердите пароль',
+        label: 'Confirm Password',
       },
       gender: {
-        label: 'Пол',
+        label: 'Gender',
       },
       country: {
-        label: 'Страна',
+        label: 'Country',
       },
       city: {
-        label: 'Город',
+        label: 'City',
       },
       language: {
-        label: 'Язык',
+        label: 'Language',
       },
       name: {
-        label: 'Имя',
+        label: 'Name',
       },
     },
     buttons: {
-      login: 'Войти',
-      forgotPassword: 'Забыли пароль?',
-      register: 'Зарегистрироваться',
-      alreadyHaveAccount: 'Уже есть аккаунт?',
-      sendResetLink: 'Отправить ссылку для сброса',
-      backToLogin: 'Назад к входу',
-      saveNewPassword: 'Сохранить новый пароль',
+      login: 'Login',
+      forgotPassword: 'Forgot password?',
+      register: 'Register',
+      alreadyHaveAccount: 'Already have an account?',
+      sendResetLink: 'Send Reset Link',
+      backToLogin: 'Back to login',
+      saveNewPassword: 'Save New Password',
     },
     labels: {
-      login: 'Вход в систему',
-      register: 'Создать новый аккаунт',
-      forgotPassword: 'Забыли пароль?',
-      resetPassword: 'Сбросить пароль',
-      optional: 'Опциональные поля',
+      login: 'Login to system',
+      register: 'Create new account',
+      forgotPassword: 'Forgot your password?',
+      resetPassword: 'Reset your password',
+      optional: 'Optional fields',
     },
   },
   chat: {
     titles: {
-      channels: 'Каналы',
+      channels: 'Channels',
     },
     statuses: {
-      loadingChannels: 'Загрузка...',
-      loadingMessages: 'Загрузка сообщений...',
-      selectChannel: 'Выберите канал',
+      loadingChannels: 'Loading...',
+      loadingMessages: 'Loading messages...',
+      selectChannel: 'Select a channel',
     },
     inputs: {
-      messagePlaceholder: 'Написать сообщение...',
+      messagePlaceholder: 'Type a message...',
     },
     buttons: {
-      send: 'Отправить',
+      send: 'Send',
     },
   },
   dashboard: {
-    contentBlock: 'Контент блок {{n}}',
+    contentBlock: 'Блок содержимого {{n}}',
     sidebarTitle: 'Панель',
-    item: 'Элемент {{n}}',
+    item: 'Предмет {{n}}',
+  },
+  fantasy: {
+    mapTitle: 'Карта Fantasiy World',
+    mapDescription: 'Исследуйте магический мир',
   },
 };
 

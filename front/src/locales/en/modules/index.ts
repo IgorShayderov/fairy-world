@@ -80,6 +80,10 @@ const modules = {
     sidebarTitle: 'Panel',
     item: 'Item {{n}}',
   },
+  fantasy: {
+    mapTitle: 'Fantasy World Map',
+    mapDescription: 'Explore the magical realm',
+  },
 };
 
 export default modules;

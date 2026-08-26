@@ -22,13 +22,16 @@
     </div>
 
     <ChatWindow />
+
+    <FantasyMap3D />
   </div>
 </template>
 
 <script setup lang="ts">
-import { QCard } from 'quasar';
-import { useTranslation } from 'i18next-vue';
-import ChatWindow from '@components/ChatWindow.vue';
+import { QCard } from 'quasar'
+import { useTranslation } from 'i18next-vue'
+import ChatWindow from '@components/ChatWindow.vue'
+import FantasyMap3D from '@components/FantasyMap3D.vue'
 
-const { t } = useTranslation();
+const { t } = useTranslation()
 </script>
