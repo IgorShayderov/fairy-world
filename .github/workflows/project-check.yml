@@ -14,10 +14,6 @@ jobs:
       - name: installation
         run: make install
 
-      - name: installation_2
-        run: make back-install
-
-
       - name: lint-front
         run: make lint-front
 
