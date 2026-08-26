@@ -5,7 +5,6 @@
       :class="isExpanded ? 'h-full shadow-[0_-20px_50px_rgba(0,0,0,0.1)]' : 'h-[300px]'"
     >
       <ToggleExpandButton v-model="isExpanded" class="absolute -top-4 left-1/2 z-30 -translate-x-1/2" />
-      <!-- <ToggleExpandButton v-model="isClosed" class="absolute -top-4 left-11/20 z-30 -translate-x-1/2 -rotate-180" /> -->
 
       <aside class="flex w-1/5 flex-col border-r border-gray-200 bg-gray-50">
         <div class="border-b border-gray-200 p-3 font-bold text-gray-700">
@@ -97,7 +96,6 @@ import ToggleExpandButton from '@/components/ToggleExpandButton.vue';
 const amIAuthor = ref(true);
 
 const isExpanded = ref(StorageService.get('chatExpanded'));
-const isClosed = ref(false);
 
 watch(isExpanded, (newValue) => {
   StorageService.set('chatExpanded', newValue);
