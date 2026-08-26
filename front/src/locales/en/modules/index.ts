@@ -1,4 +1,9 @@
+import profile from './profile';
+import shop from './shop';
+
 const modules = {
+  ...profile,
+  ...shop,
   auth: {
     validation: {
       errors: {
@@ -43,8 +48,8 @@ const modules = {
   menu: {
     title: 'Menu',
     home: 'Main page',
-    profile: 'Профиль',
-    shop: 'Магазин',
+    profile: 'Profile',
+    shop: 'Shop',
   },
 };
 

@@ -1,4 +1,9 @@
+import profile from './profile';
+import shop from './shop';
+
 const modules = {
+  ...profile,
+  ...shop,
   auth: {
     validation: {
       errors: {
