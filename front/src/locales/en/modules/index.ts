@@ -40,10 +40,11 @@ const modules = {
       send: 'Send',
     },
   },
-  dashboard: {
-    contentBlock: 'Content block {{n}}',
-    sidebarTitle: 'Panel',
-    item: 'Item {{n}}',
+  menu: {
+    title: 'Menu',
+    home: 'Main page',
+    profile: 'Профиль',
+    shop: 'Магазин',
   },
 };
 

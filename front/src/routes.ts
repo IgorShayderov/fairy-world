@@ -14,12 +14,14 @@ const routes = {
   },
   rootPath: () => '/',
   loginPath: () => '/login',
+  profilePath: () => '/profile',
+  shopPath: () => '/shop',
 };
 
 export default routes;
 
 export const appRoutes: RouteRecordRaw[] = [
   { path: routes.loginPath(), name: 'LoginPage', component: () => import('@/pages/LoginPage.vue') },
-  { path: routes.rootPath(), name: 'DashboardPage', component: () => import('@/pages/RootPage.vue') },
+  { path: routes.rootPath(), name: 'RootPage', component: () => import('@/pages/RootPage.vue') },
   { path: '/:path(.*)', redirect: routes.rootPath() },
 ];

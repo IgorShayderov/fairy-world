@@ -97,10 +97,15 @@ import { ref, onMounted, nextTick, watch, useTemplateRef } from 'vue';
 import { QBtn, QInput } from 'quasar';
 import { useTranslation } from 'i18next-vue';
 import { useChatStore } from '@/modules/Chat/store';
+import { StorageService } from '@services/storage.service';
 
 const amIAuthor = ref(true);
 
-const isExpanded = ref(false);
+const isExpanded = ref(StorageService.get('chatExpanded'));
+
+watch(isExpanded, (newValue) => {
+  StorageService.set('chatExpanded', newValue);
+});
 
 const { t } = useTranslation();
 const chatStore = useChatStore();

@@ -41,9 +41,9 @@ model Item {
   id          Int    @id @default(autoincrement())
   name        String @unique
   description String @default("")
-  price       Int    @default(10)
-  icon        String @default("inventory_2")
-  quantity    Int    @default(999)
+  price       Int    @default(0)
+  icon        String @default("")
+  quantity    Int    @default(1)
   inventoryItem InventoryItem[]
 }
 
