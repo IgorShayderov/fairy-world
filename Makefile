@@ -9,6 +9,7 @@ front-install:
 
 install:
 	cd ./front && rm -f package-lock.json && npm i
+	cd ./back && npm i
 
 lint-front:
 	cd ./front && npm run lint
