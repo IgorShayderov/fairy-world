@@ -3,12 +3,13 @@ import { ref, computed } from 'vue';
 
 import { chatApi } from './api';
 import type { Channel, Message } from './types';
+import { StorageService } from '@services/storage.service';
 
 export const useChatStore = defineStore('chat', () => {
   // State
   const channels = ref<Channel[]>([]);
   const messages = ref<Message[]>([]);
-  const activeChannelId = ref<string | null>(null);
+  const activeChannelId = ref<string | null>(StorageService.get('selectedChannelId'));
 
   const isLoading = ref(false);
   const isMessagesLoading = ref(false);
@@ -42,6 +43,8 @@ export const useChatStore = defineStore('chat', () => {
       messages.value = await chatApi.getMessages(channelId);
     } finally {
       isMessagesLoading.value = false;
+      // Запоминаем выбранный канал
+      StorageService.set('selectedChannelId', channelId);
     }
   };
 

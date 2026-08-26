@@ -1,4 +1,9 @@
+import profile from './profile';
+import shop from './shop';
+
 const modules = {
+  ...profile,
+  ...shop,
   auth: {
     validation: {
       errors: {
@@ -40,10 +45,11 @@ const modules = {
       send: 'Send',
     },
   },
-  dashboard: {
-    contentBlock: 'Content block {{n}}',
-    sidebarTitle: 'Panel',
-    item: 'Item {{n}}',
+  menu: {
+    title: 'Menu',
+    home: 'Main page',
+    profile: 'Profile',
+    shop: 'Shop',
   },
 };
 

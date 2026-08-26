@@ -5,7 +5,16 @@
         <h2 class="mb-6 text-center text-xl! font-bold text-gray-800">{{ $t('auth.labels.login') }}</h2>
 
         <QForm @submit.prevent="handleSubmit" class="space-y-4">
-          <QInput v-model="form.email" label="Email" type="email" outlined :rules="emailRules" lazy-rules class="mb-4">
+          <QInput
+            v-model="form.email"
+            autocomplete="email"
+            label="Email"
+            type="email"
+            outlined
+            :rules="emailRules"
+            lazy-rules
+            class="mb-4"
+          >
             <template #prepend>
               <QIcon name="mail" />
             </template>
@@ -13,6 +22,7 @@
 
           <QInput
             v-model="form.password"
+            autocomplete="current-password"
             :label="$t('auth.fields.password.label')"
             :type="showPassword ? 'text' : 'password'"
             outlined
@@ -102,7 +112,8 @@ const handleSubmit = async () => {
     await router.push('/');
     socket.connect();
     // socket.disconnect();
-  } catch {
+  } catch (e) {
+    console.error(e);
     $q.notify({
       type: 'negative',
       message: 'Ошибка авторизации',

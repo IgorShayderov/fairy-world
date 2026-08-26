@@ -1,115 +1,109 @@
 <template>
-  <div class="flex h-screen flex-col bg-gray-50">
-    <header class="flex items-center gap-4 bg-gray-800 px-4 py-2 text-white">
-      <h1 class="text-lg font-semibold">Профиль</h1>
-      <QBtn flat dense round icon="account_circle" />
-    </header>
+  <div class="flex min-h-0 flex-1 flex-col bg-gray-50">
+    <main class="flex flex-1 items-start justify-center gap-6 overflow-auto p-6">
+      <InventorySection
+        :inventory="inventory"
+        :drag-index="dragItemIndex"
+        :is-hovered="isHoveredSlot"
+        @drag-start="onInventoryDragStart"
+        @drag-end="onInventoryDragEnd"
+      />
 
-    <main class="flex-1 overflow-auto p-4">
-      <section class="mb-6">
-        <h2 class="mb-3 text-xl font-bold text-gray-800">Инвентарь</h2>
-        <div class="grid grid-cols-6 gap-3">
-          <InventoryItem
-            v-for="(item, idx) in inventory"
-            :key="idx"
-            :item="item"
-            :is-hovered="isHoveredSlot === null"
-            :is-dragging="dragItem === item"
-            @drag-start="onInventoryDragStart(idx)"
-            @drag-end="onInventoryDragEnd"
-          />
-        </div>
-      </section>
-
-      <section class="mb-6">
-        <h2 class="mb-3 text-xl font-bold text-gray-800">Экипировка</h2>
-        <div class="grid grid-cols-3 gap-4">
-          <div
-            v-for="slot in equipmentSlots"
-            :key="slot.id"
-            :class="['rounded-borders', slot.equipped ? 'q-pa-md bg-gray-100' : 'q-pa-md bg-gray-50']"
-            @dragover.prevent="onSlotDragOver()"
-            @dragenter.prevent="isHoveredSlot = slot.id"
-            @dragleave="isHoveredSlot = null"
-            @drop.prevent="onSlotDrop(slot.id)"
-          >
-            <div class="mb-2 text-sm font-medium text-gray-600">{{ slot.label }}</div>
-            <InventoryItem
-              :item="slot.item"
-              :slot-id="slot.id"
-              :is-hovered="isHoveredSlot === slot.id"
-              :is-dragging="false"
-              @drop="onSlotDrop(slot.id)"
-            />
-            <QBtn
-              v-if="slot.item"
-              flat
-              dense
-              round
-              icon="close"
-              size="sm"
-              class="absolute top-1 right-1"
-              @click="unequip(slot.id)"
-            />
-          </div>
-        </div>
-      </section>
-
-      <section>
-        <h2 class="mb-3 text-xl font-bold text-gray-800">Характеристики</h2>
-        <QCard class="q-pa-md">
-          <div class="grid grid-cols-3 gap-4 text-sm">
-            <div v-for="stat in stats" :key="stat.key" class="flex justify-between">
-              <span class="text-gray-600">{{ stat.label }}</span>
-              <span class="font-semibold">{{ stat.value }}</span>
-            </div>
-          </div>
-        </QCard>
-      </section>
+      <EquipmentSection
+        :equipment-slots="equipmentSlots"
+        :stats="stats"
+        :stats-info="statsInfo"
+        :hovered-slot="isHoveredSlot"
+        @slot-enter="(id) => (isHoveredSlot = id)"
+        @slot-leave="isHoveredSlot = null"
+        @slot-drop="onSlotDrop"
+        @unequip="unequip"
+      />
     </main>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { QCard, QBtn } from 'quasar';
-import InventoryItem from '@/components/InventoryItem.vue';
-import type { InventoryItem as IInventoryItem, EquipmentSlot } from '@/shared/types/inventory';
+import InventorySection from '@/components/InventorySection.vue';
+import EquipmentSection from '@/components/EquipmentSection.vue';
+import type { InventoryItemType, EquipmentSlot, StatItem, StatInfoItem } from '@/shared/types/inventory';
 
-const inventory = ref<IInventoryItem[]>([
-  { name: 'Меч', icon: 'firearms', rarity: 'Редкий' },
-  { name: 'Щит', icon: 'shield', rarity: 'Обычный' },
-  { name: 'Лекаство', icon: 'medication' },
-  { name: 'Зелье', icon: 'water' },
-  { name: 'Кольцо', icon: 'rings', rarity: 'Редкий' },
-  { name: 'Свиток', icon: 'menu_book' },
-  { name: 'Кристалл', icon: 'search', rarity: 'Легендарный' },
-  { name: 'Посох', icon: 'science' },
+const inventory = ref<InventoryItemType[]>([
+  { nameKey: 'profile.items.sword', icon: 'firearms', rarityKey: 'profile.rarity.rare' },
+  { nameKey: 'profile.items.shield', icon: 'shield', rarityKey: 'profile.rarity.common' },
+  { nameKey: 'profile.items.medicine', icon: 'medication' },
+  { nameKey: 'profile.items.potion', icon: 'water' },
+  { nameKey: 'profile.items.ring', icon: 'rings', rarityKey: 'profile.rarity.rare' },
+  { nameKey: 'profile.items.scroll', icon: 'menu_book' },
+  { nameKey: 'profile.items.crystal', icon: 'search', rarityKey: 'profile.rarity.legendary' },
+  { nameKey: 'profile.items.staff', icon: 'science' },
 ]);
 
+// Идентификаторы слотов соответствуют grid-area в CSS Diablo-сетки
 const equipmentSlots = ref<EquipmentSlot[]>([
-  { id: 'head', label: 'Голова', item: { name: 'Шлем', icon: 'security', rarity: 'Редкий' }, equipped: true },
-  { id: 'body', label: 'Тело', item: { name: 'Доспехи', icon: 'security', rarity: 'Обычный' }, equipped: true },
-  { id: 'hands', label: 'Руки', item: { name: 'Перчатки', icon: 'pan_tool', rarity: 'Обычный' }, equipped: true },
-  { id: 'legs', label: 'Ноги', item: null, equipped: false },
-  { id: 'feet', label: 'Обувь', item: { name: 'Ботинки', icon: 'directions_walk', rarity: 'Редкий' }, equipped: true },
+  {
+    id: 'head',
+    labelKey: 'profile.slots.head',
+    item: { nameKey: 'profile.items.helmet', icon: 'security', rarityKey: 'profile.rarity.rare' },
+    equipped: true,
+  },
+  {
+    id: 'body',
+    labelKey: 'profile.slots.body',
+    item: { nameKey: 'profile.items.armor', icon: 'security', rarityKey: 'profile.rarity.common' },
+    equipped: true,
+  },
+  {
+    id: 'left-hand',
+    labelKey: 'profile.slots.leftHand',
+    item: { nameKey: 'profile.items.sword', icon: 'firearms', rarityKey: 'profile.rarity.rare' },
+    equipped: true,
+  },
+  {
+    id: 'right-hand',
+    labelKey: 'profile.slots.rightHand',
+    item: { nameKey: 'profile.items.shield', icon: 'shield', rarityKey: 'profile.rarity.common' },
+    equipped: true,
+  },
+  {
+    id: 'hands',
+    labelKey: 'profile.slots.hands',
+    item: { nameKey: 'profile.items.gloves', icon: 'pan_tool', rarityKey: 'profile.rarity.common' },
+    equipped: true,
+  },
+  { id: 'legs', labelKey: 'profile.slots.legs', item: null, equipped: false },
+  {
+    id: 'feet',
+    labelKey: 'profile.slots.feet',
+    item: { nameKey: 'profile.items.boots', icon: 'directions_walk', rarityKey: 'profile.rarity.rare' },
+    equipped: true,
+  },
   {
     id: 'accessory',
-    label: 'Аксессуар',
-    item: { name: 'Кольцо', icon: 'stars', rarity: 'Легендарный' },
+    labelKey: 'profile.slots.accessory',
+    item: { nameKey: 'profile.items.ring', icon: 'stars', rarityKey: 'profile.rarity.legendary' },
     equipped: true,
   },
 ]);
 
-const stats = ref([
-  { key: 'hp', label: 'HP', value: 120 },
-  { key: 'mp', label: 'MP', value: 60 },
-  { key: 'atk', label: 'Атака', value: 18 },
-  { key: 'def', label: 'Защита', value: 12 },
-  { key: 'spd', label: 'Скорость', value: 8 },
+const stats = ref<StatItem[]>([
+  { key: 'hp', labelKey: 'profile.stats.hp', value: 120 },
+  { key: 'mp', labelKey: 'profile.stats.mp', value: 60 },
+  { key: 'atk', labelKey: 'profile.stats.atk', value: 18 },
+  { key: 'def', labelKey: 'profile.stats.def', value: 12 },
+  { key: 'spd', labelKey: 'profile.stats.spd', value: 8 },
 ]);
 
-const dragItem = ref<IInventoryItem | null>(null);
+const statsInfo = ref<StatInfoItem[]>([
+  { key: 'games', labelKey: 'profile.statsInfo.gamesPlayed', value: 42 },
+  { key: 'monsters', labelKey: 'profile.statsInfo.monstersKilled', value: 1337 },
+  { key: 'bosses', labelKey: 'profile.statsInfo.bossesDefeated', value: 5 },
+  { key: 'deaths', labelKey: 'profile.statsInfo.deaths', value: 12 },
+]);
+
+// Логика Drag & Drop
+const dragItem = ref<InventoryItemType | null>(null);
 const dragItemIndex = ref<number | null>(null);
 const isHoveredSlot = ref<string | null>(null);
 
@@ -127,10 +121,6 @@ const onInventoryDragEnd = () => {
   isHoveredSlot.value = null;
 };
 
-const onSlotDragOver = () => {
-  //
-};
-
 const onSlotDrop = (slotId: string) => {
   const slot = equipmentSlots.value.find((s) => s.id === slotId);
   if (!slot) return;
@@ -142,15 +132,19 @@ const onSlotDrop = (slotId: string) => {
     } else {
       inventory.value.push(slot.item);
     }
-    dragItem.value = null;
+    slot.item = null;
   }
 
   if (dragItem.value) {
     slot.item = dragItem.value;
     slot.equipped = true;
-    dragItem.value = null;
-    dragItemIndex.value = null;
+    if (dragItemIndex.value !== null) {
+      inventory.value.splice(dragItemIndex.value, 1);
+    }
   }
+
+  dragItem.value = null;
+  dragItemIndex.value = null;
   isHoveredSlot.value = null;
 };
 
@@ -163,11 +157,3 @@ const unequip = (slotId: string) => {
   }
 };
 </script>
-
-<style lang="scss" scoped>
-:deep(.q-card) {
-  transition:
-    background-color 0.2s,
-    border-color 0.2s;
-}
-</style>

@@ -1,0 +1,48 @@
+export default {
+  profile: {
+    inventory: 'Инвентарь',
+    equipment: 'Экипировка',
+    characteristics: 'Характеристики',
+    statistics: 'Статистика',
+    slots: {
+      head: 'Голова',
+      body: 'Тело',
+      hands: 'Руки',
+      legs: 'Ноги',
+      feet: 'Обувь',
+      accessory: 'Аксессуар',
+    },
+    stats: {
+      hp: 'ОЗ (HP)',
+      mp: 'МП (MP)',
+      atk: 'Атака',
+      def: 'Защита',
+      spd: 'Скорость',
+    },
+    statsInfo: {
+      gamesPlayed: 'Сыграно игр',
+      monstersKilled: 'Убито монстров',
+      bossesDefeated: 'Побеждено боссов',
+      deaths: 'Смертей',
+    },
+    items: {
+      sword: 'Меч',
+      shield: 'Щит',
+      potion: 'Зелье',
+      medicine: 'Лекарство',
+      ring: 'Кольцо',
+      scroll: 'Свиток',
+      crystal: 'Кристалл',
+      staff: 'Посох',
+      helmet: 'Шлем',
+      armor: 'Доспехи',
+      gloves: 'Перчатки',
+      boots: 'Ботинки',
+    },
+    rarity: {
+      common: 'Обычный',
+      rare: 'Редкий',
+      legendary: 'Легендарный',
+    },
+  },
+};
