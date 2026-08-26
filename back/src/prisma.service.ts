@@ -4,7 +4,7 @@ import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { config } from 'dotenv';
 
-config();
+config({ quiet: true });
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit {
