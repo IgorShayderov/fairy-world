@@ -154,7 +154,7 @@ export class AuthService {
     });
 
     // Check each token hash against the provided token
-    let validToken: typeof tokens[0] | null = null;
+    let validToken: (typeof tokens)[0] | null = null;
     for (const t of tokens) {
       const isValid = await bcrypt.compare(dto.token, t.token);
       if (isValid) {

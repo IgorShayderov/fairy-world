@@ -85,7 +85,6 @@ interface ResetForm {
 }
 
 const route = useRoute();
-const email = ref('');
 
 // Get token from URL params
 const token = ref(route.params.token as string || '');
