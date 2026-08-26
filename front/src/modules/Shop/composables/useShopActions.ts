@@ -1,4 +1,4 @@
-import { ref, onMounted } from 'vue';
+import { ref } from 'vue';
 import { useQuasar } from 'quasar';
 import { useTranslation } from 'i18next-vue';
 import { getShopItems, buyItem, getInventory, sellItem } from '@/modules/Shop/api';

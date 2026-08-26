@@ -4,15 +4,8 @@
       class="absolute bottom-0 left-0 z-20 flex w-full border-t border-gray-200 bg-white transition-all duration-500 ease-in-out"
       :class="isExpanded ? 'h-full shadow-[0_-20px_50px_rgba(0,0,0,0.1)]' : 'h-[300px]'"
     >
-      <QBtn
-        round
-        dense
-        color="white"
-        text-color="grey-8"
-        :icon="isExpanded ? 'keyboard_arrow_down' : 'keyboard_arrow_up'"
-        class="absolute -top-4 left-1/2 z-30 -translate-x-1/2 border border-gray-200 shadow-sm"
-        @click="isExpanded = !isExpanded"
-      />
+      <ToggleExpandButton v-model="isExpanded" class="absolute -top-4 left-1/2 z-30 -translate-x-1/2" />
+      <!-- <ToggleExpandButton v-model="isClosed" class="absolute -top-4 left-11/20 z-30 -translate-x-1/2 -rotate-180" /> -->
 
       <aside class="flex w-1/5 flex-col border-r border-gray-200 bg-gray-50">
         <div class="border-b border-gray-200 p-3 font-bold text-gray-700">
@@ -98,10 +91,13 @@ import { QBtn, QInput } from 'quasar';
 import { useTranslation } from 'i18next-vue';
 import { useChatStore } from '@/modules/Chat/store';
 import { StorageService } from '@services/storage.service';
+import ToggleExpandButton from '@/components/ToggleExpandButton.vue';
 
+// FIXME: use real comparison
 const amIAuthor = ref(true);
 
 const isExpanded = ref(StorageService.get('chatExpanded'));
+const isClosed = ref(false);
 
 watch(isExpanded, (newValue) => {
   StorageService.set('chatExpanded', newValue);

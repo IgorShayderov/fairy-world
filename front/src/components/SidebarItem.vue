@@ -30,7 +30,7 @@ const props = defineProps<{
 const { t } = useTranslation();
 const router = useRouter();
 
-const navigate = () => {
-  router.push(props.item.route);
+const navigate = async () => {
+  await router.push(props.item.route);
 };
 </script>

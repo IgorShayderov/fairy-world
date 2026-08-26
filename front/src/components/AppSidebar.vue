@@ -3,20 +3,10 @@
     class="relative flex min-h-0 min-w-0 shrink-0 flex-col border-l border-gray-200 bg-white transition-all duration-300 ease-in-out"
     :class="isSidebarExpanded ? 'w-[25%] min-w-[200px]' : 'w-[50px]'"
   >
-    <button
-      @click="isSidebarExpanded = !isSidebarExpanded"
-      class="absolute top-1/2 -left-4 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white shadow-md transition-colors hover:bg-gray-50 focus:outline-none"
-    >
-      <svg
-        class="h-4 w-4 transform text-gray-600 transition-transform duration-300"
-        :class="{ 'rotate-180': !isSidebarExpanded }"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-      </svg>
-    </button>
+    <ToggleExpandButton
+      v-model="isSidebarExpanded"
+      class="absolute top-1/2 -left-4 z-20 flex h-8 w-8 -translate-y-1/2 -rotate-90"
+    />
 
     <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden py-4">
       <h2
@@ -40,6 +30,7 @@ import { useTranslation } from 'i18next-vue';
 import routes from '@/routes';
 import SidebarItem from './SidebarItem.vue';
 import { StorageService } from '@services/storage.service';
+import ToggleExpandButton from '@/components/ToggleExpandButton.vue';
 
 const { t } = useTranslation();
 const isSidebarExpanded = ref(StorageService.get('sidebarExpanded'));

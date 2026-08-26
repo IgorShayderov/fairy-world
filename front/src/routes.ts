@@ -11,6 +11,12 @@ const routes = {
       messagesPath: (channelId: string) => [BASE_API_PATH, 'chat', 'channels', channelId, 'messages'].join('/'),
       messagePath: () => [BASE_API_PATH, 'chat', 'messages'].join('/'),
     },
+    shop: {
+      itemsPath: () => [BASE_API_PATH, 'shop', 'items'].join('/'),
+      buyPath: () => [BASE_API_PATH, 'shop', 'buy'].join('/'),
+      sellPath: () => [BASE_API_PATH, 'shop', 'sell'].join('/'),
+      inventoryPath: () => [BASE_API_PATH, 'shop', 'inventory'].join('/'),
+    },
   },
   rootPath: () => '/',
   loginPath: () => '/login',
