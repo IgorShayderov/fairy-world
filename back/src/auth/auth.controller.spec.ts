@@ -5,6 +5,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 
+import type { RequestWithUser } from './interfaces/request-with-user.interface';
+
 describe('AuthController', () => {
   let controller: AuthController;
 
@@ -65,7 +67,7 @@ describe('AuthController', () => {
 
       const cookieSpy = jest.fn();
       const mockRes = { cookie: cookieSpy } as unknown as Response;
-      const mockReq = { user: { sub: 1 } } as unknown as Request;
+      const mockReq = { user: { sub: 1 } } as unknown as RequestWithUser;
 
       const response = await controller.refreshToken(mockReq, mockRes);
 
@@ -96,7 +98,7 @@ describe('AuthController', () => {
 
   describe('getProfile', () => {
     it('should return req.user', () => {
-      const req = { user: { sub: 1, email: 'john@mail.ru' } } as unknown as Request;
+      const req = { user: { sub: 1, email: 'john@mail.ru' } } as unknown as RequestWithUser;
       const result = controller.getProfile(req);
 
       expect(result).toEqual({ sub: 1, email: 'john@mail.ru' });

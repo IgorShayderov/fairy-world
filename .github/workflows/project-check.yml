@@ -9,13 +9,19 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "24"
 
       - name: installation
         run: make install
 
       - name: lint-front
         run: make lint-front
+
+      - name: lint-back
+        run: make lint-back
+
+      - name: test-back
+        run: make test-back
 
       - name: test
         run: make test

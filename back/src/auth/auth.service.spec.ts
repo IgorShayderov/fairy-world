@@ -9,8 +9,6 @@ jest.mock('bcrypt');
 describe('AuthService', () => {
   let service: AuthService;
 
-
-
   const mockUsersService = { findOne: jest.fn() };
   const mockJwtService = { signAsync: jest.fn() };
 
