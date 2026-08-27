@@ -1,95 +1,189 @@
-import HttpError from './HttpError';
+import { HttpError } from './HttpError';
+import { InterceptorManager } from './InterceptorManager';
+import routes from '@/routes';
 
-export interface ApiResponse<T> {
-  data: T;
-  meta: object;
-}
+import type { IApi, PromiseChainNode, RequestConfig, FailedRequest } from '@shared/types/api';
 
-export interface IApi {
-  <T>(url: string, options?: RequestInit): Promise<ApiResponse<T>>;
-  get: <T>(url: string, options?: RequestInit) => Promise<ApiResponse<T>>;
-  post: <T>(url: string, params?: object, options?: RequestInit) => Promise<ApiResponse<T>>;
-}
-
-export interface IApiError extends Error {
-  status: number;
-}
-
-const makeRequest = async <T>(url: string, options: RequestInit = {}) => {
+const dispatchRequest = async (config: RequestConfig) => {
   const DEFAULT_TIMEOUT = 4000;
   const controller = new AbortController();
-
-  const defaultOptions: RequestInit = {
-    method: 'GET',
-    signal: controller.signal,
-  };
-  const defaultHeaders: Record<string, string> = {
-    Accept: 'application/json',
-    'Content-Type': 'application/json;charset=UTF-8',
-  };
-
-  const accessToken = localStorage.getItem('access_token');
-
-  if (accessToken) {
-    defaultHeaders['Authorization'] = `Bearer ${accessToken}`;
-  }
-
   const timeoutId = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT);
 
-  const response = await fetch(url, {
-    ...defaultOptions,
-    ...options,
-    headers: {
-      ...defaultHeaders,
-      ...(options.headers ?? {}),
-    },
-  });
-
-  if (!response.ok) {
-    const message = `Reponse status: ${response.status}`;
-
-    throw new HttpError(message, response.status);
-  }
-
-  clearTimeout(timeoutId);
-
-  // Если сервер вернул успешный статус без тела ответа
-  if (response.status === 204 || response.status === 205) {
-    return null as unknown as T;
-  }
-
-  const contentType = response.headers.get('content-type');
-
-  if (contentType && contentType.includes('application/json')) {
-    return (await response.json()) as T;
-  }
-
-  if (contentType && contentType.includes('text/')) {
-    return (await response.text()) as unknown as T;
-  }
-
-  return (await response.blob()) as unknown as T;
-};
-
-const api: IApi = makeRequest;
-
-makeRequest.get = <T>(url: string, options?: RequestInit) => {
-  const getOptions = {
-    ...options,
-    method: 'GET',
+  const finalOptions: RequestInit = {
+    ...config.options,
+    signal: controller.signal,
   };
 
-  return makeRequest<T>(url, getOptions);
+  try {
+    const response = await fetch(config.url, finalOptions);
+
+    if (!response.ok) {
+      const error = new HttpError(`Response status: ${response.status}`, response.status);
+      error.config = config;
+      throw error;
+    }
+
+    if (response.status === 204 || response.status === 205) {
+      return null;
+    }
+
+    const contentType = response.headers.get('content-type');
+
+    if (contentType && contentType.includes('application/json')) {
+      return await response.json();
+    }
+
+    if (contentType && contentType.includes('text/')) {
+      return await response.text();
+    }
+
+    return await response.blob();
+  } finally {
+    clearTimeout(timeoutId);
+  }
 };
 
-makeRequest.post = <T>(url: string, params?: object, options?: RequestInit) => {
-  const getOptions: RequestInit = {
+const makeRequest = <T>(url: string, options: RequestInit = {}): Promise<T> => {
+  const config: RequestConfig = {
+    url,
+    options: {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json;charset=UTF-8',
+        ...(options.headers ?? {}),
+      },
+      ...options,
+    },
+  };
+
+  const chain: Array<PromiseChainNode> = [{ fulfilled: dispatchRequest, rejected: () => {} }];
+
+  api.interceptors.request.forEach((interceptor) => {
+    chain.unshift(interceptor as PromiseChainNode);
+  });
+
+  api.interceptors.response.forEach((interceptor) => {
+    chain.push(interceptor as PromiseChainNode);
+  });
+
+  let promise = Promise.resolve(config);
+
+  while (chain.length) {
+    const { fulfilled, rejected } = chain.shift() as PromiseChainNode;
+    promise = promise.then(fulfilled, rejected) as Promise<RequestConfig>;
+  }
+
+  return promise as Promise<T>;
+};
+
+const api = makeRequest as unknown as IApi;
+
+api.interceptors = {
+  request: new InterceptorManager<RequestConfig>(),
+  response: new InterceptorManager<unknown>(),
+};
+
+api.get = <T>(url: string, options?: RequestInit) => {
+  return makeRequest<T>(url, { ...options, method: 'GET' });
+};
+
+api.post = <T>(url: string, params?: object, options?: RequestInit) => {
+  return makeRequest<T>(url, {
     ...options,
     method: 'POST',
     body: JSON.stringify(params ?? {}),
-  };
-
-  return makeRequest<T>(url, getOptions);
+  });
 };
+
+api.interceptors.request.use((config) => {
+  const accessToken = localStorage.getItem('access_token');
+
+  if (accessToken) {
+    config.options.headers = {
+      ...config.options.headers,
+      Authorization: `Bearer ${accessToken}`,
+    };
+  }
+
+  return config;
+});
+
+let isRefreshing = false;
+let failedQueue: FailedRequest[] = [];
+
+const processQueue = (error: Error | null) => {
+  failedQueue.forEach((promise) => {
+    if (error) {
+      promise.reject(error);
+    } else {
+      promise.resolve();
+    }
+  });
+  failedQueue = [];
+};
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error: unknown) => {
+    const err = error instanceof Error ? error : new Error(String(error));
+    const httpError = err as Error & { config?: RequestConfig & { _retry?: boolean } };
+    const config = httpError.config;
+
+    if (error instanceof HttpError && error.status === 401 && config && !config._retry) {
+      // Если рефреш УЖЕ идет, ставим текущий запрос в очередь ожидания
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then(() => {
+            // Токен обновился, повторяем запрос.
+            // makeRequest сам прогонит его через request-интерцептор и возьмет новый токен!
+            return makeRequest(config.url, config.options);
+          })
+          .catch((queueError: unknown) => {
+            // Оборачиваем ошибку очереди для линтера (Строка ~171)
+            const queueErrInstance = queueError instanceof Error ? queueError : new Error(String(queueError));
+            return Promise.reject(queueErrInstance);
+          });
+      }
+
+      // Это первый упавший запрос. Помечаем его, чтобы не уйти в бесконечный цикл
+      config._retry = true;
+      isRefreshing = true;
+
+      try {
+        // ТУТ ВЫЗЫВАЕШЬ СВОЙ АПИ РЕФРЕША
+        // Например: const { accessToken } = await refreshAuthToken();
+        const newAccessToken = 'NEW_TOKEN_FROM_API'; // Заглушка
+
+        // Обязательно сохраняем, чтобы request-интерцептор его подхватил
+        localStorage.setItem('access_token', newAccessToken);
+
+        // Разрешаем все запросы, которые накопились в очереди
+        processQueue(null);
+
+        // Повторяем наш изначальный запрос
+        return makeRequest(config.url, config.options);
+      } catch (refreshError: unknown) {
+        // Если рефреш не удался (например, рефреш-токен тоже протух)
+        const refreshErrInstance = refreshError instanceof Error ? refreshError : new Error(String(refreshError));
+
+        processQueue(refreshErrInstance);
+
+        localStorage.removeItem('access_token');
+        if (window.location.pathname !== routes.loginPath()) {
+          window.location.href = routes.loginPath();
+        }
+
+        return Promise.reject(refreshErrInstance);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
+    return Promise.reject(err);
+  }
+);
 
 export { api };

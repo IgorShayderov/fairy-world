@@ -15,3 +15,7 @@ export const signIn = async ({ email, password }: ISignData) => {
 
   return data;
 };
+
+export const signOut = async() => {
+
+};
