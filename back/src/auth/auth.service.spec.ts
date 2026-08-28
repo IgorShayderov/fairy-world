@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { AuthService, SignInResult } from './auth.service';
+import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
@@ -33,7 +33,7 @@ describe('AuthService', () => {
   describe('signIn', () => {
     it('should return access_token, refresh_token, expiresIn on success', async () => {
       const user = { id: 1, email: 'john@mail.ru', password: 'hashed_password' };
-      mockUsersService.findOne.mockResolvedValue(user);
+      mockUsersService.findBy.mockResolvedValue(user);
 
       (bcrypt.compare as jest.Mock).mockResolvedValue(true);
 
@@ -61,7 +61,7 @@ describe('AuthService', () => {
 
     it('should throw UnauthorizedException on wrong password', async () => {
       const user = { id: 1, email: 'john@mail.ru', password: 'hashed_password' };
-      mockUsersService.findOne.mockResolvedValue(user);
+      mockUsersService.findBy.mockResolvedValue(user);
 
       (bcrypt.compare as jest.Mock).mockResolvedValue(false);
 
@@ -69,7 +69,7 @@ describe('AuthService', () => {
     });
 
     it('should throw UnauthorizedException when user not found', async () => {
-      mockUsersService.findOne.mockResolvedValue(undefined);
+      mockUsersService.finfindBydOne.mockResolvedValue(undefined);
 
       await expect(service.signIn('notfound@mail.ru', 'anypassword')).rejects.toThrow();
     });

@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MailerModule } from '@nestjs-modules/mailer';
+import { join } from 'path';
+import { HandlebarsAdapter } from '@nestjs-modules/mailer/adapters/handlebars.adapter';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -7,6 +9,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { ChatModule } from './chat/chat.module';
 import { ShopModule } from './shop/shop.module';
+import { PasswordsModule } from './passwords/passwords.module';
 
 @Module({
   imports: [
@@ -14,6 +17,7 @@ import { ShopModule } from './shop/shop.module';
     UsersModule,
     ChatModule,
     ShopModule,
+    PasswordsModule,
     MailerModule.forRoot({
       transport: {
         host: process.env.SMTP_HOST,
@@ -24,10 +28,17 @@ import { ShopModule } from './shop/shop.module';
               user: process.env.SMTP_USER,
               pass: process.env.SMTP_PASSWORD,
             }
-          : undefined, // У Mailpit нет авторизации по умолчанию
+          : undefined,
       },
       defaults: {
         from: `"No Reply" <${process.env.SMTP_FROM}>`,
+      },
+      template: {
+        dir: join(__dirname, 'mail/templates'),
+        adapter: new HandlebarsAdapter(),
+        options: {
+          strict: true,
+        },
       },
     }),
   ],

@@ -26,7 +26,7 @@ describe('UsersService', () => {
       const expectedUser = { id: 1, email: 'john@mail.ru', password: 'hashed_password' };
       mockPrismaService.user.findUnique.mockResolvedValue(expectedUser);
 
-      const user = await service.findOne('john@mail.ru');
+      const user = await service.findBy({ email: 'john@mail.ru ' });
 
       expect(user).toEqual(expectedUser);
       expect(mockPrismaService.user.findUnique).toHaveBeenCalledWith({
