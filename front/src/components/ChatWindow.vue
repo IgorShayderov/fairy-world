@@ -136,5 +136,14 @@ const handleSend = async () => {
 
 onMounted(async () => {
   await chatStore.loadChannels();
+
+  const [firstChannel] = chatStore.channels;
+  const savedChannelId = StorageService.get('selectedChannelId');
+
+  if (savedChannelId) {
+    await chatStore.selectChannel(savedChannelId);
+  } else if (firstChannel) {
+    await chatStore.selectChannel(firstChannel.id);
+  }
 });
 </script>
