@@ -26,6 +26,18 @@ const appRoutes: RouteRecordRaw[] = [
     path: routes.loginPath(),
     component: () => import('@pages/LoginPage.vue'),
   },
+  {
+    path: routes.forgotPasswordPath(),
+    component: () => import('@pages/ForgotPasswordPage.vue'),
+  },
+  {
+    path: routes.registerPath(),
+    component: () => import('@pages/RegisterPage.vue'),
+  },
+  {
+    path: routes.resetPasswordPath(),
+    component: () => import('@pages/ResetPasswordPage.vue'),
+  },
 ];
 
 export default appRoutes;

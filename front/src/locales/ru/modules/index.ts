@@ -1,34 +1,11 @@
 import profile from './profile';
 import shop from './shop';
+import auth from './auth';
 
 const modules = {
+  ...auth,
   ...profile,
   ...shop,
-  auth: {
-    validation: {
-      errors: {
-        email: {
-          required: 'Email обязателен',
-          incorrect: 'Введите корректный email',
-        },
-        password: {
-          required: 'Пароль обязателен',
-        },
-      },
-    },
-    fields: {
-      password: {
-        label: 'Пароль',
-      },
-    },
-    buttons: {
-      login: 'Войти',
-      forgotPassword: 'Забыли пароль?',
-    },
-    labels: {
-      login: 'Вход в систему',
-    },
-  },
   chat: {
     titles: {
       channels: 'Каналы',

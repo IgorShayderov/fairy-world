@@ -31,7 +31,7 @@ const routes = {
   shopPath: () => '/shop',
   registerPath: () => '/register',
   forgotPasswordPath: () => '/forgot-password',
-  resetPasswordPath: (token: string) => `/reset-password/${token}`,
+  resetPasswordPath: () => `/reset-password`,
 };
 
 export default routes;

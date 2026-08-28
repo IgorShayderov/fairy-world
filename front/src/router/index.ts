@@ -28,7 +28,7 @@ export default defineRouter(function (/* { store, ssrContext } */) {
     // quasar.conf.js -> build -> publicPath
     history: createHistory(process.env.VUE_ROUTER_BASE),
     parseQuery: (query: string) => qs.parse(query) as LocationQuery,
-    stringifyQuery: (query: LocationQueryRaw) => qs.stringify(query, { encodeValuesOnly: true }),
+    stringifyQuery: (query: LocationQueryRaw | undefined) => qs.stringify(query, { encodeValuesOnly: true }),
   });
 
   Router.beforeEach(() => {

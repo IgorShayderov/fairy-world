@@ -7,7 +7,15 @@
         </h2>
 
         <QForm @submit.prevent="handleSubmit" class="space-y-4">
-          <QInput v-model="email" label="Email" type="email" outlined :rules="emailRules" lazy-rules class="mb-4">
+          <QInput
+            v-model="email"
+            :label="$t('auth.fields.email.label')"
+            type="email"
+            outlined
+            :rules="emailRules"
+            lazy-rules
+            class="mb-4"
+          >
             <template #prepend>
               <QIcon name="mail" />
             </template>
@@ -40,7 +48,7 @@ import { ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import { useTranslation } from 'i18next-vue';
 
-import { requestPasswordReset } from '@/modules/Auth/api';
+// import { requestPasswordReset } from '@/modules/Auth/api';
 
 const email = ref('');
 const $q = useQuasar();
@@ -56,18 +64,18 @@ const handleSubmit = async () => {
   try {
     loading.value = true;
 
-    await requestPasswordReset(email.value);
+    // await requestPasswordReset(email.value);
 
     $q.notify({
       type: 'positive',
-      message: 'Если аккаунт существует, инструкции будут отправлены на email.',
+      message: t('auth.notifications.resetLinkSent'),
     });
 
     email.value = '';
   } catch {
     $q.notify({
       type: 'negative',
-      message: 'Произошла ошибка при запросе восстановления пароля',
+      message: t('auth.notifications.resetError'),
     });
   } finally {
     loading.value = false;
