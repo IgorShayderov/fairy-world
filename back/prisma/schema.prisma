@@ -13,13 +13,14 @@ datasource db {
 }
 
 model User {
-  id         Int             @id @default(autoincrement())
-  email      String          @unique
-  password   String
-  gold       Int             @default(0)
-  experience Int             @default(0)
-  level      Int             @default(1)
-  inventory InventoryItem[]
+  id                 Int             @id @default(autoincrement())
+  email              String          @unique
+  password           String
+  gold               Int             @default(0)
+  experience         Int             @default(0)
+  level              Int             @default(1)
+  hashedRefreshToken String?
+  inventory          InventoryItem[]
 }
 
 model Channel {
@@ -38,23 +39,23 @@ model Message {
 }
 
 model Item {
-  id          Int    @id @default(autoincrement())
-  name        String @unique
-  description String @default("")
-  price       Int    @default(0)
-  icon        String @default("")
-  quantity    Int    @default(1)
+  id            Int             @id @default(autoincrement())
+  name          String          @unique
+  description   String          @default("")
+  price         Int             @default(0)
+  icon          String          @default("")
+  quantity      Int             @default(1)
   inventoryItem InventoryItem[]
 }
 
 model InventoryItem {
-  id       Int    @id @default(autoincrement())
+  id       Int @id @default(autoincrement())
   userId   Int
   itemId   Int
-  quantity Int    @default(0)
+  quantity Int @default(0)
 
-  user  User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  item  Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
   @@unique([userId, itemId])
 }

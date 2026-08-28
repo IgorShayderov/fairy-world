@@ -1,5 +1,6 @@
 import { HttpError } from './HttpError';
 import { InterceptorManager } from './InterceptorManager';
+import { refresh } from '@modules/Auth/api';
 import routes from '@/routes';
 
 import type { IApi, PromiseChainNode, RequestConfig, FailedRequest } from '@shared/types/api';
@@ -48,6 +49,7 @@ const makeRequest = <T>(url: string, options: RequestInit = {}): Promise<T> => {
     url,
     options: {
       method: 'GET',
+      credentials: 'include',
       headers: {
         Accept: 'application/json',
         'Content-Type': 'application/json;charset=UTF-8',
@@ -129,17 +131,20 @@ api.interceptors.response.use(
     const err = error instanceof Error ? error : new Error(String(error));
     const httpError = err as Error & { config?: RequestConfig & { _retry?: boolean } };
     const config = httpError.config;
+    const options = (config?.options || {}) as RequestInit & { _retry?: boolean };
 
-    if (error instanceof HttpError && error.status === 401 && config && !config._retry) {
+    const EXCLUDED_ROUTES = [routes.api.auth.refreshPath(), routes.api.auth.logoutPath(), routes.api.auth.signInPath()];
+    const isExcluded = config?.url ? EXCLUDED_ROUTES.some((route) => config.url.includes(route)) : false;
+
+    if (error instanceof HttpError && error.status === 401 && config && !options._retry && !isExcluded) {
       // Если рефреш УЖЕ идет, ставим текущий запрос в очередь ожидания
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         })
           .then(() => {
-            // Токен обновился, повторяем запрос.
-            // makeRequest сам прогонит его через request-интерцептор и возьмет новый токен!
-            return makeRequest(config.url, config.options);
+            // ВАЖНО: передаем options с флагом, чтобы запросы из очереди тоже не зациклились
+            return makeRequest(config.url, { ...options, _retry: true });
           })
           .catch((queueError: unknown) => {
             // Оборачиваем ошибку очереди для линтера (Строка ~171)
@@ -149,22 +154,16 @@ api.interceptors.response.use(
       }
 
       // Это первый упавший запрос. Помечаем его, чтобы не уйти в бесконечный цикл
-      config._retry = true;
+      options._retry = true;
       isRefreshing = true;
 
       try {
         // ТУТ ВЫЗЫВАЕШЬ СВОЙ АПИ РЕФРЕША
-        // Например: const { accessToken } = await refreshAuthToken();
-        const newAccessToken = 'NEW_TOKEN_FROM_API'; // Заглушка
-
-        // Обязательно сохраняем, чтобы request-интерцептор его подхватил
-        localStorage.setItem('access_token', newAccessToken);
-
-        // Разрешаем все запросы, которые накопились в очереди
+        await refresh();
         processQueue(null);
 
         // Повторяем наш изначальный запрос
-        return makeRequest(config.url, config.options);
+        return await makeRequest(config.url, config.options);
       } catch (refreshError: unknown) {
         // Если рефреш не удался (например, рефреш-токен тоже протух)
         const refreshErrInstance = refreshError instanceof Error ? refreshError : new Error(String(refreshError));

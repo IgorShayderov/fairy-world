@@ -33,16 +33,19 @@ export class AuthController {
   })
   @ApiUnauthorizedResponse({ description: 'Invalid credentials' })
   async signIn(@Body() signInDto: LoginDto, @Res({ passthrough: true }) res: Response) {
-    const result = await this.authService.signIn(signInDto.email, signInDto.password);
+    const { access_token, expiresIn, refresh_token } = await this.authService.signIn(
+      signInDto.email,
+      signInDto.password,
+    );
 
-    res.cookie('refresh_token', result.refresh_token, {
+    res.cookie('refresh_token', refresh_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in ms
+      maxAge: parseInt(process.env.REFRESH_COOKIE_LIFETIME ?? '604800', 10),
     });
 
-    return { access_token: result.access_token, expiresIn: result.expiresIn };
+    return { access_token, expiresIn };
   }
 
   @UseGuards(RefreshGuard)
@@ -60,16 +63,20 @@ export class AuthController {
   })
   @ApiUnauthorizedResponse({ description: 'Invalid refresh token' })
   async refreshToken(@Request() req: RequestWithUser, @Res({ passthrough: true }) res: Response) {
-    const result = await this.authService.refreshTokens(req['user'].sub);
+    const oldRefreshToken = req.cookies['refresh_token'] as string;
+    const { access_token, expiresIn, refresh_token } = await this.authService.refreshTokens(
+      req.user.sub,
+      oldRefreshToken,
+    );
 
-    res.cookie('refresh_token', result.refresh_token, {
+    res.cookie('refresh_token', refresh_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
+      maxAge: parseInt(process.env.REFRESH_COOKIE_LIFETIME ?? '604800', 10),
     });
 
-    return { access_token: result.access_token, expiresIn: result.expiresIn };
+    return { access_token, expiresIn };
   }
 
   @Post('logout')

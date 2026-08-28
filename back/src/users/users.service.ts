@@ -13,4 +13,17 @@ export class UsersService {
       },
     });
   }
+
+  findById(id: number) {
+    return this.prisma.user.findUnique({
+      where: { id },
+    });
+  }
+
+  update(id: number, data: Partial<Omit<UserModel, 'id'>>) {
+    return this.prisma.user.update({
+      where: { id },
+      data,
+    });
+  }
 }

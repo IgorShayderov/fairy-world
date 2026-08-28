@@ -8,7 +8,7 @@ export const signIn = async ({ email, password }: ISignData) => {
   const { data } = await api.post<{
     access_token: string;
     expiresIn: number;
-  }>(routes.api.signInPath(), { email, password });
+  }>(routes.api.auth.signInPath(), { email, password });
 
   localStorage.setItem('access_token', data.access_token);
   localStorage.setItem('access_token_expires_at', String(Date.now() + data.expiresIn * 1000));
@@ -16,6 +16,20 @@ export const signIn = async ({ email, password }: ISignData) => {
   return data;
 };
 
-export const signOut = async() => {
+export const refresh = async () => {
+  const { data } = await api.post<{
+    access_token: string;
+    expiresIn: number;
+  }>(routes.api.auth.refreshPath());
 
+  localStorage.setItem('access_token', data.access_token);
+  localStorage.setItem('access_token_expires_at', String(Date.now() + data.expiresIn * 1000));
+
+  return data;
+};
+
+export const signOut = async () => {
+  await api.post(routes.api.auth.logoutPath());
+  localStorage.removeItem('access_token');
+  localStorage.removeItem('access_token_expires_at');
 };
