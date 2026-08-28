@@ -7,10 +7,12 @@ import {
   ApiBearerAuth,
   ApiTags,
 } from '@nestjs/swagger';
+
 import { AuthService } from './auth.service';
 import { AuthGuard, RefreshGuard } from './auth.guard';
-import { LoginDto } from './login.dto';
+import { LoginDto } from './dto/login.dto';
 import { Response } from 'express';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 import type { RequestWithUser } from './interfaces/request-with-user.interface';
 
@@ -105,5 +107,16 @@ export class AuthController {
   @ApiUnauthorizedResponse({ description: 'Not authenticated' })
   getProfile(@Request() req: RequestWithUser) {
     return req.user;
+  }
+
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiBody({ type: ResetPasswordDto })
+  @ApiOkResponse({ description: 'Пароль успешно изменён' })
+  @ApiUnauthorizedResponse({ description: 'Неверный или просроченный токен' })
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    await this.authService.resetPassword(dto.token, dto.password);
+
+    return { message: 'Пароль успешно изменён' };
   }
 }

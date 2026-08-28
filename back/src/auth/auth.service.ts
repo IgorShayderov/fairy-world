@@ -1,15 +1,20 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { UsersService } from '../users/users.service';
+import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
+
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
+
 import { UserModel } from '../../generated/prisma/models';
 import type { TokenResult } from './interfaces/token-payload.interface';
+import { UsersService } from '../users/users.service';
+import { MailerService } from '@nestjs-modules/mailer';
 
 @Injectable()
 export class AuthService {
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
+    private mailerService: MailerService,
   ) {}
 
   async signIn(email: string, password: string): Promise<TokenResult> {
@@ -73,5 +78,37 @@ export class AuthService {
 
   async logout(userId: number) {
     await this.usersService.update(userId, { hashedRefreshToken: null });
+  }
+
+  async requestPasswordReset(email: string): Promise<void> {
+    const user = await this.usersService.findOne(email);
+
+    // Если юзера нет, мы ничего не делаем, но и ошибку НЕ ВЫБРАСЫВАЕМ.
+    // Это защищает от перебора email-адресов злоумышленниками.
+    if (!user || !user.resetPasswordExpires || user.resetPasswordExpires < new Date()) {
+      throw new BadRequestException('Токен недействителен или его срок действия истёк');
+    }
+
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetPasswordExpires = new Date(Date.now() + Number(process.env.RESET_PASSWORD_TOKEN_LIFETIME ?? 3_600_000));
+
+    await this.usersService.update(user.id, {
+      resetPasswordToken: resetToken,
+      resetPasswordExpires: resetPasswordExpires,
+    });
+
+    const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+
+    await this.mailerService.sendMail({
+      to: user.email,
+      subject: 'Восстановление пароля',
+      html: `
+        <h2>Здравствуйте!</h2>
+        <p>Вы запросили сброс пароля. Перейдите по ссылке ниже, чтобы задать новый:</p>
+        <p><a href="${resetLink}">${resetLink}</a></p>
+        <p>Если вы не запрашивали сброс, просто проигнорируйте это письмо.</p>
+        <p>Ссылка действительна в течение 1 часа.</p>
+      `,
+    });
   }
 }
