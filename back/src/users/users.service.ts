@@ -1,12 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
-import { User, Prisma } from '../../generated';
+import { UserModel, UserWhereInput } from '../../generated/models';
 
 @Injectable()
 export class UsersService {
   constructor(private prisma: PrismaService) {}
 
-  findBy(where: Prisma.UserWhereInput): Promise<User | null> {
+  findBy(where: UserWhereInput): Promise<UserModel | null> {
     return this.prisma.user.findFirst({
       where,
     });
@@ -18,7 +18,7 @@ export class UsersService {
     });
   }
 
-  update(id: number, data: Partial<Omit<User, 'id'>>) {
+  update(id: number, data: Partial<Omit<UserModel, 'id'>>) {
     return this.prisma.user.update({
       where: { id },
       data,
