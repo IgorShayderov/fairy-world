@@ -18,6 +18,11 @@ const appRoutes: RouteRecordRaw[] = [
             name: 'ProfilePage',
             component: () => import('@pages/ProfilePage.vue'),
           },
+          {
+            path: '',
+            name: 'GamePage',
+            component: () => import('@pages/GamePage.vue'),
+          },
         ],
       },
     ],

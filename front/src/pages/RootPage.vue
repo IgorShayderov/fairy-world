@@ -8,7 +8,6 @@
       <AppMenu />
     </div>
 
-    <FantasyMap3D />
     <ChatWindow class="shrink-0" />
   </div>
 </template>
@@ -18,5 +17,4 @@ import { RouterView } from 'vue-router';
 
 import AppMenu from '@components/AppMenu.vue';
 import ChatWindow from '@components/ChatWindow.vue';
-import FantasyMap3D from '@components/FantasyMap3D.vue';
 </script>
