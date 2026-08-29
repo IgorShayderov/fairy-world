@@ -4,8 +4,7 @@
       class="absolute bottom-0 left-0 z-20 flex w-full border-t border-gray-200 bg-white transition-all duration-500 ease-in-out"
       :class="chatClasses"
     >
-      <ToggleExpandButton v-model="isExpanded" class="absolute -top-4 left-1/2 z-30 -translate-x-1/2" />
-      <ToggleExpandButton v-model="isClosed" class="absolute -top-4 left-11/20 z-30 -translate-x-1/2" />
+      <ChatWindowPositioning :chat-position="chatState.chatPosition" @set-positioning="setChatPosition" />
 
       <aside class="flex w-1/5 flex-col border-r border-gray-200 bg-gray-50">
         <div class="border-b border-gray-200 p-3 font-bold text-gray-700">
@@ -55,25 +54,8 @@ import { useChatStore } from '@/modules/Chat/store';
 import ChatWindowChannel from './ChatWindowChannel.vue';
 import ChatWindowControls from './ChatWindowControls.vue';
 import ChatWindowMessage from './ChatWindowMessage.vue';
+import ChatWindowPositioning from './ChatWindowPositioning.vue';
 
-import ToggleExpandButton from '@/components/ToggleExpandButton.vue';
-
-const isExpanded = computed({
-  get() {
-    return chatState.chatPosition === 'full-screen';
-  },
-  set(value) {
-    setChatPosition(value ? 'full-screen' : 'standard');
-  },
-});
-const isClosed = computed({
-  get() {
-    return chatState.chatPosition === 'closed';
-  },
-  set(value) {
-    setChatPosition(value ? 'closed' : 'standard');
-  },
-});
 const chatState = reactive<{
   chatPosition: ChatPosition;
 }>({
@@ -81,9 +63,9 @@ const chatState = reactive<{
 });
 const chatClasses = computed(() => {
   return {
-    'h-full shadow-[0_-20px_50px_rgba(0,0,0,0.1)]': isExpanded.value,
+    'h-full shadow-[0_-20px_50px_rgba(0,0,0,0.1)]': chatState.chatPosition === 'full-screen',
     'h-[300px]': chatState.chatPosition === 'standard',
-    'h-[0]': isClosed.value,
+    'h-[0]': chatState.chatPosition === 'closed',
   };
 });
 

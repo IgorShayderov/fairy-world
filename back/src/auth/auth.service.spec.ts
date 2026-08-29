@@ -1,10 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { UnauthorizedException } from '@nestjs/common';
+import { UnauthorizedException, ConflictException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma.service';
+import { RegisterDto, Gender } from './dto/register.dto';
 import * as bcrypt from 'bcrypt';
-import { ConflictException, BadRequestException } from '@nestjs/common';
-import { RegisterDto, Gender } from './register.dto';
 
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
@@ -14,14 +13,30 @@ jest.mock('bcrypt');
 describe('AuthService', () => {
   let service: AuthService;
 
-  const mockUsersService = {
+  const mockUsersService: {
+    findBy: jest.Mock;
+    findById: jest.Mock;
+    update: jest.Mock;
+  } = {
     findBy: jest.fn(),
     findById: jest.fn(),
     update: jest.fn(),
   };
 
-  const mockJwtService = {
+  const mockJwtService: {
+    signAsync: jest.Mock;
+  } = {
     signAsync: jest.fn(),
+  };
+
+  const mockPrismaService: {
+    user: {
+      create: jest.Mock;
+    };
+  } = {
+    user: {
+      create: jest.fn(),
+    },
   };
 
   const originalEnv = process.env;
@@ -148,7 +163,7 @@ describe('AuthService', () => {
 
     it('should throw UnauthorizedException if old refresh token is invalid', async () => {
       mockUsersService.findById.mockResolvedValue(user);
-      (bcrypt.compare as jest.Mock).mockResolvedValue(false); // bcrypt.compare вернул false
+      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
 
       await expect(service.refreshTokens(sub, 'invalid_token')).rejects.toThrow(UnauthorizedException);
     });
@@ -173,7 +188,7 @@ describe('AuthService', () => {
         name: 'Test User',
       };
 
-      mockUsersService.findOne.mockResolvedValue(null);
+      mockUsersService.findBy.mockResolvedValue(null);
       (bcrypt.hash as jest.Mock).mockResolvedValue('hashed_password');
       mockPrismaService.user.create.mockResolvedValue({
         id: 1,
@@ -189,7 +204,7 @@ describe('AuthService', () => {
       const result = await service.register(dto);
 
       expect(result.access_token).toBe('access_token_value');
-      expect(result.expiresIn).toBe(60);
+      expect(result.expiresIn).toBe(900);
       expect(result.user.email).toBe(dto.email);
     });
 
@@ -204,7 +219,7 @@ describe('AuthService', () => {
         language: 'en-US',
       };
 
-      mockUsersService.findOne.mockResolvedValue(null);
+      mockUsersService.findBy.mockResolvedValue(null);
       (bcrypt.hash as jest.Mock).mockResolvedValue('hashed_password');
       mockPrismaService.user.create.mockResolvedValue({
         id: 1,
@@ -220,7 +235,7 @@ describe('AuthService', () => {
 
       expect(result.user.country).toBe('USA');
       expect(result.user.city).toBe('New York');
-      expect(result.user.gender).toBe(Gender.FEMALE);
+      expect(result.user.gender).toBe('FEMALE');
       expect(result.user.language).toBe('en-US');
     });
 
@@ -231,98 +246,9 @@ describe('AuthService', () => {
         name: 'Test User',
       };
 
-      mockUsersService.findOne.mockResolvedValue({ id: 99, email: dto.email });
+      mockUsersService.findBy.mockResolvedValue({ id: 99, email: dto.email });
 
       await expect(service.register(dto)).rejects.toThrow(ConflictException);
-    });
-  });
-
-  describe('requestPasswordReset', () => {
-    it('should return generic success message even if user not found', async () => {
-      mockUsersService.findOne.mockResolvedValue(null);
-
-      const result = await service.requestPasswordReset({ email: 'nonexistent@example.com' });
-
-      expect(result).toEqual({
-        message: 'Если аккаунт существует, инструкции для восстановления будут отправлены на email.',
-      });
-    });
-
-    it('should generate and store a token when user exists', async () => {
-      const user = { id: 1, email: 'existing@example.com' };
-      mockUsersService.findOne.mockResolvedValue(user);
-      (bcrypt.hash as jest.Mock).mockResolvedValue('hashed_token');
-
-      const result = await service.requestPasswordReset({ email: user.email });
-
-      expect(result.message).toContain('инструкции для восстановления');
-      expect(mockUsersService.findOne).toHaveBeenCalledWith(user.email);
-      expect(mockPrismaService.passwordResetToken.create).toHaveBeenCalled();
-    });
-  });
-
-  describe('resetPassword', () => {
-    it('should throw BadRequestException when token is invalid', async () => {
-      mockPrismaService.passwordResetToken.findMany.mockResolvedValue([]);
-
-      await expect(service.resetPassword({ token: 'invalid_token', password: 'NewPass123!' })).rejects.toThrow(
-        BadRequestException,
-      );
-    });
-
-    it('should reset password when token is valid', async () => {
-      const validToken = 'valid_token_123';
-      const user = { id: 1, email: 'test@example.com' };
-      mockUsersService.findOne.mockResolvedValue(user);
-
-      mockPrismaService.passwordResetToken.findMany.mockResolvedValue([
-        {
-          id: 1,
-          token: 'hashed_token',
-          userId: user.id,
-          expiresAt: new Date(Date.now() + 5 * 60_000),
-          used: false,
-          user,
-        },
-      ]);
-
-      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
-      (bcrypt.hash as jest.Mock).mockResolvedValue('hashed_new_password');
-      mockPrismaService.user.update.mockResolvedValue({});
-      mockPrismaService.passwordResetToken.update.mockResolvedValue({});
-
-      const result = await service.resetPassword({ token: validToken, password: 'NewPass123!' });
-
-      expect(result.message).toBe('Пароль успешно обновлён.');
-      expect(mockPrismaService.user.update).toHaveBeenCalled();
-      expect(mockPrismaService.passwordResetToken.update).toHaveBeenCalledWith({
-        where: { id: 1 },
-        data: { used: true },
-      });
-    });
-
-    it('should throw BadRequestException when token is expired', async () => {
-      const user = { id: 1, email: 'test@example.com' };
-      mockUsersService.findOne.mockResolvedValue(user);
-
-      // Query filters by expiresAt > now, so expired tokens won't be found
-      mockPrismaService.passwordResetToken.findMany.mockResolvedValue([]);
-
-      await expect(service.resetPassword({ token: 'valid_token', password: 'NewPass123!' })).rejects.toThrow(
-        BadRequestException,
-      );
-    });
-
-    it('should throw BadRequestException when token is already used', async () => {
-      const user = { id: 1, email: 'test@example.com' };
-      mockUsersService.findOne.mockResolvedValue(user);
-
-      // Query filters by used: false, so used tokens won't be found
-      mockPrismaService.passwordResetToken.findMany.mockResolvedValue([]);
-
-      await expect(service.resetPassword({ token: 'valid_token', password: 'NewPass123!' })).rejects.toThrow(
-        BadRequestException,
-      );
     });
   });
 });

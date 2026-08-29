@@ -13,6 +13,7 @@ import {
 import { AuthService } from './auth.service';
 import { AuthGuard, RefreshGuard } from './auth.guard';
 import { LoginDto } from './dto/login.dto';
+import { RegisterDto } from './dto/register.dto';
 import { Response } from 'express';
 
 import type { RequestWithUser } from './interfaces/request-with-user.interface';
@@ -29,8 +30,6 @@ export class AuthController {
     description: 'User successfully registered',
     schema: {
       example: {
-        access_token: 'eyJhbG...VCJ9...',
-        expiresIn: 60,
         user: {
           id: 1,
           name: 'Alice',
@@ -114,44 +113,6 @@ export class AuthController {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
     });
-  }
-
-  /**
-   * Endpoint for requesting password reset.
-   * Always returns success to prevent user enumeration.
-   */
-  @Post('forgot-password')
-  @HttpCode(HttpStatus.OK)
-  @ApiBody({ type: ForgotPasswordDto })
-  @ApiOkResponse({
-    description: 'If the email exists, a reset token will be sent',
-    schema: {
-      example: {
-        message: 'Если аккаунт существует, инструкции для восстановления будут отправлены на email.',
-      },
-    },
-  })
-  async requestPasswordReset(@Body() dto: ForgotPasswordDto) {
-    return this.authService.requestPasswordReset(dto);
-  }
-
-  /**
-   * Endpoint for resetting password using a valid token.
-   */
-  @Post('reset-password')
-  @HttpCode(HttpStatus.OK)
-  @ApiBody({ type: ResetPasswordDto })
-  @ApiOkResponse({
-    description: 'Password successfully reset',
-    schema: {
-      example: {
-        message: 'Пароль успешно обновлён.',
-      },
-    },
-  })
-  @ApiBadRequestResponse({ description: 'Invalid or expired token' })
-  async resetPassword(@Body() dto: ResetPasswordDto) {
-    return this.authService.resetPassword(dto);
   }
 
   @UseGuards(AuthGuard)
