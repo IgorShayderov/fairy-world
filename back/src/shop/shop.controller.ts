@@ -3,6 +3,7 @@ import { ApiOkResponse, ApiUnauthorizedResponse, ApiBearerAuth } from '@nestjs/s
 
 import { ShopService } from './shop.service';
 import { SellDto } from './dto/sell.dto';
+import { EquipDto } from './dto/equip.dto';
 import { BuyDto } from './dto/buy.dto';
 import { AuthGuard } from '../auth/auth.guard';
 
@@ -48,5 +49,14 @@ export class ShopController {
   @ApiUnauthorizedResponse({ description: 'Not authenticated' })
   getInventory(@Req() req: ShopRequest) {
     return this.shopService.getInventory(req.user.sub);
+  }
+
+  @Post('equip')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
+  @ApiOkResponse({ description: 'Item equipped/unequipped' })
+  @ApiUnauthorizedResponse({ description: 'Not authenticated' })
+  async equip(@Body() equipDto: EquipDto, @Req() req: ShopRequest) {
+    return this.shopService.equip(req.user.sub, equipDto);
   }
 }

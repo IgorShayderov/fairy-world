@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { BuyDto } from './dto/buy.dto';
+import { EquipDto } from './dto/equip.dto';
 
 @Injectable()
 export class ShopService {
@@ -77,6 +78,24 @@ export class ShopService {
     return this.prisma.inventoryItem.findMany({
       where: { userId },
       include: { item: true },
+    });
+  }
+
+  async equip(userId: number, dto: EquipDto) {
+    const inventoryItem = await this.prisma.inventoryItem.findUnique({
+      where: { id: dto.inventoryItemId },
+    });
+
+    if (!inventoryItem || inventoryItem.userId !== userId) {
+      throw new Error('Item not found in inventory');
+    }
+    if (inventoryItem.quantity <= 0) {
+      throw new Error('No items of this type to equip');
+    }
+
+    return this.prisma.inventoryItem.update({
+      where: { id: dto.inventoryItemId },
+      data: { equipped: dto.equipped },
     });
   }
 }

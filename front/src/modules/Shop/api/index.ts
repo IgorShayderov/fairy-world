@@ -28,3 +28,11 @@ export const getInventory = async (): Promise<InventoryEntry[]> => {
   const { data } = await api.get<InventoryEntry[]>(routes.api.shop.inventoryPath());
   return data;
 };
+
+export const equipItem = async (inventoryItemId: number, equipped: boolean): Promise<InventoryEntry> => {
+  const { data } = await api.post<InventoryEntry>(routes.api.shop.equipPath(), {
+    inventoryItemId,
+    equipped,
+  });
+  return data;
+};

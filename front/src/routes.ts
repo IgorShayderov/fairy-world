@@ -28,6 +28,7 @@ const routes = {
       buyPath: () => [BASE_API_PATH, 'shop', 'buy'].join('/'),
       sellPath: () => [BASE_API_PATH, 'shop', 'sell'].join('/'),
       inventoryPath: () => [BASE_API_PATH, 'shop', 'inventory'].join('/'),
+      equipPath: () => [BASE_API_PATH, 'shop', 'equip'].join('/'),
     },
   },
   rootPath: () => '/',
