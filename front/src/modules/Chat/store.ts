@@ -4,6 +4,7 @@ import { ref, computed } from 'vue';
 import { chatApi } from './api';
 import type { Channel, Message } from './types';
 import { StorageService } from '@services/storage.service';
+import { getUserId } from '@/modules/Auth/utils/auth';
 
 export const useChatStore = defineStore('chat', () => {
   // State
@@ -46,8 +47,11 @@ export const useChatStore = defineStore('chat', () => {
   const postMessage = async (text: string) => {
     if (!activeChannelId.value || !text.trim()) return;
 
+    const authorId = getUserId();
+    if (authorId === null) return;
+
     try {
-      const newMessage = await chatApi.sendMessage(activeChannelId.value, text.trim());
+      const newMessage = await chatApi.sendMessage(activeChannelId.value, text.trim(), authorId);
       messages.value.push(newMessage);
     } catch (error) {
       console.error('Ошибка при отправке сообщения', error);

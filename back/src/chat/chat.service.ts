@@ -23,9 +23,10 @@ export class ChatService {
     });
   }
 
-  async createMessage(channelId: string, text: string) {
+  async createMessage(authorId: number, channelId: string, text: string) {
     const savedMessage = await this.prisma.message.create({
       data: {
+        authorId,
         channelId,
         text,
       },

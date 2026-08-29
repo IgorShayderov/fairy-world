@@ -21,6 +21,7 @@ model User {
   level                Int             @default(1)
   hashedRefreshToken   String?
   inventory            InventoryItem[]
+  messages             Message[]
   resetPasswordToken   String?
   resetPasswordExpires DateTime?
   createdAt            DateTime        @default(now())
@@ -38,7 +39,9 @@ model Message {
   id        String   @id @default(uuid())
   text      String
   channelId String
+  authorId  Int
   channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
 }
 

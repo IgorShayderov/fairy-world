@@ -84,21 +84,23 @@ describe('ChatService', () => {
   });
 
   describe('createMessage', () => {
-    it('should create a message and emit it over the gateway', async () => {
+    it('should create a message with authorId and emit it over the gateway', async () => {
+      const authorId = 7;
       const channelId = 'c1';
       const text = 'new message';
       const savedMessage = {
         id: 'm3',
+        authorId,
         channelId,
         text,
         createdAt: new Date('2024-01-03'),
       };
       mockPrismaService.message.create.mockResolvedValue(savedMessage);
 
-      const result = await service.createMessage(channelId, text);
+      const result = await service.createMessage(authorId, channelId, text);
 
       expect(mockPrismaService.message.create).toHaveBeenCalledWith({
-        data: { channelId, text },
+        data: { authorId, channelId, text },
       });
       expect(mockChatGateway.server.emit).toHaveBeenCalledWith('new_message', savedMessage);
       expect(result).toEqual(savedMessage);
@@ -107,7 +109,7 @@ describe('ChatService', () => {
     it('should propagate errors from prisma create', async () => {
       mockPrismaService.message.create.mockRejectedValue(new Error('db failure'));
 
-      await expect(service.createMessage('c1', 'text')).rejects.toThrow('db failure');
+      await expect(service.createMessage(1, 'c1', 'text')).rejects.toThrow('db failure');
       expect(mockChatGateway.server.emit).not.toHaveBeenCalled();
     });
   });

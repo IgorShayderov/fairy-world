@@ -6,6 +6,7 @@ export interface Channel {
 export interface Message {
   id: string;
   channelId: string;
+  authorId: number;
   text: string;
   createdAt: string;
 }
