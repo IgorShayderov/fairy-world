@@ -1,9 +1,10 @@
-import { Controller, UseGuards, Get, Post, Body, Param } from '@nestjs/common';
+import { Controller, UseGuards, Get, Post, Body, Param, Request } from '@nestjs/common';
 import { ApiOkResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { IsString, IsNotEmpty } from 'class-validator';
 
 import { ChatService } from './chat.service';
 import { AuthGuard } from '../auth/auth.guard';
+import type { RequestWithUser } from '../auth/interfaces/request-with-user.interface';
 
 export class CreateMessageDto {
   @IsString()
@@ -23,8 +24,8 @@ export class ChatController {
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOkResponse({ description: 'Create message in chat' })
-  async createMessage(@Body() body: CreateMessageDto) {
-    const message = await this.chatService.createMessage(body.channelId, body.text);
+  async createMessage(@Request() req: RequestWithUser, @Body() body: CreateMessageDto) {
+    const message = await this.chatService.createMessage(req.user.sub, body.channelId, body.text);
 
     return message;
   }

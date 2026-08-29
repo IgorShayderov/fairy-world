@@ -33,11 +33,12 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
   // Обработчик события, если сообщение отправляется клиентом через WebSocket
   @SubscribeMessage('send_message')
-  handleMessage(@MessageBody() payload: { channelId: string; text: string }) {
+  handleMessage(@MessageBody() payload: { channelId: string; text: string; authorId?: number }) {
     const newMessage = {
       id: Date.now().toString(),
       channelId: payload.channelId,
       text: payload.text,
+      authorId: payload.authorId,
       createdAt: new Date().toISOString(),
     };
 

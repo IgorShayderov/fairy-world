@@ -14,7 +14,6 @@ import UnauthLayout from './layouts/UnauthLayout.vue';
 const $route = useRoute();
 
 const layout = computed(() => {
-  console.log($route);
   switch ($route.meta.layout) {
     case 'AuthLayout':
       return AuthLayout;

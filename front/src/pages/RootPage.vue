@@ -15,5 +15,16 @@
 <script setup lang="ts">
 import AppMenu from '@components/AppMenu.vue';
 import ChatWindow from '@components/ChatWindow.vue';
+import { onMounted } from 'vue';
 import { RouterView } from 'vue-router';
+
+import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
+
+const currentUserStore = useCurrentUserStore();
+
+onMounted(async () => {
+  if (currentUserStore.user === null) {
+    await currentUserStore.fetchCurrentUser();
+  }
+});
 </script>

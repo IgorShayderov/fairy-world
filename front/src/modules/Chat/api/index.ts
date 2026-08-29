@@ -17,10 +17,11 @@ export const chatApi = {
     return data;
   },
 
-  async sendMessage(channelId: string, text: string): Promise<Message> {
+  async sendMessage(channelId: string, text: string, authorId: number): Promise<Message> {
     const { data } = await api.post<Message>(routes.api.chat.messagePath(), {
       channelId,
       text,
+      authorId,
     });
     return data;
   },

@@ -1,11 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ChatController } from './chat.controller';
+import { ChatController, CreateMessageDto } from './chat.controller';
 import { ChatService } from './chat.service';
-import { CreateMessageDto } from './chat.controller';
 import { AuthGuard } from '../auth/auth.guard';
 
 describe('ChatController', () => {
   let controller: ChatController;
+
+  const TEST_USER_ID = 42;
+  const TEST_USER_EMAIL = 'user@example.com';
+  const TEST_CHANNEL_ID = 'c1';
+  const TEST_MESSAGE_ID = 'm2';
 
   const mockChatService = {
     getChannels: jest.fn(),
@@ -38,7 +42,7 @@ describe('ChatController', () => {
 
   describe('getChannels', () => {
     it('should return list of channels from service', async () => {
-      const channels = [{ id: 'c1', name: 'general' }];
+      const channels = [{ id: TEST_CHANNEL_ID, name: 'general' }];
       mockChatService.getChannels.mockResolvedValue(channels);
 
       const result = await controller.getChannels();
@@ -50,26 +54,27 @@ describe('ChatController', () => {
 
   describe('getMessages', () => {
     it('should return messages for the given channel id', async () => {
-      const channelId = 'c1';
-      const messages = [{ id: 'm1', channelId, text: 'hi' }];
+      const messages = [{ id: 'm1', channelId: TEST_CHANNEL_ID, text: 'hi' }];
       mockChatService.getMessages.mockResolvedValue(messages);
 
-      const result = await controller.getMessages(channelId);
+      const result = await controller.getMessages(TEST_CHANNEL_ID);
 
-      expect(mockChatService.getMessages).toHaveBeenCalledWith(channelId);
+      expect(mockChatService.getMessages).toHaveBeenCalledWith(TEST_CHANNEL_ID);
       expect(result).toEqual(messages);
     });
   });
 
   describe('createMessage', () => {
     it('should create a message and return the saved entity', async () => {
-      const body: CreateMessageDto = { channelId: 'c1', text: 'hello' };
-      const saved = { id: 'm2', channelId: 'c1', text: 'hello' };
+      const body: CreateMessageDto = { channelId: TEST_CHANNEL_ID, text: 'hello' };
+      const req = { user: { sub: TEST_USER_ID, email: TEST_USER_EMAIL } };
+      const saved = { id: TEST_MESSAGE_ID, authorId: TEST_USER_ID, channelId: TEST_CHANNEL_ID, text: 'hello' };
+
       mockChatService.createMessage.mockResolvedValue(saved);
 
-      const result = await controller.createMessage(body);
+      const result = await controller.createMessage(req as never, body);
 
-      expect(mockChatService.createMessage).toHaveBeenCalledWith('c1', 'hello');
+      expect(mockChatService.createMessage).toHaveBeenCalledWith(TEST_USER_ID, TEST_CHANNEL_ID, body.text);
       expect(result).toEqual(saved);
     });
   });
