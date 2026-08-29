@@ -5,7 +5,7 @@
         <RouterView />
       </div>
 
-      <AppSidebar />
+      <AppMenu />
     </div>
 
     <ChatWindow class="shrink-0" />
@@ -15,6 +15,6 @@
 <script setup lang="ts">
 import { RouterView } from 'vue-router';
 
-import AppSidebar from '@components/AppSidebar.vue';
+import AppMenu from '@components/AppMenu.vue';
 import ChatWindow from '@components/ChatWindow.vue';
 </script>

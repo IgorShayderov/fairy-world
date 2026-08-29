@@ -6,7 +6,7 @@ const appRoutes: RouteRecordRaw[] = [
   {
     path: routes.rootPath(),
     component: () => import('@layouts/DefaultLayout.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, layout: 'AuthLayout' },
     children: [
       {
         path: '',
@@ -23,8 +23,28 @@ const appRoutes: RouteRecordRaw[] = [
     ],
   },
   {
+    name: 'LoginPage',
     path: routes.loginPath(),
     component: () => import('@pages/LoginPage.vue'),
+    meta: { layout: 'UnauthLayout' },
+  },
+  {
+    name: 'ForgotPasswordPage',
+    path: routes.forgotPasswordPath(),
+    component: () => import('@pages/ForgotPasswordPage.vue'),
+    meta: { layout: 'UnauthLayout' },
+  },
+  {
+    name: 'RegisterPage',
+    path: routes.registerPath(),
+    component: () => import('@pages/RegisterPage.vue'),
+    meta: { layout: 'UnauthLayout' },
+  },
+  {
+    name: 'ResetPasswordPage',
+    path: routes.resetPasswordPath(),
+    component: () => import('@pages/ResetPasswordPage.vue'),
+    meta: { layout: 'UnauthLayout' },
   },
 ];
 

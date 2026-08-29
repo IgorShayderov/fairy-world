@@ -1,5 +1,8 @@
-export default class HttpError extends Error {
+import type { RequestConfig } from '@shared/types/api';
+
+export class HttpError extends Error {
   status: number;
+  config?: RequestConfig;
 
   constructor(message: string, status: number) {
     super(message);

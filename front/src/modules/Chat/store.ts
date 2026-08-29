@@ -9,7 +9,7 @@ export const useChatStore = defineStore('chat', () => {
   // State
   const channels = ref<Channel[]>([]);
   const messages = ref<Message[]>([]);
-  const activeChannelId = ref<string | null>(StorageService.get('selectedChannelId'));
+  const activeChannelId = ref<string | null>(null);
 
   const isLoading = ref(false);
   const isMessagesLoading = ref(false);
@@ -24,11 +24,6 @@ export const useChatStore = defineStore('chat', () => {
       const data = await chatApi.getChannels();
 
       channels.value = data;
-      const [firstChannel] = channels.value;
-
-      if (firstChannel && !activeChannelId.value) {
-        await selectChannel(firstChannel.id);
-      }
     } finally {
       isLoading.value = false;
     }

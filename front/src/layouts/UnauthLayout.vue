@@ -1,6 +1,6 @@
 <template>
   <main class="h-screen flex-col">
-    <AppHeader :auth="true" />
+    <AppHeader :auth="false" />
 
     <RouterView />
   </main>

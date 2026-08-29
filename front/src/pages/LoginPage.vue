@@ -8,6 +8,7 @@
           <QInput
             v-model="form.email"
             autocomplete="email"
+            name="email"
             label="Email"
             type="email"
             outlined
@@ -22,6 +23,7 @@
 
           <QInput
             v-model="form.password"
+            name="password"
             autocomplete="current-password"
             :label="$t('auth.fields.password.label')"
             :type="showPassword ? 'text' : 'password'"
@@ -53,7 +55,7 @@
         </QForm>
 
         <div class="mt-6 text-center">
-          <RouterLink to="/forgot-password" class="text-sm text-blue-600 hover:underline">
+          <RouterLink :to="routes.forgotPasswordPath()" class="text-sm text-blue-600 hover:underline">
             {{ $t('auth.buttons.forgotPassword') }}
           </RouterLink>
         </div>
@@ -70,6 +72,7 @@ import { useTranslation } from 'i18next-vue';
 
 import { signIn } from '@/modules/Auth/api';
 import { socket } from '@/boot/socket';
+import routes from '@/routes';
 
 interface LoginForm {
   email: string;

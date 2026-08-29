@@ -16,7 +16,7 @@
         {{ t('menu.title') }}
       </h2>
 
-      <div class="space-y-3 overflow-x-hidden overflow-y-auto px-[7px]">
+      <div class="flex-1 space-y-3 overflow-x-hidden overflow-y-auto px-[7px]">
         <SidebarItem v-for="item in menuItems" :key="item.id" :item="item" :is-expanded="isSidebarExpanded" />
       </div>
     </div>
