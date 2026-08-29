@@ -9,11 +9,13 @@ describe('UsersService', () => {
     user: {
       findUnique: jest.fn(),
       findFirst: jest.fn(),
-      create: jest.fn(),
+      update: jest.fn(),
     },
   };
 
   beforeEach(async () => {
+    jest.clearAllMocks();
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [UsersService, { provide: PrismaService, useValue: mockPrismaService }],
     }).compile();
@@ -21,16 +23,53 @@ describe('UsersService', () => {
     service = module.get<UsersService>(UsersService);
   });
 
-  describe('findOne', () => {
-    it('should return a user by email', async () => {
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
+
+  describe('findBy', () => {
+    it('should return a user by given conditions (e.g., email)', async () => {
       const expectedUser = { id: 1, email: 'john@mail.ru', password: 'hashed_password' };
+
+      mockPrismaService.user.findFirst.mockResolvedValue(expectedUser);
+
+      const user = await service.findBy({ email: 'john@mail.ru' });
+
+      expect(user).toEqual(expectedUser);
+      expect(mockPrismaService.user.findFirst).toHaveBeenCalledWith({
+        where: { email: 'john@mail.ru' },
+      });
+    });
+  });
+
+  describe('findById', () => {
+    it('should return a user by id', async () => {
+      const expectedUser = { id: 1, email: 'john@mail.ru', password: 'hashed_password' };
+
       mockPrismaService.user.findUnique.mockResolvedValue(expectedUser);
 
-      const user = await service.findBy({ email: 'john@mail.ru ' });
+      const user = await service.findById(1);
 
       expect(user).toEqual(expectedUser);
       expect(mockPrismaService.user.findUnique).toHaveBeenCalledWith({
-        where: { email: 'john@mail.ru' },
+        where: { id: 1 },
+      });
+    });
+  });
+
+  describe('update', () => {
+    it('should update and return the user', async () => {
+      const updateData = { resetPasswordToken: 'new_token' };
+      const expectedUser = { id: 1, email: 'john@mail.ru', resetPasswordToken: 'new_token' };
+
+      mockPrismaService.user.update.mockResolvedValue(expectedUser);
+
+      const user = await service.update(1, updateData);
+
+      expect(user).toEqual(expectedUser);
+      expect(mockPrismaService.user.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: updateData,
       });
     });
   });

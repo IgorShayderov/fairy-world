@@ -6,7 +6,14 @@
       <span class="text-lg font-bold tracking-wide">✦ {{ appName }}</span>
     </div>
 
-    <QBtn unelevated color="negative" icon="logout" :label="t('auth.buttons.logout')" @click="handleLogout" />
+    <QBtn
+      v-if="$props.auth"
+      unelevated
+      color="negative"
+      icon="logout"
+      :label="t('auth.buttons.logout')"
+      @click="handleLogout"
+    />
   </header>
 </template>
 
@@ -19,7 +26,10 @@ import { signOut } from '@modules/Auth/api';
 import routes from '@/routes';
 
 const $props = defineProps({
-  auth: Boolean,
+  auth: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const { t } = useTranslation();
