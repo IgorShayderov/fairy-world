@@ -1,43 +1,49 @@
 <template>
-  <header class="flex items-center justify-between bg-gray-800 px-4 py-2 text-white">
-    <div class="flex gap-2">
-      <span class="text-lg font-bold tracking-wide">✦ Fairy World</span>
+  <header
+    class="flex max-h-(--header-height) min-h-(--header-height) items-center justify-between bg-gray-800 px-4 py-2 text-white"
+  >
+    <div class="flex items-center gap-2">
+      <span class="text-lg font-bold tracking-wide">✦ {{ appName }}</span>
     </div>
 
-    <nav class="ml-[20px] flex flex-1 items-center gap-4 text-sm">
-      <QBtn
-        v-for="link in links"
-        :key="link.to"
-        flat
-        dense
-        :to="link.to"
-        :label="link.label"
-        :class="isActive(link.to) ? 'text-white' : 'text-gray-300'"
-        size="md"
-      />
-    </nav>
+    <QBtn
+      v-if="$props.auth"
+      unelevated
+      color="negative"
+      icon="logout"
+      :label="t('auth.buttons.logout')"
+      @click="handleLogout"
+    />
   </header>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-import { useRoute } from 'vue-router';
 import { QBtn } from 'quasar';
+import { useRouter } from 'vue-router';
+import { useTranslation } from 'i18next-vue';
 
-const route = useRoute();
+import { signOut } from '@modules/Auth/api';
+import routes from '@/routes';
 
-const links = computed(() => [
-  { to: '/', label: 'Главная' },
-  { to: '/profile', label: 'Профиль' },
-]);
+const $props = defineProps({
+  auth: {
+    type: Boolean,
+    default: false,
+  },
+});
 
-function isActive(to: string): boolean {
-  return route.path.startsWith(to);
-}
+const { t } = useTranslation();
+
+const appName = import.meta.env.VITE_APP_NAME;
+const router = useRouter();
+
+const handleLogout = async () => {
+  try {
+    await signOut();
+  } catch (error) {
+    console.error('Ошибка при выходе:', error);
+  } finally {
+    await router.push(routes.loginPath());
+  }
+};
 </script>
-
-<style scoped>
-header {
-  border-bottom: 1px solid #374151;
-}
-</style>

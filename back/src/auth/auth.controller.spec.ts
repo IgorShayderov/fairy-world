@@ -1,10 +1,8 @@
 import { JwtService } from '@nestjs/jwt';
-import { Response, Request } from 'express';
-
+import { Response } from 'express';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-
 import type { RequestWithUser } from './interfaces/request-with-user.interface';
 
 describe('AuthController', () => {
@@ -19,7 +17,23 @@ describe('AuthController', () => {
     verifyAsync: jest.fn(),
   };
 
+  const originalEnv = process.env;
+
+  beforeAll(() => {
+    process.env = {
+      ...originalEnv,
+      NODE_ENV: 'development',
+      REFRESH_COOKIE_LIFETIME: '604800',
+    };
+  });
+
+  afterAll(() => {
+    process.env = originalEnv;
+  });
+
   beforeEach(async () => {
+    jest.clearAllMocks();
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
       providers: [
@@ -51,7 +65,12 @@ describe('AuthController', () => {
       const response = await controller.signIn(dto, mockRes);
 
       expect(mockAuthService.signIn).toHaveBeenCalledWith('john@mail.ru', 'Qwerty123!');
-      expect(cookieSpy).toHaveBeenCalledWith('refresh_token', 'refresh', expect.objectContaining({ httpOnly: true }));
+      expect(cookieSpy).toHaveBeenCalledWith('refresh_token', 'refresh', {
+        httpOnly: true,
+        secure: false,
+        sameSite: 'lax',
+        maxAge: 604800,
+      });
       expect(response).toEqual({ access_token: 'token', expiresIn: 60 });
     });
   });
@@ -67,16 +86,20 @@ describe('AuthController', () => {
 
       const cookieSpy = jest.fn();
       const mockRes = { cookie: cookieSpy } as unknown as Response;
-      const mockReq = { user: { sub: 1 } } as unknown as RequestWithUser;
+      const mockReq = {
+        user: { sub: 1 },
+        cookies: { refresh_token: 'old_refresh_token_value' },
+      } as unknown as RequestWithUser;
 
       const response = await controller.refreshToken(mockReq, mockRes);
 
-      expect(mockAuthService.refreshTokens).toHaveBeenCalledWith(1);
-      expect(cookieSpy).toHaveBeenCalledWith(
-        'refresh_token',
-        'new_refresh',
-        expect.objectContaining({ httpOnly: true }),
-      );
+      expect(mockAuthService.refreshTokens).toHaveBeenCalledWith(1, 'old_refresh_token_value');
+      expect(cookieSpy).toHaveBeenCalledWith('refresh_token', 'new_refresh', {
+        httpOnly: true,
+        secure: false,
+        sameSite: 'lax',
+        maxAge: 604800,
+      });
       expect(response).toEqual({ access_token: 'new_token', expiresIn: 60 });
     });
   });

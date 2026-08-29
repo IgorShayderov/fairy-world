@@ -1,6 +1,6 @@
 <template>
-  <main class="flex h-screen flex-col">
-    <AppHeader />
+  <main class="h-screen flex-col">
+    <AppHeader :auth="true" />
 
     <RouterView />
   </main>
@@ -11,3 +11,9 @@ import { RouterView } from 'vue-router';
 
 import AppHeader from '@components/AppHeader.vue';
 </script>
+
+<style>
+:root {
+  --header-height: 50px;
+}
+</style>

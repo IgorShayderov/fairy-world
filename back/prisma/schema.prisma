@@ -13,36 +13,18 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  password  String
-  name      String
-  country   String?  // Optional country
-  city      String?  // Optional city
-  gender    Gender?  // Optional gender enum
-  language  String?  // Optional preferred language
-  resetTokens PasswordResetToken[]
-
-  @@index([email])
-}
-
-enum Gender {
-  MALE
-  FEMALE
-  OTHER
-}
-
-model PasswordResetToken {
-  id        Int      @id @default(autoincrement())
-  token     String   @unique
-  userId    Int
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  expiresAt DateTime
-  used      Boolean  @default(false)
-  createdAt DateTime @default(now())
-
-  @@index([token])
-  @@index([userId])
+  id                   Int             @id @default(autoincrement())
+  email                String          @unique
+  password             String
+  gold                 Int             @default(0)
+  experience           Int             @default(0)
+  level                Int             @default(1)
+  hashedRefreshToken   String?
+  inventory            InventoryItem[]
+  resetPasswordToken   String?
+  resetPasswordExpires DateTime?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @default(now()) @updatedAt
 }
 
 model Channel {
@@ -58,4 +40,26 @@ model Message {
   channelId String
   channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
+}
+
+model Item {
+  id            Int             @id @default(autoincrement())
+  name          String          @unique
+  description   String          @default("")
+  price         Int             @default(0)
+  icon          String          @default("")
+  quantity      Int             @default(1)
+  inventoryItem InventoryItem[]
+}
+
+model InventoryItem {
+  id       Int @id @default(autoincrement())
+  userId   Int
+  itemId   Int
+  quantity Int @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, itemId])
 }

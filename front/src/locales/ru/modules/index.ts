@@ -1,64 +1,11 @@
+import profile from './profile';
+import shop from './shop';
+import auth from './auth';
+
 const modules = {
-  auth: {
-    validation: {
-      errors: {
-        email: {
-          required: 'Email is required',
-          incorrect: 'Enter a valid email',
-        },
-        password: {
-          required: 'Password is required',
-          minLength: 'Password must be at least 6 characters',
-          mustContainLetter: 'Password must contain at least one letter',
-          mustContainDigit: 'Password must contain at least one digit',
-        },
-        name: {
-          required: 'Name is required',
-          minLength: 'Name must be at least 2 characters',
-          maxLength: 'Name must be no more than 50 characters',
-        },
-      },
-    },
-    fields: {
-      password: {
-        label: 'Password',
-      },
-      passwordConfirm: {
-        label: 'Confirm Password',
-      },
-      gender: {
-        label: 'Gender',
-      },
-      country: {
-        label: 'Country',
-      },
-      city: {
-        label: 'City',
-      },
-      language: {
-        label: 'Language',
-      },
-      name: {
-        label: 'Name',
-      },
-    },
-    buttons: {
-      login: 'Login',
-      forgotPassword: 'Forgot password?',
-      register: 'Register',
-      alreadyHaveAccount: 'Already have an account?',
-      sendResetLink: 'Send Reset Link',
-      backToLogin: 'Back to login',
-      saveNewPassword: 'Save New Password',
-    },
-    labels: {
-      login: 'Login to system',
-      register: 'Create new account',
-      forgotPassword: 'Forgot your password?',
-      resetPassword: 'Reset your password',
-      optional: 'Optional fields',
-    },
-  },
+  ...auth,
+  ...profile,
+  ...shop,
   chat: {
     titles: {
       channels: 'Channels',
@@ -75,14 +22,11 @@ const modules = {
       send: 'Send',
     },
   },
-  dashboard: {
-    contentBlock: 'Блок содержимого {{n}}',
-    sidebarTitle: 'Панель',
-    item: 'Предмет {{n}}',
-  },
-  fantasy: {
-    mapTitle: 'Карта Fantasiy World',
-    mapDescription: 'Исследуйте магический мир',
+  menu: {
+    title: 'Меню',
+    home: 'Главная',
+    profile: 'Профиль',
+    shop: 'Магазин',
   },
 };
 

@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 
 import { chatApi } from './api';
 import type { Channel, Message } from './types';
+import { StorageService } from '@services/storage.service';
 
 export const useChatStore = defineStore('chat', () => {
   // State
@@ -23,11 +24,6 @@ export const useChatStore = defineStore('chat', () => {
       const data = await chatApi.getChannels();
 
       channels.value = data;
-      const [firstChannel] = channels.value;
-
-      if (firstChannel && !activeChannelId.value) {
-        await selectChannel(firstChannel.id);
-      }
     } finally {
       isLoading.value = false;
     }
@@ -42,6 +38,8 @@ export const useChatStore = defineStore('chat', () => {
       messages.value = await chatApi.getMessages(channelId);
     } finally {
       isMessagesLoading.value = false;
+      // Запоминаем выбранный канал
+      StorageService.set('selectedChannelId', channelId);
     }
   };
 

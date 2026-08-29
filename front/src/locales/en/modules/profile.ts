@@ -1,0 +1,48 @@
+export default {
+  profile: {
+    inventory: 'Inventory',
+    equipment: 'Equipment',
+    characteristics: 'Attributes',
+    statistics: 'Statistics',
+    slots: {
+      head: 'Head',
+      body: 'Body',
+      hands: 'Hands',
+      legs: 'Legs',
+      feet: 'Feet',
+      accessory: 'Accessory',
+    },
+    stats: {
+      hp: 'HP',
+      mp: 'MP',
+      atk: 'Attack',
+      def: 'Defense',
+      spd: 'Speed',
+    },
+    statsInfo: {
+      gamesPlayed: 'Games Played',
+      monstersKilled: 'Monsters Killed',
+      bossesDefeated: 'Bosses Defeated',
+      deaths: 'Deaths',
+    },
+    items: {
+      sword: 'Sword',
+      shield: 'Shield',
+      potion: 'Potion',
+      medicine: 'Medicine',
+      ring: 'Ring',
+      scroll: 'Scroll',
+      crystal: 'Crystal',
+      staff: 'Staff',
+      helmet: 'Helmet',
+      armor: 'Armor',
+      gloves: 'Gloves',
+      boots: 'Boots',
+    },
+    rarity: {
+      common: 'Common',
+      rare: 'Rare',
+      legendary: 'Legendary',
+    },
+  },
+};

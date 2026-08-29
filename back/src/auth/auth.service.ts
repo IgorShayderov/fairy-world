@@ -1,16 +1,14 @@
-import { Injectable, UnauthorizedException, ConflictException, BadRequestException } from '@nestjs/common';
-import { UsersService } from '../users/users.service';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma.service';
 import * as bcrypt from 'bcrypt';
 import { RegisterDto, RegisterResponse } from './register.dto';
 import { ForgotPasswordDto, ResetPasswordDto } from './reset-password.dto';
 
-export interface SignInResult {
-  access_token: string;
-  refresh_token: string;
-  expiresIn: number;
-}
+import { UserModel } from '../../generated/prisma/models';
+import type { TokenResult } from './interfaces/token-payload.interface';
+import { UsersService } from '../users/users.service';
 
 /**
  * Service handling authentication logic including sign-in, registration,
@@ -24,11 +22,8 @@ export class AuthService {
     private prisma: PrismaService,
   ) {}
 
-  /**
-   * Authenticates a user by email and password.
-   */
-  async signIn(email: string, password: string): Promise<SignInResult> {
-    const user = await this.usersService.findOne(email);
+  async signIn(email: string, password: string): Promise<TokenResult> {
+    const user = await this.usersService.findBy({ email });
 
     if (!user) {
       throw new UnauthorizedException();
@@ -40,32 +35,54 @@ export class AuthService {
       throw new UnauthorizedException();
     }
 
-    const payload = { sub: user.id, email: user.email };
-    const expiresIn = 60;
-
-    const access_token = await this.jwtService.signAsync(payload, {
-      expiresIn: `${expiresIn}s`,
-    });
-
-    const refresh_token = await this.jwtService.signAsync({ sub: user.id, type: 'refresh' }, { expiresIn: '7d' });
-
-    return { access_token, refresh_token, expiresIn };
+    return await this.generateTokens(user);
   }
 
-  /**
-   * Generates JWT tokens for token refresh flow.
-   */
-  async refreshTokens(sub: number): Promise<{
-    access_token: string;
-    expiresIn: number;
-    refresh_token: string;
-  }> {
-    const expiresIn = 60;
+  async refreshTokens(sub: number, oldRefreshToken: string): Promise<TokenResult> {
+    const user = await this.usersService.findById(sub);
 
-    const access_token = await this.jwtService.signAsync({ sub }, { expiresIn: `${expiresIn}s` });
-    const refresh_token = await this.jwtService.signAsync({ sub, type: 'refresh' }, { expiresIn: '7d' });
+    if (!user || !user.hashedRefreshToken) {
+      throw new UnauthorizedException('Пользователь не найден');
+    }
 
-    return { access_token, expiresIn, refresh_token };
+    const isRefreshTokenValid = await bcrypt.compare(oldRefreshToken, user.hashedRefreshToken);
+    if (!isRefreshTokenValid) {
+      throw new UnauthorizedException('Access Denied');
+    }
+
+    return this.generateTokens(user);
+  }
+
+  private async generateTokens(user: UserModel): Promise<TokenResult> {
+    const payload = { sub: user.id, email: user.email };
+    const expiresIn = parseInt(process.env.ACCESS_COOKIE_LIFETIME as string, 10);
+
+    const refreshExpiresIn = parseInt(process.env.REFRESH_COOKIE_LIFETIME as string, 10);
+
+    const [access_token, refresh_token] = await Promise.all([
+      this.jwtService.signAsync(payload, { expiresIn, secret: process.env.JWT_SECRET }),
+      this.jwtService.signAsync(
+        { sub: user.id, type: 'refresh' },
+        { expiresIn: refreshExpiresIn, secret: process.env.JWT_SECRET },
+      ),
+    ]);
+
+    await this.updateRefreshToken(user.id, refresh_token);
+
+    return {
+      access_token,
+      refresh_token,
+      expiresIn,
+    };
+  }
+
+  private async updateRefreshToken(userId: number, refreshToken: string) {
+    const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
+    await this.usersService.update(userId, { hashedRefreshToken });
+  }
+
+  async logout(userId: number) {
+    await this.usersService.update(userId, { hashedRefreshToken: null });
   }
 
   /**
