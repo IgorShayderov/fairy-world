@@ -33,8 +33,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
 import { QIcon } from 'quasar';
+import { computed } from 'vue';
 
 export interface InventoryItem {
   name: string;

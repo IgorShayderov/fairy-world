@@ -18,8 +18,8 @@
 </template>
 
 <script setup lang="ts">
-import { QCard } from 'quasar';
 import { useTranslation } from 'i18next-vue';
+import { QCard } from 'quasar';
 import { useRouter } from 'vue-router';
 
 const props = defineProps<{

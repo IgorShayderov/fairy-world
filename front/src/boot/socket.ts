@@ -1,6 +1,8 @@
-import { defineBoot } from '#q-app/wrappers';
 import { io } from 'socket.io-client';
+
 import { useChatStore } from '@/modules/Chat/store';
+
+import { defineBoot } from '#q-app/wrappers';
 
 export const socket = io(import.meta.env.VITE_BACK_URL, {
   autoConnect: false,

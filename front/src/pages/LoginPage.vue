@@ -65,13 +65,13 @@
 </template>
 
 <script lang="ts" setup>
+import { useTranslation } from 'i18next-vue';
 import { useQuasar, QCardSection, QCard, QForm, QInput, QBtn, QIcon } from 'quasar';
 import { ref, reactive } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
-import { useTranslation } from 'i18next-vue';
 
-import { signIn } from '@/modules/Auth/api';
 import { socket } from '@/boot/socket';
+import { signIn } from '@/modules/Auth/api';
 import routes from '@/routes';
 
 interface LoginForm {

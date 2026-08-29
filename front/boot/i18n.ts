@@ -1,8 +1,8 @@
-import { defineBoot } from '#q-app/wrappers';
+import locales from '@locales';
 import i18next from 'i18next';
 import I18NextVue from 'i18next-vue';
 
-import locales from '@locales';
+import { defineBoot } from '#q-app/wrappers';
 
 export default defineBoot(async ({ app }) => {
   await i18next.init({

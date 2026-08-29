@@ -52,13 +52,14 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue';
 import { useTranslation } from 'i18next-vue';
+import { onMounted } from 'vue';
 
 import { useShopActions } from '@/modules/Shop/composables/useShopActions';
+
 import ShopHeader from '@/modules/Shop/components/ShopHeader.vue';
-import ShopProductCard from '@/modules/Shop/components/ShopProductCard.vue';
 import ShopInventorySidebar from '@/modules/Shop/components/ShopInventorySidebar.vue';
+import ShopProductCard from '@/modules/Shop/components/ShopProductCard.vue';
 
 const { t } = useTranslation();
 

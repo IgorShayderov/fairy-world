@@ -123,11 +123,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-import { QCard, QBtn } from 'quasar';
 import { useTranslation } from 'i18next-vue';
-import InventoryItem from '@/components/InventoryItem.vue';
+import { QCard, QBtn } from 'quasar';
+import { ref } from 'vue';
+
 import type { EquipmentSlot, StatItem, StatInfoItem } from '@/shared/types/inventory';
+
+import InventoryItem from '@/components/InventoryItem.vue';
 
 defineProps<{
   equipmentSlots: EquipmentSlot[];

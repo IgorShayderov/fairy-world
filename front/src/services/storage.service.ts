@@ -17,14 +17,16 @@ const DEFAULT_SETTINGS: AppSettings = {
 
 export const StorageService = {
   getSettings(): AppSettings {
-    const item = localStorage.getItem(SETTINGS_KEY);
-    if (!item) {
+    const items = localStorage.getItem(SETTINGS_KEY);
+
+    if (!items) {
       return { ...DEFAULT_SETTINGS };
     }
 
     try {
-      const parsed = JSON.parse(item);
-      return { ...DEFAULT_SETTINGS, ...parsed };
+      const settings = JSON.parse(items);
+
+      return { ...DEFAULT_SETTINGS, ...settings };
     } catch {
       return { ...DEFAULT_SETTINGS };
     }
@@ -32,6 +34,7 @@ export const StorageService = {
 
   get<K extends keyof AppSettings>(key: K): AppSettings[K] {
     const settings = this.getSettings();
+    console.log({ settings, key });
     return settings[key];
   },
 

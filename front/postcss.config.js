@@ -1,8 +1,8 @@
 // https://github.com/michael-ciniawsky/postcss-load-config
 
+import tailwindcss from '@tailwindcss/postcss';
 import autoprefixer from 'autoprefixer'
 import postcssPxtorem from 'postcss-pxtorem';
-import tailwindcss from '@tailwindcss/postcss';
 
 // import rtlcss from 'postcss-rtlcss'
 

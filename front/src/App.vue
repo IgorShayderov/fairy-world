@@ -8,8 +8,8 @@
 import { computed } from 'vue';
 import { RouterView, useRoute } from 'vue-router';
 
-import UnauthLayout from './layouts/UnauthLayout.vue';
 import AuthLayout from './layouts/AuthLayout.vue';
+import UnauthLayout from './layouts/UnauthLayout.vue';
 
 const $route = useRoute();
 

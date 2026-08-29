@@ -1,4 +1,5 @@
 import type Item from '../items/ItemClass';
+
 import Backpack from './BackpackClass';
 
 export interface EquipedItems {

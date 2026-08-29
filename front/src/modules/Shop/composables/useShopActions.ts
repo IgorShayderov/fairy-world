@@ -1,8 +1,10 @@
-import { ref } from 'vue';
-import { useQuasar } from 'quasar';
 import { useTranslation } from 'i18next-vue';
-import { getShopItems, buyItem, getInventory, sellItem } from '@/modules/Shop/api';
+import { useQuasar } from 'quasar';
+import { ref } from 'vue';
+
 import type { ShopItem, InventoryEntry } from '@/modules/Shop/types';
+
+import { getShopItems, buyItem, getInventory, sellItem } from '@/modules/Shop/api';
 
 export function useShopActions() {
   const $q = useQuasar();

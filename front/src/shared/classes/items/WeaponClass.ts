@@ -1,5 +1,6 @@
-import Item from './ItemClass';
 import type { ItemType } from './ItemClass';
+
+import Item from './ItemClass';
 
 type WeaponType = 'blunt';
 

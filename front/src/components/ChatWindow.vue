@@ -63,8 +63,7 @@ const isExpanded = computed({
     return chatState.chatPosition === 'full-screen';
   },
   set(value) {
-    console.log({ value }, 'setting chat state to ', value ? 'full-screen' : 'standard');
-    chatState.chatPosition = value ? 'full-screen' : 'standard';
+    setChatPosition(value ? 'full-screen' : 'standard');
   },
 });
 const isClosed = computed({
@@ -72,13 +71,13 @@ const isClosed = computed({
     return chatState.chatPosition === 'closed';
   },
   set(value) {
-    chatState.chatPosition = value ? 'closed' : 'standard';
+    setChatPosition(value ? 'closed' : 'standard');
   },
 });
 const chatState = reactive<{
   chatPosition: ChatPosition;
 }>({
-  chatPosition: 'standard',
+  chatPosition: StorageService.get('chatPosition'),
 });
 const chatClasses = computed(() => {
   return {
@@ -87,6 +86,11 @@ const chatClasses = computed(() => {
     'h-[0]': isClosed.value,
   };
 });
+
+const setChatPosition = (value: ChatPosition) => {
+  chatState.chatPosition = value;
+  StorageService.set('chatPosition', value);
+};
 
 watch(
   () => chatState.chatPosition,

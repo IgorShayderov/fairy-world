@@ -21,9 +21,10 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, useTemplateRef, nextTick } from 'vue';
-import { QInput, QBtn } from 'quasar';
 import { useTranslation } from 'i18next-vue';
+import { QInput, QBtn } from 'quasar';
+import { ref, useTemplateRef, nextTick } from 'vue';
+
 import { useChatStore } from '@/modules/Chat/store';
 
 const { t } = useTranslation();
