@@ -13,8 +13,7 @@
 </template>
 
 <script setup lang="ts">
-import { RouterView } from 'vue-router';
-
 import AppMenu from '@components/AppMenu.vue';
 import ChatWindow from '@components/ChatWindow.vue';
+import { RouterView } from 'vue-router';
 </script>

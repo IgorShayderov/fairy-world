@@ -1,15 +1,17 @@
+import type { ChatPosition } from '@/shared/types/settings';
+
 const SETTINGS_KEY = 'fw_settings';
 
 export interface AppSettings {
   sidebarExpanded: boolean;
-  chatExpanded: boolean;
+  chatPosition: ChatPosition;
   selectedChannelId: string | null;
   // Сюда в будущем можно добавить theme: 'light' | 'dark', volume: number и т.д.
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
   sidebarExpanded: true,
-  chatExpanded: true,
+  chatPosition: 'standard',
   selectedChannelId: null,
 };
 

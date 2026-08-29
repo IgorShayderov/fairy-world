@@ -8,7 +8,6 @@ export function useCharacter(initialX = 1000, initialY = 600, mapWidth = 2400, m
   const speed = 1.5;
 
   const walkTo = (x: number, y: number) => {
-    // Ограничиваем цель: не меньше 0 и не больше ширины/высоты карты
     target.x = Math.max(0, Math.min(x, mapWidth));
     target.y = Math.max(0, Math.min(y, mapHeight));
 
