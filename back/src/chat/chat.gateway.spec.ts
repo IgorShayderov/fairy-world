@@ -1,16 +1,18 @@
 import { ChatGateway } from './chat.gateway';
+import type { Server } from 'socket.io';
 
 describe('ChatGateway', () => {
   let gateway: ChatGateway;
 
+  const emitSpy = jest.fn();
   const mockServer = {
-    emit: jest.fn(),
-  };
+    emit: emitSpy,
+  } as unknown as Server;
 
   beforeEach(() => {
     jest.clearAllMocks();
     gateway = new ChatGateway();
-    (gateway as any).server = mockServer;
+    gateway.server = mockServer;
   });
 
   it('should be defined', () => {
@@ -29,7 +31,7 @@ describe('ChatGateway', () => {
       });
       expect(typeof result.id).toBe('string');
       expect(result.createdAt).toBeDefined();
-      expect(mockServer.emit).toHaveBeenCalledWith('new_message', result);
+      expect(emitSpy).toHaveBeenCalledWith('new_message', result);
     });
 
     it('should preserve channelId and text from the payload', () => {
@@ -44,13 +46,13 @@ describe('ChatGateway', () => {
 
   describe('lifecycle hooks', () => {
     it('handleConnection should not throw', () => {
-      const fakeClient = { id: 'socket-1' } as any;
-      expect(() => gateway.handleConnection(fakeClient)).not.toThrow();
+      const fakeClient = { id: 'socket-1' };
+      expect(() => gateway.handleConnection(fakeClient as never)).not.toThrow();
     });
 
     it('handleDisconnect should not throw', () => {
-      const fakeClient = { id: 'socket-2' } as any;
-      expect(() => gateway.handleDisconnect(fakeClient)).not.toThrow();
+      const fakeClient = { id: 'socket-2' };
+      expect(() => gateway.handleDisconnect(fakeClient as never)).not.toThrow();
     });
 
     it('afterInit should not throw', () => {

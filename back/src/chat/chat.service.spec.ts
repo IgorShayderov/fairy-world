@@ -1,5 +1,6 @@
 import { ChatService } from './chat.service';
-import { ChatGateway } from './chat.gateway';
+import type { PrismaService } from '../prisma.service';
+import type { ChatGateway } from './chat.gateway';
 
 describe('ChatService', () => {
   let service: ChatService;
@@ -20,13 +21,10 @@ describe('ChatService', () => {
     },
   };
 
-  beforeEach(async () => {
+  beforeEach(() => {
     jest.clearAllMocks();
 
-    service = new ChatService(
-      mockPrismaService as any,
-      mockChatGateway as any,
-    );
+    service = new ChatService(mockPrismaService as unknown as PrismaService, mockChatGateway as unknown as ChatGateway);
   });
 
   it('should be defined', () => {
@@ -102,21 +100,14 @@ describe('ChatService', () => {
       expect(mockPrismaService.message.create).toHaveBeenCalledWith({
         data: { channelId, text },
       });
-      expect(mockChatGateway.server.emit).toHaveBeenCalledWith(
-        'new_message',
-        savedMessage,
-      );
+      expect(mockChatGateway.server.emit).toHaveBeenCalledWith('new_message', savedMessage);
       expect(result).toEqual(savedMessage);
     });
 
     it('should propagate errors from prisma create', async () => {
-      mockPrismaService.message.create.mockRejectedValue(
-        new Error('db failure'),
-      );
+      mockPrismaService.message.create.mockRejectedValue(new Error('db failure'));
 
-      await expect(service.createMessage('c1', 'text')).rejects.toThrow(
-        'db failure',
-      );
+      await expect(service.createMessage('c1', 'text')).rejects.toThrow('db failure');
       expect(mockChatGateway.server.emit).not.toHaveBeenCalled();
     });
   });
