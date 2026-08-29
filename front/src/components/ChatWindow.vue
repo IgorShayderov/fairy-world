@@ -1,11 +1,11 @@
 <template>
-  <div class="mt-auto h-[300px] w-full shrink-0">
+  <div class="mt-auto w-full shrink-0">
     <article
       class="absolute bottom-0 left-0 z-20 flex w-full border-t border-gray-200 bg-white transition-all duration-500 ease-in-out"
-      :class="isExpanded ? 'h-full shadow-[0_-20px_50px_rgba(0,0,0,0.1)]' : 'h-[300px]'"
+      :class="chatClasses"
     >
       <ToggleExpandButton v-model="isExpanded" class="absolute -top-4 left-1/2 z-30 -translate-x-1/2" />
-      <ToggleExpandButton v-model="isExpanded" class="absolute -top-4 left-11/20 z-30 -translate-x-1/2" />
+      <ToggleExpandButton v-model="isClosed" class="absolute -top-4 left-11/20 z-30 -translate-x-1/2" />
 
       <aside class="flex w-1/5 flex-col border-r border-gray-200 bg-gray-50">
         <div class="border-b border-gray-200 p-3 font-bold text-gray-700">
@@ -63,13 +63,29 @@ const isExpanded = computed({
     return chatState.chatPosition === 'full-screen';
   },
   set(value) {
+    console.log({ value }, 'setting chat state to ', value ? 'full-screen' : 'standard');
     chatState.chatPosition = value ? 'full-screen' : 'standard';
+  },
+});
+const isClosed = computed({
+  get() {
+    return chatState.chatPosition === 'closed';
+  },
+  set(value) {
+    chatState.chatPosition = value ? 'closed' : 'standard';
   },
 });
 const chatState = reactive<{
   chatPosition: ChatPosition;
 }>({
   chatPosition: 'standard',
+});
+const chatClasses = computed(() => {
+  return {
+    'h-full shadow-[0_-20px_50px_rgba(0,0,0,0.1)]': isExpanded.value,
+    'h-[300px]': chatState.chatPosition === 'standard',
+    'h-[0]': isClosed.value,
+  };
 });
 
 watch(
@@ -92,7 +108,6 @@ const scrollToBottom = async () => {
 };
 
 watch(() => chatStore.messages, scrollToBottom, { deep: true });
-
 
 onMounted(async () => {
   await chatStore.loadChannels();
