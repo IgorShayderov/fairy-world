@@ -1,4 +1,5 @@
 import type { RouteRecordRaw } from 'vue-router';
+
 import routes from '@/routes';
 
 const appRoutes: RouteRecordRaw[] = [
@@ -17,6 +18,11 @@ const appRoutes: RouteRecordRaw[] = [
             path: routes.profilePath(),
             name: 'ProfilePage',
             component: () => import('@pages/ProfilePage.vue'),
+          },
+          {
+            path: '',
+            name: 'GamePage',
+            component: () => import('@pages/GamePage.vue'),
           },
         ],
       },

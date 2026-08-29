@@ -1,6 +1,6 @@
+import auth from './auth';
 import profile from './profile';
 import shop from './shop';
-import auth from './auth';
 
 const modules = {
   ...auth,
@@ -8,18 +8,18 @@ const modules = {
   ...shop,
   chat: {
     titles: {
-      channels: 'Каналы',
+      channels: 'Channels',
     },
     statuses: {
-      loadingChannels: 'Загрузка...',
-      loadingMessages: 'Загрузка сообщений...',
-      selectChannel: 'Выберите канал',
+      loadingChannels: 'Loading...',
+      loadingMessages: 'Loading messages...',
+      selectChannel: 'Select a channel',
     },
     inputs: {
-      messagePlaceholder: 'Написать сообщение...',
+      messagePlaceholder: 'Type a message...',
     },
     buttons: {
-      send: 'Отправить',
+      send: 'Send',
     },
   },
   menu: {

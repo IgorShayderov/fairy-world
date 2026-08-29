@@ -1,12 +1,16 @@
-import { defineRouter } from '#q-app/wrappers';
-import { createMemoryHistory, createRouter, createWebHistory } from 'vue-router';
-import { checkAuthStatus } from '@/modules/Auth/utils/auth';
-import routerRoutes from './routes';
-import routes from '@/routes';
-
 import qs from 'qs';
+import { createMemoryHistory, createRouter, createWebHistory } from 'vue-router';
 
 import type { LocationQueryRaw, LocationQuery } from 'vue-router';
+
+import { checkAuthStatus } from '@/modules/Auth/utils/auth';
+import routes from '@/routes';
+
+import routerRoutes from './routes';
+
+
+
+import { defineRouter } from '#q-app/wrappers';
 
 /*
  * If not building with SSR mode, you can

@@ -35,8 +35,10 @@
 
 <script setup lang="ts">
 import { useTranslation } from 'i18next-vue';
-import InventoryItem from '@/components/InventoryItem.vue';
+
 import type { ShopItem } from '@/modules/Shop/types';
+
+import InventoryItem from '@/components/InventoryItem.vue';
 
 defineProps<{
   item: ShopItem;

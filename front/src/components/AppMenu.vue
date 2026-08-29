@@ -24,12 +24,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { StorageService } from '@services/storage.service';
 import { useTranslation } from 'i18next-vue';
+import { ref, watch } from 'vue';
 
 import routes from '@/routes';
+
 import SidebarItem from './SidebarItem.vue';
-import { StorageService } from '@services/storage.service';
+
 import ToggleExpandButton from '@/components/ToggleExpandButton.vue';
 
 const { t } = useTranslation();

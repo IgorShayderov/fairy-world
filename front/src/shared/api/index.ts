@@ -1,9 +1,11 @@
-import { HttpError } from './HttpError';
-import { InterceptorManager } from './InterceptorManager';
 import { refresh } from '@modules/Auth/api';
-import routes from '@/routes';
 
 import type { IApi, PromiseChainNode, RequestConfig, FailedRequest } from '@shared/types/api';
+
+import routes from '@/routes';
+
+import { HttpError } from './HttpError';
+import { InterceptorManager } from './InterceptorManager';
 
 const dispatchRequest = async (config: RequestConfig) => {
   const DEFAULT_TIMEOUT = 4000;

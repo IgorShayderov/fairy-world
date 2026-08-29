@@ -1,6 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { UnauthorizedException } from '@nestjs/common';
+import { UnauthorizedException, ConflictException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { PrismaService } from '../prisma.service';
+import { RegisterDto, Gender } from './dto/register.dto';
 import * as bcrypt from 'bcrypt';
 
 import { AuthService } from './auth.service';
@@ -11,14 +13,30 @@ jest.mock('bcrypt');
 describe('AuthService', () => {
   let service: AuthService;
 
-  const mockUsersService = {
+  const mockUsersService: {
+    findBy: jest.Mock;
+    findById: jest.Mock;
+    update: jest.Mock;
+  } = {
     findBy: jest.fn(),
     findById: jest.fn(),
     update: jest.fn(),
   };
 
-  const mockJwtService = {
+  const mockJwtService: {
+    signAsync: jest.Mock;
+  } = {
     signAsync: jest.fn(),
+  };
+
+  const mockPrismaService: {
+    user: {
+      create: jest.Mock;
+    };
+  } = {
+    user: {
+      create: jest.fn(),
+    },
   };
 
   const originalEnv = process.env;
@@ -44,6 +62,7 @@ describe('AuthService', () => {
         AuthService,
         { provide: UsersService, useValue: mockUsersService },
         { provide: JwtService, useValue: mockJwtService },
+        { provide: PrismaService, useValue: mockPrismaService },
       ],
     }).compile();
 
@@ -144,7 +163,7 @@ describe('AuthService', () => {
 
     it('should throw UnauthorizedException if old refresh token is invalid', async () => {
       mockUsersService.findById.mockResolvedValue(user);
-      (bcrypt.compare as jest.Mock).mockResolvedValue(false); // bcrypt.compare вернул false
+      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
 
       await expect(service.refreshTokens(sub, 'invalid_token')).rejects.toThrow(UnauthorizedException);
     });
@@ -158,6 +177,78 @@ describe('AuthService', () => {
       expect(mockUsersService.update).toHaveBeenCalledWith(userId, {
         hashedRefreshToken: null,
       });
+    });
+  });
+
+  describe('register', () => {
+    it('should register user with required fields and return token', async () => {
+      const dto: RegisterDto = {
+        email: 'test@example.com',
+        password: 'Passw0rd',
+        name: 'Test User',
+      };
+
+      mockUsersService.findBy.mockResolvedValue(null);
+      (bcrypt.hash as jest.Mock).mockResolvedValue('hashed_password');
+      mockPrismaService.user.create.mockResolvedValue({
+        id: 1,
+        name: dto.name,
+        email: dto.email,
+        gender: null,
+        country: null,
+        city: null,
+        language: null,
+      });
+      mockJwtService.signAsync.mockResolvedValue('access_token_value');
+
+      const result = await service.register(dto);
+
+      expect(result.access_token).toBe('access_token_value');
+      expect(result.expiresIn).toBe(900);
+      expect(result.user.email).toBe(dto.email);
+    });
+
+    it('should accept optional fields during registration', async () => {
+      const dto: RegisterDto = {
+        email: 'test@example.com',
+        password: 'Passw0rd',
+        name: 'Test User',
+        country: 'USA',
+        city: 'New York',
+        gender: Gender.FEMALE,
+        language: 'en-US',
+      };
+
+      mockUsersService.findBy.mockResolvedValue(null);
+      (bcrypt.hash as jest.Mock).mockResolvedValue('hashed_password');
+      mockPrismaService.user.create.mockResolvedValue({
+        id: 1,
+        name: dto.name,
+        email: dto.email,
+        gender: dto.gender,
+        country: dto.country,
+        city: dto.city,
+        language: dto.language,
+      });
+
+      const result = await service.register(dto);
+
+      expect(result.user.country).toBe('USA');
+      expect(result.user.city).toBe('New York');
+      expect(result.user.gender).toBe('FEMALE');
+      expect(result.user.language).toBe('en-US');
+    });
+
+    it('should throw ConflictException when email already exists', async () => {
+      const dto: RegisterDto = {
+        email: 'existing@example.com',
+        password: 'Passw0rd',
+        name: 'Test User',
+      };
+
+      mockUsersService.findBy.mockResolvedValue({ id: 99, email: dto.email });
+
+      await expect(service.register(dto)).rejects.toThrow(ConflictException);
     });
   });
 });

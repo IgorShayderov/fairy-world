@@ -1,6 +1,6 @@
+import auth from './auth';
 import profile from './profile';
 import shop from './shop';
-import auth from './auth';
 
 const modules = {
   ...auth,
@@ -27,6 +27,10 @@ const modules = {
     home: 'Main page',
     profile: 'Profile',
     shop: 'Shop',
+  },
+  fantasy: {
+    mapTitle: 'Fantasy World Map',
+    mapDescription: 'Explore the magical realm',
   },
 };
 

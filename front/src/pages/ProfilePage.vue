@@ -25,9 +25,11 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import InventorySection from '@/components/InventorySection.vue';
-import EquipmentSection from '@/components/EquipmentSection.vue';
+
 import type { InventoryItemType, EquipmentSlot, StatItem, StatInfoItem } from '@/shared/types/inventory';
+
+import EquipmentSection from '@/components/EquipmentSection.vue';
+import InventorySection from '@/components/InventorySection.vue';
 
 const inventory = ref<InventoryItemType[]>([
   { nameKey: 'profile.items.sword', icon: 'firearms', rarityKey: 'profile.rarity.rare' },

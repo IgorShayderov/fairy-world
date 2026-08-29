@@ -1,10 +1,10 @@
 <template>
-  <div class="mt-auto h-[300px] w-full shrink-0">
+  <div class="mt-auto w-full shrink-0">
     <article
       class="absolute bottom-0 left-0 z-20 flex w-full border-t border-gray-200 bg-white transition-all duration-500 ease-in-out"
-      :class="isExpanded ? 'h-full shadow-[0_-20px_50px_rgba(0,0,0,0.1)]' : 'h-[300px]'"
+      :class="chatClasses"
     >
-      <ToggleExpandButton v-model="isExpanded" class="absolute -top-4 left-1/2 z-30 -translate-x-1/2" />
+      <ChatWindowPositioning :chat-position="chatState.chatPosition" @set-positioning="setChatPosition" />
 
       <aside class="flex w-1/5 flex-col border-r border-gray-200 bg-gray-50">
         <div class="border-b border-gray-200 p-3 font-bold text-gray-700">
@@ -17,19 +17,7 @@
             </div>
           </template>
           <template v-else>
-            <div
-              v-for="channel in chatStore.channels"
-              :key="channel.id"
-              @click="chatStore.selectChannel(channel.id)"
-              class="cursor-pointer border-b border-gray-100 p-3 text-sm transition-colors"
-              :class="
-                chatStore.activeChannelId === channel.id
-                  ? 'border-l-4 border-l-blue-500 bg-blue-100 text-blue-800'
-                  : 'text-gray-700 hover:bg-gray-200 hover:text-gray-900'
-              "
-            >
-              # {{ channel.name }}
-            </div>
+            <ChatWindowChannel v-for="channel in chatStore.channels" :key="channel.id" :channel="channel" />
           </template>
         </div>
       </aside>
@@ -44,69 +32,59 @@
             {{ t('chat.statuses.loadingMessages') }}
           </div>
           <template v-else>
-            <div
-              v-for="msg in chatStore.messages"
-              :key="msg.id"
-              class="flex flex-col"
-              :class="amIAuthor ? 'items-end' : 'items-start'"
-            >
-              <div
-                class="block max-w-[80%] rounded p-2 text-sm"
-                :class="amIAuthor ? 'bg-blue-100 text-blue-900' : 'bg-gray-100 text-gray-800'"
-              >
-                {{ msg.text }}
-              </div>
-            </div>
+            <ChatWindowMessage v-for="message in chatStore.messages" :key="message.id" :message="message" />
           </template>
         </div>
 
-        <footer class="flex items-center gap-2 border-t border-gray-200 bg-gray-50 px-4 py-2">
-          <QInput
-            ref="inputRef"
-            v-model="inputText"
-            :placeholder="t('chat.inputs.messagePlaceholder')"
-            class="flex-1 bg-white"
-            outlined
-            dense
-            :disable="!chatStore.activeChannelId || isSending"
-            @keyup.enter.prevent="handleSend"
-          />
-          <QBtn
-            color="primary"
-            :label="t('chat.buttons.send')"
-            :disable="!inputText.trim() || !chatStore.activeChannelId || isSending"
-            :loading="isSending"
-            @click="handleSend"
-          />
-        </footer>
+        <ChatWindowControls />
       </section>
     </article>
   </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted, nextTick, watch, useTemplateRef } from 'vue';
-import { QBtn, QInput } from 'quasar';
-import { useTranslation } from 'i18next-vue';
-import { useChatStore } from '@/modules/Chat/store';
 import { StorageService } from '@services/storage.service';
-import ToggleExpandButton from '@/components/ToggleExpandButton.vue';
+import { useTranslation } from 'i18next-vue';
+import { reactive, ref, computed, onMounted, nextTick, watch } from 'vue';
 
-// FIXME: use real comparison
-const amIAuthor = ref(true);
+import type { ChatPosition } from '@/shared/types/settings';
 
-const isExpanded = ref(StorageService.get('chatExpanded'));
+import { useChatStore } from '@/modules/Chat/store';
 
-watch(isExpanded, (newValue) => {
-  StorageService.set('chatExpanded', newValue);
+import ChatWindowChannel from './ChatWindowChannel.vue';
+import ChatWindowControls from './ChatWindowControls.vue';
+import ChatWindowMessage from './ChatWindowMessage.vue';
+import ChatWindowPositioning from './ChatWindowPositioning.vue';
+
+const chatState = reactive<{
+  chatPosition: ChatPosition;
+}>({
+  chatPosition: StorageService.get('chatPosition'),
 });
+const chatClasses = computed(() => {
+  return {
+    'h-full shadow-[0_-20px_50px_rgba(0,0,0,0.1)]': chatState.chatPosition === 'full-screen',
+    'h-[300px]': chatState.chatPosition === 'standard',
+    'h-[0]': chatState.chatPosition === 'closed',
+  };
+});
+
+const setChatPosition = (value: ChatPosition) => {
+  chatState.chatPosition = value;
+  StorageService.set('chatPosition', value);
+};
+
+watch(
+  () => chatState.chatPosition,
+  (newValue) => {
+    StorageService.set('chatPosition', newValue);
+  }
+);
 
 const { t } = useTranslation();
 const chatStore = useChatStore();
 
-const inputText = ref('');
 const messagesContainer = ref<HTMLElement | null>(null);
-const inputRef = useTemplateRef<InstanceType<typeof QInput>>('inputRef');
 
 const scrollToBottom = async () => {
   await nextTick();
@@ -116,23 +94,6 @@ const scrollToBottom = async () => {
 };
 
 watch(() => chatStore.messages, scrollToBottom, { deep: true });
-
-const isSending = ref(false);
-
-const handleSend = async () => {
-  if (inputText.value.trim() && !isSending.value) {
-    isSending.value = true;
-    try {
-      await chatStore.postMessage(inputText.value);
-      inputText.value = '';
-    } finally {
-      isSending.value = false;
-
-      await nextTick();
-      inputRef.value?.focus();
-    }
-  }
-};
 
 onMounted(async () => {
   await chatStore.loadChannels();

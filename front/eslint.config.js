@@ -1,14 +1,15 @@
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import js from '@eslint/js'
-import globals from 'globals'
-import pluginVue from 'eslint-plugin-vue'
-import pluginQuasar from '@quasar/app-vite/eslint'
-import { defineConfigWithVueTs, vueTsConfigs } from '@vue/eslint-config-typescript'
-import prettierSkipFormatting from '@vue/eslint-config-prettier/skip-formatting'
-import pluginImport from 'eslint-plugin-import';
 import { fixupConfigRules, fixupPluginRules } from '@eslint/compat';
 import { FlatCompat } from '@eslint/eslintrc';
+import js from '@eslint/js'
+import pluginQuasar from '@quasar/app-vite/eslint'
+import prettierSkipFormatting from '@vue/eslint-config-prettier/skip-formatting'
+import { defineConfigWithVueTs, vueTsConfigs } from '@vue/eslint-config-typescript'
+import pluginImport from 'eslint-plugin-import';
+import pluginVue from 'eslint-plugin-vue'
+import globals from 'globals'
+
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,6 +18,73 @@ const compat = new FlatCompat({
   recommendedConfig: js.configs.recommended,
   allConfig: js.configs.all,
 });
+
+const importOrderOptions = {
+  alphabetize: {
+    order: 'asc',
+    caseInsensitive: true,
+  },
+  distinctGroup: false,
+  'newlines-between': 'always',
+  groups: ['external', 'builtin', 'type', 'internal', 'sibling', 'parent', 'index'],
+  pathGroups: [
+    {
+      pattern: '**/*.vue',
+      group: 'index',
+      position: 'after',
+    },
+    {
+      pattern: '**/types',
+      group: 'type',
+      position: 'after',
+    },
+    {
+      pattern: '**/types/*',
+      group: 'type',
+      position: 'after',
+    },
+    {
+      pattern: '**/interface',
+      group: 'type',
+      position: 'after',
+    },
+    {
+      pattern: '**/interface/*',
+      group: 'type',
+      position: 'after',
+    },
+    {
+      pattern: '@/app/**',
+      group: 'internal',
+      position: 'after',
+    },
+    {
+      pattern: '@/pages/**',
+      group: 'internal',
+      position: 'after',
+    },
+    {
+      pattern: '@/widgets/**',
+      group: 'internal',
+      position: 'after',
+    },
+    {
+      pattern: '@/features/**',
+      group: 'internal',
+      position: 'after',
+    },
+    {
+      pattern: '@/shared/**',
+      group: 'internal',
+      position: 'after',
+    },
+    {
+      pattern: '@/**',
+      group: 'internal',
+    },
+  ],
+};
+
 
 export default defineConfigWithVueTs(
   {
@@ -43,7 +111,8 @@ export default defineConfigWithVueTs(
   {
     rules: {
       'import/no-unresolved': 'off',
-      'import/no-named-as-default-member': 'off'
+      'import/no-named-as-default-member': 'off',
+      'import/order': ['error', importOrderOptions],
     }
   },
 
