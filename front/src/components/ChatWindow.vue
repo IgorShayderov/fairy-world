@@ -92,7 +92,6 @@ import { useChatStore } from '@/modules/Chat/store';
 import { StorageService } from '@services/storage.service';
 import ToggleExpandButton from '@/components/ToggleExpandButton.vue';
 
-// FIXME: use real comparison
 const amIAuthor = ref(true);
 
 const isExpanded = ref(StorageService.get('chatExpanded'));

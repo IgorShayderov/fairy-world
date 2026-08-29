@@ -1,18 +1,17 @@
 import { reactive, ref } from 'vue';
 
-export function useCharacter(initialX = 1000, initialY = 600) {
-  // Состояние персонажа
+export function useCharacter(initialX = 1000, initialY = 600, mapWidth = 2400, mapHeight = 1600) {
   const pos = reactive({ x: initialX, y: initialY });
   const target = reactive({ x: initialX, y: initialY });
   const isMoving = ref(false);
 
-  // Уменьшенная в 2 раза скорость (было 3)
   const speed = 1.5;
 
-  // Установка новой цели
   const walkTo = (x: number, y: number) => {
-    target.x = x;
-    target.y = y;
+    // Ограничиваем цель: не меньше 0 и не больше ширины/высоты карты
+    target.x = Math.max(0, Math.min(x, mapWidth));
+    target.y = Math.max(0, Math.min(y, mapHeight));
+
     isMoving.value = true;
   };
 
@@ -95,6 +94,6 @@ export function useCharacter(initialX = 1000, initialY = 600) {
     isMoving,
     walkTo,
     update,
-    render
+    render,
   };
 }

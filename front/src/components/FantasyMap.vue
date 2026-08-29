@@ -1,5 +1,5 @@
 <template>
-  <div ref="containerRef" class="relative h-full w-full overflow-hidden bg-[#1a1a24]">
+  <div ref="containerRef" class="relative h-full w-full overflow-hidden">
     <div class="absolute right-6 bottom-6 z-10 flex flex-col gap-2">
       <button
         @click="handleZoomBtn(0.2)"
@@ -17,7 +17,7 @@
 
     <canvas
       ref="canvasRef"
-      class="block h-full w-full cursor-crosshair"
+      class="absolute inset-0 block h-full w-full cursor-crosshair"
       @mousedown="onMouseDown"
       @mousemove="onMouseMove"
       @mouseup="onMouseUp"
@@ -38,12 +38,14 @@ const containerRef = ref<HTMLElement | null>(null);
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 let ctx: CanvasRenderingContext2D | null = null;
 
-const mapWidth = 2400;
-const mapHeight = 1600;
+const mapWidth = 3600;
+const mapHeight = 2400;
+const initialX = 1000;
+const initialY = 600;
 
 // Инициализация composables
 const { renderProceduralMap } = useMapGenerator();
-const { isMoving, walkTo, update, render: renderCharacter } = useCharacter(1000, 600);
+const { isMoving, walkTo, update, render: renderCharacter } = useCharacter(initialX, initialY, mapWidth, mapHeight);
 const { camera, fitToScreen, startDrag, doDrag, endDrag, zoomAt, zoomBy, screenToMap } = useMapCamera(
   mapWidth,
   mapHeight
