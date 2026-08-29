@@ -48,11 +48,11 @@
               v-for="msg in chatStore.messages"
               :key="msg.id"
               class="flex flex-col"
-              :class="msg.authorId === currentUserId ? 'items-end' : 'items-start'"
+              :class="isOwnMessage(msg) ? 'items-end' : 'items-start'"
             >
               <div
                 class="block max-w-[80%] rounded p-2 text-sm"
-                :class="msg.authorId === currentUserId ? 'bg-blue-100 text-blue-900' : 'bg-gray-100 text-gray-800'"
+                :class="isOwnMessage(msg) ? 'bg-blue-100 text-blue-900' : 'bg-gray-100 text-gray-800'"
               >
                 {{ msg.text }}
               </div>
@@ -85,15 +85,19 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, onMounted, nextTick, watch, useTemplateRef } from 'vue';
+import { ref, onMounted, nextTick, watch, useTemplateRef } from 'vue';
 import { QBtn, QInput } from 'quasar';
 import { useTranslation } from 'i18next-vue';
 import { useChatStore } from '@/modules/Chat/store';
+import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
+import type { Message } from '@/modules/Chat/types';
 import { StorageService } from '@services/storage.service';
-import { getUserId } from '@/modules/Auth/utils/auth';
 import ToggleExpandButton from '@/components/ToggleExpandButton.vue';
 
-const currentUserId = computed(() => getUserId());
+const currentUserStore = useCurrentUserStore();
+
+const isOwnMessage = (msg: Message): boolean =>
+  currentUserStore.user?.id === msg.authorId;
 
 const isExpanded = ref(StorageService.get('chatExpanded'));
 

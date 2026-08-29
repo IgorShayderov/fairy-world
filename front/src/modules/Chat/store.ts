@@ -4,7 +4,7 @@ import { ref, computed } from 'vue';
 import { chatApi } from './api';
 import type { Channel, Message } from './types';
 import { StorageService } from '@services/storage.service';
-import { getUserId } from '@/modules/Auth/utils/auth';
+import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 
 export const useChatStore = defineStore('chat', () => {
   // State
@@ -47,8 +47,9 @@ export const useChatStore = defineStore('chat', () => {
   const postMessage = async (text: string) => {
     if (!activeChannelId.value || !text.trim()) return;
 
-    const authorId = getUserId();
-    if (authorId === null) return;
+    const currentUser = useCurrentUserStore();
+    const authorId = currentUser.user?.id;
+    if (authorId === undefined) return;
 
     try {
       const newMessage = await chatApi.sendMessage(activeChannelId.value, text.trim(), authorId);

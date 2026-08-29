@@ -61,7 +61,7 @@ describe('ChatController', () => {
   });
 
   describe('createMessage', () => {
-    it('should create a message with the authenticated user id and return the saved entity', async () => {
+    it('should create a message and return the saved entity', async () => {
       const body: CreateMessageDto = { channelId: 'c1', text: 'hello' };
       const req = { user: { sub: 42, email: 'user@example.com' } };
       const saved = { id: 'm2', authorId: 42, channelId: 'c1', text: 'hello' };
@@ -69,7 +69,7 @@ describe('ChatController', () => {
 
       const result = await controller.createMessage(req as never, body);
 
-      expect(mockChatService.createMessage).toHaveBeenCalledWith(42, 'c1', 'hello');
+      expect(mockChatService.createMessage).toHaveBeenCalledWith(saved.authorId, 'c1', 'hello');
       expect(result).toEqual(saved);
     });
   });

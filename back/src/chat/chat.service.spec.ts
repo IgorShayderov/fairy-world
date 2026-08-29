@@ -107,9 +107,10 @@ describe('ChatService', () => {
     });
 
     it('should propagate errors from prisma create', async () => {
+      const authorId = 7;
       mockPrismaService.message.create.mockRejectedValue(new Error('db failure'));
 
-      await expect(service.createMessage(1, 'c1', 'text')).rejects.toThrow('db failure');
+      await expect(service.createMessage(authorId, 'c1', 'text')).rejects.toThrow('db failure');
       expect(mockChatGateway.server.emit).not.toHaveBeenCalled();
     });
   });
