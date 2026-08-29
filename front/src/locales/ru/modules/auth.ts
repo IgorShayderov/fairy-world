@@ -3,6 +3,7 @@ export default {
     labels: {
       forgotPassword: 'Восстановление пароля',
       login: 'Вход в систему',
+      resetPassword: 'Сброс пароля',
     },
     fields: {
       email: {
@@ -11,6 +12,9 @@ export default {
       password: {
         label: 'Пароль',
       },
+      passwordConfirm: {
+        label: 'Подтвердите пароль',
+      },
     },
     buttons: {
       login: 'Войти',
@@ -18,10 +22,15 @@ export default {
       sendResetLink: 'Отправить ссылку',
       backToLogin: 'Вернуться ко входу',
       logout: 'Выйти',
+      saveNewPassword: 'Сохранить новый пароль',
     },
     notifications: {
       resetLinkSent: 'Если аккаунт существует, инструкции будут отправлены на email.',
-      resetError: 'Произошла ошибка при запросе восстановления пароля',
+      resetRequestError: 'Произошла ошибка при запросе восстановления пароля',
+      tokenMissing: 'Токен восстановления не найден в URL.',
+      passwordsMismatch: 'Пароли не совпадают.',
+      resetSuccess: 'Пароль успешно обновлён!',
+      resetError: 'Ошибка при сбросе пароля. Попробуйте снова.',
     },
     validation: {
       errors: {
@@ -31,6 +40,10 @@ export default {
         },
         password: {
           required: 'Пароль обязателен',
+          minLength: 'Пароль должен содержать не менее 6 символов',
+          mustContainLetter: 'Пароль должен содержать хотя бы одну букву',
+          mustContainDigit: 'Пароль должен содержать хотя бы одну цифру',
+          mismatch: 'Пароли не совпадают',
         },
       },
     },

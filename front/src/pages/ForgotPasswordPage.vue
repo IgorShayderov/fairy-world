@@ -33,7 +33,7 @@
         </QForm>
 
         <div class="mt-4 text-center">
-          <RouterLink to="/login" class="text-sm text-blue-600 hover:underline">
+          <RouterLink :to="routes.loginPath()" class="text-sm text-blue-600 hover:underline">
             {{ $t('auth.buttons.backToLogin') }}
           </RouterLink>
         </div>
@@ -48,7 +48,9 @@ import { ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import { useTranslation } from 'i18next-vue';
 
-// import { requestPasswordReset } from '@/modules/Auth/api';
+import routes from '@/routes';
+import { logger } from 'src/boot/logger';
+import { requestPasswordReset } from '@/modules/Auth/api/passwords';
 
 const email = ref('');
 const $q = useQuasar();
@@ -64,7 +66,7 @@ const handleSubmit = async () => {
   try {
     loading.value = true;
 
-    // await requestPasswordReset(email.value);
+    await requestPasswordReset(email.value);
 
     $q.notify({
       type: 'positive',
@@ -72,10 +74,12 @@ const handleSubmit = async () => {
     });
 
     email.value = '';
-  } catch {
+  } catch (e) {
+    logger.error('Что-то пошло не так!', e);
+
     $q.notify({
       type: 'negative',
-      message: t('auth.notifications.resetError'),
+      message: t('auth.notifications.resetRequestError'),
     });
   } finally {
     loading.value = false;

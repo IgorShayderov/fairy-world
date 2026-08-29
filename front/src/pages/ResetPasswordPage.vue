@@ -7,9 +7,6 @@
         </h2>
 
         <QForm @submit.prevent="handleSubmit" class="space-y-4">
-          <!-- Token (hidden input - in real scenario this would be in URL) -->
-          <input type="hidden" v-model="token" />
-
           <QInput
             v-model="form.password"
             :label="$t('auth.fields.password.label')"
@@ -77,7 +74,7 @@ import { ref, reactive, computed } from 'vue';
 import { RouterLink, useRouter, useRoute } from 'vue-router';
 import { useTranslation } from 'i18next-vue';
 
-import { resetPassword } from '@/modules/Auth/api';
+import { resetPassword } from '@/modules/Auth/api/passwords';
 
 interface ResetForm {
   password: string;
@@ -86,8 +83,7 @@ interface ResetForm {
 
 const route = useRoute();
 
-// Get token from URL params
-const token = ref(route.params.token as string || '');
+const token = ref((route.query.token as string) || '');
 
 const form = reactive<ResetForm>({
   password: '',
@@ -115,14 +111,14 @@ const passwordMismatch = computed(() => {
 
 const confirmPasswordRules = [
   (val: string) => !!val || t('auth.validation.errors.password.required'),
-  () => !passwordMismatch.value || 'Passwords do not match',
+  () => !passwordMismatch.value || t('auth.validation.errors.password.mismatch'),
 ];
 
 const handleSubmit = async () => {
   if (!token.value) {
     $q.notify({
       type: 'negative',
-      message: 'Токен восстановления не найден в URL.',
+      message: t('auth.notifications.tokenMissing'),
     });
     return;
   }
@@ -130,7 +126,7 @@ const handleSubmit = async () => {
   if (!form.password || form.password !== form.confirmPassword) {
     $q.notify({
       type: 'negative',
-      message: 'Пароли не совпадают.',
+      message: t('auth.notifications.passwordsMismatch'),
     });
     return;
   }
@@ -142,14 +138,14 @@ const handleSubmit = async () => {
 
     $q.notify({
       type: 'positive',
-      message: 'Пароль успешно обновлён!',
+      message: t('auth.notifications.resetSuccess'),
     });
 
     await router.push('/login');
   } catch {
     $q.notify({
       type: 'negative',
-      message: 'Ошибка при сбросе пароля. Попробуйте снова.',
+      message: t('auth.notifications.resetError'),
     });
   } finally {
     loading.value = false;

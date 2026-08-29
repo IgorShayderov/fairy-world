@@ -10,8 +10,10 @@ const routes = {
       signUpPath: () => [BASE_AUTH_PATH, 'register'].join('/'),
       refreshPath: () => [BASE_AUTH_PATH, 'refresh'].join('/'),
       logoutPath: () => [BASE_AUTH_PATH, 'logout'].join('/'),
-      forgotPasswordPath: () => [BASE_AUTH_PATH, 'forgot-password'].join('/'),
-      resetPasswordPath: () => [BASE_AUTH_PATH, 'reset-password'].join('/'),
+    },
+    passwords: {
+      forgotPasswordPath: () => [BASE_API_PATH, 'passwords', 'forgot'].join('/'),
+      resetPasswordPath: () => [BASE_API_PATH, 'passwords', 'reset'].join('/'),
     },
     chat: {
       channelsPath: () => [BASE_API_PATH, 'chat', 'channels'].join('/'),

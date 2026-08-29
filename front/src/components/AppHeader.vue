@@ -1,5 +1,7 @@
 <template>
-  <header class="flex h-[var(--header-height)] items-center justify-between bg-gray-800 px-4 py-2 text-white">
+  <header
+    class="flex max-h-(--header-height) min-h-(--header-height) items-center justify-between bg-gray-800 px-4 py-2 text-white"
+  >
     <div class="flex items-center gap-2">
       <span class="text-lg font-bold tracking-wide">✦ {{ appName }}</span>
     </div>
@@ -15,6 +17,10 @@ import { useTranslation } from 'i18next-vue';
 
 import { signOut } from '@modules/Auth/api';
 import routes from '@/routes';
+
+const $props = defineProps({
+  auth: Boolean,
+});
 
 const { t } = useTranslation();
 

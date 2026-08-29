@@ -29,7 +29,7 @@ export class PasswordsService {
       to: user.email,
       subject: 'Восстановление пароля',
       template: './reset-password',
-      context: { resetLink: `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}` },
+      context: { resetLink: `${process.env.FRONT_URL}/reset-password?token=${resetToken}` },
     });
   }
 
