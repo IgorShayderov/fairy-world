@@ -12,6 +12,22 @@ datasource db {
   provider = "postgresql"
 }
 
+enum LocationVariant {
+  CITY
+  DUNGEON
+  FOREST
+  VILLAGE
+  SHOP
+}
+
+enum EventType {
+  NONE
+  BATTLE
+  TRADE
+  QUEST
+  REST
+}
+
 model User {
   id                   Int             @id @default(autoincrement())
   email                String          @unique
@@ -27,6 +43,7 @@ model User {
   hashedRefreshToken   String?
   inventory            InventoryItem[]
   messages             Message[]
+  userLocation         UsersLocation?
   resetPasswordToken   String?
   resetPasswordExpires DateTime?
   createdAt            DateTime        @default(now())
@@ -70,4 +87,22 @@ model InventoryItem {
   item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
   @@unique([userId, itemId])
+}
+
+model Location {
+  id        Int             @id @default(autoincrement())
+  name      String
+  variant   LocationVariant @default(CITY)
+  eventType EventType       @default(NONE)
+
+  userLocations UsersLocation[]
+}
+
+model UsersLocation {
+  id         Int  @id @default(autoincrement())
+  userId     Int  @unique
+  locationId Int
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  location Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
 }
