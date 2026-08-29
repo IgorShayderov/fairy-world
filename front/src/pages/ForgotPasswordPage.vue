@@ -43,14 +43,14 @@
 </template>
 
 <script lang="ts" setup>
+import { useTranslation } from 'i18next-vue';
 import { useQuasar, QCardSection, QCard, QForm, QInput, QBtn, QIcon } from 'quasar';
+import { logger } from 'src/boot/logger';
 import { ref } from 'vue';
 import { RouterLink } from 'vue-router';
-import { useTranslation } from 'i18next-vue';
 
-import routes from '@/routes';
-import { logger } from 'src/boot/logger';
 import { requestPasswordReset } from '@/modules/Auth/api/passwords';
+import routes from '@/routes';
 
 const email = ref('');
 const $q = useQuasar();

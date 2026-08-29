@@ -1,6 +1,7 @@
-import { api } from '@/shared/api';
-import routes from '@/routes';
 import type { ShopItem, InventoryEntry } from '@/modules/Shop/types';
+
+import routes from '@/routes';
+import { api } from '@/shared/api';
 
 export const getShopItems = async (): Promise<ShopItem[]> => {
   const { data } = await api.get<ShopItem[]>(routes.api.shop.itemsPath());

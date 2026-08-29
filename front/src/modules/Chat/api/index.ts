@@ -1,5 +1,7 @@
-import type { Channel, Message } from '../types';
 import { api } from '@shared/api';
+
+import type { Channel, Message } from '../types';
+
 import routes from '@/routes';
 
 export const chatApi = {

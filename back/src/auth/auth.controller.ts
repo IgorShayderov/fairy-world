@@ -6,11 +6,14 @@ import {
   ApiUnauthorizedResponse,
   ApiBearerAuth,
   ApiTags,
+  ApiCreatedResponse,
+  ApiBadRequestResponse,
 } from '@nestjs/swagger';
 
 import { AuthService } from './auth.service';
 import { AuthGuard, RefreshGuard } from './auth.guard';
 import { LoginDto } from './dto/login.dto';
+import { RegisterDto } from './dto/register.dto';
 import { Response } from 'express';
 
 import type { RequestWithUser } from './interfaces/request-with-user.interface';
@@ -19,6 +22,27 @@ import type { RequestWithUser } from './interfaces/request-with-user.interface';
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
+
+  @Post('register')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiBody({ type: RegisterDto })
+  @ApiCreatedResponse({
+    description: 'User successfully registered',
+    schema: {
+      example: {
+        user: {
+          id: 1,
+          name: 'Alice',
+          email: 'alice@example.com',
+        },
+      },
+    },
+  })
+  @ApiBadRequestResponse({ description: 'Invalid input data' })
+  async register(@Body() registerDto: RegisterDto) {
+    const result = await this.authService.register(registerDto);
+    return { access_token: result.access_token, expiresIn: result.expiresIn, user: result.user };
+  }
 
   @Post('login')
   @HttpCode(HttpStatus.OK)

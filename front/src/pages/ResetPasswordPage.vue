@@ -69,10 +69,10 @@
 </template>
 
 <script lang="ts" setup>
+import { useTranslation } from 'i18next-vue';
 import { useQuasar, QCardSection, QCard, QForm, QInput, QBtn, QIcon } from 'quasar';
 import { ref, reactive, computed } from 'vue';
 import { RouterLink, useRouter, useRoute } from 'vue-router';
-import { useTranslation } from 'i18next-vue';
 
 import { resetPassword } from '@/modules/Auth/api/passwords';
 

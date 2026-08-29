@@ -8,13 +8,12 @@
 import { computed } from 'vue';
 import { RouterView, useRoute } from 'vue-router';
 
-import UnauthLayout from './layouts/UnauthLayout.vue';
 import AuthLayout from './layouts/AuthLayout.vue';
+import UnauthLayout from './layouts/UnauthLayout.vue';
 
 const $route = useRoute();
 
 const layout = computed(() => {
-  console.log($route);
   switch ($route.meta.layout) {
     case 'AuthLayout':
       return AuthLayout;

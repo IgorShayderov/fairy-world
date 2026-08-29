@@ -21,8 +21,10 @@
 
 <script setup lang="ts">
 import { useTranslation } from 'i18next-vue';
-import InventoryItem from '@/components/InventoryItem.vue';
+
 import type { InventoryItemType } from '@/shared/types/inventory';
+
+import InventoryItem from '@/components/InventoryItem.vue';
 
 defineProps<{
   inventory: InventoryItemType[];

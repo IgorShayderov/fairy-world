@@ -42,6 +42,7 @@ const routes = {
 export default routes;
 
 export const appRoutes: RouteRecordRaw[] = [
+  { path: routes.registerPath(), name: 'RegisterPage', component: () => import('@/pages/RegisterPage.vue') },
   { path: routes.loginPath(), name: 'LoginPage', component: () => import('@/pages/LoginPage.vue') },
   { path: routes.rootPath(), name: 'RootPage', component: () => import('@/pages/RootPage.vue') },
   { path: '/:path(.*)', redirect: routes.rootPath() },

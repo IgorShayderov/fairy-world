@@ -1,9 +1,10 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
 
 import { JwtService } from '@nestjs/jwt';
+import { PrismaService } from '../prisma.service';
 import * as bcrypt from 'bcrypt';
+import { RegisterDto, RegisterResponse } from './dto/register.dto';
 
-import { UserModel } from '../../generated/prisma/models';
 import type { TokenResult } from './interfaces/token-payload.interface';
 import { UsersService } from '../users/users.service';
 
@@ -12,6 +13,7 @@ export class AuthService {
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
+    private prisma: PrismaService,
   ) {}
 
   async signIn(email: string, password: string): Promise<TokenResult> {
@@ -45,7 +47,7 @@ export class AuthService {
     return this.generateTokens(user);
   }
 
-  private async generateTokens(user: UserModel): Promise<TokenResult> {
+  private async generateTokens(user: { id: number; email: string }): Promise<TokenResult> {
     const payload = { sub: user.id, email: user.email };
     const expiresIn = parseInt(process.env.ACCESS_COOKIE_LIFETIME as string, 10);
 
@@ -75,5 +77,38 @@ export class AuthService {
 
   async logout(userId: number) {
     await this.usersService.update(userId, { hashedRefreshToken: null });
+  }
+
+  async register(dto: RegisterDto): Promise<RegisterResponse> {
+    const existing = await this.usersService.findBy({ email: dto.email });
+    if (existing) {
+      throw new ConflictException('Пользователь с таким email уже существует');
+    }
+
+    const hashedPassword = await bcrypt.hash(dto.password, 10);
+
+    const user = await this.prisma.user.create({
+      data: {
+        email: dto.email,
+        password: hashedPassword,
+        name: dto.name,
+        gender: dto.gender ? dto.gender : undefined,
+        country: dto.country,
+        city: dto.city,
+        language: dto.language,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        gender: true,
+        country: true,
+        city: true,
+        language: true,
+      },
+    });
+    const { access_token, expiresIn } = await this.generateTokens(user);
+
+    return { access_token, expiresIn, user };
   }
 }

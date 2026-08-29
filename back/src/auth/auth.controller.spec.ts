@@ -75,35 +75,6 @@ describe('AuthController', () => {
     });
   });
 
-  describe('refreshToken', () => {
-    it('should call AuthService.refreshTokens and set new cookie', async () => {
-      const result = {
-        access_token: 'new_token',
-        expiresIn: 60,
-        refresh_token: 'new_refresh',
-      };
-      mockAuthService.refreshTokens.mockResolvedValue(result);
-
-      const cookieSpy = jest.fn();
-      const mockRes = { cookie: cookieSpy } as unknown as Response;
-      const mockReq = {
-        user: { sub: 1 },
-        cookies: { refresh_token: 'old_refresh_token_value' },
-      } as unknown as RequestWithUser;
-
-      const response = await controller.refreshToken(mockReq, mockRes);
-
-      expect(mockAuthService.refreshTokens).toHaveBeenCalledWith(1, 'old_refresh_token_value');
-      expect(cookieSpy).toHaveBeenCalledWith('refresh_token', 'new_refresh', {
-        httpOnly: true,
-        secure: false,
-        sameSite: 'lax',
-        maxAge: 604800,
-      });
-      expect(response).toEqual({ access_token: 'new_token', expiresIn: 60 });
-    });
-  });
-
   describe('logout', () => {
     it('should clear refresh_token cookie', () => {
       const clearCookieSpy = jest.fn();

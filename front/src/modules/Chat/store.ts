@@ -1,10 +1,15 @@
+import { StorageService } from '@services/storage.service';
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 
-import { chatApi } from './api';
 import type { Channel, Message } from './types';
+<<<<<<< HEAD
 import { StorageService } from '@services/storage.service';
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
+=======
+
+import { chatApi } from './api';
+>>>>>>> master
 
 export const useChatStore = defineStore('chat', () => {
   // State

@@ -1,28 +1,32 @@
+import type { ChatPosition } from '@/shared/types/settings';
+
 const SETTINGS_KEY = 'fw_settings';
 
 export interface AppSettings {
   sidebarExpanded: boolean;
-  chatExpanded: boolean;
+  chatPosition: ChatPosition;
   selectedChannelId: string | null;
   // Сюда в будущем можно добавить theme: 'light' | 'dark', volume: number и т.д.
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
   sidebarExpanded: true,
-  chatExpanded: true,
+  chatPosition: 'standard',
   selectedChannelId: null,
 };
 
 export const StorageService = {
   getSettings(): AppSettings {
-    const item = localStorage.getItem(SETTINGS_KEY);
-    if (!item) {
+    const items = localStorage.getItem(SETTINGS_KEY);
+
+    if (!items) {
       return { ...DEFAULT_SETTINGS };
     }
 
     try {
-      const parsed = JSON.parse(item);
-      return { ...DEFAULT_SETTINGS, ...parsed };
+      const settings = JSON.parse(items);
+
+      return { ...DEFAULT_SETTINGS, ...settings };
     } catch {
       return { ...DEFAULT_SETTINGS };
     }
@@ -30,6 +34,7 @@ export const StorageService = {
 
   get<K extends keyof AppSettings>(key: K): AppSettings[K] {
     const settings = this.getSettings();
+    console.log({ settings, key });
     return settings[key];
   },
 
