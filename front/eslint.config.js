@@ -27,6 +27,7 @@ const importOrderOptions = {
   distinctGroup: false,
   'newlines-between': 'always',
   groups: ['external', 'builtin', 'type', 'internal', 'sibling', 'parent', 'index'],
+  pathGroupsExcludedImportTypes: ['builtin'],
   pathGroups: [
     {
       pattern: '**/*.vue',
@@ -54,27 +55,22 @@ const importOrderOptions = {
       position: 'after',
     },
     {
-      pattern: '@/app/**',
+      pattern: '@pages/**',
       group: 'internal',
       position: 'after',
     },
     {
-      pattern: '@/pages/**',
+      pattern: '@modules/**',
       group: 'internal',
       position: 'after',
     },
     {
-      pattern: '@/widgets/**',
+      pattern: '@services/**',
       group: 'internal',
       position: 'after',
     },
     {
-      pattern: '@/features/**',
-      group: 'internal',
-      position: 'after',
-    },
-    {
-      pattern: '@/shared/**',
+      pattern: '@shared/**',
       group: 'internal',
       position: 'after',
     },

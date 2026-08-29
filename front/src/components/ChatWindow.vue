@@ -43,18 +43,18 @@
 </template>
 
 <script lang="ts" setup>
-import { StorageService } from '@services/storage.service';
 import { useTranslation } from 'i18next-vue';
 import { reactive, ref, computed, onMounted, nextTick, watch } from 'vue';
 
 import type { ChatPosition } from '@/shared/types/settings';
 
-import { useChatStore } from '@/modules/Chat/store';
+import { useChatStore } from '@modules/Chat/store';
+import { StorageService } from '@services/storage.service';
 
-import ChatWindowChannel from './ChatWindowChannel.vue';
-import ChatWindowControls from './ChatWindowControls.vue';
-import ChatWindowMessage from './ChatWindowMessage.vue';
-import ChatWindowPositioning from './ChatWindowPositioning.vue';
+import ChatWindowChannel from '@modules/Chat/components/Channel.vue';
+import ChatWindowControls from '@modules/Chat/components/Controls.vue';
+import ChatWindowMessage from '@modules/Chat/components/Message.vue';
+import ChatWindowPositioning from '@modules/Chat/components/Positioning.vue';
 
 const chatState = reactive<{
   chatPosition: ChatPosition;

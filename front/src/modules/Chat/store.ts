@@ -54,7 +54,7 @@ export const useChatStore = defineStore('chat', () => {
     if (authorId === undefined) return;
 
     try {
-      const newMessage = await chatApi.sendMessage(activeChannelId.value, text.trim(), authorId);
+      const newMessage = await chatApi.sendMessage(activeChannelId.value, text.trim());
       messages.value.push(newMessage);
     } catch (error) {
       console.error('Ошибка при отправке сообщения', error);

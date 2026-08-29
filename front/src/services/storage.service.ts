@@ -34,7 +34,6 @@ export const StorageService = {
 
   get<K extends keyof AppSettings>(key: K): AppSettings[K] {
     const settings = this.getSettings();
-    console.log({ settings, key });
     return settings[key];
   },
 
