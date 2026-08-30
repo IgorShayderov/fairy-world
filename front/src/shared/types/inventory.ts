@@ -1,15 +1,23 @@
-export interface InventoryItem {
-  name: string;
-  icon: string;
-  rarity?: string;
-}
-
-export type ItemRarity = 'common' | 'rare' | 'legendary';
+export type ItemRarity = 'QUEST' | 'COMMON' | 'MAGIC' | 'RARE' | 'UNIQUE';
+export type EquipmentType =
+  | 'WEAPON'
+  | 'SHIELD'
+  | 'BODY'
+  | 'HELMET'
+  | 'BOOTS'
+  | 'GLOVES'
+  | 'LEGS'
+  | 'RING'
+  | 'AMULET'
+  | 'SCROLL'
+  | 'POTION'
+  | 'UNKNOWN';
 
 export interface InventoryItemType {
   nameKey: string;
   icon: string;
-  rarityKey?: string;
+  rarity?: ItemRarity;
+  equipmentTypes?: EquipmentType[];
 }
 
 export interface EquipmentSlot {

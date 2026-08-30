@@ -11,6 +11,8 @@ export default {
       legs: 'Ноги',
       feet: 'Обувь',
       accessory: 'Аксессуар',
+      leftHand: 'Левая рука',
+      rightHand: 'Правая рука',
     },
     stats: {
       hp: 'ОЗ (HP)',

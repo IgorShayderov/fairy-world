@@ -1,10 +1,11 @@
 <template>
   <div
-    class="relative flex cursor-grab flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-white p-2 active:cursor-grabbing"
+    class="relative flex cursor-grab flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 p-2 transition-all"
     :class="{
-      'border-blue-400 bg-blue-50': !!item,
+      'border-solid border-gray-200 bg-white shadow-sm': !!item && !isHovered && !isDragging,
+      'bg-gray-100/50': !item && !isHovered,
       'border-red-400 bg-red-50': isHovered,
-      'z-10 scale-105 border-blue-500 bg-blue-100 shadow-md': isDragging,
+      'z-10 scale-105 cursor-grabbing border-blue-500 bg-blue-100 shadow-md': isDragging,
     }"
     :draggable="!!item"
     @dragstart="onDragStart"
@@ -14,14 +15,16 @@
     @drop="onDrop"
   >
     <template v-if="!item">
-      <div class="flex flex-col items-center text-gray-400">
-        <QIcon name="inventory_2" size="32px" class="mb-1 opacity-50" />
-        <span class="text-xs">Пусто</span>
+      <div class="flex flex-col items-center justify-center text-gray-400">
+        <QIcon :name="emptyIcon || 'inventory_2'" size="28px" class="mb-1 opacity-40" />
+        <span class="text-center text-[9px] leading-tight font-semibold tracking-wider text-gray-400 uppercase">
+          {{ emptyLabel || 'Пусто' }}
+        </span>
       </div>
     </template>
 
     <template v-else>
-      <div class="flex flex-col items-center text-xs">
+      <div class="flex h-full w-full flex-col items-center justify-center text-xs">
         <QIcon :name="item.icon" size="32px" class="mb-1 text-gray-700" />
         <span class="w-full truncate text-center font-medium text-gray-800">{{ item.name }}</span>
         <span v-if="item.rarity" class="mt-0.5 text-[10px] tracking-wide uppercase" :class="rarityClass">
@@ -36,35 +39,29 @@
 import { QIcon } from 'quasar';
 import { computed } from 'vue';
 
-export interface InventoryItem {
-  name: string;
-  icon: string;
-  rarity?: string;
-}
-
-export interface EquipmentSlot {
-  id: string;
-  label: string;
-  item: InventoryItem | null;
-}
+import type { InventoryItemType } from '@shared/types/inventory';
 
 const props = withDefaults(
   defineProps<{
-    item: InventoryItem | null;
+    item: InventoryItemType | null;
     slotId?: string;
     isHovered?: boolean;
     isDragging?: boolean;
+    emptyIcon?: string;
+    emptyLabel?: string;
   }>(),
   {
     slotId: '',
     isHovered: false,
     isDragging: false,
+    emptyIcon: '',
+    emptyLabel: '',
   }
 );
 
 const emit = defineEmits<{
-  (e: 'drag-start', item: InventoryItem): void;
-  (e: 'drop', item: InventoryItem): void;
+  (e: 'drag-start', item: InventoryItemType): void;
+  (e: 'drop', item: InventoryItemType): void;
   (e: 'drag-over', slotId: string): void;
   (e: 'drag-leave'): void;
   (e: 'drag-end'): void;
@@ -108,11 +105,11 @@ const onDragLeave = () => {
 
 const onDrop = (e: DragEvent) => {
   e.preventDefault();
-  if (!props.item) {
-    const name = e.dataTransfer?.getData('text/plain') ?? '';
-    if (name) {
-      emit('drop', { name, icon: 'inventory_2', rarity: 'Обычный' });
-    }
+
+  if (props.item) {
+    emit('drop', props.item);
+  } else {
+    emit('drop', { name: '', icon: '', rarity: '' });
   }
 };
 </script>
