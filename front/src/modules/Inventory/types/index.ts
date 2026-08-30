@@ -24,7 +24,6 @@ export interface EquipmentSlot {
   id: string;
   labelKey: string;
   item: InventoryItemType | null;
-  equipped: boolean;
   gridArea?: string;
 }
 

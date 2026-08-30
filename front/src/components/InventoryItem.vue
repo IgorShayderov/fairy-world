@@ -1,7 +1,11 @@
 <template>
   <div
-    class="relative flex cursor-grab flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 p-2 transition-all"
+    class="relative flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 p-2 transition-all"
     :class="{
+      // Динамические классы курсора:
+      'cursor-grab active:cursor-grabbing': !!item,
+      'cursor-default': !item,
+      // Остальные классы:
       'border-solid border-gray-200 bg-white shadow-sm': !!item && !isHovered && !isDragging,
       'bg-gray-100/50': !item && !isHovered,
       'border-red-400 bg-red-50': isHovered,
@@ -14,21 +18,21 @@
     @dragleave="onDragLeave"
     @drop="onDrop"
   >
-    <template v-if="!item">
-      <div class="flex flex-col items-center justify-center text-gray-400">
-        <QIcon :name="emptyIcon || 'inventory_2'" size="28px" class="mb-1 opacity-40" />
-        <span class="text-center text-[9px] leading-tight font-semibold tracking-wider text-gray-400 uppercase">
-          {{ emptyLabel || 'Пусто' }}
-        </span>
-      </div>
-    </template>
-
-    <template v-else>
+    <template v-if="item">
       <div class="flex h-full w-full flex-col items-center justify-center text-xs">
         <QIcon :name="item.icon" size="32px" class="mb-1 text-gray-700" />
         <span class="w-full truncate text-center font-medium text-gray-800">{{ item.name }}</span>
         <span v-if="item.rarity" class="mt-0.5 text-[10px] tracking-wide uppercase" :class="rarityClass">
           {{ item.rarity }}
+        </span>
+      </div>
+    </template>
+
+    <template v-else>
+      <div class="flex flex-col items-center justify-center text-gray-400">
+        <QIcon :name="emptyIcon || 'inventory_2'" size="28px" class="mb-1 opacity-40" />
+        <span class="text-center text-[9px] leading-tight font-semibold tracking-wider text-gray-400 uppercase">
+          {{ emptyLabel || 'Пусто' }}
         </span>
       </div>
     </template>
@@ -39,7 +43,7 @@
 import { QIcon } from 'quasar';
 import { computed } from 'vue';
 
-import type { InventoryItemType } from '@shared/types/inventory';
+import type { InventoryItemType } from '@/modules/Inventory/types';
 
 const props = withDefaults(
   defineProps<{

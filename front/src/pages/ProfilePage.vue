@@ -29,73 +29,19 @@
 </template>
 
 <script setup lang="ts">
+import { storeToRefs } from 'pinia';
 import { ref } from 'vue';
 
-import type { InventoryItemType, EquipmentSlot, StatItem, StatInfoItem } from '@/shared/types/inventory';
+import type { InventoryItemType, StatItem, StatInfoItem } from '@/modules/Inventory/types';
+
+import { useInventoryStore } from '@/modules/Inventory/store/inventory';
 
 import EquipmentSection from '@/components/EquipmentSection.vue';
 import InventorySection from '@/components/InventorySection.vue';
 
-const inventory = ref<(InventoryItemType | null)[]>([
-  { nameKey: 'profile.items.sword', icon: 'firearms', rarityKey: 'profile.rarity.rare' },
-  { nameKey: 'profile.items.shield', icon: 'shield', rarityKey: 'profile.rarity.common' },
-  { nameKey: 'profile.items.medicine', icon: 'medication' },
-  { nameKey: 'profile.items.potion', icon: 'water' },
-  { nameKey: 'profile.items.ring', icon: 'stars', rarityKey: 'profile.rarity.rare' },
-  { nameKey: 'profile.items.scroll', icon: 'menu_book' },
-  { nameKey: 'profile.items.crystal', icon: 'search', rarityKey: 'profile.rarity.legendary' },
-  { nameKey: 'profile.items.staff', icon: 'science' },
-  null, // Slot 9
-  null, // Slot 10
-  null, // Slot 11
-  null, // Slot 12
-]);
-
-const equipmentSlots = ref<EquipmentSlot[]>([
-  {
-    id: 'head',
-    labelKey: 'profile.slots.head',
-    item: { nameKey: 'profile.items.helmet', icon: 'security', rarityKey: 'profile.rarity.rare' },
-    equipped: true,
-  },
-  {
-    id: 'body',
-    labelKey: 'profile.slots.body',
-    item: { nameKey: 'profile.items.armor', icon: 'security', rarityKey: 'profile.rarity.common' },
-    equipped: true,
-  },
-  {
-    id: 'left-hand',
-    labelKey: 'profile.slots.leftHand',
-    item: { nameKey: 'profile.items.sword', icon: 'firearms', rarityKey: 'profile.rarity.rare' },
-    equipped: true,
-  },
-  {
-    id: 'right-hand',
-    labelKey: 'profile.slots.rightHand',
-    item: { nameKey: 'profile.items.shield', icon: 'shield', rarityKey: 'profile.rarity.common' },
-    equipped: true,
-  },
-  {
-    id: 'hands',
-    labelKey: 'profile.slots.hands',
-    item: { nameKey: 'profile.items.gloves', icon: 'pan_tool', rarityKey: 'profile.rarity.common' },
-    equipped: true,
-  },
-  { id: 'legs', labelKey: 'profile.slots.legs', item: null, equipped: false },
-  {
-    id: 'feet',
-    labelKey: 'profile.slots.feet',
-    item: { nameKey: 'profile.items.boots', icon: 'directions_walk', rarityKey: 'profile.rarity.rare' },
-    equipped: true,
-  },
-  {
-    id: 'accessory',
-    labelKey: 'profile.slots.accessory',
-    item: { nameKey: 'profile.items.ring', icon: 'stars', rarityKey: 'profile.rarity.legendary' },
-    equipped: true,
-  },
-]);
+const inventoryStore = useInventoryStore();
+// Достаем реактивные переменные
+const { inventory, equipmentSlots } = storeToRefs(inventoryStore);
 
 const stats = ref<StatItem[]>([
   { key: 'hp', labelKey: 'profile.stats.hp', value: 120 },
@@ -144,68 +90,24 @@ const onDragEnd = () => {
 };
 
 const onInventoryDrop = (targetIndex: number) => {
-  // 1. Тащим из инвентаря в инвентарь (Меняем местами)
   if (dragItemIndex.value !== null && dragItemIndex.value !== targetIndex) {
-    const temp = inventory.value[targetIndex];
-    inventory.value[targetIndex] = inventory.value[dragItemIndex.value];
-    inventory.value[dragItemIndex.value] = temp;
+    inventoryStore.swapInventoryItems(dragItemIndex.value, targetIndex);
+  } else if (dragEquipmentSlotId.value !== null) {
+    inventoryStore.unequipItem(dragEquipmentSlotId.value, targetIndex);
   }
-  // 2. Тащим из экипировки в инвентарь (Меняем местами предмет из экипировки и слот инвентаря)
-  else if (dragEquipmentSlotId.value !== null) {
-    const slot = equipmentSlots.value.find((s) => s.id === dragEquipmentSlotId.value);
-    if (slot && slot.item) {
-      const itemInInventory = inventory.value[targetIndex];
-
-      inventory.value[targetIndex] = slot.item; // Кладем в инвентарь вещь со слота
-
-      slot.item = itemInInventory; // Надеваем то, что было в инвентаре (если там было пусто, слот очистится)
-      slot.equipped = !!itemInInventory;
-    }
-  }
-
   onDragEnd();
 };
 
 const onSlotDrop = (slotId: string) => {
-  const targetSlot = equipmentSlots.value.find((s) => s.id === slotId);
-  if (!targetSlot) return;
-
-  const itemFromEquipment = targetSlot.item;
-
-  // 1. Бросили предмет из инвентаря в экипировку
-  if (dragItem.value && dragItemIndex.value !== null) {
-    targetSlot.item = dragItem.value;
-    targetSlot.equipped = true;
-    inventory.value[dragItemIndex.value] = itemFromEquipment;
+  if (dragItemIndex.value !== null) {
+    inventoryStore.equipItem(dragItemIndex.value, slotId);
+  } else if (dragEquipmentSlotId.value !== null && dragEquipmentSlotId.value !== slotId) {
+    inventoryStore.swapEquipmentItems(dragEquipmentSlotId.value, slotId);
   }
-  // 2. Бросили предмет из одного слота экипировки в другой (бонус: теперь тоже работает!)
-  else if (dragItem.value && dragEquipmentSlotId.value !== null && dragEquipmentSlotId.value !== slotId) {
-    const sourceSlot = equipmentSlots.value.find((s) => s.id === dragEquipmentSlotId.value);
-    if (sourceSlot) {
-      sourceSlot.item = itemFromEquipment;
-      sourceSlot.equipped = !!itemFromEquipment;
-
-      targetSlot.item = dragItem.value;
-      targetSlot.equipped = true;
-    }
-  }
-
   onDragEnd();
 };
 
 const unequip = (slotId: string) => {
-  const slot = equipmentSlots.value.find((s) => s.id === slotId);
-
-  if (slot && slot.item) {
-    const emptyIndex = inventory.value.findIndex((item) => item === null);
-
-    if (emptyIndex !== -1) {
-      inventory.value[emptyIndex] = slot.item;
-      slot.item = null;
-      slot.equipped = false;
-    } else {
-      console.warn('Инвентарь полон! Нет места для снятия предмета.');
-    }
-  }
+  inventoryStore.unequipItem(slotId);
 };
 </script>

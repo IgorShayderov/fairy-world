@@ -28,7 +28,6 @@
       class="grid flex-1 grid-cols-3 content-start justify-center gap-4 overflow-y-auto [&::-webkit-scrollbar]:hidden"
       style="scrollbar-width: none"
     >
-      <!-- Было: @drop.prevent="$emit('inventory-drop', idx)" -->
       <InventoryItem
         v-for="(item, idx) in inventory"
         :key="idx"
@@ -37,7 +36,7 @@
             ? {
                 ...item,
                 name: t(item.nameKey),
-                rarity: item.rarityKey ? t(item.rarityKey) : undefined,
+                rarity: item.rarity ? t(item.rarity) : undefined,
               }
             : null
         "
@@ -57,7 +56,7 @@
 import { useTranslation } from 'i18next-vue';
 import { ref } from 'vue';
 
-import type { InventoryItemType } from '@/shared/types/inventory';
+import type { InventoryItemType } from '@/modules/Inventory/types';
 
 import InventoryItem from '@/components/InventoryItem.vue';
 
@@ -70,12 +69,11 @@ defineProps<{
 defineEmits<{
   (e: 'drag-start', idx: number): void;
   (e: 'drag-end'): void;
-  (e: 'inventory-drop', idx: number): void; // <-- Добавляем это
+  (e: 'inventory-drop', idx: number): void;
 }>();
 
 const { t } = useTranslation();
 
-// Scroll logic updated for vertical movement
 const scrollContainer = ref<HTMLElement | null>(null);
 const scrollAmount = 112; // 96px item height + 16px gap
 

@@ -124,7 +124,7 @@ import { useTranslation } from 'i18next-vue';
 import { QCard, QBtn } from 'quasar';
 import { ref } from 'vue';
 
-import type { EquipmentSlot, StatItem, StatInfoItem } from '@/shared/types/inventory';
+import type { EquipmentSlot, StatItem, StatInfoItem } from '@/modules/Inventory/types';
 
 import InventoryItem from '@/components/InventoryItem.vue';
 
