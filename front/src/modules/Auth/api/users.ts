@@ -1,6 +1,6 @@
+import routes from '@/routes';
 import { api } from '@shared/api';
 
-import routes from '@/routes';
 
 export type CurrentUser = {
   id: number;

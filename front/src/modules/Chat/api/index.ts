@@ -1,8 +1,8 @@
-import { api } from '@shared/api';
 
 import type { Channel, Message } from '../types';
 
 import routes from '@/routes';
+import { api } from '@shared/api';
 
 export const chatApi = {
   async getChannels(): Promise<Channel[]> {

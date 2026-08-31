@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 
-import type { InventoryItemType, EquipmentSlot, StatItem, StatInfoItem } from '../types';
+import type { InventoryItemType, EquipmentSlot } from '../types';
 
 export const useInventoryStore = defineStore('inventory', () => {
   // --- STATE ---
@@ -18,9 +18,6 @@ export const useInventoryStore = defineStore('inventory', () => {
     null, // Slot 10
     null, // Slot 11
     null, // Slot 12
-    null, // Slot 13
-    null, // Slot 14
-    null, // Slot 15
   ]);
 
   const equipmentSlots = ref<EquipmentSlot[]>([
@@ -53,6 +50,14 @@ export const useInventoryStore = defineStore('inventory', () => {
       id: 'accessory',
       item: null,
     },
+    // {
+    //   id: 'scroll',
+    //   item: null,
+    // },
+    // {
+    //   id: 'potion',
+    //   item: null,
+    // },
   ]);
 
   // --- ACTIONS ---

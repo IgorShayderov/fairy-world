@@ -1,8 +1,7 @@
-import { refresh } from '@modules/Auth/api';
-
 import type { IApi, PromiseChainNode, RequestConfig, FailedRequest } from '@shared/types/api';
 
 import routes from '@/routes';
+import { refresh } from '@modules/Auth/api';
 
 import { HttpError } from './HttpError';
 import { InterceptorManager } from './InterceptorManager';

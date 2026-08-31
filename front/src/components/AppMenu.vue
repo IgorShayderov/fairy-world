@@ -24,11 +24,11 @@
 </template>
 
 <script setup lang="ts">
-import { StorageService } from '@services/storage.service';
 import { useTranslation } from 'i18next-vue';
 import { ref, watch } from 'vue';
 
 import routes from '@/routes';
+import { StorageService } from '@services/storage.service';
 
 import SidebarItem from './SidebarItem.vue';
 

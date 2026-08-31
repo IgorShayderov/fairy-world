@@ -18,13 +18,12 @@
 </template>
 
 <script setup lang="ts">
-import { signOut } from '@modules/Auth/api';
 import { useTranslation } from 'i18next-vue';
 import { QBtn } from 'quasar';
 import { useRouter } from 'vue-router';
 
-
 import routes from '@/routes';
+import { signOut } from '@modules/Auth/api';
 
 const $props = defineProps({
   auth: {

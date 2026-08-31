@@ -51,10 +51,10 @@ import type { ChatPosition } from '@/shared/types/settings';
 import { useChatStore } from '@modules/Chat/store';
 import { StorageService } from '@services/storage.service';
 
-import ChatChannel from '@modules/Chat/components/Channel.vue';
-import ChatControls from '@modules/Chat/components/Controls.vue';
-import ChatMessage from '@modules/Chat/components/Message.vue';
-import ChatPositioning from '@modules/Chat/components/Positioning.vue';
+import ChatChannel from '@modules/Chat/components/ChatChannel.vue';
+import ChatControls from '@modules/Chat/components/ChatControls.vue';
+import ChatMessage from '@modules/Chat/components/ChatMessage.vue';
+import ChatPositioning from '@modules/Chat/components/ChatPositioning.vue';
 
 const chatState = reactive<{
   chatPosition: ChatPosition;
