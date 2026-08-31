@@ -1,9 +1,8 @@
 <template>
-  <section class="flex min-h-[460px] min-w-[380px] flex-col rounded-xl bg-gray-200 p-5 shadow-inner">
+  <section class="flex h-full max-h-full w-[390px] shrink-0 flex-col rounded-xl bg-gray-200 p-5 shadow-inner">
     <div class="mb-4 flex items-center justify-between">
       <div class="flex items-center gap-3">
         <h2 class="text-xl font-bold text-gray-800">{{ t(blocks[activeBlockIndex].titleKey) }}</h2>
-
         <div class="flex gap-1">
           <button
             @click="prevBlock"
@@ -34,46 +33,45 @@
       </div>
     </div>
 
-    <div class="flex flex-1 flex-col justify-center">
-      <div v-if="activeBlockIndex === 0" class="relative flex items-center justify-center py-2">
-        <div class="pointer-events-none absolute inset-0 flex items-center justify-center opacity-15">
-          <svg class="h-72 w-72 text-gray-900" fill="currentColor" viewBox="0 0 24 24">
-            <path
-              d="M12 2a3 3 0 0 0-3 3c0 .7.25 1.35.7 1.85L8 14H6l-2 6h3l1-4h4l1 4h3l-2-6h-2l-1.7-7.15c.45-.5.7-1.15.7-1.85a3 3 0 0 0-3-3m0 2a1 1 0 0 1 1 1 1 1 0 0 1-1 1 1 1 0 0 1-1-1 1 1 0 0 1 1-1Z"
-            />
-          </svg>
-        </div>
-
+    <div class="flex w-full flex-1 flex-col justify-center">
+      <div v-if="activeBlockIndex === 0" class="relative flex w-full items-center justify-center py-4">
         <div
-          class="relative z-10 grid grid-cols-3 grid-rows-4 justify-items-center gap-3 [grid-template-areas:'left-hand_head_right-hand'_'left-hand_body_right-hand'_'hands_legs_feet'_'accessory_legs_feet']"
+          class="relative z-10 grid gap-4"
+          style="
+            grid-template-areas:
+              '. head .'
+              'left-hand body right-hand'
+              'hands legs feet'
+              'accessory . .';
+          "
         >
           <div
             v-for="slot in equipmentSlots"
             :key="slot.id"
             :style="{ gridArea: slot.id }"
-            :class="[
-              'relative flex h-16 w-16 flex-col items-center justify-center rounded-lg border p-2.5 transition-colors duration-200',
-              slot.equipped ? 'border-gray-300 bg-white shadow-sm' : 'border-dashed border-gray-300 bg-gray-100/80',
-            ]"
+            class="relative flex h-24 w-24 flex-col items-center justify-center"
             @dragover.prevent
             @dragenter.prevent="$emit('slot-enter', slot.id)"
             @dragleave="$emit('slot-leave')"
             @drop.prevent="$emit('slot-drop', slot.id)"
           >
-            <span class="absolute top-0.5 left-1 text-[9px] font-semibold text-gray-400 uppercase">{{
-              t(slot.labelKey)
-            }}</span>
-
             <InventoryItem
-              v-if="slot.item"
-              :item="{
-                ...slot.item,
-                name: t(slot.item.nameKey),
-                rarity: slot.item.rarityKey ? t(slot.item.rarityKey) : undefined,
-              }"
+              :item="
+                slot.item
+                  ? {
+                      ...slot.item,
+                      name: t(slot.item.nameKey),
+                      rarity: slot.item.rarityKey ? t(slot.item.rarityKey) : undefined,
+                    }
+                  : null
+              "
               :slot-id="slot.id"
               :is-hovered="hoveredSlot === slot.id"
-              :is-dragging="false"
+              :empty-icon="emptyIcons[slot.id]"
+              :empty-label="t(slot.labelKey)"
+              class="h-full w-full"
+              @drag-start="$emit('equipment-drag-start', slot.id)"
+              @drag-end="$emit('drag-end')"
               @drop="$emit('slot-drop', slot.id)"
             />
 
@@ -84,36 +82,36 @@
               round
               icon="close"
               size="xs"
-              class="absolute -top-1 -right-1 bg-white text-gray-400 shadow-sm hover:text-red-500"
+              class="absolute -top-2 -right-2 z-20 bg-white text-gray-400 shadow-md hover:text-red-500"
               @click="$emit('unequip', slot.id)"
             />
           </div>
         </div>
       </div>
 
-      <div v-else-if="activeBlockIndex === 1">
-        <QCard class="rounded-lg bg-white p-5 shadow-sm">
+      <div v-else-if="activeBlockIndex === 1" class="w-full">
+        <QCard class="w-full rounded-lg bg-white p-5 shadow-sm">
           <div class="grid grid-cols-1 gap-3 text-sm">
-            <div v-for="stat in stats" :key="stat.key" class="flex justify-between border-b border-gray-100 pb-2">
-              <span class="text-gray-500">{{ t(stat.labelKey) }}</span>
-              <span class="font-bold text-gray-800">{{ stat.value }}</span>
+            <div v-for="attr in attributes" :key="attr.key" class="flex justify-between border-b border-gray-100 pb-2">
+              <span class="text-gray-500">{{ t(`profile.stats.${attr.key}`) }}</span>
+              <span class="font-bold text-gray-800">{{ attr.value }}</span>
             </div>
           </div>
         </QCard>
       </div>
 
-      <div v-else-if="activeBlockIndex === 2">
-        <QCard class="rounded-lg bg-white p-5 shadow-sm">
+      <div v-else-if="activeBlockIndex === 2" class="w-full">
+        <QCard class="w-full rounded-lg bg-white p-5 shadow-sm">
           <div class="grid grid-cols-2 gap-4 text-sm">
             <div
-              v-for="info in statsInfo"
-              :key="info.key"
+              v-for="stat in stats"
+              :key="stat.key"
               class="flex flex-col items-center justify-center rounded-lg bg-gray-50 p-3"
             >
-              <span class="mb-1 text-xl font-bold text-blue-600">{{ info.value }}</span>
-              <span class="text-center text-[10px] font-medium tracking-wider text-gray-500 uppercase">{{
-                t(info.labelKey)
-              }}</span>
+              <span class="mb-1 text-xl font-bold text-blue-600">{{ stat.value }}</span>
+              <span class="text-center text-[10px] font-medium tracking-wider text-gray-500 uppercase">
+                {{ t(`profile.statsInfo.${stat.key}`) }}
+              </span>
             </div>
           </div>
         </QCard>
@@ -127,14 +125,12 @@ import { useTranslation } from 'i18next-vue';
 import { QCard, QBtn } from 'quasar';
 import { ref } from 'vue';
 
-import type { EquipmentSlot, StatItem, StatInfoItem } from '@/shared/types/inventory';
+import type { StatItem, StatInfoItem, EquipmentSlot } from '@/modules/Inventory/types';
 
 import InventoryItem from '@/components/InventoryItem.vue';
 
 defineProps<{
   equipmentSlots: EquipmentSlot[];
-  stats: StatItem[];
-  statsInfo: StatInfoItem[];
   hoveredSlot: string | null;
 }>();
 
@@ -143,16 +139,44 @@ defineEmits<{
   (e: 'slot-leave'): void;
   (e: 'slot-drop', id: string): void;
   (e: 'unequip', id: string): void;
+  (e: 'equipment-drag-start', id: string): void; // <-- Добавили
+  (e: 'drag-end'): void;
 }>();
 
-const { t } = useTranslation();
+const attributes = ref<StatItem[]>([
+  { key: 'hp', value: 0 },
+  { key: 'mp', value: 0 },
+  { key: 'atk', value: 0 },
+  { key: 'def', value: 0 },
+  { key: 'spd', value: 0 },
+]);
 
+const stats = ref<StatInfoItem[]>([
+  { key: 'games', value: 0 },
+  { key: 'monsters', value: 0 },
+  { key: 'bosses', value: 0 },
+  { key: 'deaths', value: 0 },
+]);
+
+const { t } = useTranslation();
 const activeBlockIndex = ref(0);
+
 const blocks = [
   { titleKey: 'profile.equipment' },
   { titleKey: 'profile.characteristics' },
   { titleKey: 'profile.statistics' },
 ];
+
+const emptyIcons: Record<string, string> = {
+  head: 'face',
+  body: 'checkroom',
+  'left-hand': 'front_hand',
+  'right-hand': 'security',
+  hands: 'pan_tool',
+  legs: 'accessibility_new',
+  feet: 'directions_walk',
+  accessory: 'diamond',
+};
 
 const nextBlock = () => {
   activeBlockIndex.value = (activeBlockIndex.value + 1) % blocks.length;

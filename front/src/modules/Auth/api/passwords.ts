@@ -1,6 +1,6 @@
+import routes from '@/routes';
 import { api } from '@shared/api';
 
-import routes from '@/routes';
 
 export const requestPasswordReset = async (email: string) => {
   const { data } = await api.post(routes.api.passwords.forgotPasswordPath(), { email });

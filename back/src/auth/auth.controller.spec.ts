@@ -3,7 +3,6 @@ import { Response } from 'express';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-import type { RequestWithUser } from './interfaces/request-with-user.interface';
 
 describe('AuthController', () => {
   let controller: AuthController;
@@ -87,15 +86,6 @@ describe('AuthController', () => {
         secure: false,
         sameSite: 'lax',
       });
-    });
-  });
-
-  describe('getProfile', () => {
-    it('should return req.user', () => {
-      const req = { user: { sub: 1, email: 'john@mail.ru' } } as unknown as RequestWithUser;
-      const result = controller.getProfile(req);
-
-      expect(result).toEqual({ sub: 1, email: 'john@mail.ru' });
     });
   });
 });

@@ -1,5 +1,4 @@
 export default {
-  profile: {
     inventory: 'Inventory',
     equipment: 'Equipment',
     characteristics: 'Attributes',
@@ -11,6 +10,8 @@ export default {
       legs: 'Legs',
       feet: 'Feet',
       accessory: 'Accessory',
+      leftHand: 'Left Hand',
+      rightHand: 'Right Hand',
     },
     stats: {
       hp: 'HP',
@@ -44,5 +45,4 @@ export default {
       rare: 'Rare',
       legendary: 'Legendary',
     },
-  },
 };

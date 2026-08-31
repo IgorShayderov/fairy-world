@@ -1,8 +1,8 @@
-import { api } from '@shared/api';
 
 import type { Channel, Message } from '../types';
 
 import routes from '@/routes';
+import { api } from '@shared/api';
 
 export const chatApi = {
   async getChannels(): Promise<Channel[]> {
@@ -17,11 +17,10 @@ export const chatApi = {
     return data;
   },
 
-  async sendMessage(channelId: string, text: string, authorId: number): Promise<Message> {
+  async sendMessage(channelId: string, text: string): Promise<Message> {
     const { data } = await api.post<Message>(routes.api.chat.messagePath(), {
       channelId,
       text,
-      authorId,
     });
     return data;
   },

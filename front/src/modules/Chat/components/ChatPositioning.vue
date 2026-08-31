@@ -1,23 +1,24 @@
 <template>
   <ToggleExpandButton
     v-model="isExpanded"
-    class="absolute -top-4 left-1/2 z-30 -translate-x-1/2 transition-all duration-500 ease-in-out"
+    class="absolute left-1/2 z-30 -translate-x-1/2 transition-all duration-500 ease-in-out"
     :class="{
-      'pointer-events-none translate-y-2 opacity-0': isClosed,
-      'translate-y-0 opacity-100': !isClosed,
+      'pointer-events-none -top-16 -translate-y-2 opacity-0': isClosed,
+      '-top-4 translate-y-0 opacity-100': !isClosed,
     }"
   />
   <ToggleExpandButton
     v-model="isClosed"
     class="absolute z-30 -translate-x-1/2 transition-all duration-500 ease-in-out"
     :class="{
-      'pointer-events-none translate-y-2 opacity-0': isExpanded,
+      'pointer-events-none -translate-y-2 opacity-0': isExpanded,
       'translate-y-0 opacity-100': !isExpanded,
       '-top-10': isClosed,
       '-top-4': !isClosed,
       'left-11/20': !isClosed,
       'left-1/2': isClosed,
     }"
+    inverse
   />
 </template>
 
@@ -52,5 +53,3 @@ const isClosed = computed({
   },
 });
 </script>
-
-<style lang="scss" module></style>

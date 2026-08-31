@@ -3,9 +3,9 @@ import profile from './profile';
 import shop from './shop';
 
 const modules = {
-  ...auth,
-  ...profile,
-  ...shop,
+  auth,
+  profile,
+  shop,
   chat: {
     titles: {
       channels: 'Channels',
