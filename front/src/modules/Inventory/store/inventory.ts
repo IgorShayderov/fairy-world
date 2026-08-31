@@ -23,44 +23,37 @@ export const useInventoryStore = defineStore('inventory', () => {
     null, // Slot 15
   ]);
 
-const equipmentSlots = ref<EquipmentSlot[]>([
-  {
-    id: 'head',
-    labelKey: 'profile.slots.head',
-    item: null,
-  },
-  {
-    id: 'body',
-    labelKey: 'profile.slots.body',
-    item: null,
-  },
-  {
-    id: 'left-hand',
-    labelKey: 'profile.slots.leftHand',
-    item: null,
-  },
-  {
-    id: 'right-hand',
-    labelKey: 'profile.slots.rightHand',
-    item: null,
-  },
-  {
-    id: 'hands',
-    labelKey: 'profile.slots.hands',
-    item: null,
-  },
-  { id: 'legs', labelKey: 'profile.slots.legs', item: null },
-  {
-    id: 'feet',
-    labelKey: 'profile.slots.feet',
-    item: null,
-  },
-  {
-    id: 'accessory',
-    labelKey: 'profile.slots.accessory',
-    item: null,
-  },
-]);
+  const equipmentSlots = ref<EquipmentSlot[]>([
+    {
+      id: 'head',
+      item: null,
+    },
+    {
+      id: 'body',
+      item: null,
+    },
+    {
+      id: 'left-hand',
+      item: null,
+    },
+    {
+      id: 'right-hand',
+      item: null,
+    },
+    {
+      id: 'hands',
+      item: null,
+    },
+    { id: 'legs', item: null },
+    {
+      id: 'feet',
+      item: null,
+    },
+    {
+      id: 'accessory',
+      item: null,
+    },
+  ]);
 
   // --- ACTIONS ---
 

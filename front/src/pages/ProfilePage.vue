@@ -4,8 +4,6 @@
       <EquipmentSection
         class="shrink-0"
         :equipment-slots="equipmentSlots"
-        :stats="stats"
-        :stats-info="statsInfo"
         :hovered-slot="isHoveredSlot"
         @slot-enter="(id) => (isHoveredSlot = id)"
         @slot-leave="isHoveredSlot = null"
@@ -32,7 +30,7 @@
 import { storeToRefs } from 'pinia';
 import { ref } from 'vue';
 
-import type { InventoryItemType, StatItem, StatInfoItem } from '@/modules/Inventory/types';
+import type { InventoryItemType } from '@/modules/Inventory/types';
 
 import { useInventoryStore } from '@/modules/Inventory/store/inventory';
 
@@ -42,21 +40,6 @@ import InventorySection from '@/components/InventorySection.vue';
 const inventoryStore = useInventoryStore();
 // Достаем реактивные переменные
 const { inventory, equipmentSlots } = storeToRefs(inventoryStore);
-
-const stats = ref<StatItem[]>([
-  { key: 'hp', labelKey: 'profile.stats.hp', value: 120 },
-  { key: 'mp', labelKey: 'profile.stats.mp', value: 60 },
-  { key: 'atk', labelKey: 'profile.stats.atk', value: 18 },
-  { key: 'def', labelKey: 'profile.stats.def', value: 12 },
-  { key: 'spd', labelKey: 'profile.stats.spd', value: 8 },
-]);
-
-const statsInfo = ref<StatInfoItem[]>([
-  { key: 'games', labelKey: 'profile.statsInfo.gamesPlayed', value: 42 },
-  { key: 'monsters', labelKey: 'profile.statsInfo.monstersKilled', value: 1337 },
-  { key: 'bosses', labelKey: 'profile.statsInfo.bossesDefeated', value: 5 },
-  { key: 'deaths', labelKey: 'profile.statsInfo.deaths', value: 12 },
-]);
 
 // --- Логика Drag & Drop ---
 const dragItem = ref<InventoryItemType | null>(null);

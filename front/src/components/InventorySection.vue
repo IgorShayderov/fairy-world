@@ -31,15 +31,7 @@
       <InventoryItem
         v-for="(item, idx) in inventory"
         :key="idx"
-        :item="
-          item
-            ? {
-                ...item,
-                name: t(item.nameKey),
-                rarity: item.rarity ? t(item.rarity) : undefined,
-              }
-            : null
-        "
+        :item="item"
         :is-hovered="isHovered === null"
         :is-dragging="dragIndex === idx"
         class="h-24 w-24 shrink-0"

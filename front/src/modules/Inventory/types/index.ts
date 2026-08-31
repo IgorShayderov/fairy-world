@@ -22,19 +22,16 @@ export interface InventoryItemType {
 
 export interface EquipmentSlot {
   id: string;
-  labelKey: string;
   item: InventoryItemType | null;
   gridArea?: string;
 }
 
 export interface StatItem {
   key: string;
-  labelKey: string;
   value: number;
 }
 
 export interface StatInfoItem {
   key: string;
-  labelKey: string;
   value: number;
 }

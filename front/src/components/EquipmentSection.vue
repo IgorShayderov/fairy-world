@@ -1,5 +1,5 @@
 <template>
-  <section class="flex h-full max-h-full min-w-[380px] flex-col rounded-xl bg-gray-200 p-5 shadow-inner">
+  <section class="flex h-full max-h-full w-[390px] shrink-0 flex-col rounded-xl bg-gray-200 p-5 shadow-inner">
     <div class="mb-4 flex items-center justify-between">
       <div class="flex items-center gap-3">
         <h2 class="text-xl font-bold text-gray-800">{{ t(blocks[activeBlockIndex].titleKey) }}</h2>
@@ -22,6 +22,7 @@
           </button>
         </div>
       </div>
+
       <div class="flex gap-1.5">
         <span
           v-for="(_, idx) in blocks"
@@ -32,8 +33,8 @@
       </div>
     </div>
 
-    <div class="flex flex-1 flex-col justify-center">
-      <div v-if="activeBlockIndex === 0" class="relative flex items-center justify-center py-4">
+    <div class="flex w-full flex-1 flex-col justify-center">
+      <div v-if="activeBlockIndex === 0" class="relative flex w-full items-center justify-center py-4">
         <div
           class="relative z-10 grid gap-4"
           style="
@@ -88,29 +89,29 @@
         </div>
       </div>
 
-      <div v-else-if="activeBlockIndex === 1">
-        <QCard class="rounded-lg bg-white p-5 shadow-sm">
+      <div v-else-if="activeBlockIndex === 1" class="w-full">
+        <QCard class="w-full rounded-lg bg-white p-5 shadow-sm">
           <div class="grid grid-cols-1 gap-3 text-sm">
-            <div v-for="stat in stats" :key="stat.key" class="flex justify-between border-b border-gray-100 pb-2">
-              <span class="text-gray-500">{{ t(stat.labelKey) }}</span>
-              <span class="font-bold text-gray-800">{{ stat.value }}</span>
+            <div v-for="attr in attributes" :key="attr.key" class="flex justify-between border-b border-gray-100 pb-2">
+              <span class="text-gray-500">{{ t(`profile.stats.${attr.key}`) }}</span>
+              <span class="font-bold text-gray-800">{{ attr.value }}</span>
             </div>
           </div>
         </QCard>
       </div>
 
-      <div v-else-if="activeBlockIndex === 2">
-        <QCard class="rounded-lg bg-white p-5 shadow-sm">
+      <div v-else-if="activeBlockIndex === 2" class="w-full">
+        <QCard class="w-full rounded-lg bg-white p-5 shadow-sm">
           <div class="grid grid-cols-2 gap-4 text-sm">
             <div
-              v-for="info in statsInfo"
-              :key="info.key"
+              v-for="stat in stats"
+              :key="stat.key"
               class="flex flex-col items-center justify-center rounded-lg bg-gray-50 p-3"
             >
-              <span class="mb-1 text-xl font-bold text-blue-600">{{ info.value }}</span>
-              <span class="text-center text-[10px] font-medium tracking-wider text-gray-500 uppercase">{{
-                t(info.labelKey)
-              }}</span>
+              <span class="mb-1 text-xl font-bold text-blue-600">{{ stat.value }}</span>
+              <span class="text-center text-[10px] font-medium tracking-wider text-gray-500 uppercase">
+                {{ t(`profile.statsInfo.${stat.key}`) }}
+              </span>
             </div>
           </div>
         </QCard>
@@ -124,14 +125,12 @@ import { useTranslation } from 'i18next-vue';
 import { QCard, QBtn } from 'quasar';
 import { ref } from 'vue';
 
-import type { EquipmentSlot, StatItem, StatInfoItem } from '@/modules/Inventory/types';
+import type { StatItem, StatInfoItem, EquipmentSlot } from '@/modules/Inventory/types';
 
 import InventoryItem from '@/components/InventoryItem.vue';
 
 defineProps<{
   equipmentSlots: EquipmentSlot[];
-  stats: StatItem[];
-  statsInfo: StatInfoItem[];
   hoveredSlot: string | null;
 }>();
 
@@ -143,6 +142,21 @@ defineEmits<{
   (e: 'equipment-drag-start', id: string): void; // <-- Добавили
   (e: 'drag-end'): void;
 }>();
+
+const attributes = ref<StatItem[]>([
+  { key: 'hp', value: 0 },
+  { key: 'mp', value: 0 },
+  { key: 'atk', value: 0 },
+  { key: 'def', value: 0 },
+  { key: 'spd', value: 0 },
+]);
+
+const stats = ref<StatInfoItem[]>([
+  { key: 'games', value: 0 },
+  { key: 'monsters', value: 0 },
+  { key: 'bosses', value: 0 },
+  { key: 'deaths', value: 0 },
+]);
 
 const { t } = useTranslation();
 const activeBlockIndex = ref(0);

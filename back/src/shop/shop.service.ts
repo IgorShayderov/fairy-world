@@ -38,6 +38,9 @@ export class ShopService {
           userId,
           itemId: item.id,
           quantity: dto.quantity,
+          // FIXME: вычислять номер слота!!!
+          slot: 0, // Дефолтный слот (или ваша логика)
+          isEquiped: false,
         },
       }),
     ]);
