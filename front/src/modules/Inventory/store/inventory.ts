@@ -50,14 +50,14 @@ export const useInventoryStore = defineStore('inventory', () => {
       id: 'accessory',
       item: null,
     },
-    // {
-    //   id: 'scroll',
-    //   item: null,
-    // },
-    // {
-    //   id: 'potion',
-    //   item: null,
-    // },
+    {
+      id: 'scroll',
+      item: null,
+    },
+    {
+      id: 'potion',
+      item: null,
+    },
   ]);
 
   // --- ACTIONS ---

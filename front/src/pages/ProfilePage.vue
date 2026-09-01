@@ -34,17 +34,15 @@ import type { InventoryItemType } from '@/modules/Inventory/types';
 
 import { useInventoryStore } from '@/modules/Inventory/store/inventory';
 
-import EquipmentSection from '@/components/EquipmentSection.vue';
-import InventorySection from '@/components/InventorySection.vue';
+import EquipmentSection from '@modules/Inventory/components/EquipmentSection.vue';
+import InventorySection from '@modules/Inventory/components/InventorySection.vue';
 
 const inventoryStore = useInventoryStore();
-// Достаем реактивные переменные
 const { inventory, equipmentSlots } = storeToRefs(inventoryStore);
 
-// --- Логика Drag & Drop ---
 const dragItem = ref<InventoryItemType | null>(null);
 const dragItemIndex = ref<number | null>(null);
-const dragEquipmentSlotId = ref<string | null>(null); // Хранит ID слота экипировки
+const dragEquipmentSlotId = ref<string | null>(null);
 const isHoveredSlot = ref<string | null>(null);
 
 const onInventoryDragStart = (idx: number) => {
@@ -52,7 +50,7 @@ const onInventoryDragStart = (idx: number) => {
   if (item) {
     dragItem.value = item;
     dragItemIndex.value = idx;
-    dragEquipmentSlotId.value = null; // Сбрасываем альтернативный источник
+    dragEquipmentSlotId.value = null;
   }
 };
 
@@ -61,7 +59,7 @@ const onEquipmentDragStart = (slotId: string) => {
   if (slot && slot.item) {
     dragItem.value = slot.item;
     dragEquipmentSlotId.value = slotId;
-    dragItemIndex.value = null; // Сбрасываем альтернативный источник
+    dragItemIndex.value = null;
   }
 };
 
