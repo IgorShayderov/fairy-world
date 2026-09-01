@@ -9,7 +9,7 @@
           dense
           unelevated
           icon="chevron_left"
-          class="bg-white text-gray-600 shadow-sm transition-colors hover:bg-gray-100"
+          class="bg-white text-gray-600 shadow-sm transition-colors hover:bg-gray-100 disabled:hover:bg-white"
           :disable="disablePrev"
           @click="$emit('prev')"
         />
@@ -19,7 +19,7 @@
           dense
           unelevated
           icon="chevron_right"
-          class="bg-white text-gray-600 shadow-sm transition-colors hover:bg-gray-100"
+          class="bg-white text-gray-600 shadow-sm transition-colors hover:bg-gray-100 disabled:hover:bg-white"
           :disable="disableNext"
           @click="$emit('next')"
         />

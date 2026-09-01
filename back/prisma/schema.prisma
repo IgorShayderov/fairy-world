@@ -12,6 +12,19 @@ datasource db {
   provider = "postgresql"
 }
 
+enum LocationVariant {
+  CITY
+  DUNGEON
+  FOREST
+  VILLAGE
+}
+
+enum EventType {
+  BATTLE
+  QUEST
+  ENCOUNTER
+}
+
 model Channel {
   id        String    @id @default(uuid())
   name      String    @unique
@@ -37,8 +50,8 @@ enum Gender {
 }
 
 model User {
-  id                   Int          @id @default(autoincrement())
-  email                String       @unique
+  id                   Int            @id @default(autoincrement())
+  email                String         @unique
   password             String
   name                 String
   gender               Gender?
@@ -49,9 +62,10 @@ model User {
   messages             Message[]
   resetPasswordToken   String?
   resetPasswordExpires DateTime?
-  createdAt            DateTime     @default(now())
-  updatedAt            DateTime     @default(now()) @updatedAt
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @default(now()) @updatedAt
   gameProfile          GameProfile?
+  userLocation         UsersLocation?
 }
 
 model GameProfile {
@@ -156,7 +170,7 @@ model Item {
   price         Int             @default(0)
   icon          String          @default("")
   quantity      Int             @default(1)
-  consumable    Boolean         @default(false)
+  isConsumable  Boolean         @default(false)
   rarity        ItemRarity      @default(COMMON)
   equipmentType EquipmentType[] @default([UNKNOWN])
   createdAt     DateTime        @default(now())
@@ -204,4 +218,23 @@ model InventoryItem {
   item        Item        @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
   @@unique([gameProfileId, itemId])
+}
+
+model Location {
+  id        Int             @id @default(autoincrement())
+  name      String
+  variant   LocationVariant
+  eventType EventType
+
+  userLocations UsersLocation[]
+}
+
+model UsersLocation {
+  id         Int     @id @default(autoincrement())
+  userId     Int     @unique
+  locationId Int
+  isForced   Boolean @default(false)
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  location Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
 }
