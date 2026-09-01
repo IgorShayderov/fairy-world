@@ -1,9 +1,8 @@
+import routes from '@/routes';
 import { api } from '@shared/api';
 
-import routes from '@/routes';
-
-export type LocationVariant = 'CITY' | 'DUNGEON' | 'FOREST' | 'VILLAGE' | 'SHOP';
-export type EventType = 'NONE' | 'BATTLE' | 'TRADE' | 'QUEST' | 'REST';
+export type LocationVariant = 'CITY' | 'DUNGEON' | 'FOREST' | 'VILLAGE';
+export type EventType = 'BATTLE' | 'QUEST' | 'ENCOUNTER';
 
 export interface Location {
   id: number;

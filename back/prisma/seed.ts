@@ -10,20 +10,34 @@ const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
+  const adminEmail = 'admin@gmail.com';
   const hashedPassword = await bcrypt.hash('Qwerty123!', 10);
 
-  await prisma.user.upsert({
-    where: { email: 'admin@gmail.com' },
-    update: {},
-    create: {
-      email: 'admin@gmail.com',
-      password: hashedPassword,
-      name: 'admin',
-      gameProfile: {
-        create: {},
+  for (const attributeType of Object.values(AttributeType)) {
+    // TODO: добавить description
+    const attribute = await prisma.attribute.upsert({
+      where: { name: attributeType },
+      update: {},
+      create: {
+        name: attributeType,
       },
-    },
-  });
+    });
+
+    console.log(`Создан атрибут: ${attribute.name}`);
+  }
+
+  for (const statType of Object.values(StatType)) {
+    // TODO: добавить description
+    const stat = await prisma.stat.upsert({
+      where: { name: statType },
+      update: {},
+      create: {
+        name: statType,
+      },
+    });
+
+    console.log(`Создан стат: ${stat.name}`);
+  }
 
   const channelsNames = ['General', 'Market'];
 
@@ -38,7 +52,7 @@ async function main() {
 
   const usersData = [
     {
-      email: 'admin@fairyworld.com',
+      email: adminEmail,
       password: hashedPassword,
       name: 'Admin_God',
       gender: Gender.MALE,
@@ -77,7 +91,11 @@ async function main() {
   ];
 
   for (const u of usersData) {
-    const user = await prisma.user.create({ data: u });
+    const user = await prisma.user.upsert({
+      where: { email: u.email },
+      update: {},
+      create: u,
+    });
     console.log(`Создан пользователь: ${user.name}`);
   }
 
@@ -89,11 +107,8 @@ async function main() {
       icon: 'icon_wooden_sword.png',
       rarity: ItemRarity.COMMON,
       equipmentType: [EquipmentType.WEAPON],
-      attributes: {
-        create: [
-          { attribute: StatType.STRENGTH, value: 15 },
-          { attribute: StatType.CHARISMA, value: 5 },
-        ],
+      stats: {
+        create: [{ stat: { connect: { name: StatType.DAMAGE } }, value: 1 }],
       },
     },
     {
@@ -103,6 +118,9 @@ async function main() {
       icon: 'icon_iron_shield.png',
       rarity: ItemRarity.COMMON,
       equipmentType: [EquipmentType.SHIELD],
+      stats: {
+        create: [{ stat: { connect: { name: StatType.DEFENSE } }, value: 1 }],
+      },
     },
     {
       name: 'Minor Health Potion',
@@ -111,7 +129,8 @@ async function main() {
       icon: 'icon_hp_potion.png',
       rarity: ItemRarity.COMMON,
       equipmentType: [EquipmentType.POTION],
-      consumable: true,
+      isConsumable: true,
+      // TODO: нужно добавить эффекты
     },
     {
       name: 'Leather Armor',
@@ -120,6 +139,12 @@ async function main() {
       icon: 'icon_leather_armor.png',
       rarity: ItemRarity.MAGIC,
       equipmentType: [EquipmentType.BODY],
+      stats: {
+        create: [
+          { stat: { connect: { name: StatType.DEFENSE } }, value: 5 },
+          { stat: { connect: { name: StatType.DODGE } }, value: 3 },
+        ],
+      },
     },
     {
       name: 'Ring of Vitality',
@@ -128,6 +153,13 @@ async function main() {
       icon: 'icon_vitality_ring.png',
       rarity: ItemRarity.RARE,
       equipmentType: [EquipmentType.RING],
+      stats: {
+        create: [
+          { stat: { connect: { name: StatType.MANA } }, value: 5 },
+          { stat: { connect: { name: StatType.HEALTH } }, value: 10 },
+          { stat: { connect: { name: StatType.DEFENSE } }, value: 3 },
+        ],
+      },
     },
     {
       name: 'Excalibur',
@@ -136,6 +168,13 @@ async function main() {
       icon: 'icon_excalibur.png',
       rarity: ItemRarity.UNIQUE,
       equipmentType: [EquipmentType.WEAPON],
+      stats: {
+        create: [
+          { stat: { connect: { name: StatType.DAMAGE } }, value: 50 },
+          { stat: { connect: { name: StatType.CRIT_DAMAGE } }, value: 15 },
+          { stat: { connect: { name: StatType.CRIT } }, value: 10 },
+        ],
+      },
     },
     {
       name: 'Boots of Swiftness',
@@ -144,6 +183,9 @@ async function main() {
       icon: 'icon_swift_boots.png',
       rarity: ItemRarity.RARE,
       equipmentType: [EquipmentType.BOOTS],
+      attributes: {
+        create: [{ attribute: { connect: { name: AttributeType.AGILITY } }, value: 10 }],
+      },
     },
     {
       name: 'Amulet of the Archmage',
@@ -152,6 +194,12 @@ async function main() {
       icon: 'icon_archmage_amulet.png',
       rarity: ItemRarity.UNIQUE,
       equipmentType: [EquipmentType.AMULET],
+      attributes: {
+        create: [{ attribute: { connect: { name: AttributeType.WISDOM } }, value: 10 }],
+      },
+      stats: {
+        create: [{ stat: { connect: { name: StatType.MANA } }, value: 15 }],
+      },
     },
     {
       name: 'Town Portal Scroll',
@@ -161,6 +209,7 @@ async function main() {
       rarity: ItemRarity.QUEST,
       equipmentType: [EquipmentType.SCROLL],
       consumable: true,
+      // добавить эффект
     },
     {
       name: 'Dragon Scale Helmet',
@@ -169,11 +218,17 @@ async function main() {
       icon: 'icon_dragon_helm.png',
       rarity: ItemRarity.RARE,
       equipmentType: [EquipmentType.HELMET],
+      stats: {
+        create: [
+          { stat: { connect: { name: StatType.DEFENSE } }, value: 50 },
+          { stat: { connect: { name: StatType.DODGE } }, value: 15 },
+        ],
+      },
     },
   ];
 
-  for (const i of itemsData) {
-    const item = await prisma.item.create({ data: i });
+  for (const itemData of itemsData) {
+    const item = await prisma.item.create({ data: itemData });
     console.log(`Создан предмет: ${item.name} (${item.rarity})`);
   }
 

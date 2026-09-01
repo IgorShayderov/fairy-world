@@ -11,12 +11,12 @@ export class SetLocationDto {
   @Min(1)
   locationId!: number;
 }
-
 @Controller('locations')
 export class LocationsController {
   constructor(private readonly locationsService: LocationsService) {}
 
   @Get()
+  @UseGuards(AuthGuard)
   @ApiOkResponse({ description: 'List all locations' })
   findAll() {
     return this.locationsService.findAll();
