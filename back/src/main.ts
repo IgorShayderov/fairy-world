@@ -4,6 +4,7 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
 
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -41,6 +42,8 @@ async function bootstrap() {
   SwaggerModule.setup('api', app, document);
 
   app.useGlobalInterceptors(new TransformInterceptor());
+
+  app.useGlobalFilters(new AllExceptionsFilter());
 
   await app.listen(process.env.PORT ?? 3333);
 }

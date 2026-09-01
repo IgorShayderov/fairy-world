@@ -1,8 +1,8 @@
-import { api } from '@shared/api';
 
 import type { ISignData } from '../../../shared/types/user';
 
 import routes from '@/routes';
+import { api } from '@shared/api';
 
 export const signIn = async ({ email, password }: ISignData) => {
   const { data } = await api.post<{

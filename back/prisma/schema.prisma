@@ -28,33 +28,12 @@ enum EventType {
   REST
 }
 
-model User {
-  id                   Int             @id @default(autoincrement())
-  email                String          @unique
-  password             String
-  name                 String
-  gender               String?
-  country              String?
-  city                 String?
-  language             String?
-  gold                 Int             @default(0)
-  experience           Int             @default(0)
-  level                Int             @default(1)
-  hashedRefreshToken   String?
-  inventory            InventoryItem[]
-  messages             Message[]
-  userLocation         UsersLocation?
-  resetPasswordToken   String?
-  resetPasswordExpires DateTime?
-  createdAt            DateTime        @default(now())
-  updatedAt            DateTime        @default(now()) @updatedAt
-}
-
 model Channel {
   id        String    @id @default(uuid())
   name      String    @unique
   messages  Message[]
   createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now()) @updatedAt
 }
 
 model Message {
@@ -65,6 +44,126 @@ model Message {
   channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
   author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+model User {
+  id                   Int          @id @default(autoincrement())
+  email                String       @unique
+  password             String
+  name                 String
+  gender               Gender?
+  country              String?
+  city                 String?
+  language             String?
+  hashedRefreshToken   String?
+  messages             Message[]
+  resetPasswordToken   String?
+  resetPasswordExpires DateTime?
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @default(now()) @updatedAt
+  gameProfile          GameProfile?
+  userLocation         UsersLocation?
+}
+
+model GameProfile {
+  id Int @id @default(autoincrement())
+
+  userId Int  @unique
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  gold       Int @default(0)
+  experience Int @default(0)
+  level      Int @default(1)
+
+  inventory         InventoryItem[]
+  profileAttributes ProfileAttribute[]
+  profileStats      ProfileStat[]
+}
+
+enum AttributeType {
+  STRENGTH
+  AGILITY
+  ENDURANCE
+  WISDOM
+  CHARISMA
+}
+
+model Attribute {
+  id          Int           @id @default(autoincrement())
+  name        AttributeType @unique
+  description String?
+
+  profiles ProfileAttribute[]
+  items    ItemAttribute[]
+}
+
+enum StatType {
+  HEALTH
+  MANA
+  DAMAGE
+  DEFENSE
+  CRIT
+  DODGE
+  CRIT_DAMAGE
+}
+
+model Stat {
+  id          Int      @id @default(autoincrement())
+  name        StatType @unique
+  description String?
+
+  profiles ProfileStat[]
+  items    ItemStat[]
+}
+
+model ProfileAttribute {
+  gameProfileId Int
+  attributeId   Int
+  value         Int @default(0)
+
+  gameProfile GameProfile @relation(fields: [gameProfileId], references: [id], onDelete: Cascade)
+  attribute   Attribute   @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+
+  @@id([gameProfileId, attributeId])
+}
+
+model ProfileStat {
+  gameProfileId Int
+  statId        Int
+  value         Float @default(0)
+
+  gameProfile GameProfile @relation(fields: [gameProfileId], references: [id], onDelete: Cascade)
+  stat        Stat        @relation(fields: [statId], references: [id], onDelete: Cascade)
+
+  @@id([gameProfileId, statId])
+}
+
+model ItemAttribute {
+  itemId      Int
+  attributeId Int
+  value       Int @default(0)
+
+  item      Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  attribute Attribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+
+  @@id([itemId, attributeId])
+}
+
+model ItemStat {
+  itemId Int
+  statId Int
+  value  Float @default(0)
+
+  item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  stat Stat @relation(fields: [statId], references: [id], onDelete: Cascade)
+
+  @@id([itemId, statId])
 }
 
 model Item {
@@ -74,19 +173,54 @@ model Item {
   price         Int             @default(0)
   icon          String          @default("")
   quantity      Int             @default(1)
+  consumable    Boolean         @default(false)
+  rarity        ItemRarity      @default(COMMON)
+  equipmentType EquipmentType[] @default([UNKNOWN])
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @default(now()) @updatedAt
+
+  attributes    ItemAttribute[]
+  stats         ItemStat[]
   inventoryItem InventoryItem[]
 }
 
+enum ItemRarity {
+  QUEST
+  COMMON
+  MAGIC
+  RARE
+  UNIQUE
+}
+
+enum EquipmentType {
+  WEAPON
+  SHIELD
+  BODY
+  HELMET
+  BOOTS
+  GLOVES
+  LEGS
+  RING
+  AMULET
+  SCROLL
+  POTION
+  UNKNOWN
+}
+
 model InventoryItem {
-  id       Int @id @default(autoincrement())
-  userId   Int
-  itemId   Int
-  quantity Int @default(0)
+  id            Int      @id @default(autoincrement())
+  gameProfileId Int
+  itemId        Int
+  quantity      Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @default(now()) @updatedAt
+  slot          Int
+  isEquiped     Boolean
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  gameProfile GameProfile @relation(fields: [gameProfileId], references: [id], onDelete: Cascade)
+  item        Item        @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, itemId])
+  @@unique([gameProfileId, itemId])
 }
 
 model Location {

@@ -1,4 +1,4 @@
-import { UserModel } from '../../../generated/prisma/models';
+import { UserModel } from '../../../generated/models';
 
 export interface AccessTokenPayload {
   sub: number;
