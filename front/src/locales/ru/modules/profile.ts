@@ -13,6 +13,7 @@ export default {
       accessory: 'Аксессуар',
       leftHand: 'Левая рука',
       rightHand: 'Правая рука',
+      empty: 'Пусто',
     },
     stats: {
       hp: 'ОЗ (HP)',
@@ -22,9 +23,9 @@ export default {
       spd: 'Скорость',
     },
     statsInfo: {
-      gamesPlayed: 'Сыграно игр',
-      monstersKilled: 'Убито монстров',
-      bossesDefeated: 'Побеждено боссов',
+      games: 'Сыграно игр',
+      monsters: 'Убито монстров',
+      bosses: 'Побеждено боссов',
       deaths: 'Смертей',
     },
     items: {

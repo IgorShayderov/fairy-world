@@ -1,40 +1,15 @@
 <template>
-  <section class="flex h-full max-h-full w-[390px] shrink-0 flex-col rounded-xl bg-gray-200 p-5 shadow-inner">
-    <div class="mb-4 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <h2 class="text-xl font-bold text-gray-800">{{ t(blocks[activeBlockIndex].titleKey) }}</h2>
-        <div class="flex gap-1">
-          <button
-            @click="prevBlock"
-            class="flex h-7 w-7 items-center justify-center rounded-full bg-white text-gray-600 shadow-sm transition-colors hover:bg-gray-100 focus:outline-none"
-          >
-            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <button
-            @click="nextBlock"
-            class="flex h-7 w-7 items-center justify-center rounded-full bg-white text-gray-600 shadow-sm transition-colors hover:bg-gray-100 focus:outline-none"
-          >
-            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        </div>
-      </div>
-
-      <div class="flex gap-1.5">
-        <span
-          v-for="(_, idx) in blocks"
-          :key="idx"
-          class="h-2 w-2 rounded-full transition-colors duration-300"
-          :class="activeBlockIndex === idx ? 'bg-blue-500' : 'bg-gray-300'"
-        ></span>
-      </div>
-    </div>
+  <section class="flex h-full max-h-full w-[400px] shrink-0 flex-col rounded-xl bg-gray-200 p-5 shadow-inner">
+    <SectionNavigation
+      :title="t(currentBlock.titleKey)"
+      :total-pages="blocks.length"
+      :current-index="currentBlockIndex"
+      @prev="prevBlock"
+      @next="nextBlock"
+    />
 
     <div class="flex w-full flex-1 flex-col justify-center">
-      <div v-if="activeBlockIndex === 0" class="relative flex w-full items-center justify-center py-4">
+      <div v-if="activeBlockKey === 'equipment'" class="relative flex w-full items-center justify-center">
         <div
           class="relative z-10 grid gap-4"
           style="
@@ -42,7 +17,7 @@
               '. head .'
               'left-hand body right-hand'
               'hands legs feet'
-              'accessory . .';
+              'accessory scroll potion';
           "
         >
           <div
@@ -89,7 +64,7 @@
         </div>
       </div>
 
-      <div v-else-if="activeBlockIndex === 1" class="w-full">
+      <div v-else-if="activeBlockKey === 'characteristics'" class="w-full">
         <QCard class="w-full rounded-lg bg-white p-5 shadow-sm">
           <div class="grid grid-cols-1 gap-3 text-sm">
             <div v-for="attr in attributes" :key="attr.key" class="flex justify-between border-b border-gray-100 pb-2">
@@ -100,7 +75,7 @@
         </QCard>
       </div>
 
-      <div v-else-if="activeBlockIndex === 2" class="w-full">
+      <div v-else-if="activeBlockKey === 'statistics'" class="w-full">
         <QCard class="w-full rounded-lg bg-white p-5 shadow-sm">
           <div class="grid grid-cols-2 gap-4 text-sm">
             <div
@@ -123,11 +98,24 @@
 <script setup lang="ts">
 import { useTranslation } from 'i18next-vue';
 import { QCard, QBtn } from 'quasar';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 
+import type { Component } from 'vue';
 import type { StatItem, StatInfoItem, EquipmentSlot } from '@/modules/Inventory/types';
 
-import InventoryItem from '@/components/InventoryItem.vue';
+import BodyArmorIcon from './icons/BodyArmorIcon.vue';
+import BootsIcon from './icons/BootsIcon.vue';
+import GlovesIcon from './icons/GlovesIcon.vue';
+import HelmetIcon from './icons/HelmetIcon.vue';
+import LegsArmorIcon from './icons/LegsArmorIcon.vue';
+import PotionIcon from './icons/PotionIcon.vue';
+import RingIcon from './icons/RingIcon.vue';
+import ScrollIcon from './icons/ScrollIcon.vue';
+import ShieldIcon from './icons/ShieldIcon.vue';
+import WeaponIcon from './icons/WeaponIcon.vue';
+import InventoryItem from './InventoryItem.vue';
+
+import SectionNavigation from '@/shared/components/SectionNavigation.vue';
 
 defineProps<{
   equipmentSlots: EquipmentSlot[];
@@ -139,7 +127,7 @@ defineEmits<{
   (e: 'slot-leave'): void;
   (e: 'slot-drop', id: string): void;
   (e: 'unequip', id: string): void;
-  (e: 'equipment-drag-start', id: string): void; // <-- Добавили
+  (e: 'equipment-drag-start', id: string): void;
   (e: 'drag-end'): void;
 }>();
 
@@ -159,30 +147,45 @@ const stats = ref<StatInfoItem[]>([
 ]);
 
 const { t } = useTranslation();
-const activeBlockIndex = ref(0);
 
 const blocks = [
-  { titleKey: 'profile.equipment' },
-  { titleKey: 'profile.characteristics' },
-  { titleKey: 'profile.statistics' },
-];
+  { key: 'equipment', titleKey: 'profile.equipment' },
+  { key: 'characteristics', titleKey: 'profile.characteristics' },
+  { key: 'statistics', titleKey: 'profile.statistics' },
+] as const;
 
-const emptyIcons: Record<string, string> = {
-  head: 'face',
-  body: 'checkroom',
-  'left-hand': 'front_hand',
-  'right-hand': 'security',
-  hands: 'pan_tool',
-  legs: 'accessibility_new',
-  feet: 'directions_walk',
-  accessory: 'diamond',
+type BlockKey = (typeof blocks)[number]['key'];
+const activeBlockKey = ref<BlockKey>('equipment');
+const currentBlockIndex = computed(() => {
+  return blocks.findIndex((b) => b.key === activeBlockKey.value);
+});
+
+const currentBlock = computed(() => {
+  return blocks.find((b) => b.key === activeBlockKey.value) || blocks[0];
+});
+
+const emptyIcons: Record<string, Component | string> = {
+  head: HelmetIcon,
+  body: BodyArmorIcon,
+  'left-hand': WeaponIcon,
+  'right-hand': ShieldIcon,
+  hands: GlovesIcon,
+  legs: LegsArmorIcon,
+  feet: BootsIcon,
+  accessory: RingIcon,
+  scroll: ScrollIcon,
+  potion: PotionIcon,
 };
 
 const nextBlock = () => {
-  activeBlockIndex.value = (activeBlockIndex.value + 1) % blocks.length;
+  const currentIndex = blocks.findIndex((b) => b.key === activeBlockKey.value);
+  const nextIndex = (currentIndex + 1) % blocks.length;
+  activeBlockKey.value = blocks[nextIndex].key;
 };
 
 const prevBlock = () => {
-  activeBlockIndex.value = (activeBlockIndex.value - 1 + blocks.length) % blocks.length;
+  const currentIndex = blocks.findIndex((b) => b.key === activeBlockKey.value);
+  const prevIndex = (currentIndex - 1 + blocks.length) % blocks.length;
+  activeBlockKey.value = blocks[prevIndex].key;
 };
 </script>

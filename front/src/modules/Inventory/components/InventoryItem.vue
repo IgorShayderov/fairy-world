@@ -2,10 +2,8 @@
   <div
     class="relative flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 p-2 transition-all"
     :class="{
-      // Динамические классы курсора:
       'cursor-grab active:cursor-grabbing': !!item,
       'cursor-default': !item,
-      // Остальные классы:
       'border-solid border-gray-200 bg-white shadow-sm': !!item && !isHovered && !isDragging,
       'bg-gray-100/50': !item && !isHovered,
       'border-red-400 bg-red-50': isHovered,
@@ -30,9 +28,11 @@
 
     <template v-else>
       <div class="flex flex-col items-center justify-center text-gray-400">
-        <QIcon :name="emptyIcon || 'inventory_2'" size="28px" class="mb-1 opacity-40" />
+        <QIcon v-if="typeof emptyIcon === 'string'" :name="emptyIcon" size="32px" class="opacity-60" />
+
+        <component v-else-if="emptyIcon" :is="emptyIcon" class="mb-1 h-8 w-8 text-gray-400 opacity-60" />
         <span class="text-center text-[9px] leading-tight font-semibold tracking-wider text-gray-400 uppercase">
-          {{ emptyLabel || 'Пусто' }}
+          {{ emptyLabel || $t('profile.slots.empty') }}
         </span>
       </div>
     </template>
@@ -43,6 +43,7 @@
 import { QIcon } from 'quasar';
 import { computed } from 'vue';
 
+import type { Component } from 'vue';
 import type { InventoryItemType } from '@/modules/Inventory/types';
 
 const props = withDefaults(
@@ -51,7 +52,7 @@ const props = withDefaults(
     slotId?: string;
     isHovered?: boolean;
     isDragging?: boolean;
-    emptyIcon?: string;
+    emptyIcon?: string | Component;
     emptyLabel?: string;
   }>(),
   {
