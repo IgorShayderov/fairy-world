@@ -1,4 +1,4 @@
-// This is your Prisma schema file,
+// This is your Prisma schema file
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 // Get a free hosted Postgres database in seconds: `npx create-db`
@@ -98,6 +98,7 @@ model Attribute {
 
   profiles ProfileAttribute[]
   items    ItemAttribute[]
+  monsterAttributes MonsterAttribute[]
 }
 
 enum StatType {
@@ -239,27 +240,28 @@ model UsersLocation {
   location Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
 }
 
-enum MonsterRarity {
-  COMMON
-  UNCOMMON
-  RARE
-  ELITE
-  BOSS
-}
-
 model Monster {
-  id           Int          @id @default(autoincrement())
-  name         String       @unique
-  description  String?
-  rarity       MonsterRarity @default(COMMON)
-  level        Int          @default(1)
-  health       Int          @default(10)
-  attack       Int          @default(5)
-  defense      Int          @default(2)
-  rewardGold   Int          @default(0)
-  rewardExperience Int      @default(0)
-  icon         String?
+  id              Int    @id @default(autoincrement())
+  name            String @unique
+  description     String?
+  level           Int    @default(1)
+  rewardGold      Int    @default(0)
+  rewardExperience Int   @default(0)
+  icon            String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
+
+  attributes MonsterAttribute[]
+}
+
+model MonsterAttribute {
+  monsterId   Int
+  attributeId Int
+  value       Int @default(0)
+
+  monster   Monster   @relation(fields: [monsterId], references: [id], onDelete: Cascade)
+  attribute Attribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+
+  @@id([monsterId, attributeId])
 }

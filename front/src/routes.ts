@@ -27,6 +27,10 @@ const routes = {
       listPath: () => [BASE_API_PATH, 'locations'].join('/'),
       mePath: () => [BASE_API_PATH, 'locations', 'me'].join('/'),
     },
+    monsters: {
+      listPath: () => [BASE_API_PATH, 'monsters'].join('/'),
+      byIdPath: (id: number) => [BASE_API_PATH, 'monsters', String(id)].join('/'),
+    },
     shop: {
       itemsPath: () => [BASE_API_PATH, 'shop', 'items'].join('/'),
       buyPath: () => [BASE_API_PATH, 'shop', 'buy'].join('/'),
