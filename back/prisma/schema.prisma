@@ -238,3 +238,28 @@ model UsersLocation {
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   location Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
 }
+
+enum MonsterRarity {
+  COMMON
+  UNCOMMON
+  RARE
+  ELITE
+  BOSS
+}
+
+model Monster {
+  id           Int          @id @default(autoincrement())
+  name         String       @unique
+  description  String?
+  rarity       MonsterRarity @default(COMMON)
+  level        Int          @default(1)
+  health       Int          @default(10)
+  attack       Int          @default(5)
+  defense      Int          @default(2)
+  rewardGold   Int          @default(0)
+  rewardExperience Int      @default(0)
+  icon         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+}
