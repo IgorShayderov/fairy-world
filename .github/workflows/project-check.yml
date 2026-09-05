@@ -14,14 +14,8 @@ jobs:
       - name: installation
         run: cd ./front && rm -f package-lock.json && npm i && cd ../back && npm i
 
-      - name: lint-front
-        run: cd ./front && npm run lint
-
-      - name: lint-back
-        run: cd ./back && npm run lint
-
-      - name: test-back
-        run: cd ./back && npm run test
+      - name: lint
+        run: make lint
 
       - name: test
-        run: cd ./front && npm run test
+        run: make test

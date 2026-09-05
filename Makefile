@@ -1,10 +1,10 @@
-front-dev:
+dev-front:
 	cd ./front && npm run dev
 
-back-dev:
+dev-back:
 	cd ./back && npm run start:dev
 
-front-install:
+install-back:
 	cd ./front && npm i
 
 install:
@@ -20,7 +20,15 @@ lint-back:
 test-back:
 	cd ./back && npm run test
 
+test-front:
+	cd ./front && npm run test
+
+lint:
+	cd ./front && npm run lint
+	cd ./back && npm run lint
+
 test:
+	cd ./back && npm run test
 	cd ./front && npm run test
 
 .PHONY: dev lint test install
