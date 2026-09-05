@@ -11,6 +11,7 @@ import { ChatModule } from './chat/chat.module';
 import { ShopModule } from './shop/shop.module';
 import { PasswordsModule } from './passwords/passwords.module';
 import { LocationsModule } from './locations/locations.module';
+import { MonstersModule } from './monsters/monsters.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { LocationsModule } from './locations/locations.module';
     ShopModule,
     PasswordsModule,
     LocationsModule,
+    MonstersModule,
     MailerModule.forRoot({
       transport: {
         host: process.env.SMTP_HOST,

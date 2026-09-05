@@ -232,6 +232,155 @@ async function main() {
     console.log(`Создан предмет: ${item.name} (${item.rarity})`);
   }
 
+  const monstersData = [
+    {
+      name: 'Goblin',
+      description: 'Маленький, но назойливый зеленый существ.',
+      level: 1,
+      rewardGold: 5,
+      rewardExperience: 10,
+      attributes: {
+        create: [
+          { attribute: { connect: { name: AttributeType.STRENGTH } }, value: 1 },
+          { attribute: { connect: { name: AttributeType.AGILITY } }, value: 1 },
+        ],
+      },
+    },
+    {
+      name: 'Forest Wolf',
+      description: 'Быстрая и опасная стая хищников.',
+      level: 2,
+      rewardGold: 8,
+      rewardExperience: 15,
+      attributes: {
+        create: [
+          { attribute: { connect: { name: AttributeType.AGILITY } }, value: 1 },
+          { attribute: { connect: { name: AttributeType.ENDURANCE } }, value: 1 },
+        ],
+      },
+    },
+    {
+      name: 'Skeleton',
+      description: 'Передвижные останки, одетые в доспехи.',
+      level: 3,
+      rewardGold: 12,
+      rewardExperience: 20,
+      attributes: {
+        create: [
+          { attribute: { connect: { name: AttributeType.STRENGTH } }, value: 1 },
+          { attribute: { connect: { name: AttributeType.ENDURANCE } }, value: 1 },
+        ],
+      },
+    },
+    {
+      name: 'Bandit',
+      description: 'Разбойник, охотящийся на путника.',
+      level: 4,
+      rewardGold: 18,
+      rewardExperience: 30,
+      attributes: {
+        create: [
+          { attribute: { connect: { name: AttributeType.STRENGTH } }, value: 1 },
+          { attribute: { connect: { name: AttributeType.AGILITY } }, value: 1 },
+        ],
+      },
+    },
+    {
+      name: 'Vampire Bat',
+      description: 'Кровососущее летающее существо.',
+      level: 5,
+      rewardGold: 25,
+      rewardExperience: 35,
+      attributes: {
+        create: [{ attribute: { connect: { name: AttributeType.AGILITY } }, value: 1 }],
+      },
+    },
+    {
+      name: 'Ancient Spider',
+      description: 'Огромный паук с ядовитой чешуей.',
+      level: 6,
+      rewardGold: 35,
+      rewardExperience: 50,
+      attributes: {
+        create: [
+          { attribute: { connect: { name: AttributeType.AGILITY } }, value: 1 },
+          { attribute: { connect: { name: AttributeType.ENDURANCE } }, value: 1 },
+        ],
+      },
+    },
+    {
+      name: 'Orc Warrior',
+      description: 'Сила и свирепость в доспехах.',
+      level: 8,
+      rewardGold: 50,
+      rewardExperience: 70,
+      attributes: {
+        create: [
+          { attribute: { connect: { name: AttributeType.STRENGTH } }, value: 1 },
+          { attribute: { connect: { name: AttributeType.ENDURANCE } }, value: 1 },
+        ],
+      },
+    },
+    {
+      name: 'Dark Mage',
+      description: 'Колдунья, полный темной магии.',
+      level: 9,
+      rewardGold: 60,
+      rewardExperience: 85,
+      attributes: {
+        create: [
+          { attribute: { connect: { name: AttributeType.WISDOM } }, value: 1 },
+          { attribute: { connect: { name: AttributeType.ENDURANCE } }, value: 1 },
+        ],
+      },
+    },
+    {
+      name: 'Stone Golem',
+      description: 'Живой каменный страж.',
+      level: 12,
+      rewardGold: 120,
+      rewardExperience: 150,
+      attributes: {
+        create: [
+          { attribute: { connect: { name: AttributeType.STRENGTH } }, value: 1 },
+          { attribute: { connect: { name: AttributeType.AGILITY } }, value: 1 },
+          { attribute: { connect: { name: AttributeType.ENDURANCE } }, value: 1 },
+          { attribute: { connect: { name: AttributeType.WISDOM } }, value: 1 },
+          { attribute: { connect: { name: AttributeType.CHARISMA } }, value: 1 },
+        ],
+      },
+    },
+    {
+      name: 'Ancient Dragon',
+      description: 'Древний дракон, хранитель сокровищ.',
+      level: 20,
+      rewardGold: 500,
+      rewardExperience: 500,
+      attributes: {
+        create: [
+          { attribute: { connect: { name: AttributeType.STRENGTH } }, value: 5 },
+          { attribute: { connect: { name: AttributeType.ENDURANCE } }, value: 5 },
+          { attribute: { connect: { name: AttributeType.WISDOM } }, value: 4 },
+          { attribute: { connect: { name: AttributeType.CHARISMA } }, value: 4 },
+        ],
+      },
+    },
+  ];
+
+  for (const monsterData of monstersData) {
+    const existing = await prisma.monster.findUnique({ where: { name: monsterData.name } });
+    if (existing) {
+      await prisma.monster.update({
+        where: { name: monsterData.name },
+        data: { ...monsterData, attributes: { deleteMany: {}, create: monsterData.attributes.create } },
+      });
+      console.log(`Обновлён монстр: ${monsterData.name} (level ${monsterData.level})`);
+    } else {
+      const monster = await prisma.monster.create({ data: monsterData });
+      console.log(`Создан монстр: ${monster.name} (level ${monster.level})`);
+    }
+  }
+
   console.log('Сиды успешно выполнены');
 }
 
