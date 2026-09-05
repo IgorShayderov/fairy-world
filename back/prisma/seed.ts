@@ -358,18 +358,27 @@ async function main() {
       rewardExperience: 500,
       attributes: {
         create: [
-          { attribute: { connect: { name: AttributeType.STRENGTH } }, value: 1 },
-          { attribute: { connect: { name: AttributeType.ENDURANCE } }, value: 1 },
-          { attribute: { connect: { name: AttributeType.WISDOM } }, value: 1 },
-          { attribute: { connect: { name: AttributeType.CHARISMA } }, value: 1 },
+          { attribute: { connect: { name: AttributeType.STRENGTH } }, value: 5 },
+          { attribute: { connect: { name: AttributeType.ENDURANCE } }, value: 5 },
+          { attribute: { connect: { name: AttributeType.WISDOM } }, value: 4 },
+          { attribute: { connect: { name: AttributeType.CHARISMA } }, value: 4 },
         ],
       },
     },
   ];
 
   for (const monsterData of monstersData) {
-    const monster = await prisma.monster.create({ data: monsterData });
-    console.log(`Создан монстр: ${monster.name} (level ${monster.level})`);
+    const existing = await prisma.monster.findUnique({ where: { name: monsterData.name } });
+    if (existing) {
+      await prisma.monster.update({
+        where: { name: monsterData.name },
+        data: { ...monsterData, attributes: { deleteMany: {}, create: monsterData.attributes.create } },
+      });
+      console.log(`Обновлён монстр: ${monsterData.name} (level ${monsterData.level})`);
+    } else {
+      const monster = await prisma.monster.create({ data: monsterData });
+      console.log(`Создан монстр: ${monster.name} (level ${monster.level})`);
+    }
   }
 
   console.log('Сиды успешно выполнены');

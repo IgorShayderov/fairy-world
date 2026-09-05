@@ -247,7 +247,6 @@ model Monster {
   level           Int    @default(1)
   rewardGold      Int    @default(0)
   rewardExperience Int   @default(0)
-  icon            String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
