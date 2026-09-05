@@ -49,6 +49,11 @@ enum Gender {
   FEMALE
 }
 
+enum UserRole {
+  USER
+  ADMIN
+}
+
 model User {
   id                   Int            @id @default(autoincrement())
   email                String         @unique
@@ -58,6 +63,7 @@ model User {
   country              String?
   city                 String?
   language             String?
+  role                 UserRole       @default(USER)
   hashedRefreshToken   String?
   messages             Message[]
   resetPasswordToken   String?
