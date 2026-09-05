@@ -6,11 +6,11 @@ const PASSWORD_MIN_LENGTH = parseInt(process.env.PASSWORD_MIN_LENGTH ?? '15', 10
 const PASSWORD_MAX_LENGTH = parseInt(process.env.PASSWORD_MAX_LENGTH ?? '30', 10);
 
 export class RegisterDto {
-  @ApiProperty({ description: 'Email пользователя', example: 'user@example.com' })
+  @ApiProperty({ description: 'User email', example: 'user@example.com' })
   @IsEmail({}, { message: 'email must be an email' })
   email!: string;
 
-  @ApiProperty({ description: 'Пароль пользователя', example: 'Qwerty12345!Aa' })
+  @ApiProperty({ description: 'User password', example: 'Qwerty12345!Aa' })
   @IsString({ message: 'password must be a string' })
   @MinLength(PASSWORD_MIN_LENGTH, { message: `password must be at least ${PASSWORD_MIN_LENGTH} characters` })
   @MaxLength(PASSWORD_MAX_LENGTH, { message: `password must be at most ${PASSWORD_MAX_LENGTH} characters` })
