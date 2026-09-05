@@ -1,9 +1,9 @@
 import { Body, Controller, HttpCode, HttpStatus, Post, Request, Res, UseGuards } from '@nestjs/common';
 import { ApiBody, ApiCookieAuth, ApiOkResponse, ApiUnauthorizedResponse, ApiTags } from '@nestjs/swagger';
-
 import { AuthService } from './auth.service';
 import { RefreshGuard } from './auth.guard';
 import { LoginDto } from './dto/login.dto';
+import { RegisterDto } from './dto/register.dto';
 import { Response } from 'express';
 
 import type { RequestWithUser } from './interfaces/request-with-user.interface';
@@ -30,6 +30,35 @@ export class AuthController {
     const { access_token, expiresIn, refresh_token } = await this.authService.signIn(
       signInDto.email,
       signInDto.password,
+    );
+
+    res.cookie('refresh_token', refresh_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: parseInt(process.env.REFRESH_COOKIE_LIFETIME ?? '604800', 10),
+    });
+
+    return { access_token, expiresIn };
+  }
+
+  @Post('register')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiBody({ type: RegisterDto })
+  @ApiOkResponse({
+    description: 'Successfully registered',
+    schema: {
+      example: {
+        access_token: 'eyJhbG...VCJ9...',
+        expiresIn: 60,
+      },
+    },
+  })
+  @ApiUnauthorizedResponse({ description: 'Registration failed - validation or conflict' })
+  async register(@Body() registerDto: RegisterDto, @Res({ passthrough: true }) res: Response) {
+    const { access_token, expiresIn, refresh_token } = await this.authService.register(
+      registerDto.email,
+      registerDto.password,
     );
 
     res.cookie('refresh_token', refresh_token, {

@@ -1,5 +1,4 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma.service';
 import * as bcrypt from 'bcrypt';
@@ -39,6 +38,7 @@ export class AuthService {
     }
 
     const isRefreshTokenValid = await bcrypt.compare(oldRefreshToken, user.hashedRefreshToken);
+
     if (!isRefreshTokenValid) {
       throw new UnauthorizedException('Access Denied');
     }
@@ -76,5 +76,26 @@ export class AuthService {
 
   async logout(userId: number) {
     await this.usersService.update(userId, { hashedRefreshToken: null });
+  }
+
+  async register(email: string, password: string): Promise<TokenResult> {
+    const existingUser = await this.usersService.findBy({ email });
+
+    if (existingUser) {
+      throw new UnauthorizedException('User with this email already exists');
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const user = await this.prisma.user.create({
+      data: {
+        email,
+        password: hashedPassword,
+        name: email.split('@')[0], // derive name from email
+        role: 'USER',
+      },
+    });
+
+    return this.generateTokens(user);
   }
 }
