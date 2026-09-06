@@ -5,7 +5,7 @@ dev-back:
 	cd ./back && npm run start:dev
 
 install-back:
-	cd ./front && npm i
+	cd ./back && npm i
 
 install:
 	cd ./front && rm -f package-lock.json && npm i
@@ -31,4 +31,8 @@ test:
 	cd ./back && npm run test
 	cd ./front && npm run test
 
-.PHONY: dev lint test install
+tsc-check:
+	cd ./front && npx tsc --noEmit
+	cd ./back && npx tsc --noEmit
+
+.PHONY: dev lint test install tsc-check
