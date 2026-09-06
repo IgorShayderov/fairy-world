@@ -64,8 +64,8 @@ export const useInventoryStore = defineStore('inventory', () => {
 
   // 1. Обмен предметов внутри инвентаря
   const swapInventoryItems = (index1: number, index2: number) => {
-    const temp = inventory.value[index1];
-    inventory.value[index1] = inventory.value[index2];
+    const temp = inventory.value[index1] ?? null;
+    inventory.value[index1] = inventory.value[index2] ?? null;
     inventory.value[index2] = temp;
   };
 
@@ -74,11 +74,10 @@ export const useInventoryStore = defineStore('inventory', () => {
     const slot = equipmentSlots.value.find((s) => s.id === slotId);
     if (!slot) return;
 
-    const itemFromInventory = inventory.value[inventoryIndex];
+    const itemFromInventory = inventory.value[inventoryIndex] ?? null;
     const itemFromEquipment = slot.item;
 
     slot.item = itemFromInventory;
-    slot.equipped = !!itemFromInventory;
     inventory.value[inventoryIndex] = itemFromEquipment;
   };
 
@@ -90,10 +89,8 @@ export const useInventoryStore = defineStore('inventory', () => {
     if (sourceSlot && targetSlot) {
       const temp = sourceSlot.item;
       sourceSlot.item = targetSlot.item;
-      sourceSlot.equipped = !!targetSlot.item;
 
       targetSlot.item = temp;
-      targetSlot.equipped = !!temp;
     }
   };
 
@@ -104,17 +101,15 @@ export const useInventoryStore = defineStore('inventory', () => {
 
     if (targetInventoryIndex !== undefined && targetInventoryIndex !== null) {
       // Кладём в конкретный слот инвентаря (и надеваем то, что там лежало, если оно там было)
-      const itemInInventory = inventory.value[targetInventoryIndex];
+      const itemInInventory = inventory.value[targetInventoryIndex] ?? null;
       inventory.value[targetInventoryIndex] = slot.item;
       slot.item = itemInInventory;
-      slot.equipped = !!itemInInventory;
     } else {
       // Ищем первое пустое место (для клика по крестику)
       const emptyIndex = inventory.value.findIndex((item) => item === null);
       if (emptyIndex !== -1) {
         inventory.value[emptyIndex] = slot.item;
         slot.item = null;
-        slot.equipped = false;
       } else {
         console.warn('Инвентарь полон! Нет места для снятия предмета.');
       }

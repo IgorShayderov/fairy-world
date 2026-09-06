@@ -145,7 +145,7 @@ api.interceptors.response.use(
         })
           .then(() => {
             // ВАЖНО: передаем options с флагом, чтобы запросы из очереди тоже не зациклились
-            return makeRequest(config.url, { ...options, _retry: true });
+            return makeRequest(config.url, { ...options, _retry: true } as RequestInit);
           })
           .catch((queueError: unknown) => {
             // Оборачиваем ошибку очереди для линтера (Строка ~171)

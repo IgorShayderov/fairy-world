@@ -138,7 +138,7 @@ export class ShopService {
 
   getInventory(userId: number) {
     return this.prisma.inventoryItem.findMany({
-      where: { userId },
+      where: { gameProfile: { userId } },
       include: { item: true },
     });
   }
