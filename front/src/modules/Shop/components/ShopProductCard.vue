@@ -7,8 +7,9 @@
         <InventoryItem
           :item="{
             name: item.name,
+            nameKey: item.name,
             icon: item.icon,
-            rarity: t('profile.rarity.common'),
+            rarity: t(`profile.rarity.${item.rarity.toLowerCase()}`),
             equipmentType: item.equipmentType,
           }"
           :slot-id="''"

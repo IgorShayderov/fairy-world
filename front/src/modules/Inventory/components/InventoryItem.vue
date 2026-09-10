@@ -19,7 +19,7 @@
     <template v-if="item">
       <div class="flex h-full w-full flex-col items-center justify-center text-xs">
         <QIcon :name="itemIcon" size="32px" class="mb-1 text-gray-700" />
-        <span class="w-full truncate text-center font-medium text-gray-800">{{ item.name }}</span>
+        <span class="w-full truncate text-center font-medium text-gray-800">{{ item.name ?? item.nameKey }}</span>
         <span v-if="item.rarity" class="mt-0.5 text-[10px] tracking-wide uppercase" :class="rarityClass">
           {{ item.rarity }}
         </span>
@@ -104,7 +104,7 @@ const rarityClass = computed(() => {
 
 const onDragStart = (e: DragEvent) => {
   if (!props.item) return;
-  e.dataTransfer?.setData('text/plain', props.item.name);
+  e.dataTransfer?.setData('text/plain', props.item.name ?? props.item.nameKey);
   if (e.dataTransfer) {
     e.dataTransfer.effectAllowed = 'move';
   }

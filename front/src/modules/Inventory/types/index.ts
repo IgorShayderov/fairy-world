@@ -15,8 +15,10 @@ export type EquipmentType =
 
 export interface InventoryItemType {
   nameKey: string;
+  name?: string;
   icon: string;
-  rarity?: ItemRarity;
+  rarity?: string;
+  equipmentType?: EquipmentType[];
   equipmentTypes?: EquipmentType[];
 }
 

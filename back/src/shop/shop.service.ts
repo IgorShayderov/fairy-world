@@ -17,24 +17,55 @@ export class ShopService {
   }
 
   async buy(userId: number, dto: BuyDto) {
-    if (dto.quantity <= 0) throw new BadRequestException('Quantity must be greater than 0');
+    if (dto.quantity <= 0) {
+      throw new BadRequestException('Quantity must be greater than 0');
+    }
 
     const profile = await this.prisma.gameProfile.findUnique({
       where: { userId },
     });
-    if (!profile) throw new NotFoundException('Game profile not found');
 
-    const item = await this.prisma.item.findUnique({ where: { id: dto.itemId } });
-    if (!item) throw new NotFoundException('Item not found');
+    if (!profile) {
+      throw new NotFoundException('Game profile not found');
+    }
+
+    const item = await this.prisma.item.findUnique({
+      where: { id: dto.itemId },
+    });
+
+    if (!item) {
+      throw new NotFoundException('Item not found');
+    }
+
+    if (item.quantity < dto.quantity) {
+      throw new BadRequestException('Not enough items in stock');
+    }
 
     const totalCost = item.price * dto.quantity;
-    if (profile.gold < totalCost) throw new BadRequestException('Not enough gold');
+
+    if (profile.gold < totalCost) {
+      throw new BadRequestException('Not enough gold');
+    }
 
     await this.prisma.$transaction([
       this.prisma.gameProfile.update({
         where: { id: profile.id },
-        data: { gold: { decrement: totalCost } },
+        data: {
+          gold: {
+            decrement: totalCost,
+          },
+        },
       }),
+
+      this.prisma.item.update({
+        where: { id: item.id },
+        data: {
+          quantity: {
+            decrement: dto.quantity,
+          },
+        },
+      }),
+
       this.prisma.inventoryItem.upsert({
         where: {
           gameProfileId_itemId: {
@@ -43,7 +74,9 @@ export class ShopService {
           },
         },
         update: {
-          quantity: { increment: dto.quantity },
+          quantity: {
+            increment: dto.quantity,
+          },
         },
         create: {
           gameProfileId: profile.id,
@@ -55,37 +88,12 @@ export class ShopService {
       }),
     ]);
 
-    await this.prisma.$transaction([
-      // Списываем золото у профиля
-      this.prisma.gameProfile.update({
-        where: { id: profile.id },
-        data: { gold: { decrement: totalCost } },
-      }),
-      // Добавляем предмет в инвентарь профиля
-      this.prisma.inventoryItem.upsert({
-        where: {
-          // Prisma автоматически генерирует этот составной ключ из @@unique([gameProfileId, itemId])
-          gameProfileId_itemId: {
-            gameProfileId: profile.id,
-            itemId: item.id,
-          },
-        },
-        update: {
-          quantity: { increment: dto.quantity },
-        },
-        create: {
-          gameProfileId: profile.id,
-          itemId: item.id,
-          quantity: dto.quantity,
-          // FIXME: Для слота лучше сделать отдельный запрос перед транзакцией,
-          // чтобы найти максимальный slot у текущего профиля и прибавить 1.
-          slot: 0,
-          isEquiped: false,
-        },
-      }),
-    ]);
-
-    return { success: true, item: item.name, quantity: dto.quantity, totalCost };
+    return {
+      success: true,
+      item: item.name,
+      quantity: dto.quantity,
+      totalCost,
+    };
   }
 
   async sell(userId: number, dto: { name: string; quantity: number }) {
