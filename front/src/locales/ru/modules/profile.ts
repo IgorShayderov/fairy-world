@@ -4,6 +4,8 @@ export default {
     equipment: 'Экипировка',
     characteristics: 'Характеристики',
     statistics: 'Статистика',
+    freeAttributes: 'Свободные очки',
+    fromItems: 'от предметов',
     summary: {
       level: 'Уровень',
       experience: 'Опыт',
@@ -20,6 +22,13 @@ export default {
       ENDURANCE: 'Выносливость',
       WISDOM: 'Мудрость',
       CHARISMA: 'Харизма',
+    },
+    attributeDescriptions: {
+      STRENGTH: 'Каждое очко увеличивает урон на 1.',
+      AGILITY: 'Каждое очко увеличивает уклонение и шанс критического удара на 0,5.',
+      ENDURANCE: 'Каждое очко увеличивает здоровье на 10 и защиту на 1.',
+      WISDOM: 'Каждое очко увеличивает ману на 5.',
+      CHARISMA: 'Каждое очко увеличивает критический урон на 1.',
     },
     propertyNames: {
       HEALTH: 'Здоровье',

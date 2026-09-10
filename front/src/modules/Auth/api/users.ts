@@ -10,6 +10,7 @@ export type CurrentUser = {
   gold: number;
   experience: number;
   level: number;
+  freeAttributes: number;
   inventory: InventoryEntry[];
   equippedItems: InventoryEntry[];
   attributes: EffectiveModifier[];

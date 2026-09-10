@@ -10,6 +10,7 @@ import {
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import * as bcrypt from 'bcrypt';
+import { STARTING_ATTRIBUTE_VALUE, STARTING_PROPERTIES } from '../src/users/player-defaults';
 
 const connectionString = process.env.DATABASE_URL;
 const pool = new Pool({ connectionString });
@@ -102,6 +103,37 @@ async function main() {
     });
 
     console.log(`Создан стат: ${stat.name}`);
+  }
+
+  const [gameProfiles, attributes, stats] = await Promise.all([
+    prisma.gameProfile.findMany({ select: { id: true } }),
+    prisma.attribute.findMany({ select: { id: true, name: true } }),
+    prisma.stat.findMany({ select: { id: true, name: true } }),
+  ]);
+
+  for (const profile of gameProfiles) {
+    for (const attribute of attributes) {
+      await prisma.profileAttribute.upsert({
+        where: { gameProfileId_attributeId: { gameProfileId: profile.id, attributeId: attribute.id } },
+        update: {},
+        create: {
+          gameProfileId: profile.id,
+          attributeId: attribute.id,
+          value: STARTING_ATTRIBUTE_VALUE,
+        },
+      });
+    }
+    for (const stat of stats) {
+      await prisma.profileStat.upsert({
+        where: { gameProfileId_statId: { gameProfileId: profile.id, statId: stat.id } },
+        update: {},
+        create: {
+          gameProfileId: profile.id,
+          statId: stat.id,
+          value: STARTING_PROPERTIES[stat.name],
+        },
+      });
+    }
   }
 
   const channelsNames = ['General', 'Market'];

@@ -3,6 +3,7 @@ import { UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma.service';
 import * as bcrypt from 'bcrypt';
+import type { Prisma } from '../../generated/client';
 
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
@@ -30,11 +31,11 @@ describe('AuthService', () => {
 
   const mockPrismaService: {
     user: {
-      create: jest.Mock;
+      create: jest.Mock<Promise<{ id: number; email: string }>, [Prisma.UserCreateArgs]>;
     };
   } = {
     user: {
-      create: jest.fn(),
+      create: jest.fn<Promise<{ id: number; email: string }>, [Prisma.UserCreateArgs]>(),
     },
   };
 
@@ -119,6 +120,32 @@ describe('AuthService', () => {
       mockUsersService.findBy.mockResolvedValue(undefined);
 
       await expect(service.signIn('notfound@mail.ru', 'anypassword')).rejects.toThrow(UnauthorizedException);
+    });
+  });
+
+  describe('register', () => {
+    it('creates a game profile with starting attributes and properties', async () => {
+      mockUsersService.findBy.mockResolvedValue(null);
+      (bcrypt.hash as jest.Mock).mockResolvedValueOnce('hashed_password').mockResolvedValueOnce('hashed_refresh');
+      mockPrismaService.user.create.mockResolvedValue({ id: 3, email: 'new@example.com' });
+      mockJwtService.signAsync.mockResolvedValueOnce('access_token').mockResolvedValueOnce('refresh_token');
+
+      await service.register('new@example.com', 'Qwerty123!');
+
+      const createData = mockPrismaService.user.create.mock.calls[0][0].data;
+      const profile = 'create' in createData.gameProfile! ? createData.gameProfile.create : undefined;
+      expect(profile?.freeAttributes).toBe(0);
+      expect(profile?.profileAttributes?.create).toHaveLength(5);
+      expect(profile?.profileAttributes?.create).toEqual(
+        expect.arrayContaining([expect.objectContaining({ value: 5, attribute: { connect: { name: 'STRENGTH' } } })]),
+      );
+      expect(profile?.profileStats?.create).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ value: 50, stat: { connect: { name: 'HEALTH' } } }),
+          expect.objectContaining({ value: 10, stat: { connect: { name: 'MANA' } } }),
+          expect.objectContaining({ value: 1, stat: { connect: { name: 'DAMAGE' } } }),
+        ]),
+      );
     });
   });
 

@@ -80,9 +80,10 @@ model GameProfile {
   userId Int  @unique
   user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  gold       Int @default(0)
-  experience Int @default(0)
-  level      Int @default(1)
+  gold           Int @default(0)
+  experience     Int @default(0)
+  level          Int @default(1)
+  freeAttributes Int @default(0)
 
   inventory         InventoryItem[]
   profileAttributes ProfileAttribute[]

@@ -10,6 +10,7 @@
         :player-level="currentUserStore.user?.level ?? 1"
         :player-experience="currentUserStore.user?.experience ?? 0"
         :player-gold="currentUserStore.user?.gold ?? 0"
+        :player-free-attributes="currentUserStore.user?.freeAttributes ?? 0"
         @slot-enter="(id) => (isHoveredSlot = id)"
         @slot-leave="isHoveredSlot = null"
         @slot-drop="onSlotDrop"
@@ -26,6 +27,7 @@
         @drag-start="onInventoryDragStart"
         @drag-end="onDragEnd"
         @inventory-drop="onInventoryDrop"
+        @item-double-click="equipFromInventory"
       />
     </div>
   </div>
@@ -40,6 +42,7 @@ import type { EquipmentSlotId, InventoryItemType } from '@/modules/Inventory/typ
 import { usersApi } from '@/modules/Auth/api/users';
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 import { useInventoryStore } from '@/modules/Inventory/store/inventory';
+import { getCompatibleEquipmentSlots } from '@/modules/Inventory/utils/equipment';
 
 import EquipmentSection from '@modules/Inventory/components/EquipmentSection.vue';
 import InventorySection from '@modules/Inventory/components/InventorySection.vue';
@@ -118,6 +121,20 @@ const onSlotDrop = async (slotId: EquipmentSlotId) => {
 
 const unequip = async (slotId: EquipmentSlotId) => {
   await usersApi.unequipItem(slotId);
+  await refreshInventory();
+};
+
+const equipFromInventory = async (inventoryIndex: number) => {
+  const item = inventory.value[inventoryIndex];
+  if (!item?.inventoryItemId) return;
+
+  const compatibleSlots = getCompatibleEquipmentSlots(item);
+  const targetSlot =
+    compatibleSlots.find((slotId) => !equipmentSlots.value.find((slot) => slot.id === slotId)?.item) ??
+    compatibleSlots[0];
+  if (!targetSlot) return;
+
+  await usersApi.equipItem(item.inventoryItemId, targetSlot);
   await refreshInventory();
 };
 </script>

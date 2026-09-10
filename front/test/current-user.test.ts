@@ -21,6 +21,7 @@ describe('current user loading', () => {
       gold: 100,
       experience: 20,
       level: 2,
+      freeAttributes: 0,
       inventory: [],
       equippedItems: [],
       attributes: [],

@@ -5,6 +5,8 @@ import * as bcrypt from 'bcrypt';
 
 import type { TokenResult } from './interfaces/token-payload.interface';
 import { UsersService } from '../users/users.service';
+import { AttributeType, StatType } from '../../generated/client';
+import { STARTING_ATTRIBUTE_VALUE, STARTING_FREE_ATTRIBUTES, STARTING_PROPERTIES } from '../users/player-defaults';
 
 @Injectable()
 export class AuthService {
@@ -93,6 +95,23 @@ export class AuthService {
         password: hashedPassword,
         name: email.split('@')[0], // derive name from email
         role: 'USER',
+        gameProfile: {
+          create: {
+            freeAttributes: STARTING_FREE_ATTRIBUTES,
+            profileAttributes: {
+              create: Object.values(AttributeType).map((name) => ({
+                value: STARTING_ATTRIBUTE_VALUE,
+                attribute: { connect: { name } },
+              })),
+            },
+            profileStats: {
+              create: Object.values(StatType).map((name) => ({
+                value: STARTING_PROPERTIES[name],
+                stat: { connect: { name } },
+              })),
+            },
+          },
+        },
       },
     });
 

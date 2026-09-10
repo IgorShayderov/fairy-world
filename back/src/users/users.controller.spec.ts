@@ -45,7 +45,7 @@ describe('UsersController', () => {
       const result = await controller.getCurrentUser(req as never);
 
       expect(mockUsersService.findCurrentUser).toHaveBeenCalledWith(7);
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         id: 7,
         name: 'Player',
         email: 'me@example.com',
@@ -54,25 +54,19 @@ describe('UsersController', () => {
         gold: 100,
         experience: 5,
         level: 2,
+        freeAttributes: 0,
         inventory: [],
         equippedItems: [],
-        attributes: [
-          { name: 'STRENGTH', description: null, baseValue: 0, equipmentBonus: 0, value: 0 },
-          { name: 'AGILITY', description: null, baseValue: 0, equipmentBonus: 0, value: 0 },
-          { name: 'ENDURANCE', description: null, baseValue: 0, equipmentBonus: 0, value: 0 },
-          { name: 'WISDOM', description: null, baseValue: 0, equipmentBonus: 0, value: 0 },
-          { name: 'CHARISMA', description: null, baseValue: 0, equipmentBonus: 0, value: 0 },
-        ],
-        properties: [
-          { name: 'HEALTH', description: null, baseValue: 0, equipmentBonus: 0, value: 0 },
-          { name: 'MANA', description: null, baseValue: 0, equipmentBonus: 0, value: 0 },
-          { name: 'DAMAGE', description: null, baseValue: 0, equipmentBonus: 0, value: 0 },
-          { name: 'DEFENSE', description: null, baseValue: 0, equipmentBonus: 0, value: 0 },
-          { name: 'CRIT', description: null, baseValue: 0, equipmentBonus: 0, value: 0 },
-          { name: 'DODGE', description: null, baseValue: 0, equipmentBonus: 0, value: 0 },
-          { name: 'CRIT_DAMAGE', description: null, baseValue: 0, equipmentBonus: 0, value: 0 },
-        ],
       });
+      expect(result.attributes).toHaveLength(5);
+      expect(result.attributes.every(({ baseValue, value }) => baseValue === 5 && value === 5)).toBe(true);
+      expect(result.properties).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'HEALTH', baseValue: 50, attributeBonus: 50, value: 100 }),
+          expect.objectContaining({ name: 'MANA', baseValue: 10, attributeBonus: 25, value: 35 }),
+          expect.objectContaining({ name: 'DAMAGE', baseValue: 1, attributeBonus: 5, value: 6 }),
+        ]),
+      );
     });
   });
 });

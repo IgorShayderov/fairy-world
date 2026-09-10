@@ -15,6 +15,7 @@
     @dragover="onDragOver"
     @dragleave="onDragLeave"
     @drop="onDrop"
+    @dblclick="onDoubleClick"
   >
     <template v-if="item">
       <div class="flex h-full w-full flex-col items-center justify-center text-xs">
@@ -95,6 +96,7 @@ const emit = defineEmits<{
   (e: 'drag-over', slotId: string): void;
   (e: 'drag-leave'): void;
   (e: 'drag-end'): void;
+  (e: 'double-click', item: InventoryItemType): void;
 }>();
 
 const itemIcon = computed(() => {
@@ -138,6 +140,10 @@ const onDragStart = (e: DragEvent) => {
 
 const onDragEnd = () => {
   emit('drag-end');
+};
+
+const onDoubleClick = () => {
+  if (props.item) emit('double-click', props.item);
 };
 
 const onDragOver = (e: DragEvent) => {

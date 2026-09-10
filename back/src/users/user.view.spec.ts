@@ -55,6 +55,7 @@ describe('UserView.renderCurrent', () => {
         gold: 100,
         experience: 20,
         level: 3,
+        freeAttributes: 0,
         profileAttributes: [
           {
             gameProfileId: 7,
@@ -140,7 +141,7 @@ describe('UserView.renderCurrent', () => {
     expect(result.attributes).toHaveLength(5);
     expect(result.attributes).toContainEqual({
       name: 'STRENGTH',
-      description: 'Physical power',
+      description: 'Increases Damage by 1 per point.',
       baseValue: 2,
       equipmentBonus: 1,
       value: 3,
@@ -150,8 +151,9 @@ describe('UserView.renderCurrent', () => {
       name: 'DEFENSE',
       description: 'Damage reduction',
       baseValue: 5,
+      attributeBonus: 5,
       equipmentBonus: 3,
-      value: 8,
+      value: 13,
     });
   });
 });

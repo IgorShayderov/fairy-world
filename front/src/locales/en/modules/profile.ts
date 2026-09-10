@@ -3,6 +3,8 @@ export default {
   equipment: 'Equipment',
   characteristics: 'Attributes',
   statistics: 'Statistics',
+  freeAttributes: 'Free points',
+  fromItems: 'from items',
   summary: {
     level: 'Level',
     experience: 'Experience',
@@ -19,6 +21,13 @@ export default {
     ENDURANCE: 'Endurance',
     WISDOM: 'Wisdom',
     CHARISMA: 'Charisma',
+  },
+  attributeDescriptions: {
+    STRENGTH: 'Each point increases Damage by 1.',
+    AGILITY: 'Each point increases Dodge and Critical chance by 0.5.',
+    ENDURANCE: 'Each point increases Health by 10 and Defense by 1.',
+    WISDOM: 'Each point increases Mana by 5.',
+    CHARISMA: 'Each point increases Critical damage by 1.',
   },
   propertyNames: {
     HEALTH: 'Health',
