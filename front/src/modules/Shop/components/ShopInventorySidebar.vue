@@ -68,7 +68,7 @@ import { useTranslation } from 'i18next-vue';
 
 import type { InventoryEntry } from '@/modules/Shop/types';
 
-import InventoryItem from '@/components/InventoryItem.vue';
+import InventoryItem from '@/modules/Inventory/components/InventoryItem.vue';
 
 defineProps<{
   inventory: InventoryEntry[];

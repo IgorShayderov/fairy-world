@@ -39,7 +39,15 @@ export function useShopActions() {
   };
 
   const addToCart = (itemId: number) => {
-    cart.value[itemId] = (cart.value[itemId] || 0) + 1;
+    const item = shopItems.value.find((item) => item.id === itemId);
+
+    if (!item) return;
+
+    const currentQuantity = cart.value[itemId] || 0;
+
+    if (currentQuantity >= item.quantity) return;
+
+    cart.value[itemId] = currentQuantity + 1;
   };
 
   const removeFromCart = (itemId: number) => {

@@ -1,4 +1,12 @@
-import { PrismaClient, Gender, ItemRarity, EquipmentType, AttributeType, StatType } from '../generated/client';
+import {
+  PrismaClient,
+  Gender,
+  ItemRarity,
+  EquipmentType,
+  AttributeType,
+  StatType,
+  UserRole,
+} from '../generated/client';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import * as bcrypt from 'bcrypt';
@@ -12,6 +20,63 @@ const prisma = new PrismaClient({ adapter });
 async function main() {
   const adminEmail = 'admin@gmail.com';
   const hashedPassword = await bcrypt.hash('Qwerty123!', 10);
+
+  const adminUser = await prisma.user.upsert({
+    where: { email: adminEmail },
+    update: {},
+    create: {
+      email: adminEmail,
+      password: hashedPassword,
+      name: 'Admin_God',
+      gender: Gender.MALE,
+      country: 'Russia',
+      role: UserRole.ADMIN,
+      city: 'Moscow',
+      gameProfile: {
+        create: {
+          gold: 99999,
+          experience: 150000,
+          level: 100,
+        },
+      },
+    },
+    include: { gameProfile: true },
+  });
+
+  const usersData = [
+    {
+      email: 'alice@example.com',
+      password: hashedPassword,
+      name: 'Alice_Hero',
+      gender: Gender.FEMALE,
+      language: 'en',
+      gameProfile: {
+        create: {
+          gold: 1500,
+          experience: 2500,
+          level: 10,
+        },
+      },
+    },
+    {
+      email: 'newbie@example.com',
+      password: hashedPassword,
+      name: 'NoobMaster',
+      gameProfile: {
+        create: {},
+      },
+    },
+  ];
+
+  for (const u of usersData) {
+    const user = await prisma.user.upsert({
+      where: { email: u.email },
+      update: {},
+      create: u,
+    });
+
+    console.log(`Создан пользователь: ${user.name}`);
+  }
 
   for (const attributeType of Object.values(AttributeType)) {
     // TODO: добавить description
@@ -48,55 +113,6 @@ async function main() {
       create: { name: channelName },
     });
     console.log(`Создан канал: ${channel.name}`);
-  }
-
-  const usersData = [
-    {
-      email: adminEmail,
-      password: hashedPassword,
-      name: 'Admin_God',
-      gender: Gender.MALE,
-      country: 'Russia',
-      city: 'Moscow',
-      gameProfile: {
-        create: {
-          gold: 99999,
-          experience: 150000,
-          level: 100,
-        },
-      },
-    },
-    {
-      email: 'alice@example.com',
-      password: hashedPassword,
-      name: 'Alice_Hero',
-      gender: Gender.FEMALE,
-      language: 'en',
-      gameProfile: {
-        create: {
-          gold: 1500,
-          experience: 2500,
-          level: 10,
-        },
-      },
-    },
-    {
-      email: 'newbie@example.com',
-      password: hashedPassword,
-      name: 'NoobMaster',
-      gameProfile: {
-        create: {},
-      },
-    },
-  ];
-
-  for (const u of usersData) {
-    const user = await prisma.user.upsert({
-      where: { email: u.email },
-      update: {},
-      create: u,
-    });
-    console.log(`Создан пользователь: ${user.name}`);
   }
 
   const itemsData = [
@@ -208,7 +224,7 @@ async function main() {
       icon: 'icon_tp_scroll.png',
       rarity: ItemRarity.QUEST,
       equipmentType: [EquipmentType.SCROLL],
-      consumable: true,
+      isConsumable: true,
       // добавить эффект
     },
     {
@@ -368,16 +384,41 @@ async function main() {
   ];
 
   for (const monsterData of monstersData) {
-    const existing = await prisma.monster.findUnique({ where: { name: monsterData.name } });
-    if (existing) {
-      await prisma.monster.update({
-        where: { name: monsterData.name },
-        data: { ...monsterData, attributes: { deleteMany: {}, create: monsterData.attributes.create } },
+    const monster = await prisma.monster.create({ data: monsterData });
+    console.log(`Создан монстр: ${monster.name} (level ${monster.level})`);
+  }
+
+  // Добавление предметов пользователю
+  const sword = await prisma.item.findUnique({ where: { name: 'Wooden Sword' } });
+  const potion = await prisma.item.findUnique({ where: { name: 'Minor Health Potion' } });
+
+  if (adminUser?.gameProfile && sword && potion) {
+    const inventoryItems = [
+      { itemId: sword.id, quantity: 1, slot: 0, isEquiped: true },
+      { itemId: potion.id, quantity: 5, slot: 1, isEquiped: false },
+    ];
+
+    for (const invItem of inventoryItems) {
+      await prisma.inventoryItem.upsert({
+        where: {
+          gameProfileId_itemId: {
+            gameProfileId: adminUser.gameProfile.id,
+            itemId: invItem.itemId,
+          },
+        },
+        update: {
+          quantity: invItem.quantity,
+          slot: invItem.slot,
+          isEquiped: invItem.isEquiped,
+        },
+        create: {
+          gameProfileId: adminUser.gameProfile.id,
+          itemId: invItem.itemId,
+          quantity: invItem.quantity,
+          slot: invItem.slot,
+          isEquiped: invItem.isEquiped,
+        },
       });
-      console.log(`Обновлён монстр: ${monsterData.name} (level ${monsterData.level})`);
-    } else {
-      const monster = await prisma.monster.create({ data: monsterData });
-      console.log(`Создан монстр: ${monster.name} (level ${monster.level})`);
     }
   }
 

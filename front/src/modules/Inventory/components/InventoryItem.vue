@@ -18,7 +18,7 @@
   >
     <template v-if="item">
       <div class="flex h-full w-full flex-col items-center justify-center text-xs">
-        <QIcon :name="item.icon" size="32px" class="mb-1 text-gray-700" />
+        <QIcon :name="itemIcon" size="32px" class="mb-1 text-gray-700" />
         <span class="w-full truncate text-center font-medium text-gray-800">{{ item.name }}</span>
         <span v-if="item.rarity" class="mt-0.5 text-[10px] tracking-wide uppercase" :class="rarityClass">
           {{ item.rarity }}
@@ -72,6 +72,27 @@ const emit = defineEmits<{
   (e: 'drag-end'): void;
 }>();
 
+const itemIcon = computed(() => {
+  const type = props.item?.equipmentType?.[0];
+
+  const icons: Record<string, string> = {
+    WEAPON: 'sports_martial_arts',
+    SHIELD: 'shield',
+    BODY: 'checkroom',
+    HELMET: 'sports_motorsports',
+    BOOTS: 'hiking',
+    GLOVES: 'front_hand',
+    LEGS: 'accessibility',
+    RING: 'radio_button_unchecked',
+    AMULET: 'diamond',
+    SCROLL: 'description',
+    POTION: 'science',
+    UNKNOWN: 'help_outline',
+  };
+
+  return icons[type ?? 'UNKNOWN'] ?? 'help_outline';
+});
+
 const rarityClass = computed(() => {
   if (!props.item?.rarity) return 'text-gray-400';
   const r = props.item.rarity.toLowerCase();
@@ -118,9 +139,3 @@ const onDrop = (e: DragEvent) => {
   }
 };
 </script>
-
-<style lang="scss" scoped>
-:deep(.css-1d3zcjo) {
-  opacity: 0.6;
-}
-</style>
