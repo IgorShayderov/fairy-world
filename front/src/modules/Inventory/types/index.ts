@@ -17,13 +17,15 @@ export interface InventoryItemType {
   nameKey: string;
   name?: string;
   icon: string;
-  rarity?: string;
+  rarity?: string | undefined;
+  rarityKey?: string;
   equipmentType?: EquipmentType[];
   equipmentTypes?: EquipmentType[];
 }
 
 export interface EquipmentSlot {
   id: string;
+  labelKey: string;
   item: InventoryItemType | null;
   gridArea?: string;
 }

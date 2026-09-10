@@ -18,12 +18,12 @@ export class UsersController {
     description: 'Returns the currently authenticated user',
   })
   async getCurrentUser(@Request() req: RequestWithUser) {
-    const user = await this.usersService.findById(req.user.sub);
+    const user = await this.usersService.findCurrentUser(req.user.sub);
 
     if (!user) {
       throw new NotFoundException('Пользователь не найден');
     }
 
-    return UserView.render(user);
+    return UserView.renderCurrent(user);
   }
 }

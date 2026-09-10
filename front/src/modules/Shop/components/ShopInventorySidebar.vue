@@ -59,7 +59,7 @@
           <button
             class="rounded bg-red-500 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition-colors hover:bg-red-600 disabled:opacity-50"
             :disabled="!sellQuantity[inv.item.id] || loading"
-            @click="$emit('sell', inv.item.id, inv.item.name, sellQuantity[inv.item.id])"
+            @click="$emit('sell', inv.item.id, inv.item.name, sellQuantity[inv.item.id] ?? 0)"
           >
             {{ t('shop.sell') }}
           </button>

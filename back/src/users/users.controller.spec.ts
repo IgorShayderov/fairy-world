@@ -7,7 +7,7 @@ describe('UsersController', () => {
   let controller: UsersController;
 
   const mockUsersService = {
-    findById: jest.fn(),
+    findCurrentUser: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -31,13 +31,31 @@ describe('UsersController', () => {
   describe('getCurrentUser', () => {
     it('should return the user identified by the token subject', async () => {
       const req = { user: { sub: 7, email: 'me@example.com' } };
-      const expectedUser = { id: 7, email: 'me@example.com' };
-      mockUsersService.findById.mockResolvedValue(expectedUser);
+      const now = new Date();
+      const expectedUser = {
+        id: 7,
+        name: 'Player',
+        email: 'me@example.com',
+        createdAt: now,
+        updatedAt: now,
+        gameProfile: { gold: 100, experience: 5, level: 2, inventory: [] },
+      };
+      mockUsersService.findCurrentUser.mockResolvedValue(expectedUser);
 
       const result = await controller.getCurrentUser(req as never);
 
-      expect(mockUsersService.findById).toHaveBeenCalledWith(7);
-      expect(result).toEqual(expectedUser);
+      expect(mockUsersService.findCurrentUser).toHaveBeenCalledWith(7);
+      expect(result).toEqual({
+        id: 7,
+        name: 'Player',
+        email: 'me@example.com',
+        createdAt: now,
+        updatedAt: now,
+        gold: 100,
+        experience: 5,
+        level: 2,
+        inventory: [],
+      });
     });
   });
 });

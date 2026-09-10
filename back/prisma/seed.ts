@@ -243,8 +243,17 @@ async function main() {
     },
   ];
 
+  const shop = await prisma.shop.upsert({
+    where: { id: 1 },
+    update: {},
+    create: { id: 1, name: 'General Store', gold: 1000 },
+  });
+
   for (const itemData of itemsData) {
     const item = await prisma.item.create({ data: itemData });
+    await prisma.shopStock.create({
+      data: { shopId: shop.id, itemId: item.id, quantity: 1 },
+    });
     console.log(`Создан предмет: ${item.name} (${item.rarity})`);
   }
 

@@ -32,10 +32,9 @@ const routes = {
       byIdPath: (id: number) => [BASE_API_PATH, 'monsters', String(id)].join('/'),
     },
     shop: {
-      itemsPath: () => [BASE_API_PATH, 'shop', 'items'].join('/'),
-      buyPath: () => [BASE_API_PATH, 'shop', 'buy'].join('/'),
-      sellPath: () => [BASE_API_PATH, 'shop', 'sell'].join('/'),
-      inventoryPath: () => [BASE_API_PATH, 'shop', 'inventory'].join('/'),
+      detailsPath: (shopId: number) => [BASE_API_PATH, 'shop', shopId].join('/'),
+      buyPath: (shopId: number) => [BASE_API_PATH, 'shop', shopId, 'buy'].join('/'),
+      sellPath: (shopId: number) => [BASE_API_PATH, 'shop', shopId, 'sell'].join('/'),
     },
   },
   rootPath: () => '/',

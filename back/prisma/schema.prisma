@@ -176,7 +176,6 @@ model Item {
   description   String          @default("")
   price         Int             @default(0)
   icon          String          @default("")
-  quantity      Int             @default(1)
   isConsumable  Boolean         @default(false)
   rarity        ItemRarity      @default(COMMON)
   equipmentType EquipmentType[] @default([UNKNOWN])
@@ -186,6 +185,26 @@ model Item {
   attributes    ItemAttribute[]
   stats         ItemStat[]
   inventoryItem InventoryItem[]
+  shopStock     ShopStock[]
+}
+
+model Shop {
+  id        Int         @id @default(autoincrement())
+  name      String
+  gold      Int         @default(0)
+  stock     ShopStock[]
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+}
+
+model ShopStock {
+  shopId   Int
+  itemId   Int
+  quantity Int  @default(0)
+  shop     Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  item     Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@id([shopId, itemId])
 }
 
 enum ItemRarity {

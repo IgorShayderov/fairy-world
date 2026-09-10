@@ -42,7 +42,7 @@
               "
               :slot-id="slot.id"
               :is-hovered="hoveredSlot === slot.id"
-              :empty-icon="emptyIcons[slot.id]"
+              :empty-icon="emptyIcons[slot.id] ?? ''"
               :empty-label="t(slot.labelKey)"
               class="h-full w-full"
               @drag-start="$emit('equipment-drag-start', slot.id)"
@@ -180,12 +180,12 @@ const emptyIcons: Record<string, Component | string> = {
 const nextBlock = () => {
   const currentIndex = blocks.findIndex((b) => b.key === activeBlockKey.value);
   const nextIndex = (currentIndex + 1) % blocks.length;
-  activeBlockKey.value = blocks[nextIndex].key;
+  activeBlockKey.value = blocks[nextIndex]!.key;
 };
 
 const prevBlock = () => {
   const currentIndex = blocks.findIndex((b) => b.key === activeBlockKey.value);
   const prevIndex = (currentIndex - 1 + blocks.length) % blocks.length;
-  activeBlockKey.value = blocks[prevIndex].key;
+  activeBlockKey.value = blocks[prevIndex]!.key;
 };
 </script>

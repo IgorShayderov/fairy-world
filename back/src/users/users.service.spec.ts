@@ -57,6 +57,28 @@ describe('UsersService', () => {
     });
   });
 
+  describe('findCurrentUser', () => {
+    it('loads the game profile and inventory for /me', async () => {
+      const expectedUser = { id: 1, gameProfile: { gold: 100, experience: 5, level: 2, inventory: [] } };
+      mockPrismaService.user.findUnique.mockResolvedValue(expectedUser);
+
+      await expect(service.findCurrentUser(1)).resolves.toEqual(expectedUser);
+      expect(mockPrismaService.user.findUnique).toHaveBeenCalledWith({
+        where: { id: 1 },
+        include: {
+          gameProfile: {
+            include: {
+              inventory: {
+                include: { item: true },
+                orderBy: { id: 'asc' },
+              },
+            },
+          },
+        },
+      });
+    });
+  });
+
   describe('update', () => {
     it('should update and return the user', async () => {
       const updateData = { resetPasswordToken: 'new_token' };

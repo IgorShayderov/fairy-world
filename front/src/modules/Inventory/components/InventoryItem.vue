@@ -135,7 +135,7 @@ const onDrop = (e: DragEvent) => {
   if (props.item) {
     emit('drop', props.item);
   } else {
-    emit('drop', { name: '', icon: '', rarity: '' });
+    emit('drop', { name: '', nameKey: '', icon: '', rarity: '' });
   }
 };
 </script>

@@ -18,6 +18,22 @@ export class UsersService {
     });
   }
 
+  findCurrentUser(id: number) {
+    return this.prisma.user.findUnique({
+      where: { id },
+      include: {
+        gameProfile: {
+          include: {
+            inventory: {
+              include: { item: true },
+              orderBy: { id: 'asc' },
+            },
+          },
+        },
+      },
+    });
+  }
+
   update(id: number, data: Partial<Omit<UserModel, 'id'>>) {
     return this.prisma.user.update({
       where: { id },

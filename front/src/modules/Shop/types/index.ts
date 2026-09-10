@@ -13,6 +13,13 @@ export interface ShopItem {
 
 export interface InventoryEntry {
   id: number;
-  item: ShopItem;
+  item: Omit<ShopItem, 'quantity'>;
   quantity: number;
+}
+
+export interface ShopData {
+  id: number;
+  name: string;
+  gold: number;
+  items: ShopItem[];
 }
