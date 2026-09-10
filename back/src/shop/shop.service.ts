@@ -3,6 +3,7 @@ import { Prisma } from '../../generated/client';
 import { PrismaService } from '../prisma.service';
 import { BuyDto } from './dto/buy.dto';
 import { SellDto } from './dto/sell.dto';
+import { ItemView } from '../common/views/item.view';
 
 @Injectable()
 export class ShopService {
@@ -14,14 +15,24 @@ export class ShopService {
         const shop = await tx.shop.findUnique({
           where: { id: shopId },
           include: {
-            stock: { orderBy: { itemId: 'asc' }, include: { item: { include: { attributes: true, stats: true } } } },
+            stock: {
+              orderBy: { itemId: 'asc' },
+              include: {
+                item: {
+                  include: {
+                    attributes: { include: { attribute: true } },
+                    stats: { include: { stat: true } },
+                  },
+                },
+              },
+            },
           },
         });
         if (!shop) throw new NotFoundException('Shop not found');
         const { stock, ...details } = shop;
         return {
           ...details,
-          items: stock.map(({ item, quantity }) => ({ ...item, quantity })),
+          items: stock.map(({ item, quantity }) => ({ ...ItemView.render(item), quantity })),
         };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
@@ -69,11 +80,26 @@ export class ShopService {
         where: { shopId_itemId: { shopId, itemId: dto.itemId } },
         data: { quantity: { decrement: dto.quantity } },
       });
-      await tx.inventoryItem.upsert({
-        where: { gameProfileId_itemId: { gameProfileId: profile.id, itemId: dto.itemId } },
-        update: { quantity: { increment: dto.quantity } },
-        create: { gameProfileId: profile.id, itemId: dto.itemId, quantity: dto.quantity, slot: 0, isEquiped: false },
+      const inventoryEntry = await tx.inventoryItem.findFirst({
+        where: { gameProfileId: profile.id, itemId: dto.itemId, isEquiped: false },
+        select: { id: true },
       });
+      if (inventoryEntry) {
+        await tx.inventoryItem.update({
+          where: { id: inventoryEntry.id },
+          data: { quantity: { increment: dto.quantity } },
+        });
+      } else {
+        await tx.inventoryItem.create({
+          data: {
+            gameProfileId: profile.id,
+            itemId: dto.itemId,
+            quantity: dto.quantity,
+            slot: null,
+            isEquiped: false,
+          },
+        });
+      }
       return { success: true, itemId: dto.itemId, quantity: dto.quantity, totalCost };
     });
   }
@@ -84,7 +110,7 @@ export class ShopService {
       const shop = await tx.shop.findUnique({ where: { id: shopId } });
       if (!shop) throw new NotFoundException('Shop not found');
       const entry = await tx.inventoryItem.findFirst({
-        where: { gameProfile: { userId }, itemId: dto.itemId },
+        where: { gameProfile: { userId }, itemId: dto.itemId, isEquiped: false },
         include: { item: true },
       });
       if (!entry) throw new NotFoundException('Item not found in inventory');

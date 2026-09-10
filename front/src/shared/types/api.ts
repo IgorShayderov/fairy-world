@@ -19,6 +19,8 @@ export interface IApi {
   <T>(url: string, options?: RequestInit): Promise<ApiResponse<T>>;
   get: <T>(url: string, options?: RequestInit) => Promise<ApiResponse<T>>;
   post: <T>(url: string, params?: object, options?: RequestInit) => Promise<ApiResponse<T>>;
+  put: <T>(url: string, params?: object, options?: RequestInit) => Promise<ApiResponse<T>>;
+  delete: <T>(url: string, options?: RequestInit) => Promise<ApiResponse<T>>;
   interceptors: {
     request: InterceptorManager<RequestConfig>;
     response: InterceptorManager<unknown>;

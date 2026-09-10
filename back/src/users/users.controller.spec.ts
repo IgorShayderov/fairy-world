@@ -55,6 +55,23 @@ describe('UsersController', () => {
         experience: 5,
         level: 2,
         inventory: [],
+        equippedItems: [],
+        attributes: [
+          { name: 'STRENGTH', description: null, baseValue: 0, equipmentBonus: 0, value: 0 },
+          { name: 'AGILITY', description: null, baseValue: 0, equipmentBonus: 0, value: 0 },
+          { name: 'ENDURANCE', description: null, baseValue: 0, equipmentBonus: 0, value: 0 },
+          { name: 'WISDOM', description: null, baseValue: 0, equipmentBonus: 0, value: 0 },
+          { name: 'CHARISMA', description: null, baseValue: 0, equipmentBonus: 0, value: 0 },
+        ],
+        properties: [
+          { name: 'HEALTH', description: null, baseValue: 0, equipmentBonus: 0, value: 0 },
+          { name: 'MANA', description: null, baseValue: 0, equipmentBonus: 0, value: 0 },
+          { name: 'DAMAGE', description: null, baseValue: 0, equipmentBonus: 0, value: 0 },
+          { name: 'DEFENSE', description: null, baseValue: 0, equipmentBonus: 0, value: 0 },
+          { name: 'CRIT', description: null, baseValue: 0, equipmentBonus: 0, value: 0 },
+          { name: 'DODGE', description: null, baseValue: 0, equipmentBonus: 0, value: 0 },
+          { name: 'CRIT_DAMAGE', description: null, baseValue: 0, equipmentBonus: 0, value: 0 },
+        ],
       });
     });
   });

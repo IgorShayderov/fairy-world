@@ -4,6 +4,32 @@ export default {
     equipment: 'Экипировка',
     characteristics: 'Характеристики',
     statistics: 'Статистика',
+    summary: {
+      level: 'Уровень',
+      experience: 'Опыт',
+      gold: 'Золото',
+    },
+    tooltip: {
+      price: 'Цена',
+      attributes: 'Характеристики',
+      properties: 'Свойства',
+    },
+    attributeNames: {
+      STRENGTH: 'Сила',
+      AGILITY: 'Ловкость',
+      ENDURANCE: 'Выносливость',
+      WISDOM: 'Мудрость',
+      CHARISMA: 'Харизма',
+    },
+    propertyNames: {
+      HEALTH: 'Здоровье',
+      MANA: 'Мана',
+      DAMAGE: 'Урон',
+      DEFENSE: 'Защита',
+      CRIT: 'Шанс критического удара',
+      DODGE: 'Уклонение',
+      CRIT_DAMAGE: 'Критический урон',
+    },
     slots: {
       head: 'Голова',
       body: 'Тело',

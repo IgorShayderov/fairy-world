@@ -102,8 +102,8 @@ model Attribute {
   name        AttributeType @unique
   description String?
 
-  profiles ProfileAttribute[]
-  items    ItemAttribute[]
+  profiles          ProfileAttribute[]
+  items             ItemAttribute[]
   monsterAttributes MonsterAttribute[]
 }
 
@@ -237,13 +237,14 @@ model InventoryItem {
   quantity      Int      @default(0)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @default(now()) @updatedAt
-  slot          Int
+  slot          String?
   isEquiped     Boolean
 
   gameProfile GameProfile @relation(fields: [gameProfileId], references: [id], onDelete: Cascade)
   item        Item        @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
-  @@unique([gameProfileId, itemId])
+  @@unique([gameProfileId, slot])
+  @@index([gameProfileId, itemId])
 }
 
 model Location {
@@ -266,12 +267,12 @@ model UsersLocation {
 }
 
 model Monster {
-  id              Int    @id @default(autoincrement())
-  name            String @unique
-  description     String?
-  level           Int    @default(1)
-  rewardGold      Int    @default(0)
-  rewardExperience Int   @default(0)
+  id               Int     @id @default(autoincrement())
+  name             String  @unique
+  description      String?
+  level            Int     @default(1)
+  rewardGold       Int     @default(0)
+  rewardExperience Int     @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt

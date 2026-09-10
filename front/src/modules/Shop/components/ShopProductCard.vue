@@ -8,8 +8,12 @@
           name: item.name,
           nameKey: item.name,
           icon: item.icon,
+          description: item.description,
+          price: item.price,
           rarity: t(`profile.rarity.${item.rarity.toLowerCase()}`),
           equipmentType: item.equipmentType,
+          attributes: item.attributes,
+          properties: item.properties,
         }"
         :slot-id="''"
         class="h-24 w-24 shrink-0"

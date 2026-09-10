@@ -21,8 +21,12 @@
               name: inv.item.name,
               nameKey: inv.item.name,
               icon: inv.item.icon,
+              description: inv.item.description,
+              price: inv.item.price,
               rarity: t(`profile.rarity.${inv.item.rarity.toLowerCase()}`),
               equipmentType: inv.item.equipmentType,
+              attributes: inv.item.attributes,
+              properties: inv.item.properties,
             }"
             :slot-id="''"
           />

@@ -1,4 +1,4 @@
-import type { InventoryEntry } from '@/modules/Shop/types';
+import type { EffectiveModifier, EquipmentSlotId, InventoryEntry } from '@/modules/Inventory/types';
 
 import routes from '@/routes';
 import { api } from '@shared/api';
@@ -11,6 +11,9 @@ export type CurrentUser = {
   experience: number;
   level: number;
   inventory: InventoryEntry[];
+  equippedItems: InventoryEntry[];
+  attributes: EffectiveModifier[];
+  properties: EffectiveModifier[];
 };
 
 export const usersApi = {
@@ -18,5 +21,11 @@ export const usersApi = {
     const { data } = await api.get<CurrentUser>(routes.api.users.mePath());
 
     return data;
+  },
+  async equipItem(inventoryItemId: number, slot: EquipmentSlotId): Promise<void> {
+    await api.put(routes.api.users.equipmentPath(), { inventoryItemId, slot });
+  },
+  async unequipItem(slot: EquipmentSlotId): Promise<void> {
+    await api.delete(routes.api.users.equipmentSlotPath(slot));
   },
 };

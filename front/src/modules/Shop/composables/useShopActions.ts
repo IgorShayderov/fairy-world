@@ -4,12 +4,13 @@ import { ref } from 'vue';
 
 import type { ShopItem, InventoryEntry } from '@/modules/Shop/types';
 
-import { usersApi } from '@/modules/Auth/api/users';
+import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 import { getShop, buyItem, sellItem } from '@/modules/Shop/api';
 
 export function useShopActions() {
   const $q = useQuasar();
   const { t } = useTranslation();
+  const currentUserStore = useCurrentUserStore();
 
   const shopItems = ref<ShopItem[]>([]);
   const inventory = ref<InventoryEntry[]>([]);
@@ -23,10 +24,13 @@ export function useShopActions() {
   const sellQuantity = ref<Record<number, number>>({});
   const sellToast = ref({ show: false, message: '' });
 
-  const loadData = async () => {
+  const loadData = async (forcePlayerRefresh = false) => {
     loading.value = true;
     try {
-      const [shop, player] = await Promise.all([getShop(shopId.value), usersApi.getMe()]);
+      const [shop, player] = await Promise.all([
+        getShop(shopId.value),
+        currentUserStore.fetchCurrentUser(forcePlayerRefresh),
+      ]);
       shopItems.value = shop.items;
       inventory.value = player.inventory;
       gold.value = player.gold;
@@ -89,7 +93,7 @@ export function useShopActions() {
         if (!result.success) throw new Error('Purchase failed');
       }
       $q.notify({ type: 'positive', message: t('shop.successBuy') });
-      await loadData();
+      await loadData(true);
     } catch {
       $q.notify({ type: 'negative', message: t('shop.errorBuy') });
     } finally {
@@ -121,7 +125,7 @@ export function useShopActions() {
       setTimeout(() => {
         sellToast.value.show = false;
       }, 3000);
-      await loadData();
+      await loadData(true);
     } catch {
       $q.notify({ type: 'negative', message: t('shop.errorSell') });
     } finally {

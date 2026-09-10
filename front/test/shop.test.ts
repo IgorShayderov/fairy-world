@@ -1,3 +1,4 @@
+import { createPinia, setActivePinia } from 'pinia';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), notify: vi.fn() }));
@@ -9,6 +10,7 @@ import { useShopActions } from '@/modules/Shop/composables/useShopActions';
 
 describe('shop quantity requests', () => {
   beforeEach(() => {
+    setActivePinia(createPinia());
     vi.clearAllMocks();
     vi.useFakeTimers();
     mocks.get.mockImplementation((url: string) => ({

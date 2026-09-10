@@ -99,6 +99,18 @@ api.post = <T>(url: string, params?: object, options?: RequestInit) => {
   });
 };
 
+api.put = <T>(url: string, params?: object, options?: RequestInit) => {
+  return makeRequest<T>(url, {
+    ...options,
+    method: 'PUT',
+    body: JSON.stringify(params ?? {}),
+  });
+};
+
+api.delete = <T>(url: string, options?: RequestInit) => {
+  return makeRequest<T>(url, { ...options, method: 'DELETE' });
+};
+
 api.interceptors.request.use((config) => {
   const accessToken = localStorage.getItem('access_token');
 

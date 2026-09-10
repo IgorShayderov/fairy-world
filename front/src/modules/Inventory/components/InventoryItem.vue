@@ -23,6 +23,9 @@
         <span v-if="item.rarity" class="mt-0.5 text-[10px] tracking-wide uppercase" :class="rarityClass">
           {{ item.rarity }}
         </span>
+        <span v-if="item.quantity && item.quantity > 1" class="text-[10px] font-semibold text-gray-500">
+          ×{{ item.quantity }}
+        </span>
       </div>
     </template>
 
@@ -36,11 +39,33 @@
         </span>
       </div>
     </template>
+
+    <QTooltip v-if="item" class="max-w-xs bg-gray-900 p-3 text-white" anchor="top middle" self="bottom middle">
+      <div class="font-semibold">{{ item.name ?? item.nameKey }}</div>
+      <div v-if="item.description" class="mt-1 text-xs text-gray-200">{{ item.description }}</div>
+      <div v-if="item.price !== undefined" class="mt-2 text-xs">
+        {{ $t('profile.tooltip.price') }}: {{ item.price }}g
+      </div>
+      <div v-if="item.attributes?.length" class="mt-2 text-xs">
+        <div class="font-semibold">{{ $t('profile.tooltip.attributes') }}</div>
+        <div v-for="attribute in item.attributes" :key="attribute.name">
+          <div>{{ attribute.name }}: {{ attribute.value > 0 ? '+' : '' }}{{ attribute.value }}</div>
+          <div v-if="attribute.description" class="text-gray-300">{{ attribute.description }}</div>
+        </div>
+      </div>
+      <div v-if="item.properties?.length" class="mt-2 text-xs">
+        <div class="font-semibold">{{ $t('profile.tooltip.properties') }}</div>
+        <div v-for="property in item.properties" :key="property.name">
+          <div>{{ property.name }}: {{ property.value > 0 ? '+' : '' }}{{ property.value }}</div>
+          <div v-if="property.description" class="text-gray-300">{{ property.description }}</div>
+        </div>
+      </div>
+    </QTooltip>
   </div>
 </template>
 
 <script setup lang="ts">
-import { QIcon } from 'quasar';
+import { QIcon, QTooltip } from 'quasar';
 import { computed } from 'vue';
 
 import type { Component } from 'vue';

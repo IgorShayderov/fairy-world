@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 
-import type { InventoryItemType, EquipmentSlot } from '../types';
+import type { InventoryEntry, InventoryItemType, EquipmentSlot } from '../types';
 
 export const useInventoryStore = defineStore('inventory', () => {
   // --- STATE ---
@@ -69,6 +69,32 @@ export const useInventoryStore = defineStore('inventory', () => {
     },
   ]);
 
+  const mapEntry = ({ id, item, quantity, slot }: InventoryEntry): InventoryItemType => ({
+    inventoryItemId: id,
+    id: item.id,
+    nameKey: item.name,
+    name: item.name,
+    icon: item.icon,
+    description: item.description,
+    price: item.price,
+    rarity: item.rarity,
+    equipmentType: item.equipmentType,
+    attributes: item.attributes,
+    properties: item.properties,
+    quantity,
+    slot,
+  });
+
+  const hydrateInventory = (entries: InventoryEntry[], equippedEntries: InventoryEntry[] = []) => {
+    inventory.value = entries.map(mapEntry);
+    for (const slot of equipmentSlots.value) slot.item = null;
+    for (const entry of equippedEntries) {
+      if (!entry.slot) continue;
+      const slot = equipmentSlots.value.find((slot) => slot.id === entry.slot);
+      if (slot) slot.item = mapEntry(entry);
+    }
+  };
+
   // --- ACTIONS ---
 
   // 1. Обмен предметов внутри инвентаря
@@ -128,6 +154,7 @@ export const useInventoryStore = defineStore('inventory', () => {
   return {
     inventory,
     equipmentSlots,
+    hydrateInventory,
     swapInventoryItems,
     equipItem,
     swapEquipmentItems,

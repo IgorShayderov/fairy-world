@@ -3,6 +3,32 @@ export default {
   equipment: 'Equipment',
   characteristics: 'Attributes',
   statistics: 'Statistics',
+  summary: {
+    level: 'Level',
+    experience: 'Experience',
+    gold: 'Gold',
+  },
+  tooltip: {
+    price: 'Price',
+    attributes: 'Attributes',
+    properties: 'Properties',
+  },
+  attributeNames: {
+    STRENGTH: 'Strength',
+    AGILITY: 'Agility',
+    ENDURANCE: 'Endurance',
+    WISDOM: 'Wisdom',
+    CHARISMA: 'Charisma',
+  },
+  propertyNames: {
+    HEALTH: 'Health',
+    MANA: 'Mana',
+    DAMAGE: 'Damage',
+    DEFENSE: 'Defense',
+    CRIT: 'Critical chance',
+    DODGE: 'Dodge',
+    CRIT_DAMAGE: 'Critical damage',
+  },
   slots: {
     head: 'Head',
     body: 'Body',

@@ -1,4 +1,6 @@
-import type { EquipmentType, ItemRarity } from '@/modules/Inventory/types';
+import type { EquipmentType, ItemModifier, ItemRarity } from '@/modules/Inventory/types';
+
+export type { InventoryEntry } from '@/modules/Inventory/types';
 
 export interface ShopItem {
   id: number;
@@ -9,12 +11,8 @@ export interface ShopItem {
   quantity: number;
   rarity: ItemRarity;
   equipmentType: EquipmentType[];
-}
-
-export interface InventoryEntry {
-  id: number;
-  item: Omit<ShopItem, 'quantity'>;
-  quantity: number;
+  attributes: ItemModifier[];
+  properties: ItemModifier[];
 }
 
 export interface ShopData {

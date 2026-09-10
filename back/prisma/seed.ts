@@ -403,31 +403,35 @@ async function main() {
 
   if (adminUser?.gameProfile && sword && potion) {
     const inventoryItems = [
-      { itemId: sword.id, quantity: 1, slot: 0, isEquiped: true },
-      { itemId: potion.id, quantity: 5, slot: 1, isEquiped: false },
+      { itemId: sword.id, quantity: 1, slot: 'left-hand', isEquiped: true },
+      { itemId: potion.id, quantity: 5, slot: null, isEquiped: false },
     ];
 
     for (const invItem of inventoryItems) {
-      await prisma.inventoryItem.upsert({
-        where: {
-          gameProfileId_itemId: {
+      const existingInventoryItem = await prisma.inventoryItem.findFirst({
+        where: { gameProfileId: adminUser.gameProfile.id, itemId: invItem.itemId },
+      });
+
+      if (existingInventoryItem) {
+        await prisma.inventoryItem.update({
+          where: { id: existingInventoryItem.id },
+          data: {
+            quantity: invItem.quantity,
+            slot: invItem.slot,
+            isEquiped: invItem.isEquiped,
+          },
+        });
+      } else {
+        await prisma.inventoryItem.create({
+          data: {
             gameProfileId: adminUser.gameProfile.id,
             itemId: invItem.itemId,
+            quantity: invItem.quantity,
+            slot: invItem.slot,
+            isEquiped: invItem.isEquiped,
           },
-        },
-        update: {
-          quantity: invItem.quantity,
-          slot: invItem.slot,
-          isEquiped: invItem.isEquiped,
-        },
-        create: {
-          gameProfileId: adminUser.gameProfile.id,
-          itemId: invItem.itemId,
-          quantity: invItem.quantity,
-          slot: invItem.slot,
-          isEquiped: invItem.isEquiped,
-        },
-      });
+        });
+      }
     }
   }
 

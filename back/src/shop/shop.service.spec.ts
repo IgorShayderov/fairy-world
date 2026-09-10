@@ -6,7 +6,7 @@ describe('ShopService trades', () => {
     shop: { findUnique: jest.fn(), update: jest.fn() },
     shopStock: { findUnique: jest.fn(), update: jest.fn(), upsert: jest.fn() },
     gameProfile: { findUnique: jest.fn(), update: jest.fn() },
-    inventoryItem: { findFirst: jest.fn(), update: jest.fn(), delete: jest.fn(), upsert: jest.fn() },
+    inventoryItem: { findFirst: jest.fn(), update: jest.fn(), delete: jest.fn(), create: jest.fn() },
   };
   const prisma = { $transaction: jest.fn() };
   const service = new ShopService(prisma as unknown as PrismaService);
@@ -86,11 +86,9 @@ describe('ShopService trades', () => {
       where: { shopId_itemId: { shopId: 2, itemId: 3 } },
       data: { quantity: { decrement: 3 } },
     });
-    expect(tx.inventoryItem.upsert).toHaveBeenCalledTimes(1);
-    expect(tx.inventoryItem.upsert).toHaveBeenCalledWith({
-      where: { gameProfileId_itemId: { gameProfileId: 5, itemId: 3 } },
-      update: { quantity: { increment: 3 } },
-      create: { gameProfileId: 5, itemId: 3, quantity: 3, slot: 0, isEquiped: false },
+    expect(tx.inventoryItem.update).toHaveBeenCalledWith({
+      where: { id: 8 },
+      data: { quantity: { increment: 3 } },
     });
     expect(tx.shop.update).toHaveBeenCalledWith({ where: { id: 2 }, data: { gold: { increment: 60 } } });
   });
@@ -98,7 +96,7 @@ describe('ShopService trades', () => {
   it('does not buy an item stocked only by another shop', async () => {
     tx.shopStock.findUnique.mockResolvedValue(null);
     await expect(service.buy(1, 2, { itemId: 3, quantity: 1 })).rejects.toThrow('Item not found in shop');
-    expect(tx.inventoryItem.upsert).not.toHaveBeenCalled();
+    expect(tx.inventoryItem.create).not.toHaveBeenCalled();
   });
 
   it('returns stock and balances from the database in one extensible response', async () => {
@@ -106,13 +104,13 @@ describe('ShopService trades', () => {
       id: 2,
       name: 'Armory',
       gold: 500,
-      stock: [{ quantity: 9, item: { id: 3, name: 'Shield' } }],
+      stock: [{ quantity: 9, item: { id: 3, name: 'Shield', attributes: [], stats: [] } }],
     });
     await expect(service.getShop(2)).resolves.toEqual({
       id: 2,
       name: 'Armory',
       gold: 500,
-      items: [{ id: 3, name: 'Shield', quantity: 9 }],
+      items: [{ id: 3, name: 'Shield', quantity: 9, attributes: [], properties: [] }],
     });
   });
 });

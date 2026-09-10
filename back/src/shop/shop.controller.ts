@@ -16,7 +16,7 @@ export class ShopController {
   constructor(private readonly shopService: ShopService) {}
 
   @Get(':shopId')
-  @ApiOkResponse({ description: 'Shop details, stock, gold and player inventory/balance' })
+  @ApiOkResponse({ description: 'Shop details, stock and stored gold' })
   getShop(@Param('shopId', ParseIntPipe) shopId: number) {
     return this.shopService.getShop(shopId);
   }

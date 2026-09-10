@@ -22,6 +22,8 @@ const routes = {
     },
     users: {
       mePath: () => [BASE_API_PATH, 'users', 'me'].join('/'),
+      equipmentPath: () => [BASE_API_PATH, 'users', 'me', 'equipment'].join('/'),
+      equipmentSlotPath: (slot: string) => [BASE_API_PATH, 'users', 'me', 'equipment', slot].join('/'),
     },
     locations: {
       listPath: () => [BASE_API_PATH, 'locations'].join('/'),
