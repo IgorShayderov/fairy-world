@@ -17,7 +17,17 @@
       >
         <div class="flex items-center gap-3 border-b border-gray-200 pb-2">
           <InventoryItem
-            :item="{ name: inv.item.name, icon: inv.item.icon, rarity: t('profile.rarity.common') }"
+            :item="{
+              name: inv.item.name,
+              nameKey: inv.item.name,
+              icon: inv.item.icon,
+              description: inv.item.description,
+              price: inv.item.price,
+              rarity: t(`profile.rarity.${inv.item.rarity.toLowerCase()}`),
+              equipmentType: inv.item.equipmentType,
+              attributes: inv.item.attributes,
+              properties: inv.item.properties,
+            }"
             :slot-id="''"
           />
           <div class="flex flex-col">
@@ -53,7 +63,7 @@
           <button
             class="rounded bg-red-500 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition-colors hover:bg-red-600 disabled:opacity-50"
             :disabled="!sellQuantity[inv.item.id] || loading"
-            @click="$emit('sell', inv.item.id, inv.item.name, sellQuantity[inv.item.id])"
+            @click="$emit('sell', inv.item.id, inv.item.name, sellQuantity[inv.item.id] ?? 0)"
           >
             {{ t('shop.sell') }}
           </button>
@@ -68,7 +78,7 @@ import { useTranslation } from 'i18next-vue';
 
 import type { InventoryEntry } from '@/modules/Shop/types';
 
-import InventoryItem from '@/components/InventoryItem.vue';
+import InventoryItem from '@/modules/Inventory/components/InventoryItem.vue';
 
 defineProps<{
   inventory: InventoryEntry[];

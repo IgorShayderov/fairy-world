@@ -9,7 +9,10 @@
     />
 
     <div class="flex w-full flex-1 flex-col justify-center">
-      <div v-if="activeBlockKey === 'equipment'" class="relative flex w-full items-center justify-center">
+      <div
+        v-if="activeBlockKey === 'equipment'"
+        class="relative flex h-[432px] min-h-[432px] w-full items-center justify-center"
+      >
         <div
           class="relative z-10 grid gap-4"
           style="
@@ -42,12 +45,12 @@
               "
               :slot-id="slot.id"
               :is-hovered="hoveredSlot === slot.id"
-              :empty-icon="emptyIcons[slot.id]"
+              :empty-icon="emptyIcons[slot.id] ?? ''"
               :empty-label="t(slot.labelKey)"
               class="h-full w-full"
               @drag-start="$emit('equipment-drag-start', slot.id)"
               @drag-end="$emit('drag-end')"
-              @drop="$emit('slot-drop', slot.id)"
+              @double-click="$emit('unequip', slot.id)"
             />
 
             <QBtn
@@ -64,28 +67,69 @@
         </div>
       </div>
 
-      <div v-else-if="activeBlockKey === 'characteristics'" class="w-full">
-        <QCard class="w-full rounded-lg bg-white p-5 shadow-sm">
+      <div v-else-if="activeBlockKey === 'characteristics'" class="h-[432px] min-h-[432px] w-full overflow-y-auto">
+        <QCard class="min-h-full w-full rounded-lg bg-white p-5 shadow-sm">
+          <div class="mb-3 flex items-center justify-between">
+            <h3 class="text-xs font-bold tracking-wider text-gray-500 uppercase">
+              {{ t('profile.tooltip.attributes') }}
+            </h3>
+            <span class="text-xs font-semibold text-blue-600">
+              {{ t('profile.freeAttributes') }}: {{ playerFreeAttributes }}
+            </span>
+          </div>
           <div class="grid grid-cols-1 gap-3 text-sm">
-            <div v-for="attr in attributes" :key="attr.key" class="flex justify-between border-b border-gray-100 pb-2">
-              <span class="text-gray-500">{{ t(`profile.stats.${attr.key}`) }}</span>
-              <span class="font-bold text-gray-800">{{ attr.value }}</span>
+            <div
+              v-for="attribute in playerAttributes"
+              :key="attribute.name"
+              class="flex cursor-help justify-between border-b border-gray-100 pb-2"
+            >
+              <span class="text-gray-500">{{ t(`profile.attributeNames.${attribute.name}`) }}</span>
+              <span class="font-bold text-gray-800">
+                {{ attribute.value }}
+                <small v-if="attribute.equipmentBonus" class="text-green-600">
+                  (+{{ attribute.equipmentBonus }} {{ t('profile.fromItems') }})
+                </small>
+              </span>
+              <QTooltip class="max-w-xs bg-gray-900 p-3 text-white">
+                {{ t(`profile.attributeDescriptions.${attribute.name}`) }}
+              </QTooltip>
+            </div>
+          </div>
+
+          <h3 class="mt-5 mb-3 text-xs font-bold tracking-wider text-gray-500 uppercase">
+            {{ t('profile.tooltip.properties') }}
+          </h3>
+          <div class="grid grid-cols-2 gap-3 text-sm">
+            <div
+              v-for="property in playerProperties"
+              :key="property.name"
+              class="flex flex-col rounded-lg bg-gray-50 p-3"
+            >
+              <span class="text-[10px] font-medium tracking-wider text-gray-500 uppercase">
+                {{ t(`profile.propertyNames.${property.name}`) }}
+              </span>
+              <span class="mt-1 font-bold text-gray-800">
+                {{ property.value }}
+                <small v-if="property.equipmentBonus" class="text-green-600">
+                  (+{{ property.equipmentBonus }} {{ t('profile.fromItems') }})
+                </small>
+              </span>
             </div>
           </div>
         </QCard>
       </div>
 
-      <div v-else-if="activeBlockKey === 'statistics'" class="w-full">
-        <QCard class="w-full rounded-lg bg-white p-5 shadow-sm">
-          <div class="grid grid-cols-2 gap-4 text-sm">
+      <div v-else-if="activeBlockKey === 'statistics'" class="h-[432px] min-h-[432px] w-full">
+        <QCard class="h-full w-full rounded-lg bg-white p-5 shadow-sm">
+          <div class="grid w-full grid-cols-2 gap-4 text-sm">
             <div
-              v-for="stat in stats"
-              :key="stat.key"
+              v-for="summaryItem in playerSummary"
+              :key="summaryItem.key"
               class="flex flex-col items-center justify-center rounded-lg bg-gray-50 p-3"
             >
-              <span class="mb-1 text-xl font-bold text-blue-600">{{ stat.value }}</span>
+              <span class="mb-1 text-xl font-bold text-blue-600">{{ summaryItem.value }}</span>
               <span class="text-center text-[10px] font-medium tracking-wider text-gray-500 uppercase">
-                {{ t(`profile.statsInfo.${stat.key}`) }}
+                {{ t(`profile.summary.${summaryItem.key}`) }}
               </span>
             </div>
           </div>
@@ -97,11 +141,11 @@
 
 <script setup lang="ts">
 import { useTranslation } from 'i18next-vue';
-import { QCard, QBtn } from 'quasar';
-import { ref, computed } from 'vue';
+import { QCard, QBtn, QTooltip } from 'quasar';
+import { computed, ref } from 'vue';
 
 import type { Component } from 'vue';
-import type { StatItem, StatInfoItem, EquipmentSlot } from '@/modules/Inventory/types';
+import type { EffectiveModifier, EquipmentSlotId, EquipmentSlot } from '@/modules/Inventory/types';
 
 import BodyArmorIcon from './icons/BodyArmorIcon.vue';
 import BootsIcon from './icons/BootsIcon.vue';
@@ -117,36 +161,33 @@ import InventoryItem from './InventoryItem.vue';
 
 import SectionNavigation from '@/shared/components/SectionNavigation.vue';
 
-defineProps<{
+const props = defineProps<{
   equipmentSlots: EquipmentSlot[];
   hoveredSlot: string | null;
+  playerAttributes: EffectiveModifier[];
+  playerProperties: EffectiveModifier[];
+  playerLevel: number;
+  playerExperience: number;
+  playerGold: number;
+  playerFreeAttributes: number;
 }>();
 
 defineEmits<{
-  (e: 'slot-enter', id: string): void;
+  (e: 'slot-enter', id: EquipmentSlotId): void;
   (e: 'slot-leave'): void;
-  (e: 'slot-drop', id: string): void;
-  (e: 'unequip', id: string): void;
-  (e: 'equipment-drag-start', id: string): void;
+  (e: 'slot-drop', id: EquipmentSlotId): void;
+  (e: 'unequip', id: EquipmentSlotId): void;
+  (e: 'equipment-drag-start', id: EquipmentSlotId): void;
   (e: 'drag-end'): void;
 }>();
 
-const attributes = ref<StatItem[]>([
-  { key: 'hp', value: 0 },
-  { key: 'mp', value: 0 },
-  { key: 'atk', value: 0 },
-  { key: 'def', value: 0 },
-  { key: 'spd', value: 0 },
-]);
-
-const stats = ref<StatInfoItem[]>([
-  { key: 'games', value: 0 },
-  { key: 'monsters', value: 0 },
-  { key: 'bosses', value: 0 },
-  { key: 'deaths', value: 0 },
-]);
-
 const { t } = useTranslation();
+
+const playerSummary = computed(() => [
+  { key: 'level', value: props.playerLevel },
+  { key: 'experience', value: props.playerExperience },
+  { key: 'gold', value: props.playerGold },
+]);
 
 const blocks = [
   { key: 'equipment', titleKey: 'profile.equipment' },
@@ -180,12 +221,12 @@ const emptyIcons: Record<string, Component | string> = {
 const nextBlock = () => {
   const currentIndex = blocks.findIndex((b) => b.key === activeBlockKey.value);
   const nextIndex = (currentIndex + 1) % blocks.length;
-  activeBlockKey.value = blocks[nextIndex].key;
+  activeBlockKey.value = blocks[nextIndex]!.key;
 };
 
 const prevBlock = () => {
   const currentIndex = blocks.findIndex((b) => b.key === activeBlockKey.value);
   const prevIndex = (currentIndex - 1 + blocks.length) % blocks.length;
-  activeBlockKey.value = blocks[prevIndex].key;
+  activeBlockKey.value = blocks[prevIndex]!.key;
 };
 </script>

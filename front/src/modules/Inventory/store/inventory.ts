@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 
-import type { InventoryItemType, EquipmentSlot } from '../types';
+import type { InventoryEntry, InventoryItemType, EquipmentSlot } from '../types';
 
 export const useInventoryStore = defineStore('inventory', () => {
   // --- STATE ---
@@ -23,42 +23,77 @@ export const useInventoryStore = defineStore('inventory', () => {
   const equipmentSlots = ref<EquipmentSlot[]>([
     {
       id: 'head',
+      labelKey: 'profile.slots.head',
       item: null,
     },
     {
       id: 'body',
+      labelKey: 'profile.slots.body',
       item: null,
     },
     {
       id: 'left-hand',
+      labelKey: 'profile.slots.leftHand',
       item: null,
     },
     {
       id: 'right-hand',
+      labelKey: 'profile.slots.rightHand',
       item: null,
     },
     {
       id: 'hands',
+      labelKey: 'profile.slots.hands',
       item: null,
     },
-    { id: 'legs', item: null },
+    { id: 'legs', labelKey: 'profile.slots.legs', item: null },
     {
       id: 'feet',
+      labelKey: 'profile.slots.feet',
       item: null,
     },
     {
       id: 'accessory',
+      labelKey: 'profile.slots.accessory',
       item: null,
     },
     {
       id: 'scroll',
+      labelKey: 'profile.slots.empty',
       item: null,
     },
     {
       id: 'potion',
+      labelKey: 'profile.slots.empty',
       item: null,
     },
   ]);
+
+  const mapEntry = ({ id, item, quantity, slot }: InventoryEntry): InventoryItemType => ({
+    inventoryItemId: id,
+    id: item.id,
+    nameKey: item.name,
+    name: item.name,
+    icon: item.icon,
+    description: item.description,
+    price: item.price,
+    rarity: item.rarity,
+    equipmentType: item.equipmentType,
+    attributes: item.attributes,
+    properties: item.properties,
+    quantity,
+    slot,
+  });
+
+  const hydrateInventory = (entries: InventoryEntry[], equippedEntries: InventoryEntry[] = []) => {
+    inventory.value = entries.map(mapEntry);
+    for (const slot of equipmentSlots.value) slot.item = null;
+    for (const entry of equippedEntries) {
+      if (!entry.slot) continue;
+      const slot = equipmentSlots.value.find((slot) => slot.id === entry.slot);
+      if (slot) slot.item = mapEntry(entry);
+    }
+  };
 
   // --- ACTIONS ---
 
@@ -119,6 +154,7 @@ export const useInventoryStore = defineStore('inventory', () => {
   return {
     inventory,
     equipmentSlots,
+    hydrateInventory,
     swapInventoryItems,
     equipItem,
     swapEquipmentItems,

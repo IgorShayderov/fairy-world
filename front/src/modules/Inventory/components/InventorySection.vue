@@ -24,6 +24,7 @@
           @drag-end="$emit('drag-end')"
           @dragover.prevent
           @drop="$emit('inventory-drop', getAbsoluteIndex(idx))"
+          @double-click="$emit('item-double-click', getAbsoluteIndex(idx))"
         />
       </div>
     </div>
@@ -51,6 +52,7 @@ defineEmits<{
   (e: 'drag-start', idx: number): void;
   (e: 'drag-end'): void;
   (e: 'inventory-drop', idx: number): void;
+  (e: 'item-double-click', idx: number): void;
 }>();
 
 const { t } = useTranslation();

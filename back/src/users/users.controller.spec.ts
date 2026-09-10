@@ -7,7 +7,7 @@ describe('UsersController', () => {
   let controller: UsersController;
 
   const mockUsersService = {
-    findById: jest.fn(),
+    findCurrentUser: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -31,13 +31,42 @@ describe('UsersController', () => {
   describe('getCurrentUser', () => {
     it('should return the user identified by the token subject', async () => {
       const req = { user: { sub: 7, email: 'me@example.com' } };
-      const expectedUser = { id: 7, email: 'me@example.com' };
-      mockUsersService.findById.mockResolvedValue(expectedUser);
+      const now = new Date();
+      const expectedUser = {
+        id: 7,
+        name: 'Player',
+        email: 'me@example.com',
+        createdAt: now,
+        updatedAt: now,
+        gameProfile: { gold: 100, experience: 5, level: 2, inventory: [] },
+      };
+      mockUsersService.findCurrentUser.mockResolvedValue(expectedUser);
 
       const result = await controller.getCurrentUser(req as never);
 
-      expect(mockUsersService.findById).toHaveBeenCalledWith(7);
-      expect(result).toEqual(expectedUser);
+      expect(mockUsersService.findCurrentUser).toHaveBeenCalledWith(7);
+      expect(result).toMatchObject({
+        id: 7,
+        name: 'Player',
+        email: 'me@example.com',
+        createdAt: now,
+        updatedAt: now,
+        gold: 100,
+        experience: 5,
+        level: 2,
+        freeAttributes: 0,
+        inventory: [],
+        equippedItems: [],
+      });
+      expect(result.attributes).toHaveLength(5);
+      expect(result.attributes.every(({ baseValue, value }) => baseValue === 5 && value === 5)).toBe(true);
+      expect(result.properties).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'HEALTH', baseValue: 50, attributeBonus: 50, value: 100 }),
+          expect.objectContaining({ name: 'MANA', baseValue: 10, attributeBonus: 25, value: 35 }),
+          expect.objectContaining({ name: 'DAMAGE', baseValue: 1, attributeBonus: 5, value: 6 }),
+        ]),
+      );
     });
   });
 });

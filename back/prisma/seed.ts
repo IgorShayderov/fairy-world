@@ -1,7 +1,16 @@
-import { PrismaClient, Gender, ItemRarity, EquipmentType, AttributeType, StatType } from '../generated/client';
+import {
+  PrismaClient,
+  Gender,
+  ItemRarity,
+  EquipmentType,
+  AttributeType,
+  StatType,
+  UserRole,
+} from '../generated/client';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import * as bcrypt from 'bcrypt';
+import { STARTING_ATTRIBUTE_VALUE, STARTING_PROPERTIES } from '../src/users/player-defaults';
 
 const connectionString = process.env.DATABASE_URL;
 const pool = new Pool({ connectionString });
@@ -13,50 +22,16 @@ async function main() {
   const adminEmail = 'admin@gmail.com';
   const hashedPassword = await bcrypt.hash('Qwerty123!', 10);
 
-  for (const attributeType of Object.values(AttributeType)) {
-    // TODO: добавить description
-    const attribute = await prisma.attribute.upsert({
-      where: { name: attributeType },
-      update: {},
-      create: {
-        name: attributeType,
-      },
-    });
-
-    console.log(`Создан атрибут: ${attribute.name}`);
-  }
-
-  for (const statType of Object.values(StatType)) {
-    // TODO: добавить description
-    const stat = await prisma.stat.upsert({
-      where: { name: statType },
-      update: {},
-      create: {
-        name: statType,
-      },
-    });
-
-    console.log(`Создан стат: ${stat.name}`);
-  }
-
-  const channelsNames = ['General', 'Market'];
-
-  for (const channelName of channelsNames) {
-    const channel = await prisma.channel.upsert({
-      where: { name: channelName },
-      update: {},
-      create: { name: channelName },
-    });
-    console.log(`Создан канал: ${channel.name}`);
-  }
-
-  const usersData = [
-    {
+  const adminUser = await prisma.user.upsert({
+    where: { email: adminEmail },
+    update: {},
+    create: {
       email: adminEmail,
       password: hashedPassword,
       name: 'Admin_God',
       gender: Gender.MALE,
       country: 'Russia',
+      role: UserRole.ADMIN,
       city: 'Moscow',
       gameProfile: {
         create: {
@@ -66,6 +41,10 @@ async function main() {
         },
       },
     },
+    include: { gameProfile: true },
+  });
+
+  const usersData = [
     {
       email: 'alice@example.com',
       password: hashedPassword,
@@ -96,7 +75,76 @@ async function main() {
       update: {},
       create: u,
     });
+
     console.log(`Создан пользователь: ${user.name}`);
+  }
+
+  for (const attributeType of Object.values(AttributeType)) {
+    // TODO: добавить description
+    const attribute = await prisma.attribute.upsert({
+      where: { name: attributeType },
+      update: {},
+      create: {
+        name: attributeType,
+      },
+    });
+
+    console.log(`Создан атрибут: ${attribute.name}`);
+  }
+
+  for (const statType of Object.values(StatType)) {
+    // TODO: добавить description
+    const stat = await prisma.stat.upsert({
+      where: { name: statType },
+      update: {},
+      create: {
+        name: statType,
+      },
+    });
+
+    console.log(`Создан стат: ${stat.name}`);
+  }
+
+  const [gameProfiles, attributes, stats] = await Promise.all([
+    prisma.gameProfile.findMany({ select: { id: true } }),
+    prisma.attribute.findMany({ select: { id: true, name: true } }),
+    prisma.stat.findMany({ select: { id: true, name: true } }),
+  ]);
+
+  for (const profile of gameProfiles) {
+    for (const attribute of attributes) {
+      await prisma.profileAttribute.upsert({
+        where: { gameProfileId_attributeId: { gameProfileId: profile.id, attributeId: attribute.id } },
+        update: {},
+        create: {
+          gameProfileId: profile.id,
+          attributeId: attribute.id,
+          value: STARTING_ATTRIBUTE_VALUE,
+        },
+      });
+    }
+    for (const stat of stats) {
+      await prisma.profileStat.upsert({
+        where: { gameProfileId_statId: { gameProfileId: profile.id, statId: stat.id } },
+        update: {},
+        create: {
+          gameProfileId: profile.id,
+          statId: stat.id,
+          value: STARTING_PROPERTIES[stat.name],
+        },
+      });
+    }
+  }
+
+  const channelsNames = ['General', 'Market'];
+
+  for (const channelName of channelsNames) {
+    const channel = await prisma.channel.upsert({
+      where: { name: channelName },
+      update: {},
+      create: { name: channelName },
+    });
+    console.log(`Создан канал: ${channel.name}`);
   }
 
   const itemsData = [
@@ -208,7 +256,7 @@ async function main() {
       icon: 'icon_tp_scroll.png',
       rarity: ItemRarity.QUEST,
       equipmentType: [EquipmentType.SCROLL],
-      consumable: true,
+      isConsumable: true,
       // добавить эффект
     },
     {
@@ -227,8 +275,17 @@ async function main() {
     },
   ];
 
+  const shop = await prisma.shop.upsert({
+    where: { id: 1 },
+    update: {},
+    create: { id: 1, name: 'General Store', gold: 1000 },
+  });
+
   for (const itemData of itemsData) {
     const item = await prisma.item.create({ data: itemData });
+    await prisma.shopStock.create({
+      data: { shopId: shop.id, itemId: item.id, quantity: 1 },
+    });
     console.log(`Создан предмет: ${item.name} (${item.rarity})`);
   }
 
@@ -368,16 +425,45 @@ async function main() {
   ];
 
   for (const monsterData of monstersData) {
-    const existing = await prisma.monster.findUnique({ where: { name: monsterData.name } });
-    if (existing) {
-      await prisma.monster.update({
-        where: { name: monsterData.name },
-        data: { ...monsterData, attributes: { deleteMany: {}, create: monsterData.attributes.create } },
+    const monster = await prisma.monster.create({ data: monsterData });
+    console.log(`Создан монстр: ${monster.name} (level ${monster.level})`);
+  }
+
+  // Добавление предметов пользователю
+  const sword = await prisma.item.findUnique({ where: { name: 'Wooden Sword' } });
+  const potion = await prisma.item.findUnique({ where: { name: 'Minor Health Potion' } });
+
+  if (adminUser?.gameProfile && sword && potion) {
+    const inventoryItems = [
+      { itemId: sword.id, quantity: 1, slot: 'left-hand', isEquiped: true },
+      { itemId: potion.id, quantity: 5, slot: null, isEquiped: false },
+    ];
+
+    for (const invItem of inventoryItems) {
+      const existingInventoryItem = await prisma.inventoryItem.findFirst({
+        where: { gameProfileId: adminUser.gameProfile.id, itemId: invItem.itemId },
       });
-      console.log(`Обновлён монстр: ${monsterData.name} (level ${monsterData.level})`);
-    } else {
-      const monster = await prisma.monster.create({ data: monsterData });
-      console.log(`Создан монстр: ${monster.name} (level ${monster.level})`);
+
+      if (existingInventoryItem) {
+        await prisma.inventoryItem.update({
+          where: { id: existingInventoryItem.id },
+          data: {
+            quantity: invItem.quantity,
+            slot: invItem.slot,
+            isEquiped: invItem.isEquiped,
+          },
+        });
+      } else {
+        await prisma.inventoryItem.create({
+          data: {
+            gameProfileId: adminUser.gameProfile.id,
+            itemId: invItem.itemId,
+            quantity: invItem.quantity,
+            slot: invItem.slot,
+            isEquiped: invItem.isEquiped,
+          },
+        });
+      }
     }
   }
 

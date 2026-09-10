@@ -4,15 +4,19 @@ import { ref } from 'vue';
 
 import type { ShopItem, InventoryEntry } from '@/modules/Shop/types';
 
-import { getShopItems, buyItem, getInventory, sellItem } from '@/modules/Shop/api';
+import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
+import { getShop, buyItem, sellItem } from '@/modules/Shop/api';
 
 export function useShopActions() {
   const $q = useQuasar();
   const { t } = useTranslation();
+  const currentUserStore = useCurrentUserStore();
 
   const shopItems = ref<ShopItem[]>([]);
   const inventory = ref<InventoryEntry[]>([]);
-  const gold = ref(100);
+  const gold = ref(0);
+  const shopGold = ref(0);
+  const shopId = ref(1);
   const loading = ref(false);
   const token = ref<string | null>(null);
 
@@ -20,12 +24,17 @@ export function useShopActions() {
   const sellQuantity = ref<Record<number, number>>({});
   const sellToast = ref({ show: false, message: '' });
 
-  const loadData = async () => {
+  const loadData = async (forcePlayerRefresh = false) => {
     loading.value = true;
     try {
-      const [items, inv] = await Promise.all([getShopItems(), getInventory()]);
-      shopItems.value = items;
-      inventory.value = inv;
+      const [shop, player] = await Promise.all([
+        getShop(shopId.value),
+        currentUserStore.fetchCurrentUser(forcePlayerRefresh),
+      ]);
+      shopItems.value = shop.items;
+      inventory.value = player.inventory;
+      gold.value = player.gold;
+      shopGold.value = shop.gold;
 
       sellQuantity.value = {};
       for (const entry of inventory.value) {
@@ -39,7 +48,15 @@ export function useShopActions() {
   };
 
   const addToCart = (itemId: number) => {
-    cart.value[itemId] = (cart.value[itemId] || 0) + 1;
+    const item = shopItems.value.find((item) => item.id === itemId);
+
+    if (!item) return;
+
+    const currentQuantity = cart.value[itemId] || 0;
+
+    if (currentQuantity >= item.quantity) return;
+
+    cart.value[itemId] = currentQuantity + 1;
   };
 
   const removeFromCart = (itemId: number) => {
@@ -63,6 +80,7 @@ export function useShopActions() {
   const cartHasItems = () => Object.keys(cart.value).length > 0;
 
   const buyFromCart = async () => {
+    if (loading.value) return;
     const ids = Object.keys(cart.value);
     if (ids.length === 0) return;
 
@@ -70,11 +88,12 @@ export function useShopActions() {
     try {
       for (const id of ids) {
         const qty = cart.value[Number(id)];
-        const result = await buyItem(Number(id), qty);
+        if (!qty || !Number.isSafeInteger(qty)) throw new Error('Invalid quantity');
+        const result = await buyItem(shopId.value, Number(id), qty);
         if (!result.success) throw new Error('Purchase failed');
       }
       $q.notify({ type: 'positive', message: t('shop.successBuy') });
-      await loadData();
+      await loadData(true);
     } catch {
       $q.notify({ type: 'negative', message: t('shop.errorBuy') });
     } finally {
@@ -91,20 +110,22 @@ export function useShopActions() {
   };
 
   const sellFromInventory = async (itemId: number, name: string, quantity: number) => {
-    if (!quantity || quantity <= 0) return;
+    const entry = inventory.value.find((entry) => entry.item.id === itemId);
+    if (loading.value || !entry || !Number.isSafeInteger(quantity) || quantity <= 0 || quantity > entry.quantity)
+      return;
 
     loading.value = true;
     try {
-      const result = await sellItem(name, quantity);
+      const result = await sellItem(shopId.value, itemId, quantity);
       if (!result.success) throw new Error('Sell failed');
 
       sellToast.value.show = true;
-      sellToast.value.message = t('shop.successSell', { quantity, name, price: result.sellValue });
+      sellToast.value.message = t('shop.successSell', { quantity: result.quantity, name, price: result.earnedGold });
 
       setTimeout(() => {
         sellToast.value.show = false;
       }, 3000);
-      await loadData();
+      await loadData(true);
     } catch {
       $q.notify({ type: 'negative', message: t('shop.errorSell') });
     } finally {
@@ -113,6 +134,8 @@ export function useShopActions() {
   };
 
   return {
+    shopId,
+    shopGold,
     shopItems,
     inventory,
     gold,

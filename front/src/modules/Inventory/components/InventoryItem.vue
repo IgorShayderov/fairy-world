@@ -15,13 +15,17 @@
     @dragover="onDragOver"
     @dragleave="onDragLeave"
     @drop="onDrop"
+    @dblclick="onDoubleClick"
   >
     <template v-if="item">
       <div class="flex h-full w-full flex-col items-center justify-center text-xs">
-        <QIcon :name="item.icon" size="32px" class="mb-1 text-gray-700" />
-        <span class="w-full truncate text-center font-medium text-gray-800">{{ item.name }}</span>
+        <QIcon :name="itemIcon" size="32px" class="mb-1 text-gray-700" />
+        <span class="w-full truncate text-center font-medium text-gray-800">{{ item.name ?? item.nameKey }}</span>
         <span v-if="item.rarity" class="mt-0.5 text-[10px] tracking-wide uppercase" :class="rarityClass">
           {{ item.rarity }}
+        </span>
+        <span v-if="item.quantity && item.quantity > 1" class="text-[10px] font-semibold text-gray-500">
+          ×{{ item.quantity }}
         </span>
       </div>
     </template>
@@ -36,11 +40,33 @@
         </span>
       </div>
     </template>
+
+    <QTooltip v-if="item" class="max-w-xs bg-gray-900 p-3 text-white" anchor="top middle" self="bottom middle">
+      <div class="font-semibold">{{ item.name ?? item.nameKey }}</div>
+      <div v-if="item.description" class="mt-1 text-xs text-gray-200">{{ item.description }}</div>
+      <div v-if="item.price !== undefined" class="mt-2 text-xs">
+        {{ $t('profile.tooltip.price') }}: {{ item.price }}g
+      </div>
+      <div v-if="item.attributes?.length" class="mt-2 text-xs">
+        <div class="font-semibold">{{ $t('profile.tooltip.attributes') }}</div>
+        <div v-for="attribute in item.attributes" :key="attribute.name">
+          <div>{{ attribute.name }}: {{ attribute.value > 0 ? '+' : '' }}{{ attribute.value }}</div>
+          <div v-if="attribute.description" class="text-gray-300">{{ attribute.description }}</div>
+        </div>
+      </div>
+      <div v-if="item.properties?.length" class="mt-2 text-xs">
+        <div class="font-semibold">{{ $t('profile.tooltip.properties') }}</div>
+        <div v-for="property in item.properties" :key="property.name">
+          <div>{{ property.name }}: {{ property.value > 0 ? '+' : '' }}{{ property.value }}</div>
+          <div v-if="property.description" class="text-gray-300">{{ property.description }}</div>
+        </div>
+      </div>
+    </QTooltip>
   </div>
 </template>
 
 <script setup lang="ts">
-import { QIcon } from 'quasar';
+import { QIcon, QTooltip } from 'quasar';
 import { computed } from 'vue';
 
 import type { Component } from 'vue';
@@ -70,7 +96,29 @@ const emit = defineEmits<{
   (e: 'drag-over', slotId: string): void;
   (e: 'drag-leave'): void;
   (e: 'drag-end'): void;
+  (e: 'double-click', item: InventoryItemType): void;
 }>();
+
+const itemIcon = computed(() => {
+  const type = props.item?.equipmentType?.[0];
+
+  const icons: Record<string, string> = {
+    WEAPON: 'sports_martial_arts',
+    SHIELD: 'shield',
+    BODY: 'checkroom',
+    HELMET: 'sports_motorsports',
+    BOOTS: 'hiking',
+    GLOVES: 'front_hand',
+    LEGS: 'accessibility',
+    RING: 'radio_button_unchecked',
+    AMULET: 'diamond',
+    SCROLL: 'description',
+    POTION: 'science',
+    UNKNOWN: 'help_outline',
+  };
+
+  return icons[type ?? 'UNKNOWN'] ?? 'help_outline';
+});
 
 const rarityClass = computed(() => {
   if (!props.item?.rarity) return 'text-gray-400';
@@ -83,7 +131,7 @@ const rarityClass = computed(() => {
 
 const onDragStart = (e: DragEvent) => {
   if (!props.item) return;
-  e.dataTransfer?.setData('text/plain', props.item.name);
+  e.dataTransfer?.setData('text/plain', props.item.name ?? props.item.nameKey);
   if (e.dataTransfer) {
     e.dataTransfer.effectAllowed = 'move';
   }
@@ -92,6 +140,10 @@ const onDragStart = (e: DragEvent) => {
 
 const onDragEnd = () => {
   emit('drag-end');
+};
+
+const onDoubleClick = () => {
+  if (props.item) emit('double-click', props.item);
 };
 
 const onDragOver = (e: DragEvent) => {
@@ -114,13 +166,7 @@ const onDrop = (e: DragEvent) => {
   if (props.item) {
     emit('drop', props.item);
   } else {
-    emit('drop', { name: '', icon: '', rarity: '' });
+    emit('drop', { name: '', nameKey: '', icon: '', rarity: '' });
   }
 };
 </script>
-
-<style lang="scss" scoped>
-:deep(.css-1d3zcjo) {
-  opacity: 0.6;
-}
-</style>
