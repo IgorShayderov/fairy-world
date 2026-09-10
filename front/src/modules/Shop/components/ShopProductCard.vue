@@ -2,25 +2,25 @@
   <div
     class="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
   >
-    <div class="flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <InventoryItem
-          :item="{
-            name: item.name,
-            nameKey: item.name,
-            icon: item.icon,
-            rarity: t(`profile.rarity.${item.rarity.toLowerCase()}`),
-            equipmentType: item.equipmentType,
-          }"
-          :slot-id="''"
-        />
+    <div class="flex justify-center">
+      <InventoryItem
+        :item="{
+          name: item.name,
+          nameKey: item.name,
+          icon: item.icon,
+          rarity: t(`profile.rarity.${item.rarity.toLowerCase()}`),
+          equipmentType: item.equipmentType,
+        }"
+        :slot-id="''"
+        class="h-24 w-24 shrink-0"
+      />
+    </div>
 
-        <span class="font-bold text-gray-800">
-          {{ item.name }}
-        </span>
-      </div>
-
-      <span class="text-lg font-bold text-green-600"> {{ item.price }}g </span>
+    <div class="flex items-center justify-between gap-3">
+      <span class="min-w-0 truncate font-bold text-gray-800">
+        {{ item.name }}
+      </span>
+      <span class="shrink-0 text-lg font-bold text-green-600"> {{ item.price }}g </span>
     </div>
 
     <p class="text-sm text-gray-500">

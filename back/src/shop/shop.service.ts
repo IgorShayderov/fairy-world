@@ -121,6 +121,10 @@ export class ShopService {
         where: { id: targetInvItem.gameProfileId },
         data: { gold: { increment: sellValue } },
       }),
+      this.prisma.item.update({
+        where: { id: targetInvItem.itemId },
+        data: { quantity: { increment: dto.quantity } },
+      }),
     ];
 
     // Если продаем всё — удаляем слот из инвентаря. Иначе — просто уменьшаем количество.

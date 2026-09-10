@@ -17,7 +17,13 @@
       >
         <div class="flex items-center gap-3 border-b border-gray-200 pb-2">
           <InventoryItem
-            :item="{ name: inv.item.name, icon: inv.item.icon, rarity: t('profile.rarity.common') }"
+            :item="{
+              name: inv.item.name,
+              nameKey: inv.item.name,
+              icon: inv.item.icon,
+              rarity: t(`profile.rarity.${inv.item.rarity.toLowerCase()}`),
+              equipmentType: inv.item.equipmentType,
+            }"
             :slot-id="''"
           />
           <div class="flex flex-col">
