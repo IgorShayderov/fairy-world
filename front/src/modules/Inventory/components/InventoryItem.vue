@@ -22,9 +22,6 @@
         <img v-if="itemImage" :src="itemImage" alt="" class="mb-1 h-12 w-12 object-contain" />
         <QIcon v-else :name="itemIcon" size="32px" class="mb-1 text-gray-700" />
         <span class="w-full truncate text-center font-medium text-gray-800">{{ item.name ?? item.nameKey }}</span>
-        <span v-if="item.rarity" class="mt-0.5 text-[10px] tracking-wide uppercase" :class="rarityClass">
-          {{ item.rarity }}
-        </span>
         <span v-if="item.quantity && item.quantity > 1" class="text-[10px] font-semibold text-gray-500">
           ×{{ item.quantity }}
         </span>
@@ -44,7 +41,14 @@
 
     <QTooltip v-if="item" class="max-w-xs bg-gray-900 p-3 text-white" anchor="top middle" self="bottom middle">
       <div class="font-semibold">{{ item.tooltipName ?? item.name ?? item.nameKey }}</div>
-      <div v-if="item.description" class="mt-1 text-xs text-gray-200">{{ item.description }}</div>
+      <div
+        v-if="displayRarity"
+        class="mt-1 inline-flex rounded px-1.5 py-0.5 text-[10px] font-bold tracking-wide uppercase"
+        :class="rarityBadgeClass"
+      >
+        {{ displayRarity }}
+      </div>
+      <div v-if="tooltipDescription" class="mt-1 text-xs text-gray-200">{{ tooltipDescription }}</div>
       <div v-if="item.price !== undefined" class="mt-2 text-xs">
         {{ $t('profile.tooltip.price') }}: {{ item.price }}g
       </div>
@@ -67,11 +71,14 @@
 </template>
 
 <script setup lang="ts">
+import { useTranslation } from 'i18next-vue';
 import { QIcon, QTooltip } from 'quasar';
 import { computed } from 'vue';
 
 import type { Component } from 'vue';
 import type { InventoryItemType } from '@/modules/Inventory/types';
+
+import { getRarityBadgeClass, removeRarityPrefix } from '@/modules/Inventory/utils/rarity';
 
 const CONFIGURED_ITEM_IMAGES: Record<string, string> = {
   'icon_sword.png': '/icons/items/icon_sword.png',
@@ -111,6 +118,8 @@ const props = withDefaults(
   }
 );
 
+const { t } = useTranslation();
+
 const emit = defineEmits<{
   (e: 'drag-start', item: InventoryItemType): void;
   (e: 'drop', item: InventoryItemType): void;
@@ -147,14 +156,15 @@ const itemImage = computed(() => {
   return CONFIGURED_ITEM_IMAGES[props.item?.icon ?? ''] ?? ITEM_TYPE_IMAGES[type ?? ''];
 });
 
-const rarityClass = computed(() => {
-  if (!props.item?.rarity) return 'text-gray-400';
-  const r = props.item.rarity.toLowerCase();
-  if (r.includes('редак') || r.includes('legendary')) return 'text-purple-600';
-  if (r.includes('редкий') || r.includes('rare')) return 'text-blue-600';
-  if (r.includes('ообычн') || r.includes('обычный') || r.includes('common')) return 'text-gray-500';
-  return 'text-gray-400';
+const displayRarity = computed(() => {
+  if (props.item?.rarityKey) return t(`profile.rarity.${props.item.rarityKey.toLowerCase()}`);
+  return props.item?.rarity;
 });
+
+const rarityBadgeClass = computed(() => getRarityBadgeClass(props.item?.rarityKey ?? props.item?.rarity));
+const tooltipDescription = computed(() =>
+  removeRarityPrefix(props.item?.description ?? '', props.item?.rarityKey ?? '')
+);
 
 const onDragStart = (e: DragEvent) => {
   if (!props.item) return;

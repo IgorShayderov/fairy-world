@@ -67,4 +67,28 @@ describe('shop quantity requests', () => {
     await Promise.all([shop.sellFromInventory(3, 'Shield', 4), shop.sellFromInventory(3, 'Shield', 4)]);
     expect(mocks.post).toHaveBeenCalledTimes(1);
   });
+
+  it('buys one item immediately on an icon double click', async () => {
+    const shop = useShopActions();
+    await shop.loadData();
+
+    await shop.buyImmediately(3);
+
+    expect(mocks.post).toHaveBeenCalledWith(expect.stringMatching(/\/shop\/1\/buy$/), {
+      itemId: 3,
+      quantity: 1,
+    });
+  });
+
+  it('sells one item immediately on an inventory icon double click', async () => {
+    const shop = useShopActions();
+    await shop.loadData();
+
+    await shop.sellOneFromInventory(3, 'Shield');
+
+    expect(mocks.post).toHaveBeenCalledWith(expect.stringMatching(/\/shop\/1\/sell$/), {
+      itemId: 3,
+      quantity: 1,
+    });
+  });
 });

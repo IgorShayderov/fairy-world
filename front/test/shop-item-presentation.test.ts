@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import enProfile from '@/locales/en/modules/profile';
 import ruProfile from '@/locales/ru/modules/profile';
+import { removeRarityPrefix } from '@/modules/Inventory/utils/rarity';
 import { getItemTypeLocaleKey } from '@/modules/Shop/utils/itemPresentation';
 
 describe('shop item presentation', () => {
@@ -19,5 +20,10 @@ describe('shop item presentation', () => {
       expect(enProfile.rarity[rarity]).toBeTruthy();
       expect(ruProfile.profile.rarity[rarity]).toBeTruthy();
     }
+  });
+
+  it('separates the rarity from generated descriptions so it can be highlighted', () => {
+    expect(removeRarityPrefix('MAGIC level 98 sword.', 'MAGIC')).toBe('level 98 sword.');
+    expect(removeRarityPrefix('A reliable iron shield.', 'COMMON')).toBe('A reliable iron shield.');
   });
 });

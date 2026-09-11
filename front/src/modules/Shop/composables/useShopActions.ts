@@ -104,6 +104,24 @@ export function useShopActions() {
     }
   };
 
+  const buyImmediately = async (itemId: number) => {
+    const item = shopItems.value.find((item) => item.id === itemId);
+    if (loading.value || !item || item.quantity < 1) return;
+
+    loading.value = true;
+    try {
+      const result = await buyItem(shopId.value, itemId, 1);
+      if (!result.success) throw new Error('Purchase failed');
+      delete cart.value[itemId];
+      $q.notify({ type: 'positive', message: t('shop.successBuy') });
+      await loadData(true);
+    } catch {
+      $q.notify({ type: 'negative', message: t('shop.errorBuy') });
+    } finally {
+      loading.value = false;
+    }
+  };
+
   const adjustSell = (itemId: number, name: string, currentQty: number, delta: number) => {
     const newVal = (sellQuantity.value[itemId] || currentQty) + delta;
     if (newVal >= 1 && newVal <= currentQty) {
@@ -135,6 +153,8 @@ export function useShopActions() {
     }
   };
 
+  const sellOneFromInventory = (itemId: number, name: string) => sellFromInventory(itemId, name, 1);
+
   return {
     shopId,
     shopGold,
@@ -152,8 +172,10 @@ export function useShopActions() {
     cartTotal,
     cartHasItems,
     buyFromCart,
+    buyImmediately,
     adjustSell,
     sellFromInventory,
+    sellOneFromInventory,
     loadData,
   };
 }

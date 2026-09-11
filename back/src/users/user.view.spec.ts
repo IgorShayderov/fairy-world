@@ -102,6 +102,12 @@ describe('UserView.renderCurrent', () => {
                   value: 3,
                   stat: { id: 1, name: 'DEFENSE' as const, description: 'Damage reduction' },
                 },
+                {
+                  itemId: 2,
+                  statId: 2,
+                  value: 4,
+                  stat: { id: 2, name: 'DAMAGE' as const, description: 'Weapon damage' },
+                },
               ],
             },
           },
@@ -136,7 +142,10 @@ describe('UserView.renderCurrent', () => {
       item: {
         name: 'Iron Shield',
         attributes: [{ name: 'STRENGTH', description: 'Physical power', value: 1 }],
-        properties: [{ name: 'DEFENSE', description: 'Damage reduction', value: 3 }],
+        properties: [
+          { name: 'DEFENSE', description: 'Damage reduction', value: 3 },
+          { name: 'DAMAGE', description: 'Weapon damage', value: 4 },
+        ],
       },
     });
     expect(result.attributes).toHaveLength(5);
@@ -148,6 +157,14 @@ describe('UserView.renderCurrent', () => {
       value: 3,
     });
     expect(result.properties).toHaveLength(7);
+    expect(result.properties).toContainEqual({
+      name: 'DAMAGE',
+      description: 'Base damage dealt by attacks.',
+      baseValue: 1,
+      attributeBonus: 3,
+      equipmentBonus: 5,
+      value: 8,
+    });
     expect(result.properties).toContainEqual({
       name: 'DEFENSE',
       description: 'Damage reduction',

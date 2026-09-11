@@ -1,5 +1,5 @@
 <template>
-  <section class="flex h-full max-h-full w-[400px] shrink-0 flex-col rounded-xl bg-gray-200 p-5 shadow-inner">
+  <section class="flex w-[400px] shrink-0 flex-col rounded-xl bg-gray-200 p-5 shadow-inner">
     <SectionNavigation
       :title="t(currentBlock.titleKey)"
       :total-pages="blocks.length"
@@ -8,7 +8,7 @@
       @next="nextBlock"
     />
 
-    <div class="flex w-full flex-1 flex-col justify-center">
+    <div class="flex w-full flex-1 flex-col justify-start">
       <div
         v-if="activeBlockKey === 'equipment'"
         class="relative flex h-[432px] min-h-[432px] w-full items-center justify-center"

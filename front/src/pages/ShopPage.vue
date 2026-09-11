@@ -24,6 +24,7 @@
               :cart-quantity="cart[item.id] || 0"
               @add="addToCart"
               @remove="removeFromCart"
+              @buy="buyImmediately"
             />
           </div>
         </div>
@@ -46,6 +47,7 @@
         @adjust-sell="adjustSell"
         @update-sell-quantity="(id, val) => (sellQuantity[id] = val)"
         @sell="sellFromInventory"
+        @sell-one="sellOneFromInventory"
       />
     </div>
 
@@ -84,8 +86,10 @@ const {
   cartTotal,
   cartHasItems,
   buyFromCart,
+  buyImmediately,
   adjustSell,
   sellFromInventory,
+  sellOneFromInventory,
   loadData,
 } = useShopActions();
 

@@ -68,18 +68,27 @@ export const BASE_ITEMS: BaseItem[] = [
     equipmentType: EquipmentType.BOOTS,
     basePrice: 60,
     icon: 'icon_boots.png',
+    baseStats: {
+      [StatType.DODGE]: 1,
+    },
   },
   {
     name: 'Ring',
     equipmentType: EquipmentType.RING,
     basePrice: 100,
     icon: 'icon_ring.png',
+    baseStats: {
+      [StatType.CRIT]: 1,
+    },
   },
   {
     name: 'Amulet',
     equipmentType: EquipmentType.AMULET,
     basePrice: 150,
     icon: 'icon_amulet.png',
+    baseStats: {
+      [StatType.MANA]: 3,
+    },
   },
 ];
 

@@ -10,7 +10,7 @@
       @next="nextPage"
     />
 
-    <div class="flex w-full flex-1 flex-col items-center justify-center">
+    <div class="flex w-full flex-1 flex-col items-center justify-start">
       <div class="grid grid-cols-3 gap-4">
         <InventoryItem
           v-for="(item, idx) in displayedInventory"

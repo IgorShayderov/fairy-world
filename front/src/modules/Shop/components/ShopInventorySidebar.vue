@@ -25,11 +25,13 @@
               description: inv.item.description,
               price: inv.item.price,
               rarity: t(`profile.rarity.${inv.item.rarity.toLowerCase()}`),
+              rarityKey: inv.item.rarity,
               equipmentType: inv.item.equipmentType,
               attributes: inv.item.attributes,
               properties: inv.item.properties,
             }"
             :slot-id="''"
+            @double-click="$emit('sell-one', inv.item.id, inv.item.name)"
           />
           <div class="flex flex-col">
             <span class="max-w-[140px] truncate text-sm font-semibold text-gray-800">
@@ -96,6 +98,7 @@ defineEmits<{
   (e: 'adjust-sell', id: number, name: string, currentQty: number, delta: number): void;
   (e: 'update-sell-quantity', id: number, value: number): void;
   (e: 'sell', id: number, name: string, quantity: number): void;
+  (e: 'sell-one', id: number, name: string): void;
 }>();
 
 const { t } = useTranslation();

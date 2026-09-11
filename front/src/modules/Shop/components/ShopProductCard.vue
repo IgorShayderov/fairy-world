@@ -12,12 +12,14 @@
           description: item.description,
           price: item.price,
           rarity: t(`profile.rarity.${item.rarity.toLowerCase()}`),
+          rarityKey: item.rarity,
           equipmentType: item.equipmentType,
           attributes: item.attributes,
           properties: item.properties,
         }"
         :slot-id="''"
         class="h-24 w-24 shrink-0"
+        @double-click="$emit('buy', item.id)"
       />
     </div>
 
@@ -29,7 +31,8 @@
     </div>
 
     <p class="text-sm text-gray-500">
-      {{ item.description || '—' }}
+      <span class="font-semibold" :class="rarityTextClass">{{ rarityName }}</span>
+      <span v-if="description" class="ml-1">{{ description }}</span>
     </p>
 
     <div class="mt-auto flex items-center justify-between border-t border-gray-100 pt-3">
@@ -73,6 +76,7 @@ import { computed } from 'vue';
 
 import type { ShopItem } from '@/modules/Shop/types';
 
+import { getRarityTextClass, removeRarityPrefix } from '@/modules/Inventory/utils/rarity';
 import { getItemTypeLocaleKey } from '@/modules/Shop/utils/itemPresentation';
 
 import InventoryItem from '@/modules/Inventory/components/InventoryItem.vue';
@@ -85,8 +89,12 @@ const props = defineProps<{
 defineEmits<{
   (e: 'add', id: number): void;
   (e: 'remove', id: number): void;
+  (e: 'buy', id: number): void;
 }>();
 
 const { t } = useTranslation();
 const itemTypeName = computed(() => t(getItemTypeLocaleKey(props.item.equipmentType)));
+const rarityName = computed(() => t(`profile.rarity.${props.item.rarity.toLowerCase()}`));
+const rarityTextClass = computed(() => getRarityTextClass(props.item.rarity));
+const description = computed(() => removeRarityPrefix(props.item.description, props.item.rarity) || '—');
 </script>

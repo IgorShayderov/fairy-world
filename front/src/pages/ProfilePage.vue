@@ -1,6 +1,6 @@
 <template>
   <div class="flex min-h-0 flex-1 flex-col overflow-hidden bg-gray-50">
-    <div class="flex h-full w-full flex-row items-stretch justify-center gap-8 overflow-y-auto p-6">
+    <div class="flex h-full w-full flex-row items-start justify-center gap-8 overflow-y-auto p-6">
       <EquipmentSection
         class="shrink-0"
         :equipment-slots="equipmentSlots"

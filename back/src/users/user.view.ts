@@ -120,7 +120,9 @@ export class UserView {
         const property = properties.get(propertyName as StatType);
         if (!property || bonusPerPoint === undefined) continue;
         const bonus = attribute.value * bonusPerPoint;
+        const equipmentAttributeBonus = attribute.equipmentBonus * bonusPerPoint;
         property.attributeBonus = (property.attributeBonus ?? 0) + bonus;
+        property.equipmentBonus += equipmentAttributeBonus;
         property.value += bonus;
       }
     }
