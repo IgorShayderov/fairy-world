@@ -5,30 +5,35 @@
     <div class="flex justify-center">
       <InventoryItem
         :item="{
-          name: item.name,
-          nameKey: item.name,
+          name: itemTypeName,
+          nameKey: itemTypeName,
+          tooltipName: item.name,
           icon: item.icon,
           description: item.description,
           price: item.price,
           rarity: t(`profile.rarity.${item.rarity.toLowerCase()}`),
+          rarityKey: item.rarity,
           equipmentType: item.equipmentType,
           attributes: item.attributes,
           properties: item.properties,
         }"
+        :comparison-item="equippedItem"
         :slot-id="''"
         class="h-24 w-24 shrink-0"
+        @double-click="$emit('add', item.id)"
       />
     </div>
 
     <div class="flex items-center justify-between gap-3">
       <span class="min-w-0 truncate font-bold text-gray-800">
-        {{ item.name }}
+        {{ itemTypeName }}
       </span>
       <span class="shrink-0 text-lg font-bold text-green-600"> {{ item.price }}g </span>
     </div>
 
     <p class="text-sm text-gray-500">
-      {{ item.description || '—' }}
+      <span class="font-semibold" :class="rarityTextClass">{{ rarityName }}</span>
+      <span v-if="description" class="ml-1">{{ description }}</span>
     </p>
 
     <div class="mt-auto flex items-center justify-between border-t border-gray-100 pt-3">
@@ -68,14 +73,20 @@
 <script setup lang="ts">
 import { useTranslation } from 'i18next-vue';
 import { QBtn } from 'quasar';
+import { computed } from 'vue';
 
+import type { InventoryItemType } from '@/modules/Inventory/types';
 import type { ShopItem } from '@/modules/Shop/types';
+
+import { getRarityTextClass, removeRarityPrefix } from '@/modules/Inventory/utils/rarity';
+import { getItemTypeLocaleKey } from '@/modules/Shop/utils/itemPresentation';
 
 import InventoryItem from '@/modules/Inventory/components/InventoryItem.vue';
 
-defineProps<{
+const props = defineProps<{
   item: ShopItem;
   cartQuantity: number;
+  equippedItem: InventoryItemType | null;
 }>();
 
 defineEmits<{
@@ -84,4 +95,8 @@ defineEmits<{
 }>();
 
 const { t } = useTranslation();
+const itemTypeName = computed(() => t(getItemTypeLocaleKey(props.item.equipmentType)));
+const rarityName = computed(() => t(`profile.rarity.${props.item.rarity.toLowerCase()}`));
+const rarityTextClass = computed(() => getRarityTextClass(props.item.rarity));
+const description = computed(() => removeRarityPrefix(props.item.description, props.item.rarity) || '—');
 </script>

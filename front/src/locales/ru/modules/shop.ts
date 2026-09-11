@@ -12,4 +12,13 @@ export default {
   errorBuy: 'Недостаточно золота или ошибка',
   successSell: 'Продано {{quantity}}× {{name}} за {{price}}g',
   errorSell: 'Ошибка продажи',
+  newItemsIn: 'Новые товары через',
+  refreshItems: 'Новый товар',
+  refreshSuccess: 'В магазин поступили новые товары!',
+  refreshError: 'Недостаточно самоцветов или магазин не удалось обновить',
+  gems: 'самоцветов',
+  comparedWithEquipped: 'Сравнение с экипированным предметом',
+  thisItem: 'Этот',
+  equipped: 'Надет',
+  difference: 'Разн.',
 };

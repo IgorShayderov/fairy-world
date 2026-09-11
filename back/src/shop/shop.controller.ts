@@ -17,8 +17,8 @@ export class ShopController {
 
   @Get(':shopId')
   @ApiOkResponse({ description: 'Shop details, stock and stored gold' })
-  getShop(@Param('shopId', ParseIntPipe) shopId: number) {
-    return this.shopService.getShop(shopId);
+  getShop(@Param('shopId', ParseIntPipe) shopId: number, @Req() req: ShopRequest) {
+    return this.shopService.getShop(req.user.sub, shopId);
   }
 
   @Post(':shopId/buy')
@@ -29,5 +29,11 @@ export class ShopController {
   @Post(':shopId/sell')
   sell(@Param('shopId', ParseIntPipe) shopId: number, @Body() dto: SellDto, @Req() req: ShopRequest) {
     return this.shopService.sell(req.user.sub, shopId, dto);
+  }
+
+  @Post(':shopId/refresh')
+  @ApiOkResponse({ description: 'Refreshes shop stock immediately for 10 gems' })
+  refresh(@Param('shopId', ParseIntPipe) shopId: number, @Req() req: ShopRequest) {
+    return this.shopService.refresh(req.user.sub, shopId);
   }
 }

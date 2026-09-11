@@ -3,6 +3,7 @@ import { AttributeType, StatType, type Prisma } from '../../generated/client';
 import { ItemView } from '../common/views/item.view';
 import {
   ATTRIBUTE_EFFECTS,
+  convertRatingToPercentage,
   PROPERTY_DESCRIPTIONS,
   STARTING_ATTRIBUTE_VALUE,
   STARTING_PROPERTIES,
@@ -36,6 +37,8 @@ type EffectiveModifier = {
   attributeBonus?: number;
   equipmentBonus: number;
   value: number;
+  rating?: number;
+  equipmentRatingBonus?: number;
 };
 
 // 1. Задаем строгий тип для возможных вариантов view.
@@ -45,6 +48,7 @@ export type UserViewType = 'default' | 'extended';
 export class UserView {
   static renderCurrent(user: CurrentUserModel) {
     const profile = user.gameProfile;
+    const playerLevel = profile?.level ?? 1;
     const entries = profile?.inventory ?? [];
     const equippedEntries = entries.filter((entry) => entry.isEquiped);
     const renderEntry = (entry: (typeof entries)[number]) => ({
@@ -120,7 +124,9 @@ export class UserView {
         const property = properties.get(propertyName as StatType);
         if (!property || bonusPerPoint === undefined) continue;
         const bonus = attribute.value * bonusPerPoint;
+        const equipmentAttributeBonus = attribute.equipmentBonus * bonusPerPoint;
         property.attributeBonus = (property.attributeBonus ?? 0) + bonus;
+        property.equipmentBonus += equipmentAttributeBonus;
         property.value += bonus;
       }
     }
@@ -141,14 +147,42 @@ export class UserView {
       }
     }
 
+    const renderedProperties = [...properties.values()].map((property) => {
+      const stat = property.name as StatType;
+      if (
+        stat !== StatType.CRIT &&
+        stat !== StatType.DODGE &&
+        stat !== StatType.CRIT_DAMAGE &&
+        stat !== StatType.DEFENSE
+      )
+        return property;
+
+      const rating = property.value;
+      const ratingWithoutEquipment = rating - property.equipmentBonus;
+      const basePercentage = convertRatingToPercentage(stat, property.baseValue, playerLevel);
+      const percentageWithoutEquipment = convertRatingToPercentage(stat, ratingWithoutEquipment, playerLevel);
+      const value = convertRatingToPercentage(stat, rating, playerLevel);
+
+      return {
+        ...property,
+        rating,
+        equipmentRatingBonus: property.equipmentBonus,
+        baseValue: basePercentage,
+        attributeBonus: Math.round((percentageWithoutEquipment - basePercentage) * 10) / 10,
+        equipmentBonus: Math.round((value - percentageWithoutEquipment) * 10) / 10,
+        value,
+      };
+    });
+
     return {
       ...this.render(user),
       gold: profile?.gold ?? 0,
+      gems: profile?.gems ?? 0,
       experience: profile?.experience ?? 0,
-      level: profile?.level ?? 1,
+      level: playerLevel,
       freeAttributes: profile?.freeAttributes ?? 0,
       attributes: [...attributes.values()],
-      properties: [...properties.values()],
+      properties: renderedProperties,
       inventory: entries.filter((entry) => !entry.isEquiped).map(renderEntry),
       equippedItems: equippedEntries.map(renderEntry),
     };

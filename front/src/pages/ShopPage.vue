@@ -2,9 +2,20 @@
   <div class="flex h-full min-h-0 flex-1 flex-col bg-gray-50 text-gray-900">
     <div class="flex min-h-0 flex-1 overflow-hidden">
       <main class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <ShopHeader :gold="gold" :cart-total="cartTotal()" :disabled="!cartHasItems() || loading" @buy="buyFromCart" />
+        <ShopHeader
+          :gold="gold"
+          :gems="gems"
+          :cart-total="cartTotal()"
+          :disabled="!cartHasItems() || loading"
+          :refresh-cost="refreshCost"
+          :refresh-disabled="loading || gems < refreshCost"
+          :next-restock-at="nextRestockAt"
+          @buy="buyFromCart"
+          @refresh="refreshStock"
+          @restock-due="loadData"
+        />
 
-        <div class="flex-1 overflow-y-auto p-6">
+        <div class="min-h-0 flex-1 overflow-y-scroll overscroll-contain p-6">
           <div v-if="loading && shopItems.length === 0" class="flex h-32 items-center justify-center">
             <div class="text-gray-500">{{ t('shop.loading') }}</div>
           </div>
@@ -15,6 +26,7 @@
               :key="item.id"
               :item="item"
               :cart-quantity="cart[item.id] || 0"
+              :equipped-item="findEquippedItem(item.equipmentType)"
               @add="addToCart"
               @remove="removeFromCart"
             />
@@ -34,11 +46,13 @@
 
       <ShopInventorySidebar
         :inventory="inventory"
+        :equipped-items="equippedItems"
         :sell-quantity="sellQuantity"
         :loading="loading"
         @adjust-sell="adjustSell"
         @update-sell-quantity="(id, val) => (sellQuantity[id] = val)"
         @sell="sellFromInventory"
+        @add-one-to-sell="addOneToSell"
       />
     </div>
 
@@ -55,7 +69,11 @@
 import { useTranslation } from 'i18next-vue';
 import { onMounted } from 'vue';
 
+import type { EquipmentType, InventoryItemType } from '@/modules/Inventory/types';
+
+import { findEquippedEntryForTypes } from '@/modules/Inventory/utils/equipment';
 import { useShopActions } from '@/modules/Shop/composables/useShopActions';
+import { getItemTypeLocaleKey } from '@/modules/Shop/utils/itemPresentation';
 
 import ShopHeader from '@/modules/Shop/components/ShopHeader.vue';
 import ShopInventorySidebar from '@/modules/Shop/components/ShopInventorySidebar.vue';
@@ -66,7 +84,11 @@ const { t } = useTranslation();
 const {
   shopItems,
   inventory,
+  equippedItems,
   gold,
+  gems,
+  refreshCost,
+  nextRestockAt,
   loading,
   cart,
   sellQuantity,
@@ -78,10 +100,31 @@ const {
   buyFromCart,
   adjustSell,
   sellFromInventory,
+  addOneToSell,
+  refreshStock,
   loadData,
 } = useShopActions();
 
 onMounted(async () => {
   await loadData();
 });
+
+const findEquippedItem = (equipmentTypes: EquipmentType[]): InventoryItemType | null => {
+  const equipped = findEquippedEntryForTypes(equippedItems.value, equipmentTypes);
+  if (!equipped) return null;
+
+  return {
+    nameKey: equipped.item.name,
+    name: t(getItemTypeLocaleKey(equipped.item.equipmentType)),
+    tooltipName: equipped.item.name,
+    icon: equipped.item.icon,
+    description: equipped.item.description,
+    price: equipped.item.price,
+    rarity: t(`profile.rarity.${equipped.item.rarity.toLowerCase()}`),
+    rarityKey: equipped.item.rarity,
+    equipmentType: equipped.item.equipmentType,
+    attributes: equipped.item.attributes,
+    properties: equipped.item.properties,
+  };
+};
 </script>

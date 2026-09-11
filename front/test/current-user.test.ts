@@ -19,6 +19,7 @@ describe('current user loading', () => {
       name: 'Player',
       email: 'player@example.com',
       gold: 100,
+      gems: 5,
       experience: 20,
       level: 2,
       freeAttributes: 0,

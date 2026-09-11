@@ -42,6 +42,7 @@ describe('profile inventory hydration', () => {
         description: 'Heavy shield',
         price: 50,
         rarity: 'COMMON',
+        rarityKey: 'COMMON',
         equipmentType: ['SHIELD'],
         attributes: [],
         properties: [{ name: 'DEFENSE', description: null, value: 1 }],

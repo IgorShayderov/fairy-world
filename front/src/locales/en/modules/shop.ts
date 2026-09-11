@@ -12,4 +12,13 @@ export default {
   errorBuy: 'Not enough gold or an error occurred',
   successSell: 'Sold {{quantity}}× {{name}} for {{price}}g',
   errorSell: 'Sale error',
+  newItemsIn: 'New items in',
+  refreshItems: 'New stock',
+  refreshSuccess: 'The shop has received new items!',
+  refreshError: 'Not enough gems or the shop could not be refreshed',
+  gems: 'gems',
+  comparedWithEquipped: 'Compared with equipped item',
+  thisItem: 'This',
+  equipped: 'Equipped',
+  difference: 'Diff.',
 };

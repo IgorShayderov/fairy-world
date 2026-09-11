@@ -134,6 +134,7 @@ describe('AuthService', () => {
 
       const createData = mockPrismaService.user.create.mock.calls[0][0].data;
       const profile = 'create' in createData.gameProfile! ? createData.gameProfile.create : undefined;
+      expect(profile?.gems).toBe(0);
       expect(profile?.freeAttributes).toBe(0);
       expect(profile?.profileAttributes?.create).toHaveLength(5);
       expect(profile?.profileAttributes?.create).toEqual(

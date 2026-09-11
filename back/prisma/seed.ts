@@ -10,6 +10,7 @@ import {
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import * as bcrypt from 'bcrypt';
+import { SEEDED_CONSUMABLES } from '../src/items/seeded-consumables';
 import { STARTING_ATTRIBUTE_VALUE, STARTING_PROPERTIES } from '../src/users/player-defaults';
 
 const connectionString = process.env.DATABASE_URL;
@@ -147,146 +148,29 @@ async function main() {
     console.log(`Создан канал: ${channel.name}`);
   }
 
-  const itemsData = [
-    {
-      name: 'Wooden Sword',
-      description: 'Простой деревянный меч для тренировок.',
-      price: 10,
-      icon: 'icon_wooden_sword.png',
-      rarity: ItemRarity.COMMON,
-      equipmentType: [EquipmentType.WEAPON],
-      stats: {
-        create: [{ stat: { connect: { name: StatType.DAMAGE } }, value: 1 }],
-      },
-    },
-    {
-      name: 'Iron Shield',
-      description: 'Тяжелый, но надежный железный щит.',
-      price: 50,
-      icon: 'icon_iron_shield.png',
-      rarity: ItemRarity.COMMON,
-      equipmentType: [EquipmentType.SHIELD],
-      stats: {
-        create: [{ stat: { connect: { name: StatType.DEFENSE } }, value: 1 }],
-      },
-    },
-    {
-      name: 'Minor Health Potion',
-      description: 'Восстанавливает немного здоровья.',
-      price: 15,
-      icon: 'icon_hp_potion.png',
-      rarity: ItemRarity.COMMON,
-      equipmentType: [EquipmentType.POTION],
-      isConsumable: true,
-      // TODO: нужно добавить эффекты
-    },
-    {
-      name: 'Leather Armor',
-      description: 'Легкая броня из выделанной кожи.',
-      price: 120,
-      icon: 'icon_leather_armor.png',
-      rarity: ItemRarity.MAGIC,
-      equipmentType: [EquipmentType.BODY],
-      stats: {
-        create: [
-          { stat: { connect: { name: StatType.DEFENSE } }, value: 5 },
-          { stat: { connect: { name: StatType.DODGE } }, value: 3 },
-        ],
-      },
-    },
-    {
-      name: 'Ring of Vitality',
-      description: 'Кольцо, пульсирующее жизненной энергией.',
-      price: 500,
-      icon: 'icon_vitality_ring.png',
-      rarity: ItemRarity.RARE,
-      equipmentType: [EquipmentType.RING],
-      stats: {
-        create: [
-          { stat: { connect: { name: StatType.MANA } }, value: 5 },
-          { stat: { connect: { name: StatType.HEALTH } }, value: 10 },
-          { stat: { connect: { name: StatType.DEFENSE } }, value: 3 },
-        ],
-      },
-    },
-    {
-      name: 'Excalibur',
-      description: 'Легендарный меч истинного короля.',
-      price: 10000,
-      icon: 'icon_excalibur.png',
-      rarity: ItemRarity.UNIQUE,
-      equipmentType: [EquipmentType.WEAPON],
-      stats: {
-        create: [
-          { stat: { connect: { name: StatType.DAMAGE } }, value: 50 },
-          { stat: { connect: { name: StatType.CRIT_DAMAGE } }, value: 15 },
-          { stat: { connect: { name: StatType.CRIT } }, value: 10 },
-        ],
-      },
-    },
-    {
-      name: 'Boots of Swiftness',
-      description: 'Позволяют владельцу бегать со скоростью ветра.',
-      price: 800,
-      icon: 'icon_swift_boots.png',
-      rarity: ItemRarity.RARE,
-      equipmentType: [EquipmentType.BOOTS],
-      attributes: {
-        create: [{ attribute: { connect: { name: AttributeType.AGILITY } }, value: 10 }],
-      },
-    },
-    {
-      name: 'Amulet of the Archmage',
-      description: 'Дарует невероятную магическую силу.',
-      price: 15000,
-      icon: 'icon_archmage_amulet.png',
-      rarity: ItemRarity.UNIQUE,
-      equipmentType: [EquipmentType.AMULET],
-      attributes: {
-        create: [{ attribute: { connect: { name: AttributeType.WISDOM } }, value: 10 }],
-      },
-      stats: {
-        create: [{ stat: { connect: { name: StatType.MANA } }, value: 15 }],
-      },
-    },
-    {
-      name: 'Town Portal Scroll',
-      description: 'Свиток, открывающий портал в ближайший город.',
-      price: 100,
-      icon: 'icon_tp_scroll.png',
-      rarity: ItemRarity.QUEST,
-      equipmentType: [EquipmentType.SCROLL],
-      isConsumable: true,
-      // добавить эффект
-    },
-    {
-      name: 'Dragon Scale Helmet',
-      description: 'Шлем, выкованный из чешуи древнего дракона.',
-      price: 3500,
-      icon: 'icon_dragon_helm.png',
-      rarity: ItemRarity.RARE,
-      equipmentType: [EquipmentType.HELMET],
-      stats: {
-        create: [
-          { stat: { connect: { name: StatType.DEFENSE } }, value: 50 },
-          { stat: { connect: { name: StatType.DODGE } }, value: 15 },
-        ],
-      },
-    },
-  ];
-
-  const shop = await prisma.shop.upsert({
+  await prisma.shop.upsert({
     where: { id: 1 },
     update: {},
     create: { id: 1, name: 'General Store', gold: 1000 },
   });
 
-  for (const itemData of itemsData) {
-    const item = await prisma.item.create({ data: itemData });
-    await prisma.shopStock.create({
-      data: { shopId: shop.id, itemId: item.id, quantity: 1 },
-    });
-    console.log(`Создан предмет: ${item.name} (${item.rarity})`);
+  for (const consumable of SEEDED_CONSUMABLES) {
+    const data = {
+      name: consumable.name,
+      description: consumable.description,
+      price: consumable.price,
+      icon: consumable.equipmentType === EquipmentType.POTION ? 'icon_potion.png' : 'icon_scroll.png',
+      isConsumable: true,
+      rarity: consumable.rarity,
+      equipmentType: [consumable.equipmentType],
+      level: 1,
+    };
+    const existingItem = await prisma.item.findFirst({ where: { name: consumable.name } });
+    const item = existingItem
+      ? await prisma.item.update({ where: { id: existingItem.id }, data })
+      : await prisma.item.create({ data });
+
+    console.log(`Создан расходуемый предмет: ${item.name}`);
   }
 
   const monstersData = [
@@ -425,13 +309,16 @@ async function main() {
   ];
 
   for (const monsterData of monstersData) {
+    const existingMonster = await prisma.monster.findUnique({ where: { name: monsterData.name } });
+    if (existingMonster) continue;
+
     const monster = await prisma.monster.create({ data: monsterData });
     console.log(`Создан монстр: ${monster.name} (level ${monster.level})`);
   }
 
   // Добавление предметов пользователю
-  const sword = await prisma.item.findUnique({ where: { name: 'Wooden Sword' } });
-  const potion = await prisma.item.findUnique({ where: { name: 'Minor Health Potion' } });
+  const sword = await prisma.item.findFirst({ where: { name: 'Wooden Sword' } });
+  const potion = await prisma.item.findFirst({ where: { name: 'Lesser Health Potion' } });
 
   if (adminUser?.gameProfile && sword && potion) {
     const inventoryItems = [
@@ -454,6 +341,13 @@ async function main() {
           },
         });
       } else {
+        const occupiedSlot = invItem.slot
+          ? await prisma.inventoryItem.findFirst({
+              where: { gameProfileId: adminUser.gameProfile.id, slot: invItem.slot },
+            })
+          : null;
+        if (occupiedSlot) continue;
+
         await prisma.inventoryItem.create({
           data: {
             gameProfileId: adminUser.gameProfile.id,

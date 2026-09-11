@@ -8,6 +8,7 @@ export type CurrentUser = {
   name: string;
   email: string;
   gold: number;
+  gems: number;
   experience: number;
   level: number;
   freeAttributes: number;
@@ -22,6 +23,9 @@ export const usersApi = {
     const { data } = await api.get<CurrentUser>(routes.api.users.mePath());
 
     return data;
+  },
+  async allocateAttribute(attribute: string, amount = 1): Promise<void> {
+    await api.post(routes.api.users.attributesPath(), { attribute, amount });
   },
   async equipItem(inventoryItemId: number, slot: EquipmentSlotId): Promise<void> {
     await api.put(routes.api.users.equipmentPath(), { inventoryItemId, slot });

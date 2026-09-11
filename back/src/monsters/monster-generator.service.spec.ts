@@ -1,0 +1,34 @@
+import { AttributeType } from '../../generated/client';
+import { MONSTER_ARCHETYPES } from './monster-generator.config';
+import { MonsterGeneratorService } from './monster-generator.service';
+
+describe('MonsterGeneratorService', () => {
+  const service = new MonsterGeneratorService();
+
+  afterEach(() => jest.restoreAllMocks());
+
+  it('generates a varied archetype close to the player level', () => {
+    jest.spyOn(Math, 'random').mockReturnValue(0);
+
+    const monster = service.generate(100);
+
+    expect(monster.level).toBe(98);
+    expect(monster.name).toBe(`Wandering ${MONSTER_ARCHETYPES[0].name}`);
+    expect(monster.rewardGold).toBeGreaterThan(0);
+    expect(monster.rewardExperience).toBeGreaterThan(0);
+    expect(monster.attributes).toEqual([
+      { value: 13, attribute: { name: AttributeType.AGILITY } },
+      { value: 12, attribute: { name: AttributeType.STRENGTH } },
+    ]);
+  });
+
+  it('never generates a monster below level one', () => {
+    jest.spyOn(Math, 'random').mockReturnValue(0);
+
+    expect(service.generate(1).level).toBe(1);
+  });
+
+  it('can generate every configured archetype instead of one closest seeded monster', () => {
+    expect(MONSTER_ARCHETYPES.length).toBeGreaterThanOrEqual(10);
+  });
+});

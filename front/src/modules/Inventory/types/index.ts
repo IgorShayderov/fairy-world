@@ -26,6 +26,8 @@ export interface EffectiveModifier extends ItemModifier {
   baseValue: number;
   attributeBonus?: number;
   equipmentBonus: number;
+  rating?: number;
+  equipmentRatingBonus?: number;
 }
 
 export interface InventoryItemType {
@@ -33,6 +35,7 @@ export interface InventoryItemType {
   id?: number;
   nameKey: string;
   name?: string;
+  tooltipName?: string;
   icon: string;
   description?: string;
   price?: number;

@@ -31,6 +31,7 @@ describe('UserView.renderCurrent', () => {
       isConsumable: false,
       rarity: 'COMMON' as const,
       equipmentType: ['SHIELD' as const],
+      level: 1,
       createdAt: new Date('2026-09-10T00:00:00Z'),
       updatedAt: new Date('2026-09-10T00:00:00Z'),
     };
@@ -53,6 +54,7 @@ describe('UserView.renderCurrent', () => {
         id: 7,
         userId: 1,
         gold: 100,
+        gems: 25,
         experience: 20,
         level: 3,
         freeAttributes: 0,
@@ -101,6 +103,18 @@ describe('UserView.renderCurrent', () => {
                   value: 3,
                   stat: { id: 1, name: 'DEFENSE' as const, description: 'Damage reduction' },
                 },
+                {
+                  itemId: 2,
+                  statId: 2,
+                  value: 4,
+                  stat: { id: 2, name: 'DAMAGE' as const, description: 'Weapon damage' },
+                },
+                {
+                  itemId: 2,
+                  statId: 3,
+                  value: 4,
+                  stat: { id: 3, name: 'CRIT' as const, description: 'Critical rating' },
+                },
               ],
             },
           },
@@ -127,6 +141,7 @@ describe('UserView.renderCurrent', () => {
 
     const result = UserView.renderCurrent(user);
 
+    expect(result.gems).toBe(25);
     expect(result.inventory).toHaveLength(1);
     expect(result.equippedItems).toHaveLength(1);
     expect(result.equippedItems[0]).toMatchObject({
@@ -135,7 +150,11 @@ describe('UserView.renderCurrent', () => {
       item: {
         name: 'Iron Shield',
         attributes: [{ name: 'STRENGTH', description: 'Physical power', value: 1 }],
-        properties: [{ name: 'DEFENSE', description: 'Damage reduction', value: 3 }],
+        properties: [
+          { name: 'DEFENSE', description: 'Damage reduction', value: 3 },
+          { name: 'DAMAGE', description: 'Weapon damage', value: 4 },
+          { name: 'CRIT', description: 'Critical rating', value: 4 },
+        ],
       },
     });
     expect(result.attributes).toHaveLength(5);
@@ -148,12 +167,32 @@ describe('UserView.renderCurrent', () => {
     });
     expect(result.properties).toHaveLength(7);
     expect(result.properties).toContainEqual({
+      name: 'DAMAGE',
+      description: 'Base damage dealt by attacks.',
+      baseValue: 1,
+      attributeBonus: 3,
+      equipmentBonus: 5,
+      value: 8,
+    });
+    expect(result.properties).toContainEqual({
       name: 'DEFENSE',
       description: 'Damage reduction',
-      baseValue: 5,
-      attributeBonus: 5,
-      equipmentBonus: 3,
-      value: 13,
+      baseValue: 14.3,
+      attributeBonus: 10.7,
+      equipmentBonus: 5.2,
+      value: 30.2,
+      rating: 13,
+      equipmentRatingBonus: 3,
+    });
+    expect(result.properties).toContainEqual({
+      name: 'CRIT',
+      description: 'Final critical-hit chance, capped at 50%.',
+      baseValue: 0,
+      attributeBonus: 12.5,
+      equipmentBonus: 20,
+      value: 32.5,
+      rating: 6.5,
+      equipmentRatingBonus: 4,
     });
   });
 });

@@ -1,17 +1,31 @@
 import { reactive, ref } from 'vue';
 
-export function useCharacter(initialX = 1000, initialY = 600, mapWidth = 2400, mapHeight = 1600) {
+export function useCharacter(
+  initialX = 1000,
+  initialY = 600,
+  mapWidth = 2400,
+  mapHeight = 1600,
+  canMoveTo: (x: number, y: number) => boolean = () => true
+) {
   const pos = reactive({ x: initialX, y: initialY });
   const target = reactive({ x: initialX, y: initialY });
   const isMoving = ref(false);
+  const completedTravelSteps = ref(0);
+  let distanceSinceTravelStep = 0;
 
-  const speed = 1.5;
+  const speed = 1;
+  const travelStepDistance = 80;
 
   const walkTo = (x: number, y: number) => {
-    target.x = Math.max(0, Math.min(x, mapWidth));
-    target.y = Math.max(0, Math.min(y, mapHeight));
+    const nextX = Math.max(0, Math.min(x, mapWidth));
+    const nextY = Math.max(0, Math.min(y, mapHeight));
+    if (!canMoveTo(nextX, nextY)) return false;
+
+    target.x = nextX;
+    target.y = nextY;
 
     isMoving.value = true;
+    return true;
   };
 
   // Пересчет координат для одного кадра (возвращает true, если все еще идем)
@@ -29,64 +43,83 @@ export function useCharacter(initialX = 1000, initialY = 600, mapWidth = 2400, m
       isMoving.value = false;
     } else {
       // Иначе делаем шаг
-      pos.x += (dx / dist) * speed;
-      pos.y += (dy / dist) * speed;
+      const nextX = pos.x + (dx / dist) * speed;
+      const nextY = pos.y + (dy / dist) * speed;
+      if (!canMoveTo(nextX, nextY)) {
+        isMoving.value = false;
+        return false;
+      }
+      pos.x = nextX;
+      pos.y = nextY;
+      distanceSinceTravelStep += speed;
+      if (distanceSinceTravelStep >= travelStepDistance) {
+        completedTravelSteps.value += 1;
+        distanceSinceTravelStep -= travelStepDistance;
+      }
     }
 
     return isMoving.value;
   };
 
-  // Отрисовка персонажа и пути к цели
+  const consumeTravelStep = () => {
+    if (completedTravelSteps.value === 0) return false;
+    completedTravelSteps.value -= 1;
+    return true;
+  };
+
+  const stop = () => {
+    target.x = pos.x;
+    target.y = pos.y;
+    isMoving.value = false;
+    completedTravelSteps.value = 0;
+  };
+
   const render = (ctx: CanvasRenderingContext2D) => {
-    // 1. Рисуем пунктирный путь к цели, если двигаемся
     if (isMoving.value) {
+      ctx.save();
       ctx.beginPath();
       ctx.moveTo(pos.x, pos.y);
       ctx.lineTo(target.x, target.y);
-      ctx.strokeStyle = 'rgba(231, 76, 60, 0.6)';
-      ctx.lineWidth = 4;
-      ctx.setLineDash([10, 10]);
+      ctx.strokeStyle = 'rgba(255, 225, 145, 0.8)';
+      ctx.lineWidth = 5;
+      ctx.setLineDash([6, 14]);
       ctx.stroke();
       ctx.setLineDash([]);
+
+      ctx.beginPath();
+      ctx.arc(target.x, target.y, 16, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(255, 226, 147, 0.7)';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      ctx.restore();
     }
 
-    // 2. Рисуем человечка
-    const t = isMoving.value ? Date.now() / 100 : 0;
-    const swing = isMoving.value ? Math.sin(t) * 12 : 0;
-
-    ctx.fillStyle = '#e74c3c';
-    ctx.strokeStyle = '#2c3e50';
-    ctx.lineWidth = 6;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-
-    // Ноги
+    const pulse = isMoving.value ? 1 + Math.sin(Date.now() / 130) * 0.08 : 1;
+    ctx.save();
+    ctx.translate(pos.x, pos.y);
+    ctx.scale(pulse, pulse);
+    ctx.shadowColor = '#ffe69b';
+    ctx.shadowBlur = 28;
     ctx.beginPath();
-    ctx.moveTo(pos.x, pos.y - 20);
-    ctx.lineTo(pos.x - 5 + swing, pos.y);
-    ctx.moveTo(pos.x, pos.y - 20);
-    ctx.lineTo(pos.x + 5 - swing, pos.y);
-    ctx.stroke();
-
-    // Туловище
-    ctx.beginPath();
-    ctx.moveTo(pos.x, pos.y - 45);
-    ctx.lineTo(pos.x, pos.y - 20);
-    ctx.stroke();
-
-    // Руки
-    ctx.beginPath();
-    ctx.moveTo(pos.x, pos.y - 40);
-    ctx.lineTo(pos.x - 15 - swing, pos.y - 25);
-    ctx.moveTo(pos.x, pos.y - 40);
-    ctx.lineTo(pos.x + 15 + swing, pos.y - 25);
-    ctx.stroke();
-
-    // Голова
-    ctx.beginPath();
-    ctx.arc(pos.x, pos.y - 55, 10, 0, Math.PI * 2);
+    ctx.arc(0, 0, 25, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(25, 35, 38, 0.94)';
     ctx.fill();
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = '#f5d77c';
     ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.rotate(Math.PI / 4);
+    ctx.fillStyle = '#fff2bd';
+    ctx.fillRect(-7, -7, 14, 14);
+    ctx.rotate(-Math.PI / 4);
+    ctx.fillStyle = '#f5d77c';
+    ctx.beginPath();
+    ctx.moveTo(0, -38);
+    ctx.lineTo(7, -25);
+    ctx.lineTo(-7, -25);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
   };
 
   return {
@@ -94,5 +127,7 @@ export function useCharacter(initialX = 1000, initialY = 600, mapWidth = 2400, m
     walkTo,
     update,
     render,
+    consumeTravelStep,
+    stop,
   };
 }

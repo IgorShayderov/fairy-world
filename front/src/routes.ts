@@ -22,6 +22,7 @@ const routes = {
     },
     users: {
       mePath: () => [BASE_API_PATH, 'users', 'me'].join('/'),
+      attributesPath: () => [BASE_API_PATH, 'users', 'me', 'attributes'].join('/'),
       equipmentPath: () => [BASE_API_PATH, 'users', 'me', 'equipment'].join('/'),
       equipmentSlotPath: (slot: string) => [BASE_API_PATH, 'users', 'me', 'equipment', slot].join('/'),
     },
@@ -32,11 +33,16 @@ const routes = {
     monsters: {
       listPath: () => [BASE_API_PATH, 'monsters'].join('/'),
       byIdPath: (id: number) => [BASE_API_PATH, 'monsters', String(id)].join('/'),
+      encounterPath: () => [BASE_API_PATH, 'monsters', 'encounter'].join('/'),
+      battleAttackPath: (battleId: string) => [BASE_API_PATH, 'monsters', 'battle', battleId, 'attack'].join('/'),
+      battleRetreatPath: (battleId: string) =>
+        [BASE_API_PATH, 'monsters', 'battle', battleId, 'retreat'].join('/'),
     },
     shop: {
       detailsPath: (shopId: number) => [BASE_API_PATH, 'shop', shopId].join('/'),
       buyPath: (shopId: number) => [BASE_API_PATH, 'shop', shopId, 'buy'].join('/'),
       sellPath: (shopId: number) => [BASE_API_PATH, 'shop', shopId, 'sell'].join('/'),
+      refreshPath: (shopId: number) => [BASE_API_PATH, 'shop', shopId, 'refresh'].join('/'),
     },
   },
   rootPath: () => '/',

@@ -18,20 +18,26 @@
         <div class="flex items-center gap-3 border-b border-gray-200 pb-2">
           <InventoryItem
             :item="{
-              name: inv.item.name,
-              nameKey: inv.item.name,
+              name: itemTypeName(inv.item.equipmentType),
+              nameKey: itemTypeName(inv.item.equipmentType),
+              tooltipName: inv.item.name,
               icon: inv.item.icon,
               description: inv.item.description,
               price: inv.item.price,
               rarity: t(`profile.rarity.${inv.item.rarity.toLowerCase()}`),
+              rarityKey: inv.item.rarity,
               equipmentType: inv.item.equipmentType,
               attributes: inv.item.attributes,
               properties: inv.item.properties,
             }"
+            :comparison-item="findEquippedItem(inv.item.equipmentType)"
             :slot-id="''"
+            @double-click="$emit('add-one-to-sell', inv.item.id, inv.item.name, inv.quantity)"
           />
           <div class="flex flex-col">
-            <span class="max-w-[140px] truncate text-sm font-semibold text-gray-800">{{ inv.item.name }}</span>
+            <span class="max-w-[140px] truncate text-sm font-semibold text-gray-800">
+              {{ itemTypeName(inv.item.equipmentType) }}
+            </span>
             <span class="text-xs font-medium text-gray-500">×{{ inv.quantity }} шт.</span>
           </div>
         </div>
@@ -48,7 +54,7 @@
               :value="sellQuantity[inv.item.id]"
               @input="(e) => $emit('update-sell-quantity', inv.item.id, Number((e.target as HTMLInputElement).value))"
               type="number"
-              min="1"
+              min="0"
               :max="inv.quantity"
               class="w-[40px] border-none bg-transparent px-1 text-center text-sm font-medium text-gray-800 focus:ring-0 focus:outline-none"
             />
@@ -76,12 +82,17 @@
 <script setup lang="ts">
 import { useTranslation } from 'i18next-vue';
 
+import type { EquipmentType, InventoryItemType } from '@/modules/Inventory/types';
 import type { InventoryEntry } from '@/modules/Shop/types';
+
+import { findEquippedEntryForTypes } from '@/modules/Inventory/utils/equipment';
+import { getItemTypeLocaleKey } from '@/modules/Shop/utils/itemPresentation';
 
 import InventoryItem from '@/modules/Inventory/components/InventoryItem.vue';
 
-defineProps<{
+const props = defineProps<{
   inventory: InventoryEntry[];
+  equippedItems: InventoryEntry[];
   sellQuantity: Record<number, number>;
   loading: boolean;
 }>();
@@ -90,7 +101,27 @@ defineEmits<{
   (e: 'adjust-sell', id: number, name: string, currentQty: number, delta: number): void;
   (e: 'update-sell-quantity', id: number, value: number): void;
   (e: 'sell', id: number, name: string, quantity: number): void;
+  (e: 'add-one-to-sell', id: number, name: string, currentQty: number): void;
 }>();
 
 const { t } = useTranslation();
+const itemTypeName = (equipmentTypes: EquipmentType[]) => t(getItemTypeLocaleKey(equipmentTypes));
+const findEquippedItem = (equipmentTypes: EquipmentType[]): InventoryItemType | null => {
+  const equipped = findEquippedEntryForTypes(props.equippedItems, equipmentTypes);
+  if (!equipped) return null;
+
+  return {
+    nameKey: equipped.item.name,
+    name: itemTypeName(equipped.item.equipmentType),
+    tooltipName: equipped.item.name,
+    icon: equipped.item.icon,
+    description: equipped.item.description,
+    price: equipped.item.price,
+    rarity: t(`profile.rarity.${equipped.item.rarity.toLowerCase()}`),
+    rarityKey: equipped.item.rarity,
+    equipmentType: equipped.item.equipmentType,
+    attributes: equipped.item.attributes,
+    properties: equipped.item.properties,
+  };
+};
 </script>

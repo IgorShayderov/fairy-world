@@ -78,6 +78,7 @@ export const useInventoryStore = defineStore('inventory', () => {
     description: item.description,
     price: item.price,
     rarity: item.rarity,
+    rarityKey: item.rarity,
     equipmentType: item.equipmentType,
     attributes: item.attributes,
     properties: item.properties,

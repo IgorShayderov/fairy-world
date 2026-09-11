@@ -7,6 +7,7 @@ export interface ShopItem {
   name: string;
   description: string;
   price: number;
+  level: number;
   icon: string;
   quantity: number;
   rarity: ItemRarity;
@@ -19,5 +20,7 @@ export interface ShopData {
   id: number;
   name: string;
   gold: number;
+  refreshCost: number;
+  nextRestockAt: string;
   items: ShopItem[];
 }

@@ -10,6 +10,7 @@ export function useMapGenerator() {
     drawForests,
     drawCastlesAndCities,
     drawCompass,
+    isPointOnLand,
   } = useMapObjects();
 
   // Главная функция, собирающая всё воедино
@@ -26,5 +27,6 @@ export function useMapGenerator() {
 
   return {
     renderProceduralMap,
+    isPointOnLand,
   };
 }
