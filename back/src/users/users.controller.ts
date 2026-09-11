@@ -1,4 +1,4 @@
-import { Controller, UseGuards, Get, Request, NotFoundException, Put, Body, Delete, Param } from '@nestjs/common';
+import { Controller, UseGuards, Get, Request, NotFoundException, Put, Body, Delete, Param, Post } from '@nestjs/common';
 import { ApiOkResponse, ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 import { UsersService } from './users.service';
@@ -6,6 +6,7 @@ import { AuthGuard } from '../auth/auth.guard';
 import type { RequestWithUser } from '../auth/interfaces/request-with-user.interface';
 import { UserView } from './user.view';
 import { EquipItemDto, EQUIPMENT_SLOTS, type EquipmentSlotId } from './dto/equip-item.dto';
+import { AllocateAttributeDto } from './dto/allocate-attribute.dto';
 
 @ApiTags('users')
 @Controller('users')
@@ -26,6 +27,13 @@ export class UsersController {
     }
 
     return UserView.renderCurrent(user);
+  }
+
+  @Post('me/attributes')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
+  allocateAttribute(@Request() req: RequestWithUser, @Body() dto: AllocateAttributeDto) {
+    return this.usersService.allocateAttribute(req.user.sub, dto);
   }
 
   @Put('me/equipment')

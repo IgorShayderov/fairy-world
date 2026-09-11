@@ -4,6 +4,7 @@ export default {
   characteristics: 'Attributes',
   statistics: 'Statistics',
   freeAttributes: 'Free points',
+  increaseAttribute: 'Increase {{attribute}} by 1',
   fromItems: 'from items',
   ratingPoints: 'Rating: {{value}}',
   summary: {

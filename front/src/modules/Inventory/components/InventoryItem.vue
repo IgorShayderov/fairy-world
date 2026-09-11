@@ -39,7 +39,18 @@
       </div>
     </template>
 
-    <QTooltip v-if="item" class="max-w-lg bg-gray-900 p-3 text-white" anchor="top middle" self="bottom middle">
+    <QMenu
+      v-if="item"
+      class="max-w-lg overflow-y-auto bg-gray-900 p-3 text-white"
+      anchor="top middle"
+      self="bottom middle"
+      max-height="70vh"
+      max-width="32rem"
+      hover
+      :hover-hide-delay="300"
+      no-focus
+      no-refocus
+    >
       <div class="font-semibold">{{ item.tooltipName ?? item.name ?? item.nameKey }}</div>
       <div
         v-if="displayRarity"
@@ -102,13 +113,13 @@
           </div>
         </div>
       </div>
-    </QTooltip>
+    </QMenu>
   </div>
 </template>
 
 <script setup lang="ts">
 import { useTranslation } from 'i18next-vue';
-import { QIcon, QTooltip } from 'quasar';
+import { QIcon, QMenu } from 'quasar';
 import { computed } from 'vue';
 
 import type { Component } from 'vue';

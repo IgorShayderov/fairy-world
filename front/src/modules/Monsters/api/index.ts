@@ -23,6 +23,13 @@ export interface Monster {
   attributes: MonsterAttribute[];
 }
 
+export type GeneratedMonster = Pick<
+  Monster,
+  'id' | 'name' | 'description' | 'level' | 'rewardGold' | 'rewardExperience'
+> & {
+  attributes: Array<Pick<MonsterAttribute, 'value'> & { attribute: Pick<MonsterAttribute['attribute'], 'name'> }>;
+};
+
 export interface BattleCombatant {
   name: string;
   health: number;
@@ -51,7 +58,7 @@ export interface BattleState {
 
 export type EncounterRoll =
   | { encountered: false; chance: number }
-  | { encountered: true; chance: number; monster: Monster; battle: BattleState };
+  | { encountered: true; chance: number; monster: GeneratedMonster; battle: BattleState };
 
 export const getMonsters = async (): Promise<Monster[]> => {
   const { data } = await api.get<Monster[]>(routes.api.monsters.listPath());

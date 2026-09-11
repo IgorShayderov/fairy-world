@@ -8,6 +8,7 @@ describe('UsersController', () => {
 
   const mockUsersService = {
     findCurrentUser: jest.fn(),
+    allocateAttribute: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -69,5 +70,17 @@ describe('UsersController', () => {
         ]),
       );
     });
+  });
+
+  it('allocates an attribute point for the authenticated player', async () => {
+    const dto = { attribute: 'STRENGTH' as const, amount: 1 };
+    mockUsersService.allocateAttribute.mockResolvedValue({ success: true, attribute: 'STRENGTH', value: 6 });
+
+    await expect(controller.allocateAttribute({ user: { sub: 7 } } as never, dto)).resolves.toEqual({
+      success: true,
+      attribute: 'STRENGTH',
+      value: 6,
+    });
+    expect(mockUsersService.allocateAttribute).toHaveBeenCalledWith(7, dto);
   });
 });

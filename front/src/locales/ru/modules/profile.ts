@@ -5,6 +5,7 @@ export default {
     characteristics: 'Характеристики',
     statistics: 'Статистика',
     freeAttributes: 'Свободные очки',
+    increaseAttribute: 'Увеличить {{attribute}} на 1',
     fromItems: 'от предметов',
     ratingPoints: 'Рейтинг: {{value}}',
     summary: {

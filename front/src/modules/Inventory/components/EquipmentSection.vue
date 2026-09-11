@@ -84,12 +84,26 @@
               class="flex cursor-help justify-between border-b border-gray-100 pb-2"
             >
               <span class="text-gray-500">{{ t(`profile.attributeNames.${attribute.name}`) }}</span>
-              <span class="font-bold text-gray-800">
-                {{ attribute.value }}
-                <small v-if="attribute.equipmentBonus" class="text-green-600">
-                  (+{{ attribute.equipmentBonus }} {{ t('profile.fromItems') }})
-                </small>
-              </span>
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-gray-800">
+                  {{ attribute.value }}
+                  <small v-if="attribute.equipmentBonus" class="text-green-600">
+                    (+{{ attribute.equipmentBonus }} {{ t('profile.fromItems') }})
+                  </small>
+                </span>
+                <QBtn
+                  dense
+                  round
+                  unelevated
+                  color="primary"
+                  icon="add"
+                  size="xs"
+                  :loading="allocatingAttribute === attribute.name"
+                  :disable="playerFreeAttributes < 1 || allocatingAttribute !== null"
+                  :aria-label="t('profile.increaseAttribute', { attribute: t(`profile.attributeNames.${attribute.name}`) })"
+                  @click.stop="$emit('allocate-attribute', attribute.name)"
+                />
+              </div>
               <QTooltip class="max-w-xs bg-gray-900 p-3 text-white">
                 {{ t(`profile.attributeDescriptions.${attribute.name}`) }}
               </QTooltip>
@@ -183,6 +197,7 @@ const props = defineProps<{
   playerGold: number;
   playerGems: number;
   playerFreeAttributes: number;
+  allocatingAttribute: string | null;
 }>();
 
 defineEmits<{
@@ -192,6 +207,7 @@ defineEmits<{
   (e: 'unequip', id: EquipmentSlotId): void;
   (e: 'equipment-drag-start', id: EquipmentSlotId): void;
   (e: 'drag-end'): void;
+  (e: 'allocate-attribute', attribute: string): void;
 }>();
 
 const { t } = useTranslation();

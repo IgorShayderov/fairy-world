@@ -24,6 +24,9 @@ export const usersApi = {
 
     return data;
   },
+  async allocateAttribute(attribute: string, amount = 1): Promise<void> {
+    await api.post(routes.api.users.attributesPath(), { attribute, amount });
+  },
   async equipItem(inventoryItemId: number, slot: EquipmentSlotId): Promise<void> {
     await api.put(routes.api.users.equipmentPath(), { inventoryItemId, slot });
   },

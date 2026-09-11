@@ -1,6 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { UsersService } from './users.service';
 import { PrismaService } from '../prisma.service';
+import { AttributeType } from '../../generated/client';
+import { BadRequestException } from '@nestjs/common';
 
 describe('UsersService', () => {
   let service: UsersService;
@@ -9,6 +11,13 @@ describe('UsersService', () => {
     $transaction: jest.fn(),
     gameProfile: {
       findUnique: jest.fn(),
+      updateMany: jest.fn(),
+    },
+    attribute: {
+      findUnique: jest.fn(),
+    },
+    profileAttribute: {
+      upsert: jest.fn(),
     },
     inventoryItem: {
       findFirst: jest.fn(),
@@ -164,6 +173,42 @@ describe('UsersService', () => {
         data: { quantity: { increment: 1 } },
       });
       expect(mockPrismaService.inventoryItem.delete).toHaveBeenCalledWith({ where: { id: 10 } });
+    });
+  });
+
+  describe('attribute allocation', () => {
+    it('atomically spends free points and increases an existing attribute', async () => {
+      mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4 });
+      mockPrismaService.attribute.findUnique.mockResolvedValue({ id: 2, name: AttributeType.STRENGTH });
+      mockPrismaService.gameProfile.updateMany.mockResolvedValue({ count: 1 });
+      mockPrismaService.profileAttribute.upsert.mockResolvedValue({ value: 7 });
+
+      await expect(service.allocateAttribute(7, { attribute: AttributeType.STRENGTH, amount: 2 })).resolves.toEqual({
+        success: true,
+        attribute: AttributeType.STRENGTH,
+        value: 7,
+      });
+      expect(mockPrismaService.gameProfile.updateMany).toHaveBeenCalledWith({
+        where: { id: 4, freeAttributes: { gte: 2 } },
+        data: { freeAttributes: { decrement: 2 } },
+      });
+      expect(mockPrismaService.profileAttribute.upsert).toHaveBeenCalledWith({
+        where: { gameProfileId_attributeId: { gameProfileId: 4, attributeId: 2 } },
+        create: { gameProfileId: 4, attributeId: 2, value: 7 },
+        update: { value: { increment: 2 } },
+        select: { value: true },
+      });
+    });
+
+    it('does not increase an attribute when there are not enough free points', async () => {
+      mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4 });
+      mockPrismaService.attribute.findUnique.mockResolvedValue({ id: 2, name: AttributeType.AGILITY });
+      mockPrismaService.gameProfile.updateMany.mockResolvedValue({ count: 0 });
+
+      await expect(service.allocateAttribute(7, { attribute: AttributeType.AGILITY, amount: 1 })).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(mockPrismaService.profileAttribute.upsert).not.toHaveBeenCalled();
     });
   });
 });

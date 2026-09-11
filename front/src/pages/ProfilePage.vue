@@ -12,12 +12,14 @@
         :player-gold="currentUserStore.user?.gold ?? 0"
         :player-gems="currentUserStore.user?.gems ?? 0"
         :player-free-attributes="currentUserStore.user?.freeAttributes ?? 0"
+        :allocating-attribute="allocatingAttribute"
         @slot-enter="(id) => (isHoveredSlot = id)"
         @slot-leave="isHoveredSlot = null"
         @slot-drop="onSlotDrop"
         @unequip="unequip"
         @equipment-drag-start="onEquipmentDragStart"
         @drag-end="onDragEnd"
+        @allocate-attribute="allocateAttribute"
       />
 
       <InventorySection
@@ -56,6 +58,7 @@ const dragItem = ref<InventoryItemType | null>(null);
 const dragItemIndex = ref<number | null>(null);
 const dragEquipmentSlotId = ref<EquipmentSlotId | null>(null);
 const isHoveredSlot = ref<string | null>(null);
+const allocatingAttribute = ref<string | null>(null);
 
 onMounted(async () => {
   await currentUserStore.fetchCurrentUser();
@@ -65,6 +68,17 @@ onMounted(async () => {
 const refreshInventory = async () => {
   await currentUserStore.fetchCurrentUser(true);
   inventoryStore.hydrateInventory(currentUserStore.user?.inventory ?? [], currentUserStore.user?.equippedItems ?? []);
+};
+
+const allocateAttribute = async (attribute: string) => {
+  if (allocatingAttribute.value || (currentUserStore.user?.freeAttributes ?? 0) < 1) return;
+  allocatingAttribute.value = attribute;
+  try {
+    await usersApi.allocateAttribute(attribute);
+    await currentUserStore.fetchCurrentUser(true);
+  } finally {
+    allocatingAttribute.value = null;
+  }
 };
 
 const onInventoryDragStart = (idx: number) => {

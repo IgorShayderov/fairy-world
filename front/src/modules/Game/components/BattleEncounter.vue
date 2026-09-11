@@ -34,7 +34,7 @@
         <h3 class="text-xs font-bold tracking-[0.16em] text-[#efca72] uppercase">
           {{ t('fantasy.encounter.combatLog') }}
         </h3>
-        <div v-if="battle.events.length" class="mt-2 space-y-1 text-sm text-[#d6e1de]">
+        <div v-if="battle.events.length" class="mt-2 max-h-48 space-y-1 overflow-y-auto text-sm text-[#d6e1de]">
           <div v-for="(event, index) in battle.events" :key="index">
             {{ eventText(event) }}
           </div>
@@ -80,6 +80,7 @@ import { useTranslation } from 'i18next-vue';
 import { QIcon } from 'quasar';
 import { computed, defineComponent, h } from 'vue';
 
+import { getBattleEventSubject } from '@/modules/Game/battleEvent';
 import type { BattleState } from '@/modules/Monsters/api';
 
 const props = defineProps<{ battle: BattleState; playerName: string; loading: boolean }>();
@@ -93,7 +94,7 @@ const statusTitle = computed(() => {
 });
 
 const eventText = (event: BattleState['events'][number]) => {
-  const actor = t(`fantasy.encounter.${event.actor === 'PLAYER' ? 'you' : 'enemy'}`);
+  const actor = t(`fantasy.encounter.${getBattleEventSubject(event)}`);
   if (event.dodged) return t('fantasy.encounter.dodged', { actor });
   return t(event.critical ? 'fantasy.encounter.criticalHit' : 'fantasy.encounter.hit', {
     actor,

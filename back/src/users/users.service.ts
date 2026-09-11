@@ -3,6 +3,8 @@ import { EquipmentType, Prisma } from '../../generated/client';
 import { PrismaService } from '../prisma.service';
 import { UserModel, UserWhereInput } from '../../generated/models';
 import type { EquipItemDto, EquipmentSlotId } from './dto/equip-item.dto';
+import type { AllocateAttributeDto } from './dto/allocate-attribute.dto';
+import { STARTING_ATTRIBUTE_VALUE } from './player-defaults';
 
 const SLOT_TYPES: Record<EquipmentSlotId, EquipmentType[]> = {
   head: [EquipmentType.HELMET],
@@ -56,6 +58,45 @@ export class UsersService {
         },
       },
     });
+  }
+
+  allocateAttribute(userId: number, dto: AllocateAttributeDto) {
+    return this.prisma.$transaction(
+      async (tx) => {
+        const [profile, attribute] = await Promise.all([
+          tx.gameProfile.findUnique({ where: { userId }, select: { id: true } }),
+          tx.attribute.findUnique({ where: { name: dto.attribute }, select: { id: true, name: true } }),
+        ]);
+        if (!profile) throw new NotFoundException('Game profile not found');
+        if (!attribute) throw new NotFoundException('Attribute not found');
+
+        const spent = await tx.gameProfile.updateMany({
+          where: { id: profile.id, freeAttributes: { gte: dto.amount } },
+          data: { freeAttributes: { decrement: dto.amount } },
+        });
+        if (spent.count !== 1) throw new BadRequestException('Not enough free attribute points');
+
+        const allocation = await tx.profileAttribute.upsert({
+          where: {
+            gameProfileId_attributeId: { gameProfileId: profile.id, attributeId: attribute.id },
+          },
+          create: {
+            gameProfileId: profile.id,
+            attributeId: attribute.id,
+            value: STARTING_ATTRIBUTE_VALUE + dto.amount,
+          },
+          update: { value: { increment: dto.amount } },
+          select: { value: true },
+        });
+
+        return {
+          success: true,
+          attribute: attribute.name,
+          value: allocation.value,
+        };
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
   }
 
   equipItem(userId: number, dto: EquipItemDto) {
