@@ -14,6 +14,7 @@ export function useShopActions() {
 
   const shopItems = ref<ShopItem[]>([]);
   const inventory = ref<InventoryEntry[]>([]);
+  const equippedItems = ref<InventoryEntry[]>([]);
   const gold = ref(0);
   const shopGold = ref(0);
   const nextRestockAt = ref<string | null>(null);
@@ -34,13 +35,14 @@ export function useShopActions() {
       ]);
       shopItems.value = shop.items;
       inventory.value = player.inventory;
+      equippedItems.value = player.equippedItems ?? [];
       gold.value = player.gold;
       shopGold.value = shop.gold;
       nextRestockAt.value = shop.nextRestockAt;
 
       sellQuantity.value = {};
       for (const entry of inventory.value) {
-        sellQuantity.value[entry.item.id] = entry.quantity;
+        sellQuantity.value[entry.item.id] = 0;
       }
     } catch (e) {
       console.error('Failed to load shop data:', e);
@@ -104,29 +106,9 @@ export function useShopActions() {
     }
   };
 
-  const buyImmediately = async (itemId: number) => {
-    const item = shopItems.value.find((item) => item.id === itemId);
-    if (loading.value || !item || item.quantity < 1) return;
-
-    loading.value = true;
-    try {
-      const result = await buyItem(shopId.value, itemId, 1);
-      if (!result.success) throw new Error('Purchase failed');
-      delete cart.value[itemId];
-      $q.notify({ type: 'positive', message: t('shop.successBuy') });
-      await loadData(true);
-    } catch {
-      $q.notify({ type: 'negative', message: t('shop.errorBuy') });
-    } finally {
-      loading.value = false;
-    }
-  };
-
-  const adjustSell = (itemId: number, name: string, currentQty: number, delta: number) => {
-    const newVal = (sellQuantity.value[itemId] || currentQty) + delta;
-    if (newVal >= 1 && newVal <= currentQty) {
-      sellQuantity.value[itemId] = newVal;
-    }
+  const adjustSell = (itemId: number, _name: string, currentQty: number, delta: number) => {
+    const selectedQuantity = sellQuantity.value[itemId] ?? 0;
+    sellQuantity.value[itemId] = Math.min(currentQty, Math.max(0, selectedQuantity + delta));
   };
 
   const sellFromInventory = async (itemId: number, name: string, quantity: number) => {
@@ -153,7 +135,8 @@ export function useShopActions() {
     }
   };
 
-  const sellOneFromInventory = (itemId: number, name: string) => sellFromInventory(itemId, name, 1);
+  const addOneToSell = (itemId: number, name: string, currentQty: number) =>
+    adjustSell(itemId, name, currentQty, 1);
 
   return {
     shopId,
@@ -161,6 +144,7 @@ export function useShopActions() {
     nextRestockAt,
     shopItems,
     inventory,
+    equippedItems,
     gold,
     loading,
     token,
@@ -172,10 +156,9 @@ export function useShopActions() {
     cartTotal,
     cartHasItems,
     buyFromCart,
-    buyImmediately,
     adjustSell,
     sellFromInventory,
-    sellOneFromInventory,
+    addOneToSell,
     loadData,
   };
 }

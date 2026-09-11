@@ -54,6 +54,7 @@ describe('UserView.renderCurrent', () => {
         id: 7,
         userId: 1,
         gold: 100,
+        gems: 25,
         experience: 20,
         level: 3,
         freeAttributes: 0,
@@ -134,6 +135,7 @@ describe('UserView.renderCurrent', () => {
 
     const result = UserView.renderCurrent(user);
 
+    expect(result.gems).toBe(25);
     expect(result.inventory).toHaveLength(1);
     expect(result.equippedItems).toHaveLength(1);
     expect(result.equippedItems[0]).toMatchObject({

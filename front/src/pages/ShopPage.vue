@@ -22,9 +22,9 @@
               :key="item.id"
               :item="item"
               :cart-quantity="cart[item.id] || 0"
+              :equipped-item="findEquippedItem(item.equipmentType)"
               @add="addToCart"
               @remove="removeFromCart"
-              @buy="buyImmediately"
             />
           </div>
         </div>
@@ -42,12 +42,13 @@
 
       <ShopInventorySidebar
         :inventory="inventory"
+        :equipped-items="equippedItems"
         :sell-quantity="sellQuantity"
         :loading="loading"
         @adjust-sell="adjustSell"
         @update-sell-quantity="(id, val) => (sellQuantity[id] = val)"
         @sell="sellFromInventory"
-        @sell-one="sellOneFromInventory"
+        @add-one-to-sell="addOneToSell"
       />
     </div>
 
@@ -64,7 +65,11 @@
 import { useTranslation } from 'i18next-vue';
 import { onMounted } from 'vue';
 
+import type { EquipmentType, InventoryItemType } from '@/modules/Inventory/types';
+
+import { findEquippedEntryForTypes } from '@/modules/Inventory/utils/equipment';
 import { useShopActions } from '@/modules/Shop/composables/useShopActions';
+import { getItemTypeLocaleKey } from '@/modules/Shop/utils/itemPresentation';
 
 import ShopHeader from '@/modules/Shop/components/ShopHeader.vue';
 import ShopInventorySidebar from '@/modules/Shop/components/ShopInventorySidebar.vue';
@@ -75,6 +80,7 @@ const { t } = useTranslation();
 const {
   shopItems,
   inventory,
+  equippedItems,
   gold,
   nextRestockAt,
   loading,
@@ -86,14 +92,32 @@ const {
   cartTotal,
   cartHasItems,
   buyFromCart,
-  buyImmediately,
   adjustSell,
   sellFromInventory,
-  sellOneFromInventory,
+  addOneToSell,
   loadData,
 } = useShopActions();
 
 onMounted(async () => {
   await loadData();
 });
+
+const findEquippedItem = (equipmentTypes: EquipmentType[]): InventoryItemType | null => {
+  const equipped = findEquippedEntryForTypes(equippedItems.value, equipmentTypes);
+  if (!equipped) return null;
+
+  return {
+    nameKey: equipped.item.name,
+    name: t(getItemTypeLocaleKey(equipped.item.equipmentType)),
+    tooltipName: equipped.item.name,
+    icon: equipped.item.icon,
+    description: equipped.item.description,
+    price: equipped.item.price,
+    rarity: t(`profile.rarity.${equipped.item.rarity.toLowerCase()}`),
+    rarityKey: equipped.item.rarity,
+    equipmentType: equipped.item.equipmentType,
+    attributes: equipped.item.attributes,
+    properties: equipped.item.properties,
+  };
+};
 </script>

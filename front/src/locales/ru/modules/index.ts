@@ -28,6 +28,20 @@ const modules = {
     profile: 'Профиль',
     shop: 'Магазин',
   },
+  fantasy: {
+    realm: 'Зачарованное королевство',
+    mapTitle: 'Элдория',
+    mapDescription: 'Атлас древних дорог, тайных святилищ и забытой магии',
+    legend: 'Обозначения',
+    city: 'Город',
+    village: 'Деревня',
+    dungeon: 'Подземелье',
+    sanctum: 'Святилище',
+    zoomIn: 'Приблизить',
+    zoomOut: 'Отдалить',
+    resetView: 'Сбросить масштаб карты',
+    controlsHint: 'Перетаскивайте карту · Нажмите, чтобы идти · Колесо — масштаб',
+  },
 };
 
 export default modules;

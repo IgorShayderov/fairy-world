@@ -17,9 +17,10 @@
           attributes: item.attributes,
           properties: item.properties,
         }"
+        :comparison-item="equippedItem"
         :slot-id="''"
         class="h-24 w-24 shrink-0"
-        @double-click="$emit('buy', item.id)"
+        @double-click="$emit('add', item.id)"
       />
     </div>
 
@@ -74,6 +75,7 @@ import { useTranslation } from 'i18next-vue';
 import { QBtn } from 'quasar';
 import { computed } from 'vue';
 
+import type { InventoryItemType } from '@/modules/Inventory/types';
 import type { ShopItem } from '@/modules/Shop/types';
 
 import { getRarityTextClass, removeRarityPrefix } from '@/modules/Inventory/utils/rarity';
@@ -84,12 +86,12 @@ import InventoryItem from '@/modules/Inventory/components/InventoryItem.vue';
 const props = defineProps<{
   item: ShopItem;
   cartQuantity: number;
+  equippedItem: InventoryItemType | null;
 }>();
 
 defineEmits<{
   (e: 'add', id: number): void;
   (e: 'remove', id: number): void;
-  (e: 'buy', id: number): void;
 }>();
 
 const { t } = useTranslation();

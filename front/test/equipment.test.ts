@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { InventoryItemType } from '@/modules/Inventory/types';
 
-import { getCompatibleEquipmentSlots } from '@/modules/Inventory/utils/equipment';
+import { findEquippedEntryForTypes, getCompatibleEquipmentSlots } from '@/modules/Inventory/utils/equipment';
 
 const item = (equipmentType: NonNullable<InventoryItemType['equipmentType']>): InventoryItemType => ({
   nameKey: 'Item',
@@ -17,5 +17,11 @@ describe('equipment slot selection', () => {
 
   it('returns the matching armor slot', () => {
     expect(getCompatibleEquipmentSlots(item(['HELMET']))).toEqual(['head']);
+  });
+
+  it('matches rings and amulets through their shared accessory slot', () => {
+    const equippedAmulet = { id: 7, slot: 'accessory' as const };
+
+    expect(findEquippedEntryForTypes([equippedAmulet], ['RING'])).toBe(equippedAmulet);
   });
 });

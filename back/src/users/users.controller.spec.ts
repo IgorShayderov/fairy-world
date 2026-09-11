@@ -38,7 +38,7 @@ describe('UsersController', () => {
         email: 'me@example.com',
         createdAt: now,
         updatedAt: now,
-        gameProfile: { gold: 100, experience: 5, level: 2, inventory: [] },
+        gameProfile: { gold: 100, gems: 12, experience: 5, level: 2, inventory: [] },
       };
       mockUsersService.findCurrentUser.mockResolvedValue(expectedUser);
 
@@ -52,6 +52,7 @@ describe('UsersController', () => {
         createdAt: now,
         updatedAt: now,
         gold: 100,
+        gems: 12,
         experience: 5,
         level: 2,
         freeAttributes: 0,

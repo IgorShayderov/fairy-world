@@ -3,13 +3,15 @@ import { reactive, ref } from 'vue';
 export function useMapCamera(mapWidth: number, mapHeight: number) {
   const camera = reactive({ x: 0, y: 0, scale: 1 });
   const limits = { min: 0.1, max: 3 };
+  const defaultZoom = 1.3;
   const isDragging = ref(false);
   const dragStart = { x: 0, y: 0 };
   const mouseStart = { x: 0, y: 0 };
 
   const fitToScreen = (screenWidth: number, screenHeight: number) => {
-    camera.scale = Math.max(screenWidth / mapWidth, screenHeight / mapHeight);
-    limits.min = camera.scale * 0.5;
+    const coverScale = Math.max(screenWidth / mapWidth, screenHeight / mapHeight);
+    camera.scale = coverScale * defaultZoom;
+    limits.min = coverScale * 0.65;
 
     camera.x = (screenWidth - mapWidth * camera.scale) / 2;
     camera.y = (screenHeight - mapHeight * camera.scale) / 2;

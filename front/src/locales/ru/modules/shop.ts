@@ -13,4 +13,8 @@ export default {
   successSell: 'Продано {{quantity}}× {{name}} за {{price}}g',
   errorSell: 'Ошибка продажи',
   newItemsIn: 'Новые товары через',
+  comparedWithEquipped: 'Сравнение с экипированным предметом',
+  thisItem: 'Этот',
+  equipped: 'Надет',
+  difference: 'Разн.',
 };

@@ -39,7 +39,7 @@
       </div>
     </template>
 
-    <QTooltip v-if="item" class="max-w-xs bg-gray-900 p-3 text-white" anchor="top middle" self="bottom middle">
+    <QTooltip v-if="item" class="max-w-lg bg-gray-900 p-3 text-white" anchor="top middle" self="bottom middle">
       <div class="font-semibold">{{ item.tooltipName ?? item.name ?? item.nameKey }}</div>
       <div
         v-if="displayRarity"
@@ -55,15 +55,51 @@
       <div v-if="item.attributes?.length" class="mt-2 text-xs">
         <div class="font-semibold">{{ $t('profile.tooltip.attributes') }}</div>
         <div v-for="attribute in item.attributes" :key="attribute.name">
-          <div>{{ attribute.name }}: {{ attribute.value > 0 ? '+' : '' }}{{ attribute.value }}</div>
+          <div>{{ modifierName(attribute.name, 'attribute') }}: {{ signedValue(attribute.value) }}</div>
           <div v-if="attribute.description" class="text-gray-300">{{ attribute.description }}</div>
         </div>
       </div>
       <div v-if="item.properties?.length" class="mt-2 text-xs">
         <div class="font-semibold">{{ $t('profile.tooltip.properties') }}</div>
         <div v-for="property in item.properties" :key="property.name">
-          <div>{{ property.name }}: {{ property.value > 0 ? '+' : '' }}{{ property.value }}</div>
+          <div>{{ modifierName(property.name, 'property') }}: {{ signedValue(property.value) }}</div>
           <div v-if="property.description" class="text-gray-300">{{ property.description }}</div>
+        </div>
+      </div>
+
+      <div v-if="comparisonItem" class="mt-3 border-t border-gray-600 pt-3">
+        <div class="mb-2 text-xs font-semibold text-gray-200">{{ $t('shop.comparedWithEquipped') }}</div>
+        <div class="flex items-center gap-2">
+          <img v-if="comparisonItemImage" :src="comparisonItemImage" alt="" class="h-10 w-10 object-contain" />
+          <QIcon v-else :name="comparisonItemIcon" size="28px" class="text-gray-200" />
+          <div class="min-w-0">
+            <div class="truncate text-sm font-semibold">
+              {{ comparisonItem.tooltipName ?? comparisonItem.name ?? comparisonItem.nameKey }}
+            </div>
+            <span
+              v-if="comparisonItemRarity"
+              class="mt-1 inline-flex rounded px-1.5 py-0.5 text-[10px] font-bold tracking-wide uppercase"
+              :class="comparisonItemRarityClass"
+            >
+              {{ comparisonItemRarity }}
+            </span>
+          </div>
+        </div>
+
+        <div v-for="group in comparisonGroups" :key="group.key" class="mt-3 text-xs">
+          <div class="mb-1 font-semibold">{{ group.label }}</div>
+          <div class="grid grid-cols-[minmax(90px,1fr)_55px_65px_55px] gap-x-2 text-right">
+            <span></span>
+            <span class="text-gray-400">{{ $t('shop.thisItem') }}</span>
+            <span class="text-gray-400">{{ $t('shop.equipped') }}</span>
+            <span class="text-gray-400">{{ $t('shop.difference') }}</span>
+            <template v-for="row in group.rows" :key="row.name">
+              <span class="truncate text-left">{{ row.label }}</span>
+              <span>{{ signedValue(row.currentValue) }}</span>
+              <span>{{ signedValue(row.equippedValue) }}</span>
+              <span :class="differenceClass(row.difference)">{{ signedValue(row.difference) }}</span>
+            </template>
+          </div>
         </div>
       </div>
     </QTooltip>
@@ -108,6 +144,7 @@ const props = withDefaults(
     isDragging?: boolean;
     emptyIcon?: string | Component;
     emptyLabel?: string;
+    comparisonItem?: InventoryItemType | null;
   }>(),
   {
     slotId: '',
@@ -115,6 +152,7 @@ const props = withDefaults(
     isDragging: false,
     emptyIcon: '',
     emptyLabel: '',
+    comparisonItem: null,
   }
 );
 
@@ -150,11 +188,33 @@ const itemIcon = computed(() => {
   return icons[type ?? 'UNKNOWN'] ?? 'help_outline';
 });
 
-const itemImage = computed(() => {
-  const type = props.item?.equipmentType?.[0];
+const resolveItemImage = (item: InventoryItemType | null | undefined) => {
+  const type = item?.equipmentType?.[0];
+  return CONFIGURED_ITEM_IMAGES[item?.icon ?? ''] ?? ITEM_TYPE_IMAGES[type ?? ''];
+};
 
-  return CONFIGURED_ITEM_IMAGES[props.item?.icon ?? ''] ?? ITEM_TYPE_IMAGES[type ?? ''];
-});
+const resolveItemIcon = (item: InventoryItemType | null | undefined) => {
+  const type = item?.equipmentType?.[0];
+  const icons: Record<string, string> = {
+    WEAPON: 'sports_martial_arts',
+    SHIELD: 'shield',
+    BODY: 'checkroom',
+    HELMET: 'sports_motorsports',
+    BOOTS: 'hiking',
+    GLOVES: 'front_hand',
+    LEGS: 'accessibility',
+    RING: 'radio_button_unchecked',
+    AMULET: 'diamond',
+    SCROLL: 'description',
+    POTION: 'science',
+    UNKNOWN: 'help_outline',
+  };
+  return icons[type ?? 'UNKNOWN'] ?? 'help_outline';
+};
+
+const itemImage = computed(() => resolveItemImage(props.item));
+const comparisonItemImage = computed(() => resolveItemImage(props.comparisonItem));
+const comparisonItemIcon = computed(() => resolveItemIcon(props.comparisonItem));
 
 const displayRarity = computed(() => {
   if (props.item?.rarityKey) return t(`profile.rarity.${props.item.rarityKey.toLowerCase()}`);
@@ -162,9 +222,66 @@ const displayRarity = computed(() => {
 });
 
 const rarityBadgeClass = computed(() => getRarityBadgeClass(props.item?.rarityKey ?? props.item?.rarity));
+const comparisonItemRarity = computed(() => {
+  if (props.comparisonItem?.rarityKey) {
+    return t(`profile.rarity.${props.comparisonItem.rarityKey.toLowerCase()}`);
+  }
+  return props.comparisonItem?.rarity;
+});
+const comparisonItemRarityClass = computed(() =>
+  getRarityBadgeClass(props.comparisonItem?.rarityKey ?? props.comparisonItem?.rarity)
+);
 const tooltipDescription = computed(() =>
   removeRarityPrefix(props.item?.description ?? '', props.item?.rarityKey ?? '')
 );
+
+type ModifierKind = 'attribute' | 'property';
+type ComparisonRow = {
+  name: string;
+  label: string;
+  currentValue: number;
+  equippedValue: number;
+  difference: number;
+};
+
+const modifierName = (name: string, kind: ModifierKind) => {
+  const key = `profile.${kind === 'attribute' ? 'attributeNames' : 'propertyNames'}.${name}`;
+  const translated = t(key);
+  return translated === key ? name : translated;
+};
+
+const buildComparisonRows = (kind: ModifierKind): ComparisonRow[] => {
+  const field = kind === 'attribute' ? 'attributes' : 'properties';
+  const currentModifiers = props.item?.[field] ?? [];
+  const equippedModifiers = props.comparisonItem?.[field] ?? [];
+  const names = new Set([...currentModifiers.map(({ name }) => name), ...equippedModifiers.map(({ name }) => name)]);
+
+  return [...names].map((name) => {
+    const currentValue = currentModifiers.find((modifier) => modifier.name === name)?.value ?? 0;
+    const equippedValue = equippedModifiers.find((modifier) => modifier.name === name)?.value ?? 0;
+    return {
+      name,
+      label: modifierName(name, kind),
+      currentValue,
+      equippedValue,
+      difference: currentValue - equippedValue,
+    };
+  });
+};
+
+const comparisonGroups = computed(() =>
+  [
+    { key: 'attributes', label: t('profile.tooltip.attributes'), rows: buildComparisonRows('attribute') },
+    { key: 'properties', label: t('profile.tooltip.properties'), rows: buildComparisonRows('property') },
+  ].filter(({ rows }) => rows.length > 0)
+);
+
+const signedValue = (value: number) => `${value > 0 ? '+' : ''}${value}`;
+const differenceClass = (difference: number) => ({
+  'font-semibold text-green-400': difference > 0,
+  'font-semibold text-red-400': difference < 0,
+  'text-gray-300': difference === 0,
+});
 
 const onDragStart = (e: DragEvent) => {
   if (!props.item) return;

@@ -30,8 +30,9 @@
               attributes: inv.item.attributes,
               properties: inv.item.properties,
             }"
+            :comparison-item="findEquippedItem(inv.item.equipmentType)"
             :slot-id="''"
-            @double-click="$emit('sell-one', inv.item.id, inv.item.name)"
+            @double-click="$emit('add-one-to-sell', inv.item.id, inv.item.name, inv.quantity)"
           />
           <div class="flex flex-col">
             <span class="max-w-[140px] truncate text-sm font-semibold text-gray-800">
@@ -53,7 +54,7 @@
               :value="sellQuantity[inv.item.id]"
               @input="(e) => $emit('update-sell-quantity', inv.item.id, Number((e.target as HTMLInputElement).value))"
               type="number"
-              min="1"
+              min="0"
               :max="inv.quantity"
               class="w-[40px] border-none bg-transparent px-1 text-center text-sm font-medium text-gray-800 focus:ring-0 focus:outline-none"
             />
@@ -81,15 +82,17 @@
 <script setup lang="ts">
 import { useTranslation } from 'i18next-vue';
 
-import type { EquipmentType } from '@/modules/Inventory/types';
+import type { EquipmentType, InventoryItemType } from '@/modules/Inventory/types';
 import type { InventoryEntry } from '@/modules/Shop/types';
 
+import { findEquippedEntryForTypes } from '@/modules/Inventory/utils/equipment';
 import { getItemTypeLocaleKey } from '@/modules/Shop/utils/itemPresentation';
 
 import InventoryItem from '@/modules/Inventory/components/InventoryItem.vue';
 
-defineProps<{
+const props = defineProps<{
   inventory: InventoryEntry[];
+  equippedItems: InventoryEntry[];
   sellQuantity: Record<number, number>;
   loading: boolean;
 }>();
@@ -98,9 +101,27 @@ defineEmits<{
   (e: 'adjust-sell', id: number, name: string, currentQty: number, delta: number): void;
   (e: 'update-sell-quantity', id: number, value: number): void;
   (e: 'sell', id: number, name: string, quantity: number): void;
-  (e: 'sell-one', id: number, name: string): void;
+  (e: 'add-one-to-sell', id: number, name: string, currentQty: number): void;
 }>();
 
 const { t } = useTranslation();
 const itemTypeName = (equipmentTypes: EquipmentType[]) => t(getItemTypeLocaleKey(equipmentTypes));
+const findEquippedItem = (equipmentTypes: EquipmentType[]): InventoryItemType | null => {
+  const equipped = findEquippedEntryForTypes(props.equippedItems, equipmentTypes);
+  if (!equipped) return null;
+
+  return {
+    nameKey: equipped.item.name,
+    name: itemTypeName(equipped.item.equipmentType),
+    tooltipName: equipped.item.name,
+    icon: equipped.item.icon,
+    description: equipped.item.description,
+    price: equipped.item.price,
+    rarity: t(`profile.rarity.${equipped.item.rarity.toLowerCase()}`),
+    rarityKey: equipped.item.rarity,
+    equipmentType: equipped.item.equipmentType,
+    attributes: equipped.item.attributes,
+    properties: equipped.item.properties,
+  };
+};
 </script>

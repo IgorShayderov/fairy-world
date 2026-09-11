@@ -29,8 +29,18 @@ const modules = {
     shop: 'Shop',
   },
   fantasy: {
-    mapTitle: 'Fantasy World Map',
-    mapDescription: 'Explore the magical realm',
+    realm: 'The enchanted realm of',
+    mapTitle: 'Eldoria',
+    mapDescription: 'An atlas of old roads, hidden sanctums and forgotten magic',
+    legend: 'Map legend',
+    city: 'City',
+    village: 'Village',
+    dungeon: 'Dungeon',
+    sanctum: 'Sanctum',
+    zoomIn: 'Zoom in',
+    zoomOut: 'Zoom out',
+    resetView: 'Reset map view',
+    controlsHint: 'Drag to explore · Click to travel · Scroll to zoom',
   },
 };
 

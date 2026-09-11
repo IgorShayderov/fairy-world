@@ -146,6 +146,7 @@ export class UserView {
     return {
       ...this.render(user),
       gold: profile?.gold ?? 0,
+      gems: profile?.gems ?? 0,
       experience: profile?.experience ?? 0,
       level: profile?.level ?? 1,
       freeAttributes: profile?.freeAttributes ?? 0,

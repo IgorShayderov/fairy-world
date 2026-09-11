@@ -13,4 +13,8 @@ export default {
   successSell: 'Sold {{quantity}}× {{name}} for {{price}}g',
   errorSell: 'Sale error',
   newItemsIn: 'New items in',
+  comparedWithEquipped: 'Compared with equipped item',
+  thisItem: 'This',
+  equipped: 'Equipped',
+  difference: 'Diff.',
 };

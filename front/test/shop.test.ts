@@ -23,6 +23,7 @@ describe('shop quantity requests', () => {
             experience: 0,
             level: 1,
             inventory: [{ id: 9, item: { id: 3, name: 'Shield' }, quantity: 7 }],
+            equippedItems: [],
           }
         : {
             id: 2,
@@ -48,11 +49,10 @@ describe('shop quantity requests', () => {
     });
   });
 
-  it('preserves a quantity chosen using the minus controls', async () => {
+  it('preserves a quantity chosen using the quantity controls', async () => {
     const shop = useShopActions();
     await shop.loadData();
-    shop.adjustSell(3, 'Shield', 7, -1);
-    shop.adjustSell(3, 'Shield', 7, -1);
+    for (let count = 0; count < 5; count++) shop.adjustSell(3, 'Shield', 7, 1);
     expect(shop.sellQuantity.value[3]).toBe(5);
     await shop.sellFromInventory(3, 'Shield', shop.sellQuantity.value[3]!);
     expect(mocks.post).toHaveBeenCalledWith(expect.stringMatching(/\/sell$/), { itemId: 3, quantity: 5 });
@@ -68,27 +68,23 @@ describe('shop quantity requests', () => {
     expect(mocks.post).toHaveBeenCalledTimes(1);
   });
 
-  it('buys one item immediately on an icon double click', async () => {
+  it('adds one item to the buy list on an icon double click without purchasing it', async () => {
     const shop = useShopActions();
     await shop.loadData();
 
-    await shop.buyImmediately(3);
+    shop.addToCart(3);
 
-    expect(mocks.post).toHaveBeenCalledWith(expect.stringMatching(/\/shop\/1\/buy$/), {
-      itemId: 3,
-      quantity: 1,
-    });
+    expect(shop.cart.value[3]).toBe(1);
+    expect(mocks.post).not.toHaveBeenCalled();
   });
 
-  it('sells one item immediately on an inventory icon double click', async () => {
+  it('adds one item to the sell list on an inventory icon double click without selling it', async () => {
     const shop = useShopActions();
     await shop.loadData();
 
-    await shop.sellOneFromInventory(3, 'Shield');
+    shop.addOneToSell(3, 'Shield', 7);
 
-    expect(mocks.post).toHaveBeenCalledWith(expect.stringMatching(/\/shop\/1\/sell$/), {
-      itemId: 3,
-      quantity: 1,
-    });
+    expect(shop.sellQuantity.value[3]).toBe(1);
+    expect(mocks.post).not.toHaveBeenCalled();
   });
 });

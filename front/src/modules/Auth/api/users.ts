@@ -8,6 +8,7 @@ export type CurrentUser = {
   name: string;
   email: string;
   gold: number;
+  gems: number;
   experience: number;
   level: number;
   freeAttributes: number;

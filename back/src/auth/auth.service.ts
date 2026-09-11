@@ -97,6 +97,7 @@ export class AuthService {
         role: 'USER',
         gameProfile: {
           create: {
+            gems: 0,
             freeAttributes: STARTING_FREE_ATTRIBUTES,
             profileAttributes: {
               create: Object.values(AttributeType).map((name) => ({
