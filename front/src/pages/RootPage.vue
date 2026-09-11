@@ -1,7 +1,7 @@
 <template>
   <div class="relative z-10 flex h-full min-h-0 flex-col bg-gray-50">
     <div class="flex min-h-0 flex-1">
-      <div class="flex-1 overflow-auto">
+      <div class="flex h-full min-h-0 min-w-0 flex-1 overflow-hidden">
         <RouterView />
       </div>
 

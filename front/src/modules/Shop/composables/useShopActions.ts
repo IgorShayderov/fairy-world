@@ -16,6 +16,7 @@ export function useShopActions() {
   const inventory = ref<InventoryEntry[]>([]);
   const gold = ref(0);
   const shopGold = ref(0);
+  const nextRestockAt = ref<string | null>(null);
   const shopId = ref(1);
   const loading = ref(false);
   const token = ref<string | null>(null);
@@ -35,6 +36,7 @@ export function useShopActions() {
       inventory.value = player.inventory;
       gold.value = player.gold;
       shopGold.value = shop.gold;
+      nextRestockAt.value = shop.nextRestockAt;
 
       sellQuantity.value = {};
       for (const entry of inventory.value) {
@@ -136,6 +138,7 @@ export function useShopActions() {
   return {
     shopId,
     shopGold,
+    nextRestockAt,
     shopItems,
     inventory,
     gold,

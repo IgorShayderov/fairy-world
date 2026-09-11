@@ -12,4 +12,5 @@ export default {
   errorBuy: 'Недостаточно золота или ошибка',
   successSell: 'Продано {{quantity}}× {{name}} за {{price}}g',
   errorSell: 'Ошибка продажи',
+  newItemsIn: 'Новые товары через',
 };

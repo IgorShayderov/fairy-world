@@ -33,6 +33,7 @@ export interface InventoryItemType {
   id?: number;
   nameKey: string;
   name?: string;
+  tooltipName?: string;
   icon: string;
   description?: string;
   price?: number;

@@ -31,6 +31,7 @@ describe('UserView.renderCurrent', () => {
       isConsumable: false,
       rarity: 'COMMON' as const,
       equipmentType: ['SHIELD' as const],
+      level: 1,
       createdAt: new Date('2026-09-10T00:00:00Z'),
       updatedAt: new Date('2026-09-10T00:00:00Z'),
     };

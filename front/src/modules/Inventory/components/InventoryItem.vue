@@ -19,7 +19,8 @@
   >
     <template v-if="item">
       <div class="flex h-full w-full flex-col items-center justify-center text-xs">
-        <QIcon :name="itemIcon" size="32px" class="mb-1 text-gray-700" />
+        <img v-if="itemImage" :src="itemImage" alt="" class="mb-1 h-12 w-12 object-contain" />
+        <QIcon v-else :name="itemIcon" size="32px" class="mb-1 text-gray-700" />
         <span class="w-full truncate text-center font-medium text-gray-800">{{ item.name ?? item.nameKey }}</span>
         <span v-if="item.rarity" class="mt-0.5 text-[10px] tracking-wide uppercase" :class="rarityClass">
           {{ item.rarity }}
@@ -42,7 +43,7 @@
     </template>
 
     <QTooltip v-if="item" class="max-w-xs bg-gray-900 p-3 text-white" anchor="top middle" self="bottom middle">
-      <div class="font-semibold">{{ item.name ?? item.nameKey }}</div>
+      <div class="font-semibold">{{ item.tooltipName ?? item.name ?? item.nameKey }}</div>
       <div v-if="item.description" class="mt-1 text-xs text-gray-200">{{ item.description }}</div>
       <div v-if="item.price !== undefined" class="mt-2 text-xs">
         {{ $t('profile.tooltip.price') }}: {{ item.price }}g
@@ -71,6 +72,26 @@ import { computed } from 'vue';
 
 import type { Component } from 'vue';
 import type { InventoryItemType } from '@/modules/Inventory/types';
+
+const CONFIGURED_ITEM_IMAGES: Record<string, string> = {
+  'icon_sword.png': '/icons/items/icon_sword.png',
+  'icon_shield.png': '/icons/items/icon_shield.png',
+  'icon_armor.png': '/icons/items/icon_armor.png',
+  'icon_helmet.png': '/icons/items/icon_helmet.png',
+  'icon_boots.png': '/icons/items/icon_boots.png',
+  'icon_ring.png': '/icons/items/icon_ring.png',
+  'icon_amulet.png': '/icons/items/icon_amulet.png',
+};
+
+const ITEM_TYPE_IMAGES: Partial<Record<string, string>> = {
+  WEAPON: '/icons/items/icon_sword.png',
+  SHIELD: '/icons/items/icon_shield.png',
+  BODY: '/icons/items/icon_armor.png',
+  HELMET: '/icons/items/icon_helmet.png',
+  BOOTS: '/icons/items/icon_boots.png',
+  RING: '/icons/items/icon_ring.png',
+  AMULET: '/icons/items/icon_amulet.png',
+};
 
 const props = withDefaults(
   defineProps<{
@@ -118,6 +139,12 @@ const itemIcon = computed(() => {
   };
 
   return icons[type ?? 'UNKNOWN'] ?? 'help_outline';
+});
+
+const itemImage = computed(() => {
+  const type = props.item?.equipmentType?.[0];
+
+  return CONFIGURED_ITEM_IMAGES[props.item?.icon ?? ''] ?? ITEM_TYPE_IMAGES[type ?? ''];
 });
 
 const rarityClass = computed(() => {

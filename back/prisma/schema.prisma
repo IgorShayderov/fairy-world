@@ -173,7 +173,7 @@ model ItemStat {
 
 model Item {
   id            Int             @id @default(autoincrement())
-  name          String          @unique
+  name          String
   description   String          @default("")
   price         Int             @default(0)
   icon          String          @default("")
@@ -182,6 +182,7 @@ model Item {
   equipmentType EquipmentType[] @default([UNKNOWN])
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @default(now()) @updatedAt
+  level         Int             @default(1)
 
   attributes    ItemAttribute[]
   stats         ItemStat[]
@@ -190,12 +191,13 @@ model Item {
 }
 
 model Shop {
-  id        Int         @id @default(autoincrement())
-  name      String
-  gold      Int         @default(0)
-  stock     ShopStock[]
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  id            Int         @id @default(autoincrement())
+  name          String
+  gold          Int         @default(0)
+  stock         ShopStock[]
+  nextRestockAt DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 }
 
 model ShopStock {

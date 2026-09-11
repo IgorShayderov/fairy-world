@@ -17,8 +17,8 @@ export class ShopController {
 
   @Get(':shopId')
   @ApiOkResponse({ description: 'Shop details, stock and stored gold' })
-  getShop(@Param('shopId', ParseIntPipe) shopId: number) {
-    return this.shopService.getShop(shopId);
+  getShop(@Param('shopId', ParseIntPipe) shopId: number, @Req() req: ShopRequest) {
+    return this.shopService.getShop(req.user.sub, shopId);
   }
 
   @Post(':shopId/buy')

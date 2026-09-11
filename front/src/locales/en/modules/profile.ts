@@ -75,10 +75,16 @@ export default {
     armor: 'Armor',
     gloves: 'Gloves',
     boots: 'Boots',
+    legs: 'Leg armor',
+    amulet: 'Amulet',
+    unknown: 'Item',
   },
   rarity: {
+    quest: 'Quest',
     common: 'Common',
+    magic: 'Magic',
     rare: 'Rare',
+    unique: 'Unique',
     legendary: 'Legendary',
   },
 };

@@ -12,4 +12,5 @@ export default {
   errorBuy: 'Not enough gold or an error occurred',
   successSell: 'Sold {{quantity}}× {{name}} for {{price}}g',
   errorSell: 'Sale error',
+  newItemsIn: 'New items in',
 };

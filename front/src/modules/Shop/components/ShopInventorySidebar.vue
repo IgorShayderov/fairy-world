@@ -18,8 +18,9 @@
         <div class="flex items-center gap-3 border-b border-gray-200 pb-2">
           <InventoryItem
             :item="{
-              name: inv.item.name,
-              nameKey: inv.item.name,
+              name: itemTypeName(inv.item.equipmentType),
+              nameKey: itemTypeName(inv.item.equipmentType),
+              tooltipName: inv.item.name,
               icon: inv.item.icon,
               description: inv.item.description,
               price: inv.item.price,
@@ -31,7 +32,9 @@
             :slot-id="''"
           />
           <div class="flex flex-col">
-            <span class="max-w-[140px] truncate text-sm font-semibold text-gray-800">{{ inv.item.name }}</span>
+            <span class="max-w-[140px] truncate text-sm font-semibold text-gray-800">
+              {{ itemTypeName(inv.item.equipmentType) }}
+            </span>
             <span class="text-xs font-medium text-gray-500">×{{ inv.quantity }} шт.</span>
           </div>
         </div>
@@ -76,7 +79,10 @@
 <script setup lang="ts">
 import { useTranslation } from 'i18next-vue';
 
+import type { EquipmentType } from '@/modules/Inventory/types';
 import type { InventoryEntry } from '@/modules/Shop/types';
+
+import { getItemTypeLocaleKey } from '@/modules/Shop/utils/itemPresentation';
 
 import InventoryItem from '@/modules/Inventory/components/InventoryItem.vue';
 
@@ -93,4 +99,5 @@ defineEmits<{
 }>();
 
 const { t } = useTranslation();
+const itemTypeName = (equipmentTypes: EquipmentType[]) => t(getItemTypeLocaleKey(equipmentTypes));
 </script>

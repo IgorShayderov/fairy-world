@@ -2,9 +2,16 @@
   <div class="flex h-full min-h-0 flex-1 flex-col bg-gray-50 text-gray-900">
     <div class="flex min-h-0 flex-1 overflow-hidden">
       <main class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <ShopHeader :gold="gold" :cart-total="cartTotal()" :disabled="!cartHasItems() || loading" @buy="buyFromCart" />
+        <ShopHeader
+          :gold="gold"
+          :cart-total="cartTotal()"
+          :disabled="!cartHasItems() || loading"
+          :next-restock-at="nextRestockAt"
+          @buy="buyFromCart"
+          @restock-due="loadData"
+        />
 
-        <div class="flex-1 overflow-y-auto p-6">
+        <div class="min-h-0 flex-1 overflow-y-scroll overscroll-contain p-6">
           <div v-if="loading && shopItems.length === 0" class="flex h-32 items-center justify-center">
             <div class="text-gray-500">{{ t('shop.loading') }}</div>
           </div>
@@ -67,6 +74,7 @@ const {
   shopItems,
   inventory,
   gold,
+  nextRestockAt,
   loading,
   cart,
   sellQuantity,

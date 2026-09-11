@@ -1,0 +1,11 @@
+BEGIN;
+
+ALTER TABLE "Item"
+ADD COLUMN "level" INTEGER NOT NULL DEFAULT 1;
+
+DROP INDEX "Item_name_key";
+
+ALTER TABLE "Shop"
+ADD COLUMN "nextRestockAt" TIMESTAMP(3);
+
+COMMIT;

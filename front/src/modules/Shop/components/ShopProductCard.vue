@@ -5,8 +5,9 @@
     <div class="flex justify-center">
       <InventoryItem
         :item="{
-          name: item.name,
-          nameKey: item.name,
+          name: itemTypeName,
+          nameKey: itemTypeName,
+          tooltipName: item.name,
           icon: item.icon,
           description: item.description,
           price: item.price,
@@ -22,7 +23,7 @@
 
     <div class="flex items-center justify-between gap-3">
       <span class="min-w-0 truncate font-bold text-gray-800">
-        {{ item.name }}
+        {{ itemTypeName }}
       </span>
       <span class="shrink-0 text-lg font-bold text-green-600"> {{ item.price }}g </span>
     </div>
@@ -68,12 +69,15 @@
 <script setup lang="ts">
 import { useTranslation } from 'i18next-vue';
 import { QBtn } from 'quasar';
+import { computed } from 'vue';
 
 import type { ShopItem } from '@/modules/Shop/types';
 
+import { getItemTypeLocaleKey } from '@/modules/Shop/utils/itemPresentation';
+
 import InventoryItem from '@/modules/Inventory/components/InventoryItem.vue';
 
-defineProps<{
+const props = defineProps<{
   item: ShopItem;
   cartQuantity: number;
 }>();
@@ -84,4 +88,5 @@ defineEmits<{
 }>();
 
 const { t } = useTranslation();
+const itemTypeName = computed(() => t(getItemTypeLocaleKey(props.item.equipmentType)));
 </script>
