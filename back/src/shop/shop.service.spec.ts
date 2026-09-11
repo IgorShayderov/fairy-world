@@ -14,6 +14,7 @@ describe('ShopService trades', () => {
       create: jest.fn(),
     },
     gameProfile: { findUnique: jest.fn(), update: jest.fn() },
+    item: { findMany: jest.fn() },
     inventoryItem: { findFirst: jest.fn(), update: jest.fn(), delete: jest.fn(), create: jest.fn() },
   };
   const prisma = { $transaction: jest.fn() };
@@ -24,7 +25,7 @@ describe('ShopService trades', () => {
     jest.resetAllMocks();
     prisma.$transaction.mockImplementation((operation: (client: typeof tx) => unknown) => operation(tx));
     tx.shop.findUnique.mockResolvedValue({ id: 2, gold: 1000, nextRestockAt: new Date('2099-01-01') });
-    tx.gameProfile.findUnique.mockResolvedValue({ id: 5, gold: 200, level: 4 });
+    tx.gameProfile.findUnique.mockResolvedValue({ id: 5, gold: 200, gems: 20, level: 4 });
     tx.shopStock.findUnique.mockResolvedValue({ quantity: 10, item: { price: 20 } });
     tx.inventoryItem.findFirst.mockResolvedValue({
       id: 8,
@@ -33,6 +34,10 @@ describe('ShopService trades', () => {
       quantity: 7,
       item: { price: 20 },
     });
+    tx.item.findMany.mockResolvedValue([
+      { id: 101, equipmentType: ['POTION'] },
+      { id: 102, equipmentType: ['SCROLL'] },
+    ]);
   });
 
   afterEach(() => jest.useRealTimers());
@@ -135,6 +140,7 @@ describe('ShopService trades', () => {
       name: 'Armory',
       gold: 500,
       nextRestockAt,
+      refreshCost: 10,
       items: [{ id: 3, name: 'Shield', quantity: 9, attributes: [], properties: [] }],
     });
     expect(tx.shopStock.deleteMany).toHaveBeenCalledWith({ where: { shopId: 2, quantity: { lte: 0 } } });
@@ -152,17 +158,49 @@ describe('ShopService trades', () => {
 
     await service.getShop(1, 2);
 
-    expect(itemGenerator.generate).toHaveBeenCalledTimes(12);
+    expect(itemGenerator.generate).toHaveBeenCalledTimes(10);
     expect(itemGenerator.generate).toHaveBeenNthCalledWith(1, { level: 2 }, tx);
     expect(itemGenerator.generate).toHaveBeenNthCalledWith(2, { level: 3 }, tx);
     expect(itemGenerator.generate).toHaveBeenNthCalledWith(3, { level: 4 }, tx);
     expect(itemGenerator.generate).toHaveBeenNthCalledWith(4, { level: 5 }, tx);
     expect(itemGenerator.generate).toHaveBeenNthCalledWith(5, { level: 6 }, tx);
+    expect(itemGenerator.generate).toHaveBeenNthCalledWith(9, { level: 5, equipmentType: 'GLOVES' }, tx);
+    expect(itemGenerator.generate).toHaveBeenNthCalledWith(10, { level: 6, equipmentType: 'LEGS' }, tx);
     expect(tx.shopStock.deleteMany).toHaveBeenCalledWith({ where: { shopId: 2 } });
     expect(tx.shopStock.create).toHaveBeenCalledTimes(12);
+    expect(tx.shopStock.create).toHaveBeenCalledWith({ data: { shopId: 2, itemId: 101, quantity: 1 } });
+    expect(tx.shopStock.create).toHaveBeenCalledWith({ data: { shopId: 2, itemId: 102, quantity: 1 } });
     expect(tx.shop.update).toHaveBeenCalledWith({
       where: { id: 2 },
       data: { nextRestockAt },
     });
+  });
+
+  it('spends ten gems and immediately replaces the shop stock', async () => {
+    const now = new Date('2026-09-11T09:00:00Z');
+    const nextRestockAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    jest.useFakeTimers().setSystemTime(now);
+    itemGenerator.generate.mockResolvedValue({ id: 42 });
+
+    await expect(service.refresh(1, 2)).resolves.toEqual({ success: true, cost: 10, nextRestockAt });
+
+    expect(tx.gameProfile.update).toHaveBeenCalledWith({
+      where: { id: 5 },
+      data: { gems: { decrement: 10 } },
+    });
+    expect(tx.shopStock.deleteMany).toHaveBeenCalledWith({ where: { shopId: 2 } });
+    expect(itemGenerator.generate).toHaveBeenCalledTimes(10);
+    expect(tx.shopStock.create).toHaveBeenCalledTimes(12);
+    expect(tx.shop.update).toHaveBeenCalledWith({ where: { id: 2 }, data: { nextRestockAt } });
+  });
+
+  it('does not refresh stock when the player has fewer than ten gems', async () => {
+    tx.gameProfile.findUnique.mockResolvedValue({ id: 5, gold: 200, level: 4, gems: 9 });
+
+    await expect(service.refresh(1, 2)).rejects.toThrow('Not enough gems');
+
+    expect(tx.gameProfile.update).not.toHaveBeenCalled();
+    expect(tx.shopStock.deleteMany).not.toHaveBeenCalled();
+    expect(itemGenerator.generate).not.toHaveBeenCalled();
   });
 });

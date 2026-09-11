@@ -109,6 +109,12 @@ describe('UserView.renderCurrent', () => {
                   value: 4,
                   stat: { id: 2, name: 'DAMAGE' as const, description: 'Weapon damage' },
                 },
+                {
+                  itemId: 2,
+                  statId: 3,
+                  value: 4,
+                  stat: { id: 3, name: 'CRIT' as const, description: 'Critical rating' },
+                },
               ],
             },
           },
@@ -147,6 +153,7 @@ describe('UserView.renderCurrent', () => {
         properties: [
           { name: 'DEFENSE', description: 'Damage reduction', value: 3 },
           { name: 'DAMAGE', description: 'Weapon damage', value: 4 },
+          { name: 'CRIT', description: 'Critical rating', value: 4 },
         ],
       },
     });
@@ -170,10 +177,22 @@ describe('UserView.renderCurrent', () => {
     expect(result.properties).toContainEqual({
       name: 'DEFENSE',
       description: 'Damage reduction',
-      baseValue: 5,
-      attributeBonus: 5,
-      equipmentBonus: 3,
-      value: 13,
+      baseValue: 14.3,
+      attributeBonus: 10.7,
+      equipmentBonus: 5.2,
+      value: 30.2,
+      rating: 13,
+      equipmentRatingBonus: 3,
+    });
+    expect(result.properties).toContainEqual({
+      name: 'CRIT',
+      description: 'Final critical-hit chance, capped at 50%.',
+      baseValue: 0,
+      attributeBonus: 12.5,
+      equipmentBonus: 20,
+      value: 32.5,
+      rating: 6.5,
+      equipmentRatingBonus: 4,
     });
   });
 });

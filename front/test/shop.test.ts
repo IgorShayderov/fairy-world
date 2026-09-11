@@ -20,6 +20,7 @@ describe('shop quantity requests', () => {
             name: 'Player',
             email: 'player@example.com',
             gold: 120,
+            gems: 20,
             experience: 0,
             level: 1,
             inventory: [{ id: 9, item: { id: 3, name: 'Shield' }, quantity: 7 }],
@@ -29,6 +30,7 @@ describe('shop quantity requests', () => {
             id: 2,
             name: 'Armory',
             gold: 800,
+            refreshCost: 10,
             items: [{ id: 3, price: 20, quantity: 10 }],
           },
     }));
@@ -86,5 +88,15 @@ describe('shop quantity requests', () => {
 
     expect(shop.sellQuantity.value[3]).toBe(1);
     expect(mocks.post).not.toHaveBeenCalled();
+  });
+
+  it('spends gems through the dedicated shop refresh request', async () => {
+    const shop = useShopActions();
+    await shop.loadData();
+
+    await shop.refreshStock();
+
+    expect(mocks.post).toHaveBeenCalledWith(expect.stringMatching(/\/shop\/1\/refresh$/));
+    expect(mocks.notify).toHaveBeenCalledWith({ type: 'positive', message: 'shop.refreshSuccess' });
   });
 });

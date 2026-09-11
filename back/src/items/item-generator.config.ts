@@ -23,6 +23,7 @@ export interface BaseItem {
   equipmentType: EquipmentType;
   basePrice: number;
   icon: string;
+  iconVariants?: string[];
   baseStats?: Partial<Record<StatType, number>>;
 }
 
@@ -32,6 +33,7 @@ export const BASE_ITEMS: BaseItem[] = [
     equipmentType: EquipmentType.WEAPON,
     basePrice: 50,
     icon: 'icon_sword.png',
+    iconVariants: ['icon_sword_2.png'],
     baseStats: {
       [StatType.DAMAGE]: 3,
     },
@@ -41,6 +43,7 @@ export const BASE_ITEMS: BaseItem[] = [
     equipmentType: EquipmentType.SHIELD,
     basePrice: 50,
     icon: 'icon_shield.png',
+    iconVariants: ['icon_shield_2.png'],
     baseStats: {
       [StatType.DEFENSE]: 3,
     },
@@ -50,6 +53,7 @@ export const BASE_ITEMS: BaseItem[] = [
     equipmentType: EquipmentType.BODY,
     basePrice: 100,
     icon: 'icon_armor.png',
+    iconVariants: ['icon_armor_2.png'],
     baseStats: {
       [StatType.DEFENSE]: 5,
     },
@@ -59,6 +63,7 @@ export const BASE_ITEMS: BaseItem[] = [
     equipmentType: EquipmentType.HELMET,
     basePrice: 75,
     icon: 'icon_helmet.png',
+    iconVariants: ['icon_helmet_2.png'],
     baseStats: {
       [StatType.DEFENSE]: 2,
     },
@@ -68,8 +73,29 @@ export const BASE_ITEMS: BaseItem[] = [
     equipmentType: EquipmentType.BOOTS,
     basePrice: 60,
     icon: 'icon_boots.png',
+    iconVariants: ['icon_boots_2.png'],
     baseStats: {
       [StatType.DODGE]: 1,
+    },
+  },
+  {
+    name: 'Gloves',
+    equipmentType: EquipmentType.GLOVES,
+    basePrice: 65,
+    icon: 'icon_gloves.png',
+    iconVariants: ['icon_gloves_2.png'],
+    baseStats: {
+      [StatType.DEFENSE]: 2,
+    },
+  },
+  {
+    name: 'Leg Armor',
+    equipmentType: EquipmentType.LEGS,
+    basePrice: 85,
+    icon: 'icon_legs.png',
+    iconVariants: ['icon_legs_2.png'],
+    baseStats: {
+      [StatType.DEFENSE]: 4,
     },
   },
   {
@@ -77,6 +103,7 @@ export const BASE_ITEMS: BaseItem[] = [
     equipmentType: EquipmentType.RING,
     basePrice: 100,
     icon: 'icon_ring.png',
+    iconVariants: ['icon_ring_2.png'],
     baseStats: {
       [StatType.CRIT]: 1,
     },
@@ -86,6 +113,7 @@ export const BASE_ITEMS: BaseItem[] = [
     equipmentType: EquipmentType.AMULET,
     basePrice: 150,
     icon: 'icon_amulet.png',
+    iconVariants: ['icon_amulet_2.png'],
     baseStats: {
       [StatType.MANA]: 3,
     },
@@ -107,7 +135,14 @@ export const PREFIXES: Modifier[] = [
     stat: StatType.DEFENSE,
     min: 1,
     max: 5,
-    equipmentTypes: [EquipmentType.SHIELD, EquipmentType.BODY, EquipmentType.HELMET, EquipmentType.BOOTS],
+    equipmentTypes: [
+      EquipmentType.SHIELD,
+      EquipmentType.BODY,
+      EquipmentType.HELMET,
+      EquipmentType.BOOTS,
+      EquipmentType.GLOVES,
+      EquipmentType.LEGS,
+    ],
   },
   {
     kind: 'stat',

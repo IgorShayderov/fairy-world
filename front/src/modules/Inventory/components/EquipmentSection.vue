@@ -103,17 +103,29 @@
             <div
               v-for="property in playerProperties"
               :key="property.name"
-              class="flex flex-col rounded-lg bg-gray-50 p-3"
+              class="flex cursor-help flex-col rounded-lg bg-gray-50 p-3"
             >
               <span class="text-[10px] font-medium tracking-wider text-gray-500 uppercase">
                 {{ t(`profile.propertyNames.${property.name}`) }}
               </span>
               <span class="mt-1 font-bold text-gray-800">
-                {{ property.value }}
+                {{ formatPropertyValue(property.name, property.value) }}
                 <small v-if="property.equipmentBonus" class="text-green-600">
-                  (+{{ property.equipmentBonus }} {{ t('profile.fromItems') }})
+                  (+{{ formatPropertyValue(property.name, property.equipmentBonus) }} {{ t('profile.fromItems') }})
                 </small>
               </span>
+              <span v-if="property.rating !== undefined" class="mt-1 text-[10px] font-medium text-gray-500">
+                {{ t('profile.ratingPoints', { value: property.rating }) }}
+                <small v-if="property.equipmentRatingBonus" class="text-green-600">
+                  (+{{ property.equipmentRatingBonus }} {{ t('profile.fromItems') }})
+                </small>
+              </span>
+              <QTooltip class="max-w-sm bg-gray-900 p-3 text-white">
+                <div>{{ t(`profile.propertyDescriptions.${property.name}`) }}</div>
+                <div v-if="propertyFormula(property)" class="mt-2 border-t border-gray-600 pt-2 font-mono text-xs">
+                  {{ propertyFormula(property) }}
+                </div>
+              </QTooltip>
             </div>
           </div>
         </QCard>
@@ -169,6 +181,7 @@ const props = defineProps<{
   playerLevel: number;
   playerExperience: number;
   playerGold: number;
+  playerGems: number;
   playerFreeAttributes: number;
 }>();
 
@@ -187,7 +200,22 @@ const playerSummary = computed(() => [
   { key: 'level', value: props.playerLevel },
   { key: 'experience', value: props.playerExperience },
   { key: 'gold', value: props.playerGold },
+  { key: 'gems', value: props.playerGems },
 ]);
+
+const percentageProperties = new Set(['DEFENSE', 'CRIT', 'DODGE', 'CRIT_DAMAGE']);
+const formatPropertyValue = (name: string, value: number) =>
+  percentageProperties.has(name) ? `${value}%` : String(value);
+
+const propertyFormula = (property: EffectiveModifier) => {
+  if (!percentageProperties.has(property.name)) return null;
+
+  if (property.name === 'DEFENSE') return t('profile.propertyFormulas.defense');
+
+  return property.name === 'CRIT_DAMAGE'
+    ? t('profile.propertyFormulas.criticalDamage')
+    : t('profile.propertyFormulas.chance');
+};
 
 const blocks = [
   { key: 'equipment', titleKey: 'profile.equipment' },

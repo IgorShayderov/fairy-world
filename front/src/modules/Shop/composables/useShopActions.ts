@@ -5,7 +5,7 @@ import { ref } from 'vue';
 import type { ShopItem, InventoryEntry } from '@/modules/Shop/types';
 
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
-import { getShop, buyItem, sellItem } from '@/modules/Shop/api';
+import { getShop, buyItem, refreshShop, sellItem } from '@/modules/Shop/api';
 
 export function useShopActions() {
   const $q = useQuasar();
@@ -16,7 +16,9 @@ export function useShopActions() {
   const inventory = ref<InventoryEntry[]>([]);
   const equippedItems = ref<InventoryEntry[]>([]);
   const gold = ref(0);
+  const gems = ref(0);
   const shopGold = ref(0);
+  const refreshCost = ref(10);
   const nextRestockAt = ref<string | null>(null);
   const shopId = ref(1);
   const loading = ref(false);
@@ -37,7 +39,9 @@ export function useShopActions() {
       inventory.value = player.inventory;
       equippedItems.value = player.equippedItems ?? [];
       gold.value = player.gold;
+      gems.value = player.gems;
       shopGold.value = shop.gold;
+      refreshCost.value = shop.refreshCost;
       nextRestockAt.value = shop.nextRestockAt;
 
       sellQuantity.value = {};
@@ -138,6 +142,24 @@ export function useShopActions() {
   const addOneToSell = (itemId: number, name: string, currentQty: number) =>
     adjustSell(itemId, name, currentQty, 1);
 
+  const refreshStock = async () => {
+    if (loading.value || gems.value < refreshCost.value) return;
+
+    loading.value = true;
+    try {
+      const result = await refreshShop(shopId.value);
+      if (!result.success) throw new Error('Shop refresh failed');
+
+      cart.value = {};
+      $q.notify({ type: 'positive', message: t('shop.refreshSuccess') });
+      await loadData(true);
+    } catch {
+      $q.notify({ type: 'negative', message: t('shop.refreshError') });
+    } finally {
+      loading.value = false;
+    }
+  };
+
   return {
     shopId,
     shopGold,
@@ -146,6 +168,8 @@ export function useShopActions() {
     inventory,
     equippedItems,
     gold,
+    gems,
+    refreshCost,
     loading,
     token,
     cart,
@@ -159,6 +183,7 @@ export function useShopActions() {
     adjustSell,
     sellFromInventory,
     addOneToSell,
+    refreshStock,
     loadData,
   };
 }

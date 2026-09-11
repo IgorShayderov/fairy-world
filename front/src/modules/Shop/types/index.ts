@@ -20,6 +20,7 @@ export interface ShopData {
   id: number;
   name: string;
   gold: number;
+  refreshCost: number;
   nextRestockAt: string;
   items: ShopItem[];
 }

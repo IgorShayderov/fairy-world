@@ -10,6 +10,7 @@
         :player-level="currentUserStore.user?.level ?? 1"
         :player-experience="currentUserStore.user?.experience ?? 0"
         :player-gold="currentUserStore.user?.gold ?? 0"
+        :player-gems="currentUserStore.user?.gems ?? 0"
         :player-free-attributes="currentUserStore.user?.freeAttributes ?? 0"
         @slot-enter="(id) => (isHoveredSlot = id)"
         @slot-leave="isHoveredSlot = null"

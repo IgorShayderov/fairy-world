@@ -23,6 +23,36 @@ export interface Monster {
   attributes: MonsterAttribute[];
 }
 
+export interface BattleCombatant {
+  name: string;
+  health: number;
+  maxHealth: number;
+  damage: number;
+  defense: number;
+  dodge: number;
+  criticalChance: number;
+  criticalDamage: number;
+}
+
+export interface BattleState {
+  id: string;
+  status: 'ACTIVE' | 'VICTORY' | 'DEFEAT';
+  turn: number;
+  player: BattleCombatant;
+  monster: BattleCombatant & {
+    id: number;
+    level: number;
+    rewardGold: number;
+    rewardExperience: number;
+  };
+  events: Array<{ actor: 'PLAYER' | 'MONSTER'; damage: number; critical: boolean; dodged: boolean }>;
+  rewards?: { gold: number; experience: number };
+}
+
+export type EncounterRoll =
+  | { encountered: false; chance: number }
+  | { encountered: true; chance: number; monster: Monster; battle: BattleState };
+
 export const getMonsters = async (): Promise<Monster[]> => {
   const { data } = await api.get<Monster[]>(routes.api.monsters.listPath());
   return data;
@@ -31,4 +61,18 @@ export const getMonsters = async (): Promise<Monster[]> => {
 export const getMonster = async (id: number): Promise<Monster> => {
   const { data } = await api.get<Monster>(routes.api.monsters.byIdPath(id));
   return data;
+};
+
+export const rollMonsterEncounter = async (): Promise<EncounterRoll> => {
+  const { data } = await api.post<EncounterRoll>(routes.api.monsters.encounterPath());
+  return data;
+};
+
+export const attackMonster = async (battleId: string): Promise<BattleState> => {
+  const { data } = await api.post<BattleState>(routes.api.monsters.battleAttackPath(battleId));
+  return data;
+};
+
+export const retreatFromBattle = async (battleId: string): Promise<void> => {
+  await api.post(routes.api.monsters.battleRetreatPath(battleId));
 };

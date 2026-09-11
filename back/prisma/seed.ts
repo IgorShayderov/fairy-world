@@ -10,6 +10,7 @@ import {
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import * as bcrypt from 'bcrypt';
+import { SEEDED_CONSUMABLES } from '../src/items/seeded-consumables';
 import { STARTING_ATTRIBUTE_VALUE, STARTING_PROPERTIES } from '../src/users/player-defaults';
 
 const connectionString = process.env.DATABASE_URL;
@@ -153,6 +154,25 @@ async function main() {
     create: { id: 1, name: 'General Store', gold: 1000 },
   });
 
+  for (const consumable of SEEDED_CONSUMABLES) {
+    const data = {
+      name: consumable.name,
+      description: consumable.description,
+      price: consumable.price,
+      icon: consumable.equipmentType === EquipmentType.POTION ? 'icon_potion.png' : 'icon_scroll.png',
+      isConsumable: true,
+      rarity: consumable.rarity,
+      equipmentType: [consumable.equipmentType],
+      level: 1,
+    };
+    const existingItem = await prisma.item.findFirst({ where: { name: consumable.name } });
+    const item = existingItem
+      ? await prisma.item.update({ where: { id: existingItem.id }, data })
+      : await prisma.item.create({ data });
+
+    console.log(`Создан расходуемый предмет: ${item.name}`);
+  }
+
   const monstersData = [
     {
       name: 'Goblin',
@@ -289,13 +309,16 @@ async function main() {
   ];
 
   for (const monsterData of monstersData) {
+    const existingMonster = await prisma.monster.findUnique({ where: { name: monsterData.name } });
+    if (existingMonster) continue;
+
     const monster = await prisma.monster.create({ data: monsterData });
     console.log(`Создан монстр: ${monster.name} (level ${monster.level})`);
   }
 
   // Добавление предметов пользователю
   const sword = await prisma.item.findFirst({ where: { name: 'Wooden Sword' } });
-  const potion = await prisma.item.findFirst({ where: { name: 'Minor Health Potion' } });
+  const potion = await prisma.item.findFirst({ where: { name: 'Lesser Health Potion' } });
 
   if (adminUser?.gameProfile && sword && potion) {
     const inventoryItems = [
@@ -318,6 +341,13 @@ async function main() {
           },
         });
       } else {
+        const occupiedSlot = invItem.slot
+          ? await prisma.inventoryItem.findFirst({
+              where: { gameProfileId: adminUser.gameProfile.id, slot: invItem.slot },
+            })
+          : null;
+        if (occupiedSlot) continue;
+
         await prisma.inventoryItem.create({
           data: {
             gameProfileId: adminUser.gameProfile.id,

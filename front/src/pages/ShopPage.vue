@@ -4,10 +4,14 @@
       <main class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <ShopHeader
           :gold="gold"
+          :gems="gems"
           :cart-total="cartTotal()"
           :disabled="!cartHasItems() || loading"
+          :refresh-cost="refreshCost"
+          :refresh-disabled="loading || gems < refreshCost"
           :next-restock-at="nextRestockAt"
           @buy="buyFromCart"
+          @refresh="refreshStock"
           @restock-due="loadData"
         />
 
@@ -82,6 +86,8 @@ const {
   inventory,
   equippedItems,
   gold,
+  gems,
+  refreshCost,
   nextRestockAt,
   loading,
   cart,
@@ -95,6 +101,7 @@ const {
   adjustSell,
   sellFromInventory,
   addOneToSell,
+  refreshStock,
   loadData,
 } = useShopActions();
 

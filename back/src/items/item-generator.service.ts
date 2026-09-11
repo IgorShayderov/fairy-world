@@ -53,7 +53,7 @@ export class ItemGeneratorService {
         name,
         description: this.generateDescription(rarity, baseItem, level),
         price,
-        icon: baseItem.icon,
+        icon: this.randomElement([baseItem.icon, ...(baseItem.iconVariants ?? [])]),
         rarity,
         equipmentType: [baseItem.equipmentType],
         level,

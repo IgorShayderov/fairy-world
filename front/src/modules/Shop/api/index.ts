@@ -34,3 +34,12 @@ export const sellItem = async (
   );
   return data;
 };
+
+export const refreshShop = async (
+  shopId: number
+): Promise<{ success: boolean; cost: number; nextRestockAt: string }> => {
+  const { data } = await api.post<{ success: boolean; cost: number; nextRestockAt: string }>(
+    routes.api.shop.refreshPath(shopId)
+  );
+  return data;
+};

@@ -30,4 +30,10 @@ export class ShopController {
   sell(@Param('shopId', ParseIntPipe) shopId: number, @Body() dto: SellDto, @Req() req: ShopRequest) {
     return this.shopService.sell(req.user.sub, shopId, dto);
   }
+
+  @Post(':shopId/refresh')
+  @ApiOkResponse({ description: 'Refreshes shop stock immediately for 10 gems' })
+  refresh(@Param('shopId', ParseIntPipe) shopId: number, @Req() req: ShopRequest) {
+    return this.shopService.refresh(req.user.sub, shopId);
+  }
 }

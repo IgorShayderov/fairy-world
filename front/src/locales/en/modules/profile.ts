@@ -5,10 +5,12 @@ export default {
   statistics: 'Statistics',
   freeAttributes: 'Free points',
   fromItems: 'from items',
+  ratingPoints: 'Rating: {{value}}',
   summary: {
     level: 'Level',
     experience: 'Experience',
     gold: 'Gold',
+    gems: 'Gems',
   },
   tooltip: {
     price: 'Price',
@@ -24,10 +26,10 @@ export default {
   },
   attributeDescriptions: {
     STRENGTH: 'Each point increases Damage by 1.',
-    AGILITY: 'Each point increases Dodge and Critical chance by 0.5.',
+    AGILITY: 'Each point adds 0.5 Dodge and Critical Chance rating. Final percentages scale with your level.',
     ENDURANCE: 'Each point increases Health by 10 and Defense by 1.',
     WISDOM: 'Each point increases Mana by 5.',
-    CHARISMA: 'Each point increases Critical damage by 1.',
+    CHARISMA: 'Each point adds 1 Critical Damage rating. Its final benefit scales with level and diminishing returns.',
   },
   propertyNames: {
     HEALTH: 'Health',
@@ -37,6 +39,21 @@ export default {
     CRIT: 'Critical chance',
     DODGE: 'Dodge',
     CRIT_DAMAGE: 'Critical damage',
+  },
+  propertyDescriptions: {
+    HEALTH: 'The maximum amount of damage you can survive before being defeated.',
+    MANA: 'The maximum resource available for casting spells and using magical abilities.',
+    DAMAGE: 'The base damage dealt by your attacks.',
+    DEFENSE: 'Your final damage reduction. More Defense is required to retain the same reduction at higher levels.',
+    CRIT: 'Your final chance to land a critical hit. It cannot exceed 50%.',
+    DODGE: 'Your final chance to avoid an enemy attack. It cannot exceed 50%.',
+    CRIT_DAMAGE: 'Damage dealt by a critical hit. It starts at 125%, has diminishing returns, and cannot exceed 300%.',
+  },
+  propertyFormulas: {
+    defense: 'damage reduction % = defense ÷ (defense + level × 10) × 100',
+    chance: 'final % = min(50%, max(0, rating) × 50 ÷ max(level, 10))',
+    criticalDamage:
+      'effective rating = rating × 10 ÷ max(level, 10); final % = min(300%, 125% + 175% × effective rating ÷ (effective rating + 7.75))',
   },
   slots: {
     head: 'Head',

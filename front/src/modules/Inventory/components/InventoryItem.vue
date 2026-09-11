@@ -118,12 +118,23 @@ import { getRarityBadgeClass, removeRarityPrefix } from '@/modules/Inventory/uti
 
 const CONFIGURED_ITEM_IMAGES: Record<string, string> = {
   'icon_sword.png': '/icons/items/icon_sword.png',
+  'icon_sword_2.png': '/icons/items/icon_sword_2.png',
   'icon_shield.png': '/icons/items/icon_shield.png',
+  'icon_shield_2.png': '/icons/items/icon_shield_2.png',
   'icon_armor.png': '/icons/items/icon_armor.png',
+  'icon_armor_2.png': '/icons/items/icon_armor_2.png',
   'icon_helmet.png': '/icons/items/icon_helmet.png',
+  'icon_helmet_2.png': '/icons/items/icon_helmet_2.png',
   'icon_boots.png': '/icons/items/icon_boots.png',
+  'icon_boots_2.png': '/icons/items/icon_boots_2.png',
+  'icon_gloves.png': '/icons/items/icon_gloves.png',
+  'icon_gloves_2.png': '/icons/items/icon_gloves_2.png',
+  'icon_legs.png': '/icons/items/icon_legs.png',
+  'icon_legs_2.png': '/icons/items/icon_legs_2.png',
   'icon_ring.png': '/icons/items/icon_ring.png',
+  'icon_ring_2.png': '/icons/items/icon_ring_2.png',
   'icon_amulet.png': '/icons/items/icon_amulet.png',
+  'icon_amulet_2.png': '/icons/items/icon_amulet_2.png',
 };
 
 const ITEM_TYPE_IMAGES: Partial<Record<string, string>> = {
@@ -132,6 +143,8 @@ const ITEM_TYPE_IMAGES: Partial<Record<string, string>> = {
   BODY: '/icons/items/icon_armor.png',
   HELMET: '/icons/items/icon_helmet.png',
   BOOTS: '/icons/items/icon_boots.png',
+  GLOVES: '/icons/items/icon_gloves.png',
+  LEGS: '/icons/items/icon_legs.png',
   RING: '/icons/items/icon_ring.png',
   AMULET: '/icons/items/icon_amulet.png',
 };

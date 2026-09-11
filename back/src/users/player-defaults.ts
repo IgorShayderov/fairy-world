@@ -2,6 +2,33 @@ import { AttributeType, StatType } from '../../generated/client';
 
 export const STARTING_ATTRIBUTE_VALUE = 5;
 export const STARTING_FREE_ATTRIBUTES = 0;
+export const MAX_CHANCE_PERCENT = 50;
+export const BASE_CRITICAL_DAMAGE_PERCENT = 125;
+export const MAX_CRITICAL_DAMAGE_PERCENT = 300;
+const CRITICAL_DAMAGE_RATING_PIVOT = 7.75;
+
+const roundPercentage = (value: number) => Math.round(value * 10) / 10;
+
+export const convertRatingToPercentage = (stat: StatType, rating: number, level: number): number => {
+  const nonNegativeRating = Math.max(0, rating);
+  const scaledRating = (nonNegativeRating * 50) / Math.max(10, level);
+
+  if (stat === StatType.CRIT || stat === StatType.DODGE) {
+    return roundPercentage(Math.min(MAX_CHANCE_PERCENT, scaledRating));
+  }
+  if (stat === StatType.CRIT_DAMAGE) {
+    const effectiveRating = (nonNegativeRating * 10) / Math.max(10, level);
+    const availableBonus = MAX_CRITICAL_DAMAGE_PERCENT - BASE_CRITICAL_DAMAGE_PERCENT;
+    const diminishingBonus = (availableBonus * effectiveRating) / (effectiveRating + CRITICAL_DAMAGE_RATING_PIVOT);
+    return roundPercentage(Math.min(MAX_CRITICAL_DAMAGE_PERCENT, BASE_CRITICAL_DAMAGE_PERCENT + diminishingBonus));
+  }
+  if (stat === StatType.DEFENSE) {
+    const levelPressure = Math.max(1, level) * 10;
+    return roundPercentage((nonNegativeRating / (nonNegativeRating + levelPressure)) * 100);
+  }
+
+  return rating;
+};
 
 export const STARTING_PROPERTIES: Record<StatType, number> = {
   [StatType.HEALTH]: 50,
@@ -22,7 +49,7 @@ export const ATTRIBUTE_EFFECTS: Record<
     properties: { [StatType.DAMAGE]: 1 },
   },
   [AttributeType.AGILITY]: {
-    description: 'Increases Dodge and Critical chance by 0.5 per point.',
+    description: 'Adds 0.5 Dodge and Critical Chance rating per point. Final percentages scale with level.',
     properties: { [StatType.DODGE]: 0.5, [StatType.CRIT]: 0.5 },
   },
   [AttributeType.ENDURANCE]: {
@@ -34,7 +61,8 @@ export const ATTRIBUTE_EFFECTS: Record<
     properties: { [StatType.MANA]: 5 },
   },
   [AttributeType.CHARISMA]: {
-    description: 'Increases Critical damage by 1 per point.',
+    description:
+      'Adds 1 Critical Damage rating per point. Its final benefit scales with level and diminishing returns.',
     properties: { [StatType.CRIT_DAMAGE]: 1 },
   },
 };
@@ -43,8 +71,8 @@ export const PROPERTY_DESCRIPTIONS: Record<StatType, string> = {
   [StatType.HEALTH]: 'Maximum health points.',
   [StatType.MANA]: 'Maximum mana points.',
   [StatType.DAMAGE]: 'Base damage dealt by attacks.',
-  [StatType.DEFENSE]: 'Reduces incoming damage.',
-  [StatType.CRIT]: 'Chance to land a critical hit.',
-  [StatType.DODGE]: 'Chance to avoid an attack.',
-  [StatType.CRIT_DAMAGE]: 'Additional damage dealt by critical hits.',
+  [StatType.DEFENSE]: 'Final damage reduction percentage, scaled against the player level.',
+  [StatType.CRIT]: 'Final critical-hit chance, capped at 50%.',
+  [StatType.DODGE]: 'Final chance to avoid an attack, capped at 50%.',
+  [StatType.CRIT_DAMAGE]: 'Final critical-hit damage multiplier, from a 125% base up to a 300% maximum.',
 };

@@ -10,8 +10,11 @@ export function useCharacter(
   const pos = reactive({ x: initialX, y: initialY });
   const target = reactive({ x: initialX, y: initialY });
   const isMoving = ref(false);
+  const completedTravelSteps = ref(0);
+  let distanceSinceTravelStep = 0;
 
   const speed = 1;
+  const travelStepDistance = 80;
 
   const walkTo = (x: number, y: number) => {
     const nextX = Math.max(0, Math.min(x, mapWidth));
@@ -48,9 +51,27 @@ export function useCharacter(
       }
       pos.x = nextX;
       pos.y = nextY;
+      distanceSinceTravelStep += speed;
+      if (distanceSinceTravelStep >= travelStepDistance) {
+        completedTravelSteps.value += 1;
+        distanceSinceTravelStep -= travelStepDistance;
+      }
     }
 
     return isMoving.value;
+  };
+
+  const consumeTravelStep = () => {
+    if (completedTravelSteps.value === 0) return false;
+    completedTravelSteps.value -= 1;
+    return true;
+  };
+
+  const stop = () => {
+    target.x = pos.x;
+    target.y = pos.y;
+    isMoving.value = false;
+    completedTravelSteps.value = 0;
   };
 
   const render = (ctx: CanvasRenderingContext2D) => {
@@ -106,5 +127,7 @@ export function useCharacter(
     walkTo,
     update,
     render,
+    consumeTravelStep,
+    stop,
   };
 }

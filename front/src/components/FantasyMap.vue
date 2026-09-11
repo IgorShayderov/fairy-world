@@ -58,6 +58,16 @@
         {{ t('fantasy.controlsHint') }}
       </div>
     </div>
+
+    <BattleEncounter
+      v-if="activeBattle"
+      :battle="activeBattle"
+      :player-name="currentUserStore.user?.name ?? t('fantasy.encounter.traveler')"
+      :loading="battlePending"
+      @attack="handleAttack"
+      @retreat="handleRetreat"
+      @close="activeBattle = null"
+    />
   </div>
 </template>
 
@@ -66,14 +76,24 @@ import { useTranslation } from 'i18next-vue';
 import { QIcon } from 'quasar';
 import { onMounted, onUnmounted, ref } from 'vue';
 
+
+import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
+import type { BattleState } from '@/modules/Monsters/api';
+import { attackMonster, retreatFromBattle, rollMonsterEncounter } from '@/modules/Monsters/api';
 import { useCharacter } from '@modules/Game/composables/useCharacter';
 import { useMapCamera } from '@modules/Game/composables/useMapCamera';
 import { useMapGenerator } from '@modules/Game/composables/useMapGenerator';
 
+import BattleEncounter from '@/modules/Game/components/BattleEncounter.vue';
+
 const { t } = useTranslation();
+const currentUserStore = useCurrentUserStore();
 const containerRef = ref<HTMLElement | null>(null);
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 const isDragging = ref(false);
+const activeBattle = ref<BattleState | null>(null);
+const encounterPending = ref(false);
+const battlePending = ref(false);
 let ctx: CanvasRenderingContext2D | null = null;
 let resizeObserver: ResizeObserver | null = null;
 let animationFrame: number | null = null;
@@ -95,7 +115,7 @@ offscreenCanvas.height = mapHeight;
 const offscreenCtx = offscreenCanvas.getContext('2d');
 if (offscreenCtx) renderProceduralMap(offscreenCtx, mapWidth, mapHeight);
 const canMoveTo = (x: number, y: number) => Boolean(offscreenCtx && isPointOnLand(offscreenCtx, x, y));
-const { isMoving, walkTo, update, render: renderCharacter } = useCharacter(
+const { isMoving, walkTo, update, render: renderCharacter, consumeTravelStep, stop } = useCharacter(
   initialX,
   initialY,
   mapWidth,
@@ -120,9 +140,59 @@ const draw = () => {
   ctx.restore();
 };
 
+const checkForEncounter = async () => {
+  encounterPending.value = true;
+  try {
+    const result = await rollMonsterEncounter();
+    if (result.encountered) {
+      stop();
+      activeBattle.value = result.battle;
+      draw();
+      return;
+    }
+  } catch (error) {
+    console.error('Failed to roll a travel encounter:', error);
+  } finally {
+    encounterPending.value = false;
+  }
+
+  if (isMoving.value) animationFrame = requestAnimationFrame(tick);
+};
+
+const handleAttack = async () => {
+  if (!activeBattle.value || battlePending.value) return;
+  battlePending.value = true;
+  try {
+    activeBattle.value = await attackMonster(activeBattle.value.id);
+    if (activeBattle.value.status === 'VICTORY') await currentUserStore.fetchCurrentUser(true);
+  } catch (error) {
+    console.error('Battle attack failed:', error);
+  } finally {
+    battlePending.value = false;
+  }
+};
+
+const handleRetreat = async () => {
+  if (!activeBattle.value || battlePending.value) return;
+  battlePending.value = true;
+  try {
+    await retreatFromBattle(activeBattle.value.id);
+    activeBattle.value = null;
+  } catch (error) {
+    console.error('Battle retreat failed:', error);
+  } finally {
+    battlePending.value = false;
+  }
+};
+
 const tick = () => {
   const stillMoving = update();
   draw();
+  if (consumeTravelStep() && !encounterPending.value) {
+    animationFrame = null;
+    void checkForEncounter();
+    return;
+  }
   animationFrame = stillMoving ? requestAnimationFrame(tick) : null;
 };
 

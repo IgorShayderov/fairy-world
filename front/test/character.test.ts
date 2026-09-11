@@ -18,4 +18,16 @@ describe('character movement boundaries', () => {
     expect(character.update()).toBe(false);
     expect(character.isMoving.value).toBe(false);
   });
+
+  it('completes one logical travel step after moving 80 map units', () => {
+    const character = useCharacter(0, 0, 200, 20);
+    character.walkTo(100, 0);
+
+    for (let frame = 0; frame < 79; frame++) character.update();
+    expect(character.consumeTravelStep()).toBe(false);
+
+    character.update();
+    expect(character.consumeTravelStep()).toBe(true);
+    expect(character.consumeTravelStep()).toBe(false);
+  });
 });

@@ -1,14 +1,18 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { Prisma } from '../../generated/client';
+import { EquipmentType, Prisma } from '../../generated/client';
 import { PrismaService } from '../prisma.service';
 import { BuyDto } from './dto/buy.dto';
 import { SellDto } from './dto/sell.dto';
 import { ItemView } from '../common/views/item.view';
 import { ItemGeneratorService } from '../items/item-generator.service';
+import { SEEDED_CONSUMABLES } from '../items/seeded-consumables';
 
 const SHOP_RESTOCK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const SHOP_RESTOCK_ITEM_COUNT = 12;
+const SHOP_RANDOM_EQUIPMENT_COUNT = 8;
+const SHOP_GUARANTEED_EQUIPMENT_TYPES = [EquipmentType.GLOVES, EquipmentType.LEGS] as const;
 const SHOP_ITEM_LEVEL_OFFSETS = [-2, -1, 0, 1, 2] as const;
+export const SHOP_REFRESH_GEM_COST = 10;
 
 @Injectable()
 export class ShopService {
@@ -30,17 +34,7 @@ export class ShopService {
 
       const now = new Date();
       if (!shop.nextRestockAt || shop.nextRestockAt <= now) {
-        await tx.shopStock.deleteMany({ where: { shopId } });
-        for (let index = 0; index < SHOP_RESTOCK_ITEM_COUNT; index++) {
-          const levelOffset = SHOP_ITEM_LEVEL_OFFSETS[index % SHOP_ITEM_LEVEL_OFFSETS.length];
-          const itemLevel = Math.max(1, profile.level + levelOffset);
-          const item = await this.itemGenerator.generate({ level: itemLevel }, tx);
-          await tx.shopStock.create({ data: { shopId, itemId: item.id, quantity: 1 } });
-        }
-        await tx.shop.update({
-          where: { id: shopId },
-          data: { nextRestockAt: new Date(now.getTime() + SHOP_RESTOCK_INTERVAL_MS) },
-        });
+        await this.restock(tx, shopId, profile.level, now);
       }
 
       const currentShop = await tx.shop.findUnique({
@@ -64,9 +58,80 @@ export class ShopService {
       const { stock, ...details } = currentShop;
       return {
         ...details,
+        refreshCost: SHOP_REFRESH_GEM_COST,
         items: stock.map(({ item, quantity }) => ({ ...ItemView.render(item), quantity })),
       };
     });
+  }
+
+  async refresh(userId: number, shopId: number) {
+    return this.trade(async (tx) => {
+      const [shop, profile] = await Promise.all([
+        tx.shop.findUnique({ where: { id: shopId }, select: { id: true } }),
+        tx.gameProfile.findUnique({ where: { userId }, select: { id: true, level: true, gems: true } }),
+      ]);
+      if (!shop) throw new NotFoundException('Shop not found');
+      if (!profile) throw new NotFoundException('Game profile not found');
+      if (profile.gems < SHOP_REFRESH_GEM_COST) throw new BadRequestException('Not enough gems');
+
+      await tx.gameProfile.update({
+        where: { id: profile.id },
+        data: { gems: { decrement: SHOP_REFRESH_GEM_COST } },
+      });
+      const nextRestockAt = await this.restock(tx, shopId, profile.level, new Date());
+
+      return { success: true, cost: SHOP_REFRESH_GEM_COST, nextRestockAt };
+    });
+  }
+
+  private async restock(tx: Prisma.TransactionClient, shopId: number, playerLevel: number, now: Date) {
+    await tx.shopStock.deleteMany({ where: { shopId } });
+    let stockCount = 0;
+    for (let index = 0; index < SHOP_RANDOM_EQUIPMENT_COUNT; index++) {
+      const levelOffset = SHOP_ITEM_LEVEL_OFFSETS[index % SHOP_ITEM_LEVEL_OFFSETS.length];
+      const itemLevel = Math.max(1, playerLevel + levelOffset);
+      const item = await this.itemGenerator.generate({ level: itemLevel }, tx);
+      await tx.shopStock.create({ data: { shopId, itemId: item.id, quantity: 1 } });
+      stockCount++;
+    }
+
+    for (const equipmentType of SHOP_GUARANTEED_EQUIPMENT_TYPES) {
+      const levelOffset = SHOP_ITEM_LEVEL_OFFSETS[stockCount % SHOP_ITEM_LEVEL_OFFSETS.length];
+      const item = await this.itemGenerator.generate(
+        { level: Math.max(1, playerLevel + levelOffset), equipmentType },
+        tx,
+      );
+      await tx.shopStock.create({ data: { shopId, itemId: item.id, quantity: 1 } });
+      stockCount++;
+    }
+
+    const consumables = await tx.item.findMany({
+      where: {
+        isConsumable: true,
+        name: { in: SEEDED_CONSUMABLES.map((item) => item.name) },
+        equipmentType: { hasSome: [EquipmentType.POTION, EquipmentType.SCROLL] },
+      },
+      select: { id: true, equipmentType: true },
+    });
+    for (const equipmentType of [EquipmentType.POTION, EquipmentType.SCROLL]) {
+      const matchingItems = consumables.filter((item) => item.equipmentType.includes(equipmentType));
+      if (matchingItems.length === 0) continue;
+
+      const item = matchingItems[Math.floor(Math.random() * matchingItems.length)];
+      await tx.shopStock.create({ data: { shopId, itemId: item.id, quantity: 1 } });
+      stockCount++;
+    }
+
+    while (stockCount < SHOP_RESTOCK_ITEM_COUNT) {
+      const levelOffset = SHOP_ITEM_LEVEL_OFFSETS[stockCount % SHOP_ITEM_LEVEL_OFFSETS.length];
+      const item = await this.itemGenerator.generate({ level: Math.max(1, playerLevel + levelOffset) }, tx);
+      await tx.shopStock.create({ data: { shopId, itemId: item.id, quantity: 1 } });
+      stockCount++;
+    }
+
+    const nextRestockAt = new Date(now.getTime() + SHOP_RESTOCK_INTERVAL_MS);
+    await tx.shop.update({ where: { id: shopId }, data: { nextRestockAt } });
+    return nextRestockAt;
   }
 
   private validateQuantity(quantity: number) {
