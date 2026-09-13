@@ -6,8 +6,8 @@ vi.mock('quasar', () => ({ Notify: { create: mocks.notify } }));
 
 vi.mock('@/modules/Auth/api/users', () => ({ usersApi: { getMe: mocks.getMe } }));
 
-import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 import { i18n, initializeI18n } from '@/locales/i18n';
+import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 
 describe('current user loading', () => {
   it('notifies once when refreshed data confirms a level-up', async () => {
@@ -19,9 +19,11 @@ describe('current user loading', () => {
     await store.fetchCurrentUser(true);
     await store.fetchCurrentUser(true);
     expect(mocks.notify).toHaveBeenCalledTimes(1);
-    expect(mocks.notify).toHaveBeenCalledWith(expect.objectContaining({
-      message: 'Level 2 reached! +5 free points, +10 HP and +5 mana.',
-    }));
+    expect(mocks.notify).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: 'Level 2 reached!',
+      })
+    );
   });
   beforeEach(async () => {
     await initializeI18n();
@@ -36,9 +38,11 @@ describe('current user loading', () => {
     await store.fetchCurrentUser();
     mocks.getMe.mockResolvedValue({ id: 5, level: 2 });
     await store.fetchCurrentUser(true);
-    expect(mocks.notify).toHaveBeenCalledWith(expect.objectContaining({
-      message: 'Достигнут уровень 2! +5 свободных очков, +10 здоровья и +5 маны.',
-    }));
+    expect(mocks.notify).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: 'Достигнут уровень 2!',
+      })
+    );
   });
 
   it('coalesces simultaneous /me loads and reuses the cached user', async () => {
@@ -50,9 +54,9 @@ describe('current user loading', () => {
       gems: 5,
       experience: 20,
       level: 2,
-    freeAttributes: 0,
-    mapPosition: { x: 1470, y: 1040 },
-    activeBuffs: [],
+      freeAttributes: 0,
+      mapPosition: { x: 1470, y: 1040 },
+      activeBuffs: [],
       inventory: [],
       equippedItems: [],
       attributes: [],
