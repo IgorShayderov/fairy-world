@@ -100,7 +100,7 @@ describe('AuthService', () => {
       expect(mockJwtService.signAsync).toHaveBeenNthCalledWith(
         2,
         { sub: 1, type: 'refresh' },
-        { expiresIn: 604800, secret: 'test_secret' },
+        { expiresIn: 604.8, secret: 'test_secret' },
       );
 
       expect(bcrypt.hash).toHaveBeenCalledWith('refresh_token_value', 10);
