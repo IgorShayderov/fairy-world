@@ -1,8 +1,10 @@
 import auth from './auth';
 import profile from './profile';
+import quests from './quests';
 import shop from './shop';
 
 const modules = {
+  quests,
   auth,
   profile,
   shop,
@@ -23,12 +25,17 @@ const modules = {
     },
   },
   gemStore: {
-    devClaim: 'Development: +100 gems for free', devError: 'Start the backend in development mode to claim free gems.',
-    title: 'The Gem Treasury', description: 'Gem packs for your adventures.',
-    pending: 'Purchases are not enabled yet. PayPal checkout and USD prices still need to be configured. No payments can be taken here.',
-    pricePending: 'Price to be confirmed (USD)', unavailable: 'Coming soon',
+    devClaim: 'Development: +100 gems for free',
+    devError: 'Start the backend in development mode to claim free gems.',
+    title: 'The Gem Treasury',
+    description: 'Gem packs for your adventures.',
+    pending:
+      'Purchases are not enabled yet. PayPal checkout and USD prices still need to be configured. No payments can be taken here.',
+    pricePending: 'Price to be confirmed (USD)',
+    unavailable: 'Coming soon',
   },
   menu: {
+    quests: 'Quests',
     gems: 'Gem store',
     title: 'Menu',
     home: 'Main page',
@@ -37,19 +44,44 @@ const modules = {
   },
   fantasy: {
     landmark: {
-      resetDungeon: 'Reset cooldown (10 💎)', resetDone: 'The dungeon is ready to enter again.',
-      blessings: { STARGLEN: '+10 Defense rating for 4 hours. Preserves an active defense effect.', DAWNSHRINE: '+20% experience gained for 4 hours. Preserves an active experience effect.' },
-      leave: 'Continue journey', rumors: 'Ask for rumors',
-      rumorText: 'The keepers of Starglen and Dawnshrine bless travelers. Beyond Emberdeep and Hollowgate, guardians protect treasure. Prepare your equipment before entering.',
-      blessed: 'The sanctuary effect is active. An existing potion or blessing of the same type is preserved until it expires.',
+      resetDungeon: 'Reset cooldown (10 💎)',
+      resetDone: 'The dungeon is ready to enter again.',
+      blessings: {
+        STARGLEN: '+10 Defense rating for 4 hours. Preserves an active defense effect.',
+        DAWNSHRINE: '+20% experience gained for 4 hours. Preserves an active experience effect.',
+      },
+      leave: 'Continue journey',
+      rumors: 'Ask for rumors',
+      rumorText:
+        'The keepers of Starglen and Dawnshrine bless travelers. Beyond Emberdeep and Hollowgate, guardians protect treasure. Prepare your equipment before entering.',
+      blessed:
+        'The sanctuary effect is active. An existing potion or blessing of the same type is preserved until it expires.',
       error: 'The action could not be completed. Please try again.',
-      village: { label: 'A welcome on the road', story: 'Lanterns sway above the square. A merchant waves you over while travelers exchange news beside the well.', effect: 'Trade your finds at the market, or ask about the dangers ahead.', action: 'Visit the market' },
-      sanctum: { label: 'Sanctuary', story: 'The noise of the road fades. A keeper invites you to kneel beneath the glowing runes and receive the sanctuary’s protection.', effect: 'Receive +10 Defense rating for 4 hours. This shares the defense-buff slot and does not replace an active potion or blessing.', action: 'Receive blessing' },
+      village: {
+        label: 'A welcome on the road',
+        story:
+          'Lanterns sway above the square. A merchant waves you over while travelers exchange news beside the well.',
+        effect: 'Trade your finds at the market, or ask about the dangers ahead.',
+        action: 'Visit the market',
+      },
+      sanctum: {
+        label: 'Sanctuary',
+        story:
+          'The noise of the road fades. A keeper invites you to kneel beneath the glowing runes and receive the sanctuary’s protection.',
+        effect:
+          'Receive +10 Defense rating for 4 hours. This shares the defense-buff slot and does not replace an active potion or blessing.',
+        action: 'Receive blessing',
+      },
       cooldown: 'You can enter again in {{minutes}} minutes.',
-      dungeon: { label: 'Dungeon entrance', story: 'Cold air rises from the stairwell. Behind the sealed doors, a guardian stirs. Once you enter, you must fight or retreat.', effect: 'One entry per hour, including defeats and retreats. Guardians have 2× health, 1.5× damage and +5 defense percentage points. Rewards: 3× gold and XP, 80% loot chance with better rarity odds.', action: 'Enter dungeon' },
+      dungeon: {
+        label: 'Dungeon entrance',
+        story:
+          'Cold air rises from the stairwell. Behind the sealed doors, a guardian stirs. Once you enter, you must fight or retreat.',
+        effect:
+          'One entry per hour, including defeats and retreats. Guardians have 2× health, 1.5× damage and +5 defense percentage points. Rewards: 3× gold and XP, 80% loot chance with better rarity odds.',
+        action: 'Enter dungeon',
+      },
     },
-    realm: 'The enchanted realm of',
-    mapTitle: 'Eldoria',
     mapDescription: 'An atlas of old roads, hidden sanctums and forgotten magic',
     legend: 'Map legend',
     city: 'City',

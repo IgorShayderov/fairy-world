@@ -10,6 +10,7 @@ import { ItemView } from '../common/views/item.view';
 import { rollMonsterLootRarity, rollDungeonLootRarity } from './monster-loot';
 import { requireLandmark } from '../locations/landmarks';
 import { progressionAfterExperience } from '../users/level-progression';
+import { recordQuestVictory } from '../quests/quest-progress';
 
 type BattleStatus = 'ACTIVE' | 'VICTORY' | 'DEFEAT';
 type Combatant = {
@@ -23,6 +24,8 @@ type Combatant = {
   criticalDamage: number;
 };
 type Battle = {
+  startedAt: Date;
+  monsterType: string;
   dungeon?: string;
   id: string;
   userId: number;
@@ -180,6 +183,7 @@ export class MonstersService {
             },
           });
         }
+        await recordQuestVictory(tx, profile.id, battle.monsterType, battle.startedAt);
         if (!lootRarity) return;
 
         const item = await this.itemGenerator.generate({ level: battle.monster.level, rarity: lootRarity }, tx);
@@ -218,6 +222,8 @@ export class MonstersService {
     const monsterHealth = 40 + monster.level * 15 + attribute('ENDURANCE') * 10;
     return {
       id: randomUUID(),
+      startedAt: new Date(),
+      monsterType: monster.monsterType,
       userId,
       status: 'ACTIVE',
       turn: 1,

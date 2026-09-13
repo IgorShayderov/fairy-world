@@ -94,6 +94,29 @@ model GameProfile {
   buffs             GameProfileBuff[]
   dungeonVisits     DungeonVisit[]
   shops             Shop[]
+  quests            PlayerQuest[]
+}
+
+model Quest {
+  id           Int @id @default(autoincrement())
+  code         String @unique
+  monsterType  String
+  target       Int
+  rewardGold   Int
+  players      PlayerQuest[]
+}
+
+model PlayerQuest {
+  gameProfileId Int
+  questId       Int
+  townId        Int
+  progress      Int @default(0)
+  acceptedAt    DateTime @default(now())
+  completedAt   DateTime?
+  gameProfile   GameProfile @relation(fields: [gameProfileId], references: [id], onDelete: Cascade)
+  quest         Quest @relation(fields: [questId], references: [id])
+
+  @@id([gameProfileId, questId])
 }
 
 model DungeonVisit {

@@ -11,7 +11,7 @@
       <div class="mt-6 flex flex-wrap justify-end gap-3">
         <button v-if="coolingDown" class="rounded-lg border border-violet-300 px-4 py-2 text-violet-200 disabled:opacity-50" :disabled="pending || gems < 10" @click="$emit('reset-dungeon')">{{ t('fantasy.landmark.resetDungeon') }}</button>
         <button class="rounded-lg border border-white/20 px-4 py-2 disabled:opacity-50" :disabled="pending" @click="$emit('close')">{{ t('fantasy.landmark.leave') }}</button>
-        <button v-if="kind === 'village'" class="rounded-lg border border-white/20 px-4 py-2" @click="$emit('rumors')">{{ t('fantasy.landmark.rumors') }}</button>
+        <button v-if="kind === 'village'" class="rounded-lg border border-white/20 px-4 py-2 disabled:opacity-50" :disabled="pending" @click="$emit('quests')">{{ t('menu.quests') }}</button>
         <button class="rounded-lg bg-[#dfc16d] px-4 py-2 font-semibold text-[#102831] disabled:opacity-50" :disabled="pending || coolingDown" @click="$emit('action')">{{ pending ? t('shop.loading') : t(`fantasy.landmark.${kind}.action`) }}</button>
       </div>
     </section>
@@ -30,7 +30,7 @@ const coolingDown = computed(() => !!props.nextEntryAt && Date.parse(props.nextE
 let timer: ReturnType<typeof setInterval>;
 onMounted(() => { timer = setInterval(() => { now.value = Date.now(); }, 1000); });
 onUnmounted(() => clearInterval(timer));
-defineEmits<{ (event: 'close'): void; (event: 'action'): void; (event: 'rumors'): void; (event: 'reset-dungeon'): void }>();
+defineEmits<{ (event: 'close'): void; (event: 'action'): void; (event: 'quests'): void; (event: 'reset-dungeon'): void }>();
 const { t } = useTranslation();
 const kind = computed(() => props.landmark.type === 'dungeon' || props.landmark.type === 'sanctum' ? props.landmark.type : 'village');
 </script>
