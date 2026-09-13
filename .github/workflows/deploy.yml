@@ -115,6 +115,8 @@ jobs:
             --delete \
             --exclude='.git' \
             --exclude='.github' \
+            --exclude='front/.env.production' \
+            --exclude='back/.env.production' \
             -e "ssh -i ~/.ssh/deploy_key -p $PORT -o StrictHostKeyChecking=yes" \
             ./ \
             "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/"
