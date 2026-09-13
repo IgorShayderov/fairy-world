@@ -1,4 +1,9 @@
 export default {
+  registration: {
+    passwordHint: 'Use 15–30 characters, uppercase and lowercase Latin letters, a number and a symbol (!@#$%^&*(),.?":{}|<>). Do not repeat a character more than 3 times in a row.',
+    exists: 'An account with this email already exists. Please log in.',
+    error: 'Registration failed. Check your details and try again.',
+  },
   validation: {
     errors: {
       email: {
@@ -33,6 +38,7 @@ export default {
     },
   },
   buttons: {
+    register: 'Create an account',
     login: 'Login',
     forgotPassword: 'Forgot password?',
     logout: 'Log out',

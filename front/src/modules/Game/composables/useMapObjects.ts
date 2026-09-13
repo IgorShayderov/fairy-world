@@ -1,13 +1,13 @@
 type Point = { x: number; y: number };
 
-type Landmark = Point & {
+export type Landmark = Point & {
   name: string;
   subtitle: string;
   type: 'capital' | 'city' | 'village' | 'dungeon' | 'sanctum';
   accent: string;
 };
 
-const landmarks: Landmark[] = [
+export const landmarks: Landmark[] = [
   { x: 940, y: 620, name: 'AURELIA', subtitle: 'The Sunlit Citadel', type: 'capital', accent: '#f6cf72' },
   { x: 2060, y: 570, name: 'MOONFALL', subtitle: 'City of Silver Spires', type: 'city', accent: '#b8d9ff' },
   { x: 1470, y: 1040, name: 'EVERCROSS', subtitle: 'The Wandering Market', type: 'village', accent: '#efbd74' },

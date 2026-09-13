@@ -7,10 +7,13 @@
           :gems="gems"
           :cart-total="cartTotal()"
           :disabled="!cartHasItems() || loading"
+          :sell-total="sellTotal()"
+          :sell-disabled="!sellHasItems() || loading"
           :refresh-cost="refreshCost"
           :refresh-disabled="loading || gems < refreshCost"
           :next-restock-at="nextRestockAt"
           @buy="buyFromCart"
+          @sell="sellSelectedItems"
           @refresh="refreshStock"
           @restock-due="loadData"
         />
@@ -50,8 +53,7 @@
         :sell-quantity="sellQuantity"
         :loading="loading"
         @adjust-sell="adjustSell"
-        @update-sell-quantity="(id, val) => (sellQuantity[id] = val)"
-        @sell="sellFromInventory"
+        @update-sell-quantity="setSellQuantity"
         @add-one-to-sell="addOneToSell"
       />
     </div>
@@ -99,7 +101,10 @@ const {
   cartHasItems,
   buyFromCart,
   adjustSell,
-  sellFromInventory,
+  setSellQuantity,
+  sellTotal,
+  sellHasItems,
+  sellSelectedItems,
   addOneToSell,
   refreshStock,
   loadData,

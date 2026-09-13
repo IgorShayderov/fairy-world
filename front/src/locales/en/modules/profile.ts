@@ -6,6 +6,21 @@ export default {
   freeAttributes: 'Free points',
   increaseAttribute: 'Increase {{attribute}} by 1',
   fromItems: 'from items',
+  fromBuff: 'from buff',
+  activeBuffs: 'Active buffs',
+  noActiveBuffs: 'No active buffs',
+  buffDescriptions: {
+    DAMAGE: 'Increases damage by {{value}}.',
+    DEFENSE: 'Increases defense rating by {{value}}.',
+    EXPERIENCE: 'Increases experience gained by {{value}}%.',
+  },
+  rating: 'rating',
+  buffTimeRemaining: '{{hours}}h {{minutes}}m remaining',
+  buffNames: {
+    DAMAGE: 'Damage',
+    DEFENSE: 'Defense',
+    EXPERIENCE: 'Experience gained',
+  },
   ratingPoints: 'Rating: {{value}}',
   summary: {
     level: 'Level',

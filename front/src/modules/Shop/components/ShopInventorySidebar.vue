@@ -46,13 +46,23 @@
           <div class="flex items-center gap-1 rounded bg-gray-200/50 p-1">
             <button
               class="flex h-6 w-6 items-center justify-center rounded bg-white text-gray-600 shadow-sm hover:bg-gray-50"
+              :disabled="loading"
               @click="$emit('adjust-sell', inv.item.id, inv.item.name, inv.quantity, -1)"
             >
               −
             </button>
             <input
               :value="sellQuantity[inv.item.id]"
-              @input="(e) => $emit('update-sell-quantity', inv.item.id, Number((e.target as HTMLInputElement).value))"
+              :disabled="loading"
+              @input="
+                (e) =>
+                  $emit(
+                    'update-sell-quantity',
+                    inv.item.id,
+                    inv.quantity,
+                    Number((e.target as HTMLInputElement).value)
+                  )
+              "
               type="number"
               min="0"
               :max="inv.quantity"
@@ -60,22 +70,20 @@
             />
             <button
               class="flex h-6 w-6 items-center justify-center rounded bg-white text-gray-600 shadow-sm hover:bg-gray-50"
+              :disabled="loading"
               @click="$emit('adjust-sell', inv.item.id, inv.item.name, inv.quantity, 1)"
             >
               +
             </button>
           </div>
 
-          <button
-            class="rounded bg-red-500 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition-colors hover:bg-red-600 disabled:opacity-50"
-            :disabled="!sellQuantity[inv.item.id] || loading"
-            @click="$emit('sell', inv.item.id, inv.item.name, sellQuantity[inv.item.id] ?? 0)"
-          >
-            {{ t('shop.sell') }}
-          </button>
+          <span class="text-xs font-semibold text-red-500">
+            {{ saleLineTotal(inv.item.price, sellQuantity[inv.item.id] ?? 0) }}g
+          </span>
         </div>
       </div>
     </div>
+
   </aside>
 </template>
 
@@ -99,12 +107,13 @@ const props = defineProps<{
 
 defineEmits<{
   (e: 'adjust-sell', id: number, name: string, currentQty: number, delta: number): void;
-  (e: 'update-sell-quantity', id: number, value: number): void;
-  (e: 'sell', id: number, name: string, quantity: number): void;
+  (e: 'update-sell-quantity', id: number, currentQty: number, value: number): void;
   (e: 'add-one-to-sell', id: number, name: string, currentQty: number): void;
 }>();
 
 const { t } = useTranslation();
+const saleLineTotal = (price: number, quantity: number) =>
+  quantity > 0 ? Math.max(1, Math.floor(price * 0.5 * quantity)) : 0;
 const itemTypeName = (equipmentTypes: EquipmentType[]) => t(getItemTypeLocaleKey(equipmentTypes));
 const findEquippedItem = (equipmentTypes: EquipmentType[]): InventoryItemType | null => {
   const equipped = findEquippedEntryForTypes(props.equippedItems, equipmentTypes);

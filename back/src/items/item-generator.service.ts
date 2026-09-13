@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { AttributeType, EquipmentType, ItemRarity, StatType, type Prisma } from '../../generated/client';
 import { PrismaService } from '../prisma.service';
 import { BASE_ITEMS, BaseItem, Modifier, PREFIXES, RARITY_WEIGHTS, SUFFIXES } from './item-generator.config';
+import { itemIdentity } from './item-identity';
 
 interface GenerateItemOptions {
   level: number;
@@ -18,7 +19,17 @@ interface GeneratedModifier {
 export class ItemGeneratorService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async generate(options: GenerateItemOptions, client: Pick<Prisma.TransactionClient, 'item'> = this.prisma) {
+  async generate(
+    options: GenerateItemOptions,
+    client?: Prisma.TransactionClient,
+  ): Promise<
+    Prisma.ItemGetPayload<{
+      include: { stats: { include: { stat: true } }; attributes: { include: { attribute: true } } };
+    }>
+  > {
+    if (!client) return this.prisma.$transaction((tx) => this.generate(options, tx));
+    // Serialize catalog generation across shop refreshes and battle drops.
+    await client.$executeRaw`SELECT pg_advisory_xact_lock(7241901)`;
     const level = Math.max(1, options.level);
 
     const baseItem = this.pickBaseItem(options.equipmentType);
@@ -47,6 +58,21 @@ export class ItemGeneratorService {
         attributes.set(modifier.attribute, (attributes.get(modifier.attribute) ?? 0) + value);
       }
     }
+
+    const identity = itemIdentity({
+      equipmentType: [baseItem.equipmentType],
+      isConsumable: false,
+      name,
+      stats: [...stats].map(([name, value]) => ({ stat: { name }, value })),
+      attributes: [...attributes].map(([name, value]) => ({ attribute: { name }, value })),
+    });
+    const candidates = await client.item.findMany({
+      where: { equipmentType: { equals: [baseItem.equipmentType] }, isConsumable: false },
+      include: { stats: { include: { stat: true } }, attributes: { include: { attribute: true } } },
+      orderBy: { id: 'asc' },
+    });
+    const existing = candidates.find((item) => itemIdentity(item) === identity);
+    if (existing) return existing;
 
     return client.item.create({
       data: {
@@ -131,7 +157,13 @@ export class ItemGeneratorService {
     }
 
     const modifierCount =
-      rarity === ItemRarity.MAGIC ? this.randomInt(1, 2) : rarity === ItemRarity.RARE ? this.randomInt(3, 5) : 0;
+      rarity === ItemRarity.MAGIC
+        ? this.randomInt(1, 2)
+        : rarity === ItemRarity.RARE
+          ? this.randomInt(3, 5)
+          : rarity === ItemRarity.UNIQUE
+            ? this.randomInt(6, 8)
+            : 0;
 
     const available = [...PREFIXES, ...SUFFIXES].filter((modifier) => modifier.equipmentTypes.includes(equipmentType));
 

@@ -11,6 +11,7 @@ export default {
   successBuy: 'Purchase successful!',
   errorBuy: 'Not enough gold or an error occurred',
   successSell: 'Sold {{quantity}}× {{name}} for {{price}}g',
+  successSellMany: 'Sold {{quantity}} items for {{price}}g',
   errorSell: 'Sale error',
   newItemsIn: 'New items in',
   refreshItems: 'New stock',

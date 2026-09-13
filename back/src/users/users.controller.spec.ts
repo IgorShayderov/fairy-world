@@ -9,6 +9,8 @@ describe('UsersController', () => {
   const mockUsersService = {
     findCurrentUser: jest.fn(),
     allocateAttribute: jest.fn(),
+    consumeInventoryItem: jest.fn(),
+    updateMapPosition: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -57,6 +59,7 @@ describe('UsersController', () => {
         experience: 5,
         level: 2,
         freeAttributes: 0,
+        mapPosition: { x: 1470, y: 1040 },
         inventory: [],
         equippedItems: [],
       });
@@ -82,5 +85,22 @@ describe('UsersController', () => {
       value: 6,
     });
     expect(mockUsersService.allocateAttribute).toHaveBeenCalledWith(7, dto);
+  });
+
+  it('consumes an inventory item for the authenticated player', async () => {
+    mockUsersService.consumeInventoryItem.mockResolvedValue({ success: true });
+
+    await expect(controller.consumeInventoryItem({ user: { sub: 7 } } as never, 14)).resolves.toEqual({
+      success: true,
+    });
+    expect(mockUsersService.consumeInventoryItem).toHaveBeenCalledWith(7, 14);
+  });
+
+  it('updates the authenticated player map position', async () => {
+    const position = { x: 1550.25, y: 980.5 };
+    mockUsersService.updateMapPosition.mockResolvedValue(position);
+
+    await expect(controller.updateMapPosition({ user: { sub: 7 } } as never, position)).resolves.toEqual(position);
+    expect(mockUsersService.updateMapPosition).toHaveBeenCalledWith(7, position);
   });
 });

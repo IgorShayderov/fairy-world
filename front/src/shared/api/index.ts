@@ -146,7 +146,7 @@ api.interceptors.response.use(
     const config = httpError.config;
     const options = (config?.options || {}) as RequestInit & { _retry?: boolean };
 
-    const EXCLUDED_ROUTES = [routes.api.auth.refreshPath(), routes.api.auth.logoutPath(), routes.api.auth.signInPath()];
+    const EXCLUDED_ROUTES = [routes.api.auth.refreshPath(), routes.api.auth.logoutPath(), routes.api.auth.signInPath(), routes.api.auth.signUpPath()];
     const isExcluded = config?.url ? EXCLUDED_ROUTES.some((route) => config.url.includes(route)) : false;
 
     if (error instanceof HttpError && error.status === 401 && config && !options._retry && !isExcluded) {

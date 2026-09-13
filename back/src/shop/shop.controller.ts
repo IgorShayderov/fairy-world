@@ -2,6 +2,7 @@ import { Controller, Get, Post, UseGuards, Body, Req, Param, ParseIntPipe } from
 import { ApiOkResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { ShopService } from './shop.service';
 import { SellDto } from './dto/sell.dto';
+import { SellManyDto } from './dto/sell-many.dto';
 import { BuyDto } from './dto/buy.dto';
 import { AuthGuard } from '../auth/auth.guard';
 
@@ -29,6 +30,11 @@ export class ShopController {
   @Post(':shopId/sell')
   sell(@Param('shopId', ParseIntPipe) shopId: number, @Body() dto: SellDto, @Req() req: ShopRequest) {
     return this.shopService.sell(req.user.sub, shopId, dto);
+  }
+
+  @Post(':shopId/sell-many')
+  sellMany(@Param('shopId', ParseIntPipe) shopId: number, @Body() dto: SellManyDto, @Req() req: ShopRequest) {
+    return this.shopService.sellMany(req.user.sub, shopId, dto);
   }
 
   @Post(':shopId/refresh')

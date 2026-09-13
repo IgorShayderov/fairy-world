@@ -5,7 +5,7 @@ import { ref } from 'vue';
 import type { ShopItem, InventoryEntry } from '@/modules/Shop/types';
 
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
-import { getShop, buyItem, refreshShop, sellItem } from '@/modules/Shop/api';
+import { getShop, buyItem, refreshShop, sellItems } from '@/modules/Shop/api';
 
 export function useShopActions() {
   const $q = useQuasar();
@@ -115,18 +115,37 @@ export function useShopActions() {
     sellQuantity.value[itemId] = Math.min(currentQty, Math.max(0, selectedQuantity + delta));
   };
 
-  const sellFromInventory = async (itemId: number, name: string, quantity: number) => {
-    const entry = inventory.value.find((entry) => entry.item.id === itemId);
-    if (loading.value || !entry || !Number.isSafeInteger(quantity) || quantity <= 0 || quantity > entry.quantity)
-      return;
+  const setSellQuantity = (itemId: number, currentQty: number, value: number) => {
+    const quantity = Number.isFinite(value) ? Math.trunc(value) : 0;
+    sellQuantity.value[itemId] = Math.min(currentQty, Math.max(0, quantity));
+  };
+
+  const sellTotal = () =>
+    inventory.value.reduce((total, entry) => {
+      const quantity = sellQuantity.value[entry.item.id] ?? 0;
+      return total + (quantity > 0 ? Math.max(1, Math.floor(entry.item.price * 0.5 * quantity)) : 0);
+    }, 0);
+
+  const sellItemCount = () => Object.values(sellQuantity.value).reduce((total, quantity) => total + quantity, 0);
+  const sellHasItems = () => sellItemCount() > 0;
+
+  const sellSelectedItems = async () => {
+    if (loading.value) return;
+    const items = inventory.value.flatMap((entry) => {
+      const quantity = sellQuantity.value[entry.item.id] ?? 0;
+      return Number.isSafeInteger(quantity) && quantity > 0 && quantity <= entry.quantity
+        ? [{ itemId: entry.item.id, quantity }]
+        : [];
+    });
+    if (items.length === 0) return;
 
     loading.value = true;
     try {
-      const result = await sellItem(shopId.value, itemId, quantity);
+      const result = await sellItems(shopId.value, items);
       if (!result.success) throw new Error('Sell failed');
 
       sellToast.value.show = true;
-      sellToast.value.message = t('shop.successSell', { quantity: result.quantity, name, price: result.earnedGold });
+      sellToast.value.message = t('shop.successSellMany', { quantity: result.quantity, price: result.earnedGold });
 
       setTimeout(() => {
         sellToast.value.show = false;
@@ -181,7 +200,11 @@ export function useShopActions() {
     cartHasItems,
     buyFromCart,
     adjustSell,
-    sellFromInventory,
+    setSellQuantity,
+    sellTotal,
+    sellItemCount,
+    sellHasItems,
+    sellSelectedItems,
     addOneToSell,
     refreshStock,
     loadData,

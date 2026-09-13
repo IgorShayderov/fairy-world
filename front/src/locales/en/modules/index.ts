@@ -29,6 +29,15 @@ const modules = {
     shop: 'Shop',
   },
   fantasy: {
+    landmark: {
+      leave: 'Continue journey', rumors: 'Ask for rumors',
+      rumorText: 'The keepers of Starglen and Dawnshrine bless travelers. Beyond Emberdeep and Hollowgate, guardians protect treasure. Prepare your equipment before entering.',
+      blessed: 'Your defense blessing is active. Any existing defense potion or blessing is preserved until it expires.',
+      error: 'The action could not be completed. Please try again.',
+      village: { label: 'A welcome on the road', story: 'Lanterns sway above the square. A merchant waves you over while travelers exchange news beside the well.', effect: 'Trade your finds at the market, or ask about the dangers ahead.', action: 'Visit the market' },
+      sanctum: { label: 'Sanctuary', story: 'The noise of the road fades. A keeper invites you to kneel beneath the glowing runes and receive the sanctuary’s protection.', effect: 'Receive +10 Defense rating for 4 hours. This shares the defense-buff slot and does not replace an active potion or blessing.', action: 'Receive blessing' },
+      dungeon: { label: 'Dungeon entrance', story: 'Cold air rises from the stairwell. Behind the sealed doors, a guardian stirs. Once you enter, you must fight or retreat.', effect: 'Face a guardian generated around your level +2. Victory grants gold, experience, and a chance of equipment loot.', action: 'Enter dungeon' },
+    },
     realm: 'The enchanted realm of',
     mapTitle: 'Eldoria',
     mapDescription: 'An atlas of old roads, hidden sanctums and forgotten magic',
@@ -52,6 +61,8 @@ const modules = {
       battlefieldSuggestion:
         'Recommended next step: a Heroes-style tactical grid where movement, range and terrain matter each turn.',
       returnToMap: 'Return to map',
+      loot: 'Loot',
+      noLoot: 'No item dropped.',
       traveler: 'Traveler',
       turn: 'Turn {{turn}}',
       combatLog: 'Combat log',

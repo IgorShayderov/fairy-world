@@ -7,6 +7,21 @@ export default {
     freeAttributes: 'Свободные очки',
     increaseAttribute: 'Увеличить {{attribute}} на 1',
     fromItems: 'от предметов',
+    fromBuff: 'от эффекта',
+    activeBuffs: 'Активные эффекты',
+    noActiveBuffs: 'Нет активных эффектов',
+    buffDescriptions: {
+      DAMAGE: 'Увеличивает урон на {{value}}.',
+      DEFENSE: 'Увеличивает рейтинг защиты на {{value}}.',
+      EXPERIENCE: 'Увеличивает получаемый опыт на {{value}}%.',
+    },
+    rating: 'рейтинга',
+    buffTimeRemaining: 'осталось {{hours}} ч {{minutes}} мин',
+    buffNames: {
+      DAMAGE: 'Урон',
+      DEFENSE: 'Защита',
+      EXPERIENCE: 'Получаемый опыт',
+    },
     ratingPoints: 'Рейтинг: {{value}}',
     summary: {
       level: 'Уровень',

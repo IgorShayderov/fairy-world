@@ -85,10 +85,34 @@ model GameProfile {
   experience     Int @default(0)
   level          Int @default(1)
   freeAttributes Int @default(0)
+  mapPositionX   Float @default(1470)
+  mapPositionY   Float @default(1040)
 
   inventory         InventoryItem[]
   profileAttributes ProfileAttribute[]
   profileStats      ProfileStat[]
+  buffs             GameProfileBuff[]
+}
+
+enum PlayerBuffType {
+  DAMAGE
+  DEFENSE
+  EXPERIENCE
+}
+
+model GameProfileBuff {
+  id            Int            @id @default(autoincrement())
+  gameProfileId Int
+  type          PlayerBuffType
+  value         Float
+  expiresAt     DateTime
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @default(now()) @updatedAt
+
+  gameProfile GameProfile @relation(fields: [gameProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([gameProfileId, type])
+  @@index([expiresAt])
 }
 
 enum AttributeType {

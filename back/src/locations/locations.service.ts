@@ -1,9 +1,29 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { requireLandmark } from './landmarks';
 import { PrismaService } from '../prisma.service';
 
 @Injectable()
 export class LocationsService {
   constructor(private prisma: PrismaService) {}
+
+  async bless(userId: number, name: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const profile = await tx.gameProfile.findUnique({ where: { userId } });
+      if (!profile) throw new NotFoundException('Game profile not found');
+      requireLandmark(name, 'sanctum', profile);
+      const existing = await tx.gameProfileBuff.findUnique({
+        where: { gameProfileId_type: { gameProfileId: profile.id, type: 'DEFENSE' } },
+      });
+      // A blessing never replaces a stronger potion or stacks with another blessing.
+      if (existing && existing.expiresAt > new Date()) return existing;
+      const expiresAt = new Date(Date.now() + 4 * 60 * 60 * 1000);
+      return tx.gameProfileBuff.upsert({
+        where: { gameProfileId_type: { gameProfileId: profile.id, type: 'DEFENSE' } },
+        create: { gameProfileId: profile.id, type: 'DEFENSE', value: 10, expiresAt },
+        update: { value: 10, expiresAt },
+      });
+    });
+  }
 
   findAll() {
     return this.prisma.location.findMany({

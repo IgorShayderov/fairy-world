@@ -12,11 +12,15 @@ describe('UsersService', () => {
     gameProfile: {
       findUnique: jest.fn(),
       updateMany: jest.fn(),
+      update: jest.fn(),
     },
     attribute: {
       findUnique: jest.fn(),
     },
     profileAttribute: {
+      upsert: jest.fn(),
+    },
+    gameProfileBuff: {
       upsert: jest.fn(),
     },
     inventoryItem: {
@@ -43,6 +47,10 @@ describe('UsersService', () => {
     }).compile();
 
     service = module.get<UsersService>(UsersService);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it('should be defined', () => {
@@ -103,6 +111,7 @@ describe('UsersService', () => {
               },
               profileAttributes: { include: { attribute: true } },
               profileStats: { include: { stat: true } },
+              buffs: true,
             },
           },
         },
@@ -173,6 +182,155 @@ describe('UsersService', () => {
         data: { quantity: { increment: 1 } },
       });
       expect(mockPrismaService.inventoryItem.delete).toHaveBeenCalledWith({ where: { id: 10 } });
+    });
+
+    it('equips at most five health potions from a backpack stack', async () => {
+      mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4 });
+      mockPrismaService.inventoryItem.findFirst
+        .mockResolvedValueOnce({
+          id: 12,
+          gameProfileId: 4,
+          itemId: 5,
+          quantity: 8,
+          isEquiped: false,
+          slot: null,
+          item: { name: 'Lesser Health Potion', equipmentType: ['POTION'] },
+        })
+        .mockResolvedValueOnce(null);
+
+      await expect(service.equipItem(7, { inventoryItemId: 12, slot: 'potion' })).resolves.toEqual({
+        success: true,
+      });
+      expect(mockPrismaService.inventoryItem.update).toHaveBeenCalledWith({
+        where: { id: 12 },
+        data: { quantity: { decrement: 5 } },
+      });
+      expect(mockPrismaService.inventoryItem.create).toHaveBeenCalledWith({
+        data: { gameProfileId: 4, itemId: 5, quantity: 5, isEquiped: true, slot: 'potion' },
+      });
+    });
+
+    it('fills an equipped health-potion stack only to five', async () => {
+      mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4 });
+      mockPrismaService.inventoryItem.findFirst
+        .mockResolvedValueOnce({
+          id: 12,
+          gameProfileId: 4,
+          itemId: 5,
+          quantity: 4,
+          isEquiped: false,
+          slot: null,
+          item: { name: 'Lesser Health Potion', equipmentType: ['POTION'] },
+        })
+        .mockResolvedValueOnce({
+          id: 15,
+          gameProfileId: 4,
+          itemId: 5,
+          quantity: 3,
+          isEquiped: true,
+          slot: 'potion',
+          item: { name: 'Lesser Health Potion', equipmentType: ['POTION'] },
+        });
+
+      await service.equipItem(7, { inventoryItemId: 12, slot: 'potion' });
+
+      expect(mockPrismaService.inventoryItem.update).toHaveBeenNthCalledWith(1, {
+        where: { id: 15 },
+        data: { quantity: { increment: 2 } },
+      });
+      expect(mockPrismaService.inventoryItem.update).toHaveBeenNthCalledWith(2, {
+        where: { id: 12 },
+        data: { quantity: { decrement: 2 } },
+      });
+    });
+
+    it('rejects equipping a non-health potion', async () => {
+      mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4 });
+      mockPrismaService.inventoryItem.findFirst.mockResolvedValue({
+        id: 13,
+        gameProfileId: 4,
+        itemId: 6,
+        quantity: 1,
+        isEquiped: false,
+        slot: null,
+        item: { name: 'Mild Attack Potion', equipmentType: ['POTION'] },
+      });
+
+      await expect(service.equipItem(7, { inventoryItemId: 13, slot: 'potion' })).rejects.toThrow(
+        'Only health potions can be equipped',
+      );
+    });
+  });
+
+  describe('potion consumption', () => {
+    it('consumes one potion and persists its four-hour buff', async () => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-09-12T08:00:00Z'));
+      mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4 });
+      mockPrismaService.inventoryItem.findFirst.mockResolvedValue({
+        id: 14,
+        gameProfileId: 4,
+        quantity: 2,
+        isEquiped: false,
+        item: { name: 'Mild Attack Potion', isConsumable: true },
+      });
+      mockPrismaService.gameProfileBuff.upsert.mockResolvedValue({
+        type: 'DAMAGE',
+        value: 15,
+        expiresAt: new Date('2026-09-12T12:00:00Z'),
+      });
+
+      await service.consumeInventoryItem(7, 14);
+
+      expect(mockPrismaService.inventoryItem.update).toHaveBeenCalledWith({
+        where: { id: 14 },
+        data: { quantity: { decrement: 1 } },
+      });
+      expect(mockPrismaService.gameProfileBuff.upsert).toHaveBeenCalledWith({
+        where: { gameProfileId_type: { gameProfileId: 4, type: 'DAMAGE' } },
+        create: {
+          gameProfileId: 4,
+          type: 'DAMAGE',
+          value: 15,
+          expiresAt: new Date('2026-09-12T12:00:00Z'),
+        },
+        update: { value: 15, expiresAt: new Date('2026-09-12T12:00:00Z') },
+      });
+    });
+
+    it('does not consume health potions from the backpack', async () => {
+      mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4 });
+      mockPrismaService.inventoryItem.findFirst.mockResolvedValue({
+        id: 16,
+        gameProfileId: 4,
+        quantity: 2,
+        isEquiped: false,
+        item: { name: 'Lesser Health Potion', isConsumable: true },
+      });
+
+      await expect(service.consumeInventoryItem(7, 16)).rejects.toThrow('Health potions must be equipped');
+      expect(mockPrismaService.inventoryItem.update).not.toHaveBeenCalled();
+      expect(mockPrismaService.inventoryItem.delete).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('map position', () => {
+    it('persists the current coordinates on the game profile', async () => {
+      mockPrismaService.gameProfile.updateMany.mockResolvedValue({ count: 1 });
+
+      await expect(service.updateMapPosition(7, { x: 1550.25, y: 980.5 })).resolves.toEqual({
+        x: 1550.25,
+        y: 980.5,
+      });
+      expect(mockPrismaService.gameProfile.updateMany).toHaveBeenCalledWith({
+        where: { userId: 7 },
+        data: { mapPositionX: 1550.25, mapPositionY: 980.5 },
+      });
+    });
+
+    it('rejects saving a position for a missing game profile', async () => {
+      mockPrismaService.gameProfile.updateMany.mockResolvedValue({ count: 0 });
+
+      await expect(service.updateMapPosition(7, { x: 1550, y: 980 })).rejects.toThrow('Game profile not found');
     });
   });
 

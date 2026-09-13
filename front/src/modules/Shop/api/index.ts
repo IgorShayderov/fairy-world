@@ -35,6 +35,19 @@ export const sellItem = async (
   return data;
 };
 
+export type SaleLine = { itemId: number; quantity: number };
+
+export const sellItems = async (
+  shopId: number,
+  items: SaleLine[]
+): Promise<{ success: boolean; earnedGold: number; quantity: number }> => {
+  const { data } = await api.post<{ success: boolean; earnedGold: number; quantity: number }>(
+    routes.api.shop.sellManyPath(shopId),
+    { items }
+  );
+  return data;
+};
+
 export const refreshShop = async (
   shopId: number
 ): Promise<{ success: boolean; cost: number; nextRestockAt: string }> => {

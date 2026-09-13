@@ -1,5 +1,15 @@
+import type { BattleState } from '@/modules/Monsters/api';
 import routes from '@/routes';
 import { api } from '@shared/api';
+
+export const receiveBlessing = async (name: string): Promise<void> => {
+  await api.post(routes.api.locations.blessingPath(name));
+};
+
+export const enterDungeon = async (name: string): Promise<BattleState> => {
+  const { data } = await api.post<BattleState>(routes.api.monsters.dungeonPath(name));
+  return data;
+};
 
 export type LocationVariant = 'CITY' | 'DUNGEON' | 'FOREST' | 'VILLAGE';
 export type EventType = 'BATTLE' | 'QUEST' | 'ENCOUNTER';

@@ -4,7 +4,11 @@ import { PrismaService } from '../prisma.service';
 import { GeneratedMonster, MonsterGeneratorService } from './monster-generator.service';
 import { UsersService } from '../users/users.service';
 import { UserView } from '../users/user.view';
-import { StatType } from '../../generated/client';
+import { PlayerBuffType, StatType } from '../../generated/client';
+import { ItemGeneratorService } from '../items/item-generator.service';
+import { ItemView } from '../common/views/item.view';
+import { rollMonsterLootRarity } from './monster-loot';
+import { requireLandmark } from '../locations/landmarks';
 
 type BattleStatus = 'ACTIVE' | 'VICTORY' | 'DEFEAT';
 type Combatant = {
@@ -25,7 +29,8 @@ type Battle = {
   player: Combatant;
   monster: Combatant & { id: number; level: number; rewardGold: number; rewardExperience: number };
   events: Array<{ actor: 'PLAYER' | 'MONSTER'; damage: number; critical: boolean; dodged: boolean }>;
-  rewards?: { gold: number; experience: number };
+  experienceBonusPercent: number;
+  rewards?: { gold: number; experience: number; items: Array<ReturnType<typeof ItemView.render> & { quantity: 1 }> };
 };
 @Injectable()
 export class MonstersService {
@@ -33,6 +38,7 @@ export class MonstersService {
     private prisma: PrismaService,
     private monsterGenerator: MonsterGeneratorService,
     private usersService: UsersService,
+    private itemGenerator: ItemGeneratorService,
   ) {}
 
   private readonly encounterChance = 0.5;
@@ -65,6 +71,22 @@ export class MonstersService {
     return { encountered: true as const, chance: this.encounterChance, monster, battle: this.renderBattle(battle) };
   }
 
+  async enterDungeon(userId: number, name: string) {
+    const user = await this.usersService.findCurrentUser(userId);
+    if (!user?.gameProfile) throw new NotFoundException('Game profile not found');
+    requireLandmark(name, 'dungeon', user.gameProfile);
+    const existing = [...this.battles.values()].find(
+      (battle) => battle.userId === userId && battle.status === 'ACTIVE',
+    );
+    if (existing) return this.renderBattle(existing);
+    const player = UserView.renderCurrent(user);
+    const monster = this.monsterGenerator.generate(player.level + 2);
+    monster.name = `${name === 'EMBERDEEP' ? 'Flamebound' : 'Hollow'} Guardian — ${monster.name}`;
+    const battle = this.createBattle(userId, player, monster);
+    this.battles.set(battle.id, battle);
+    return this.renderBattle(battle);
+  }
+
   async attack(userId: number, battleId: string) {
     const battle = this.battles.get(battleId);
     if (!battle || battle.userId !== userId) throw new NotFoundException('Active battle not found');
@@ -87,13 +109,35 @@ export class MonstersService {
     }
 
     if (battle.status === 'VICTORY') {
-      battle.rewards = { gold: battle.monster.rewardGold, experience: battle.monster.rewardExperience };
-      await this.prisma.gameProfile.update({
-        where: { userId },
-        data: {
-          gold: { increment: battle.rewards.gold },
-          experience: { increment: battle.rewards.experience },
-        },
+      const lootRarity = rollMonsterLootRarity();
+      battle.rewards = {
+        gold: battle.monster.rewardGold,
+        experience: Math.round(battle.monster.rewardExperience * (1 + battle.experienceBonusPercent / 100)),
+        items: [],
+      };
+      const rewards = battle.rewards;
+      await this.prisma.$transaction(async (tx) => {
+        const profile = await tx.gameProfile.update({
+          where: { userId },
+          data: {
+            gold: { increment: rewards.gold },
+            experience: { increment: rewards.experience },
+          },
+          select: { id: true },
+        });
+        if (!lootRarity) return;
+
+        const item = await this.itemGenerator.generate({ level: battle.monster.level, rarity: lootRarity }, tx);
+        await tx.inventoryItem.create({
+          data: {
+            gameProfileId: profile.id,
+            itemId: item.id,
+            quantity: 1,
+            slot: null,
+            isEquiped: false,
+          },
+        });
+        rewards.items.push({ ...ItemView.render(item), quantity: 1 });
       });
     }
 
@@ -123,6 +167,7 @@ export class MonstersService {
       status: 'ACTIVE',
       turn: 1,
       events: [],
+      experienceBonusPercent: player.activeBuffs.find(({ type }) => type === PlayerBuffType.EXPERIENCE)?.value ?? 0,
       player: {
         name: player.name ?? 'Player',
         health: playerHealth,

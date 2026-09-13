@@ -1,4 +1,4 @@
-import { Controller, Get, Post, UseGuards, Body, Request } from '@nestjs/common';
+import { Controller, Get, Post, UseGuards, Body, Request, Param } from '@nestjs/common';
 import { ApiOkResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { IsInt, Min } from 'class-validator';
 
@@ -14,6 +14,13 @@ export class SetLocationDto {
 @Controller('locations')
 export class LocationsController {
   constructor(private readonly locationsService: LocationsService) {}
+
+  @Post(':name/blessing')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
+  bless(@Request() req: RequestWithUser, @Param('name') name: string) {
+    return this.locationsService.bless(req.user.sub, name);
+  }
 
   @Get()
   @UseGuards(AuthGuard)

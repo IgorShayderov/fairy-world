@@ -23,7 +23,10 @@ describe('shop quantity requests', () => {
             gems: 20,
             experience: 0,
             level: 1,
-            inventory: [{ id: 9, item: { id: 3, name: 'Shield' }, quantity: 7 }],
+            inventory: [
+              { id: 9, item: { id: 3, name: 'Shield', price: 20 }, quantity: 7 },
+              { id: 10, item: { id: 4, name: 'Potion', price: 50 }, quantity: 2 },
+            ],
             equippedItems: [],
           }
         : {
@@ -34,20 +37,23 @@ describe('shop quantity requests', () => {
             items: [{ id: 3, price: 20, quantity: 10 }],
           },
     }));
-    mocks.post.mockResolvedValue({ data: { success: true, quantity: 4, earnedGold: 40 } });
+    mocks.post.mockResolvedValue({ data: { success: true, quantity: 6, earnedGold: 65 } });
   });
   afterEach(() => vi.useRealTimers());
 
-  it('loads real balances and sends four selected items, not one', async () => {
+  it('loads real balances and sends all selected inventory lines in one sale', async () => {
     const shop = useShopActions();
     await shop.loadData();
     expect(shop.gold.value).toBe(120);
     expect(shop.shopGold.value).toBe(800);
     shop.sellQuantity.value[3] = 4;
-    await shop.sellFromInventory(3, 'Shield', shop.sellQuantity.value[3]);
-    expect(mocks.post).toHaveBeenCalledExactlyOnceWith(expect.stringMatching(/\/shop\/1\/sell$/), {
-      itemId: 3,
-      quantity: 4,
+    shop.sellQuantity.value[4] = 1;
+    await shop.sellSelectedItems();
+    expect(mocks.post).toHaveBeenCalledExactlyOnceWith(expect.stringMatching(/\/shop\/1\/sell-many$/), {
+      items: [
+        { itemId: 3, quantity: 4 },
+        { itemId: 4, quantity: 1 },
+      ],
     });
   });
 
@@ -56,17 +62,20 @@ describe('shop quantity requests', () => {
     await shop.loadData();
     for (let count = 0; count < 5; count++) shop.adjustSell(3, 'Shield', 7, 1);
     expect(shop.sellQuantity.value[3]).toBe(5);
-    await shop.sellFromInventory(3, 'Shield', shop.sellQuantity.value[3]!);
-    expect(mocks.post).toHaveBeenCalledWith(expect.stringMatching(/\/sell$/), { itemId: 3, quantity: 5 });
+    expect(shop.sellItemCount()).toBe(5);
+    expect(shop.sellTotal()).toBe(50);
   });
 
   it('blocks duplicate submissions and invalid quantities', async () => {
     const shop = useShopActions();
     await shop.loadData();
-    await shop.sellFromInventory(3, 'Shield', 0);
-    await shop.sellFromInventory(3, 'Shield', 8);
+    shop.sellQuantity.value[3] = 0;
+    await shop.sellSelectedItems();
+    shop.sellQuantity.value[3] = 8;
+    await shop.sellSelectedItems();
     expect(mocks.post).not.toHaveBeenCalled();
-    await Promise.all([shop.sellFromInventory(3, 'Shield', 4), shop.sellFromInventory(3, 'Shield', 4)]);
+    shop.sellQuantity.value[3] = 4;
+    await Promise.all([shop.sellSelectedItems(), shop.sellSelectedItems()]);
     expect(mocks.post).toHaveBeenCalledTimes(1);
   });
 

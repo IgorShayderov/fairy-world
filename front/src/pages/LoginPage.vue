@@ -55,6 +55,9 @@
         </QForm>
 
         <div class="mt-6 text-center">
+          <RouterLink :to="routes.registerPath()" class="mb-3 block text-sm font-semibold text-blue-600 hover:underline">
+            {{ $t('auth.buttons.register') }}
+          </RouterLink>
           <RouterLink :to="routes.forgotPasswordPath()" class="text-sm text-blue-600 hover:underline">
             {{ $t('auth.buttons.forgotPassword') }}
           </RouterLink>

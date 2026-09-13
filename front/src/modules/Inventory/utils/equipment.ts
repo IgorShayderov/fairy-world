@@ -1,4 +1,6 @@
-import type { EquipmentSlotId, EquipmentType, InventoryItemType } from '@/modules/Inventory/types';
+import type { EquipmentSlot, EquipmentSlotId, EquipmentType, InventoryItemType } from '@/modules/Inventory/types';
+
+import { isHealthPotion, isPotion } from './potions';
 
 const EQUIPMENT_TYPE_SLOTS: Record<EquipmentType, EquipmentSlotId[]> = {
   WEAPON: ['left-hand', 'right-hand'],
@@ -24,7 +26,17 @@ export const getCompatibleEquipmentSlotsForTypes = (equipmentTypes: EquipmentTyp
 };
 
 export const getCompatibleEquipmentSlots = (item: InventoryItemType): EquipmentSlotId[] => {
+  if (isPotion(item) && !isHealthPotion(item)) return [];
   return getCompatibleEquipmentSlotsForTypes(item.equipmentType ?? item.equipmentTypes ?? []);
+};
+
+export const findEquippedItemForInventoryItem = (
+  equipmentSlots: readonly Pick<EquipmentSlot, 'id' | 'item'>[],
+  inventoryItem: InventoryItemType,
+): InventoryItemType | null => {
+  if (isPotion(inventoryItem)) return null;
+  const compatibleSlots = getCompatibleEquipmentSlots(inventoryItem);
+  return equipmentSlots.find(({ id, item }) => item && compatibleSlots.includes(id))?.item ?? null;
 };
 
 export const findEquippedEntryForTypes = <T extends { slot: EquipmentSlotId | null }>(

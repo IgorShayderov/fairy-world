@@ -23,14 +23,19 @@ const routes = {
     users: {
       mePath: () => [BASE_API_PATH, 'users', 'me'].join('/'),
       attributesPath: () => [BASE_API_PATH, 'users', 'me', 'attributes'].join('/'),
+      consumeInventoryItemPath: (inventoryItemId: number) =>
+        [BASE_API_PATH, 'users', 'me', 'inventory', String(inventoryItemId), 'consume'].join('/'),
+      mapPositionPath: () => [BASE_API_PATH, 'users', 'me', 'map-position'].join('/'),
       equipmentPath: () => [BASE_API_PATH, 'users', 'me', 'equipment'].join('/'),
       equipmentSlotPath: (slot: string) => [BASE_API_PATH, 'users', 'me', 'equipment', slot].join('/'),
     },
     locations: {
+      blessingPath: (name: string) => [BASE_API_PATH, 'locations', name, 'blessing'].join('/'),
       listPath: () => [BASE_API_PATH, 'locations'].join('/'),
       mePath: () => [BASE_API_PATH, 'locations', 'me'].join('/'),
     },
     monsters: {
+      dungeonPath: (name: string) => [BASE_API_PATH, 'monsters', 'dungeon', name].join('/'),
       listPath: () => [BASE_API_PATH, 'monsters'].join('/'),
       byIdPath: (id: number) => [BASE_API_PATH, 'monsters', String(id)].join('/'),
       encounterPath: () => [BASE_API_PATH, 'monsters', 'encounter'].join('/'),
@@ -42,6 +47,7 @@ const routes = {
       detailsPath: (shopId: number) => [BASE_API_PATH, 'shop', shopId].join('/'),
       buyPath: (shopId: number) => [BASE_API_PATH, 'shop', shopId, 'buy'].join('/'),
       sellPath: (shopId: number) => [BASE_API_PATH, 'shop', shopId, 'sell'].join('/'),
+      sellManyPath: (shopId: number) => [BASE_API_PATH, 'shop', shopId, 'sell-many'].join('/'),
       refreshPath: (shopId: number) => [BASE_API_PATH, 'shop', shopId, 'refresh'].join('/'),
     },
   },

@@ -15,7 +15,13 @@ describe('ShopService trades', () => {
     },
     gameProfile: { findUnique: jest.fn(), update: jest.fn() },
     item: { findMany: jest.fn() },
-    inventoryItem: { findFirst: jest.fn(), update: jest.fn(), delete: jest.fn(), create: jest.fn() },
+    inventoryItem: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+      create: jest.fn(),
+    },
   };
   const prisma = { $transaction: jest.fn() };
   const itemGenerator = { generate: jest.fn() };
@@ -34,6 +40,10 @@ describe('ShopService trades', () => {
       quantity: 7,
       item: { price: 20 },
     });
+    tx.inventoryItem.findMany.mockResolvedValue([
+      { id: 8, gameProfileId: 5, itemId: 3, quantity: 7, item: { price: 20 } },
+      { id: 9, gameProfileId: 5, itemId: 4, quantity: 2, item: { price: 50 } },
+    ]);
     tx.item.findMany.mockResolvedValue([
       { id: 101, equipmentType: ['POTION'] },
       { id: 102, equipmentType: ['SCROLL'] },
@@ -69,6 +79,46 @@ describe('ShopService trades', () => {
       update: { quantity: { increment: 7 } },
       create: { shopId: 2, itemId: 3, quantity: 7 },
     });
+  });
+
+  it('sells several selected item stacks atomically', async () => {
+    const result = await service.sellMany(1, 2, {
+      items: [
+        { itemId: 3, quantity: 4 },
+        { itemId: 4, quantity: 2 },
+      ],
+    });
+
+    expect(result).toEqual({
+      success: true,
+      quantity: 6,
+      earnedGold: 90,
+      items: [
+        { itemId: 3, quantity: 4, earnedGold: 40 },
+        { itemId: 4, quantity: 2, earnedGold: 50 },
+      ],
+    });
+    expect(tx.shop.update).toHaveBeenCalledTimes(1);
+    expect(tx.shop.update).toHaveBeenCalledWith({ where: { id: 2 }, data: { gold: { decrement: 90 } } });
+    expect(tx.gameProfile.update).toHaveBeenCalledWith({ where: { id: 5 }, data: { gold: { increment: 90 } } });
+    expect(tx.shopStock.upsert).toHaveBeenCalledTimes(2);
+    expect(tx.inventoryItem.update).toHaveBeenCalledWith({
+      where: { id: 8 },
+      data: { quantity: { decrement: 4 } },
+    });
+    expect(tx.inventoryItem.delete).toHaveBeenCalledWith({ where: { id: 9 } });
+  });
+
+  it('rejects duplicate item lines before starting a batch sale', async () => {
+    await expect(
+      service.sellMany(1, 2, {
+        items: [
+          { itemId: 3, quantity: 1 },
+          { itemId: 3, quantity: 2 },
+        ],
+      }),
+    ).rejects.toThrow('Each item may appear only once');
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
   it('rejects a sale when the shop cannot afford it before any mutation', async () => {
@@ -167,9 +217,17 @@ describe('ShopService trades', () => {
     expect(itemGenerator.generate).toHaveBeenNthCalledWith(9, { level: 5, equipmentType: 'GLOVES' }, tx);
     expect(itemGenerator.generate).toHaveBeenNthCalledWith(10, { level: 6, equipmentType: 'LEGS' }, tx);
     expect(tx.shopStock.deleteMany).toHaveBeenCalledWith({ where: { shopId: 2 } });
-    expect(tx.shopStock.create).toHaveBeenCalledTimes(12);
-    expect(tx.shopStock.create).toHaveBeenCalledWith({ data: { shopId: 2, itemId: 101, quantity: 1 } });
-    expect(tx.shopStock.create).toHaveBeenCalledWith({ data: { shopId: 2, itemId: 102, quantity: 1 } });
+    expect(tx.shopStock.upsert).toHaveBeenCalledTimes(12);
+    expect(tx.shopStock.upsert).toHaveBeenCalledWith({
+      where: { shopId_itemId: { shopId: 2, itemId: 101 } },
+      create: { shopId: 2, itemId: 101, quantity: 1 },
+      update: { quantity: { increment: 1 } },
+    });
+    expect(tx.shopStock.upsert).toHaveBeenCalledWith({
+      where: { shopId_itemId: { shopId: 2, itemId: 102 } },
+      create: { shopId: 2, itemId: 102, quantity: 1 },
+      update: { quantity: { increment: 1 } },
+    });
     expect(tx.shop.update).toHaveBeenCalledWith({
       where: { id: 2 },
       data: { nextRestockAt },
@@ -190,7 +248,7 @@ describe('ShopService trades', () => {
     });
     expect(tx.shopStock.deleteMany).toHaveBeenCalledWith({ where: { shopId: 2 } });
     expect(itemGenerator.generate).toHaveBeenCalledTimes(10);
-    expect(tx.shopStock.create).toHaveBeenCalledTimes(12);
+    expect(tx.shopStock.upsert).toHaveBeenCalledTimes(12);
     expect(tx.shop.update).toHaveBeenCalledWith({ where: { id: 2 }, data: { nextRestockAt } });
   });
 

@@ -74,6 +74,20 @@ export function useCharacter(
     completedTravelSteps.value = 0;
   };
 
+  const setPosition = (x: number, y: number) => {
+    const nextX = Math.max(0, Math.min(x, mapWidth));
+    const nextY = Math.max(0, Math.min(y, mapHeight));
+    if (!canMoveTo(nextX, nextY)) return false;
+    pos.x = nextX;
+    pos.y = nextY;
+    target.x = nextX;
+    target.y = nextY;
+    isMoving.value = false;
+    completedTravelSteps.value = 0;
+    distanceSinceTravelStep = 0;
+    return true;
+  };
+
   const render = (ctx: CanvasRenderingContext2D) => {
     if (isMoving.value) {
       ctx.save();
@@ -123,11 +137,13 @@ export function useCharacter(
   };
 
   return {
+    position: pos,
     isMoving,
     walkTo,
     update,
     render,
     consumeTravelStep,
     stop,
+    setPosition,
   };
 }

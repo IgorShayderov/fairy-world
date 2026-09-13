@@ -3,6 +3,7 @@ import { EquipmentType, Prisma } from '../../generated/client';
 import { PrismaService } from '../prisma.service';
 import { BuyDto } from './dto/buy.dto';
 import { SellDto } from './dto/sell.dto';
+import { SellManyDto } from './dto/sell-many.dto';
 import { ItemView } from '../common/views/item.view';
 import { ItemGeneratorService } from '../items/item-generator.service';
 import { SEEDED_CONSUMABLES } from '../items/seeded-consumables';
@@ -91,7 +92,11 @@ export class ShopService {
       const levelOffset = SHOP_ITEM_LEVEL_OFFSETS[index % SHOP_ITEM_LEVEL_OFFSETS.length];
       const itemLevel = Math.max(1, playerLevel + levelOffset);
       const item = await this.itemGenerator.generate({ level: itemLevel }, tx);
-      await tx.shopStock.create({ data: { shopId, itemId: item.id, quantity: 1 } });
+      await tx.shopStock.upsert({
+        where: { shopId_itemId: { shopId, itemId: item.id } },
+        create: { shopId, itemId: item.id, quantity: 1 },
+        update: { quantity: { increment: 1 } },
+      });
       stockCount++;
     }
 
@@ -101,7 +106,11 @@ export class ShopService {
         { level: Math.max(1, playerLevel + levelOffset), equipmentType },
         tx,
       );
-      await tx.shopStock.create({ data: { shopId, itemId: item.id, quantity: 1 } });
+      await tx.shopStock.upsert({
+        where: { shopId_itemId: { shopId, itemId: item.id } },
+        create: { shopId, itemId: item.id, quantity: 1 },
+        update: { quantity: { increment: 1 } },
+      });
       stockCount++;
     }
 
@@ -118,14 +127,22 @@ export class ShopService {
       if (matchingItems.length === 0) continue;
 
       const item = matchingItems[Math.floor(Math.random() * matchingItems.length)];
-      await tx.shopStock.create({ data: { shopId, itemId: item.id, quantity: 1 } });
+      await tx.shopStock.upsert({
+        where: { shopId_itemId: { shopId, itemId: item.id } },
+        create: { shopId, itemId: item.id, quantity: 1 },
+        update: { quantity: { increment: 1 } },
+      });
       stockCount++;
     }
 
     while (stockCount < SHOP_RESTOCK_ITEM_COUNT) {
       const levelOffset = SHOP_ITEM_LEVEL_OFFSETS[stockCount % SHOP_ITEM_LEVEL_OFFSETS.length];
       const item = await this.itemGenerator.generate({ level: Math.max(1, playerLevel + levelOffset) }, tx);
-      await tx.shopStock.create({ data: { shopId, itemId: item.id, quantity: 1 } });
+      await tx.shopStock.upsert({
+        where: { shopId_itemId: { shopId, itemId: item.id } },
+        create: { shopId, itemId: item.id, quantity: 1 },
+        update: { quantity: { increment: 1 } },
+      });
       stockCount++;
     }
 
@@ -229,6 +246,75 @@ export class ShopService {
         await tx.inventoryItem.update({ where: { id: entry.id }, data: { quantity: { decrement: dto.quantity } } });
       }
       return { success: true, itemId: dto.itemId, quantity: dto.quantity, earnedGold };
+    });
+  }
+
+  async sellMany(userId: number, shopId: number, dto: SellManyDto) {
+    if (dto.items.length === 0) throw new BadRequestException('At least one item is required');
+    if (new Set(dto.items.map(({ itemId }) => itemId)).size !== dto.items.length) {
+      throw new BadRequestException('Each item may appear only once');
+    }
+    for (const item of dto.items) this.validateQuantity(item.quantity);
+
+    return this.trade(async (tx) => {
+      const [shop, profile] = await Promise.all([
+        tx.shop.findUnique({ where: { id: shopId } }),
+        tx.gameProfile.findUnique({ where: { userId }, select: { id: true } }),
+      ]);
+      if (!shop) throw new NotFoundException('Shop not found');
+      if (!profile) throw new NotFoundException('Game profile not found');
+
+      const entries = await tx.inventoryItem.findMany({
+        where: {
+          gameProfileId: profile.id,
+          itemId: { in: dto.items.map(({ itemId }) => itemId) },
+          isEquiped: false,
+        },
+        include: { item: true },
+      });
+      const entriesByItemId = new Map(entries.map((entry) => [entry.itemId, entry]));
+      const saleLines = dto.items.map(({ itemId, quantity }) => {
+        const entry = entriesByItemId.get(itemId);
+        if (!entry) throw new NotFoundException(`Item ${itemId} not found in inventory`);
+        if (entry.quantity < quantity) throw new BadRequestException(`Not enough item ${itemId} in inventory`);
+        return {
+          entry,
+          itemId,
+          quantity,
+          earnedGold: Math.max(1, Math.floor(entry.item.price * 0.5 * quantity)),
+        };
+      });
+      const earnedGold = saleLines.reduce((total, line) => total + line.earnedGold, 0);
+      if (shop.gold < earnedGold) throw new BadRequestException('Shop does not have enough gold');
+
+      await tx.shop.update({ where: { id: shopId }, data: { gold: { decrement: earnedGold } } });
+      await tx.gameProfile.update({ where: { id: profile.id }, data: { gold: { increment: earnedGold } } });
+      for (const line of saleLines) {
+        await tx.shopStock.upsert({
+          where: { shopId_itemId: { shopId, itemId: line.itemId } },
+          update: { quantity: { increment: line.quantity } },
+          create: { shopId, itemId: line.itemId, quantity: line.quantity },
+        });
+        if (line.entry.quantity === line.quantity) {
+          await tx.inventoryItem.delete({ where: { id: line.entry.id } });
+        } else {
+          await tx.inventoryItem.update({
+            where: { id: line.entry.id },
+            data: { quantity: { decrement: line.quantity } },
+          });
+        }
+      }
+
+      return {
+        success: true,
+        quantity: saleLines.reduce((total, line) => total + line.quantity, 0),
+        earnedGold,
+        items: saleLines.map(({ itemId, quantity, earnedGold: lineGold }) => ({
+          itemId,
+          quantity,
+          earnedGold: lineGold,
+        })),
+      };
     });
   }
 }

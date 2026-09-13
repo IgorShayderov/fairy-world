@@ -11,6 +11,7 @@ export default {
   successBuy: 'Покупка успешна!',
   errorBuy: 'Недостаточно золота или ошибка',
   successSell: 'Продано {{quantity}}× {{name}} за {{price}}g',
+  successSellMany: 'Продано предметов: {{quantity}}, получено {{price}}g',
   errorSell: 'Ошибка продажи',
   newItemsIn: 'Новые товары через',
   refreshItems: 'Новый товар',

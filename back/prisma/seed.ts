@@ -1,12 +1,4 @@
-import {
-  PrismaClient,
-  Gender,
-  ItemRarity,
-  EquipmentType,
-  AttributeType,
-  StatType,
-  UserRole,
-} from '../generated/client';
+import { PrismaClient, Gender, EquipmentType, AttributeType, StatType, UserRole } from '../generated/client';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import * as bcrypt from 'bcrypt';
