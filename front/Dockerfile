@@ -3,7 +3,8 @@ FROM node:24-slim AS base
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm ci
+
+RUN npm ci --ignore-scripts
 
 COPY . .
 
@@ -18,9 +19,6 @@ CMD ["npm", "run", "dev"]
 
 
 FROM base AS build-stage
-
-ARG VITE_BACK_URL
-ENV VITE_BACK_URL=$VITE_BACK_URL
 
 RUN npm run build
 
