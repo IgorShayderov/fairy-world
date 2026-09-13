@@ -7,6 +7,7 @@ import { SellManyDto } from './dto/sell-many.dto';
 import { ItemView } from '../common/views/item.view';
 import { ItemGeneratorService } from '../items/item-generator.service';
 import { SEEDED_CONSUMABLES } from '../items/seeded-consumables';
+import { townAt } from '../locations/towns';
 
 const SHOP_RESTOCK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const SHOP_RESTOCK_ITEM_COUNT = 12;
@@ -23,7 +24,7 @@ export class ShopService {
   ) {}
 
   async getShop(userId: number, shopId: number) {
-    return this.trade(async (tx) => {
+    return this.trade(userId, shopId, async (tx, shopId) => {
       const [shop, profile] = await Promise.all([
         tx.shop.findUnique({ where: { id: shopId } }),
         tx.gameProfile.findUnique({ where: { userId }, select: { level: true } }),
@@ -34,7 +35,7 @@ export class ShopService {
       await tx.shopStock.deleteMany({ where: { shopId, quantity: { lte: 0 } } });
 
       const now = new Date();
-      if (!shop.nextRestockAt || shop.nextRestockAt <= now) {
+      if (!shop.nextRestockAt || shop.nextRestockAt <= now || shop.stockLevel !== profile.level) {
         await this.restock(tx, shopId, profile.level, now);
       }
 
@@ -66,7 +67,7 @@ export class ShopService {
   }
 
   async refresh(userId: number, shopId: number) {
-    return this.trade(async (tx) => {
+    return this.trade(userId, shopId, async (tx, shopId) => {
       const [shop, profile] = await Promise.all([
         tx.shop.findUnique({ where: { id: shopId }, select: { id: true } }),
         tx.gameProfile.findUnique({ where: { userId }, select: { id: true, level: true, gems: true } }),
@@ -147,7 +148,7 @@ export class ShopService {
     }
 
     const nextRestockAt = new Date(now.getTime() + SHOP_RESTOCK_INTERVAL_MS);
-    await tx.shop.update({ where: { id: shopId }, data: { nextRestockAt } });
+    await tx.shop.update({ where: { id: shopId }, data: { nextRestockAt, stockLevel: playerLevel } });
     return nextRestockAt;
   }
 
@@ -158,12 +159,30 @@ export class ShopService {
   }
 
   // Retry serialization conflicts so concurrent trades cannot spend the same stock or gold.
-  private async trade<T>(operation: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+  private async trade<T>(
+    userId: number,
+    shopId: number,
+    operation: (tx: Prisma.TransactionClient, personalShopId: number) => Promise<T>,
+  ): Promise<T> {
     for (let attempt = 0; ; attempt++) {
       try {
-        return await this.prisma.$transaction(operation, {
-          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-        });
+        return await this.prisma.$transaction(
+          async (tx) => {
+            const profile = await tx.gameProfile.findUnique({ where: { userId } });
+            if (!profile) throw new NotFoundException('Game profile not found');
+            const town = townAt(profile);
+            if (!town || town.shopId !== shopId) throw new BadRequestException('Travel to this town to use its shop');
+            const shop = await tx.shop.upsert({
+              where: { ownerId_townId: { ownerId: profile.id, townId: shopId } },
+              create: { ownerId: profile.id, townId: shopId, name: `${town.name} Market`, gold: 10000 },
+              update: {},
+            });
+            return operation(tx, shop.id);
+          },
+          {
+            isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+          },
+        );
       } catch (error) {
         if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034' && attempt < 3) continue;
         throw error;
@@ -173,7 +192,7 @@ export class ShopService {
 
   async buy(userId: number, shopId: number, dto: BuyDto) {
     this.validateQuantity(dto.quantity);
-    return this.trade(async (tx) => {
+    return this.trade(userId, shopId, async (tx, shopId) => {
       const shop = await tx.shop.findUnique({ where: { id: shopId } });
       if (!shop) throw new NotFoundException('Shop not found');
       const profile = await tx.gameProfile.findUnique({ where: { userId } });
@@ -222,7 +241,7 @@ export class ShopService {
 
   async sell(userId: number, shopId: number, dto: SellDto) {
     this.validateQuantity(dto.quantity);
-    return this.trade(async (tx) => {
+    return this.trade(userId, shopId, async (tx, shopId) => {
       const shop = await tx.shop.findUnique({ where: { id: shopId } });
       if (!shop) throw new NotFoundException('Shop not found');
       const entry = await tx.inventoryItem.findFirst({
@@ -256,7 +275,7 @@ export class ShopService {
     }
     for (const item of dto.items) this.validateQuantity(item.quantity);
 
-    return this.trade(async (tx) => {
+    return this.trade(userId, shopId, async (tx, shopId) => {
       const [shop, profile] = await Promise.all([
         tx.shop.findUnique({ where: { id: shopId } }),
         tx.gameProfile.findUnique({ where: { userId }, select: { id: true } }),

@@ -72,7 +72,20 @@ export class ItemGeneratorService {
       orderBy: { id: 'asc' },
     });
     const existing = candidates.find((item) => itemIdentity(item) === identity);
-    if (existing) return existing;
+    if (existing) {
+      if (existing.level > level) {
+        return client.item.update({
+          where: { id: existing.id },
+          data: {
+            level,
+            description: existing.description.replace(/level \d+/, `level ${level}`),
+            price: Math.min(existing.price, price),
+          },
+          include: { stats: { include: { stat: true } }, attributes: { include: { attribute: true } } },
+        });
+      }
+      return existing;
+    }
 
     return client.item.create({
       data: {

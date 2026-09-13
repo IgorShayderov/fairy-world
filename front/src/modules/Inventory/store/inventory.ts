@@ -72,6 +72,8 @@ export const useInventoryStore = defineStore('inventory', () => {
   const mapEntry = ({ id, item, quantity, slot }: InventoryEntry): InventoryItemType => ({
     inventoryItemId: id,
     id: item.id,
+    level: item.level ?? 1,
+    requiredPlayerLevel: item.requiredPlayerLevel ?? 1,
     nameKey: item.name,
     name: item.name,
     icon: item.icon,

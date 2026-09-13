@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { requireLandmark } from './landmarks';
 import { PrismaService } from '../prisma.service';
+import { PlayerBuffType } from '../../generated/client';
 
 @Injectable()
 export class LocationsService {
@@ -11,16 +12,20 @@ export class LocationsService {
       const profile = await tx.gameProfile.findUnique({ where: { userId } });
       if (!profile) throw new NotFoundException('Game profile not found');
       requireLandmark(name, 'sanctum', profile);
+      const blessing =
+        name === 'STARGLEN'
+          ? { type: PlayerBuffType.DEFENSE, value: 10 }
+          : { type: PlayerBuffType.EXPERIENCE, value: 20 };
       const existing = await tx.gameProfileBuff.findUnique({
-        where: { gameProfileId_type: { gameProfileId: profile.id, type: 'DEFENSE' } },
+        where: { gameProfileId_type: { gameProfileId: profile.id, type: blessing.type } },
       });
       // A blessing never replaces a stronger potion or stacks with another blessing.
       if (existing && existing.expiresAt > new Date()) return existing;
       const expiresAt = new Date(Date.now() + 4 * 60 * 60 * 1000);
       return tx.gameProfileBuff.upsert({
-        where: { gameProfileId_type: { gameProfileId: profile.id, type: 'DEFENSE' } },
-        create: { gameProfileId: profile.id, type: 'DEFENSE', value: 10, expiresAt },
-        update: { value: 10, expiresAt },
+        where: { gameProfileId_type: { gameProfileId: profile.id, type: blessing.type } },
+        create: { gameProfileId: profile.id, ...blessing, expiresAt },
+        update: { value: blessing.value, expiresAt },
       });
     });
   }

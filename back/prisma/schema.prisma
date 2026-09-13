@@ -92,6 +92,16 @@ model GameProfile {
   profileAttributes ProfileAttribute[]
   profileStats      ProfileStat[]
   buffs             GameProfileBuff[]
+  dungeonVisits     DungeonVisit[]
+  shops             Shop[]
+}
+
+model DungeonVisit {
+  gameProfileId Int
+  dungeon String
+  nextEntryAt DateTime
+  gameProfile GameProfile @relation(fields: [gameProfileId], references: [id], onDelete: Cascade)
+  @@id([gameProfileId, dungeon])
 }
 
 enum PlayerBuffType {
@@ -216,6 +226,10 @@ model Item {
 }
 
 model Shop {
+  ownerId       Int?
+  townId        Int?
+  stockLevel    Int?
+  owner         GameProfile? @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   id            Int         @id @default(autoincrement())
   name          String
   gold          Int         @default(0)
@@ -223,6 +237,7 @@ model Shop {
   nextRestockAt DateTime?
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
+  @@unique([ownerId, townId])
 }
 
 model ShopStock {

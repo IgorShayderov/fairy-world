@@ -10,6 +10,10 @@ export type CurrentUser = {
   gold: number;
   gems: number;
   experience: number;
+  experienceToNextLevel?: number | null;
+  maxLevel?: number;
+  currentShopId?: number | null;
+  dungeonCooldowns?: Array<{ dungeon: string; nextEntryAt: string }>;
   level: number;
   freeAttributes: number;
   mapPosition: MapPosition;

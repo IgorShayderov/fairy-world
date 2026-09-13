@@ -112,6 +112,7 @@ describe('UsersService', () => {
               profileAttributes: { include: { attribute: true } },
               profileStats: { include: { stat: true } },
               buffs: true,
+              dungeonVisits: true,
             },
           },
         },
@@ -137,8 +138,19 @@ describe('UsersService', () => {
   });
 
   describe('equipment', () => {
+    it('rejects items more than three levels higher before modifying inventory', async () => {
+      mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4, level: 1 });
+      mockPrismaService.inventoryItem.findFirst.mockResolvedValueOnce({
+        item: { level: 5, equipmentType: ['SHIELD'] },
+      });
+      await expect(service.equipItem(7, { inventoryItemId: 9, slot: 'right-hand' })).rejects.toThrow(
+        'requires player level 2',
+      );
+      expect(mockPrismaService.inventoryItem.update).not.toHaveBeenCalled();
+      expect(mockPrismaService.inventoryItem.create).not.toHaveBeenCalled();
+    });
     it('splits one item from a backpack stack and equips it persistently', async () => {
-      mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4 });
+      mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4, level: 1 });
       mockPrismaService.inventoryItem.findFirst
         .mockResolvedValueOnce({
           id: 9,
@@ -147,7 +159,7 @@ describe('UsersService', () => {
           quantity: 3,
           isEquiped: false,
           slot: null,
-          item: { equipmentType: ['SHIELD'] },
+          item: { level: 4, equipmentType: ['SHIELD'] },
         })
         .mockResolvedValueOnce(null);
 

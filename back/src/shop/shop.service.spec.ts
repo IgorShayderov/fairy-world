@@ -31,7 +31,14 @@ describe('ShopService trades', () => {
     jest.resetAllMocks();
     prisma.$transaction.mockImplementation((operation: (client: typeof tx) => unknown) => operation(tx));
     tx.shop.findUnique.mockResolvedValue({ id: 2, gold: 1000, nextRestockAt: new Date('2099-01-01') });
-    tx.gameProfile.findUnique.mockResolvedValue({ id: 5, gold: 200, gems: 20, level: 4 });
+    tx.gameProfile.findUnique.mockResolvedValue({
+      id: 5,
+      gold: 200,
+      gems: 20,
+      level: 4,
+      mapPositionX: 940,
+      mapPositionY: 620,
+    });
     tx.shopStock.findUnique.mockResolvedValue({ quantity: 10, item: { price: 20 } });
     tx.inventoryItem.findFirst.mockResolvedValue({
       id: 8,
@@ -51,6 +58,24 @@ describe('ShopService trades', () => {
   });
 
   afterEach(() => jest.useRealTimers());
+
+  it('rejects every shop operation outside a town before mutations', async () => {
+    tx.gameProfile.findUnique.mockResolvedValue({ id: 5, mapPositionX: 2000, mapPositionY: 1800 });
+    for (const operation of [
+      () => service.getShop(1, 2),
+      () => service.refresh(1, 2),
+      () => service.buy(1, 2, { itemId: 3, quantity: 1 }),
+      () => service.sell(1, 2, { itemId: 3, quantity: 1 }),
+      () => service.sellMany(1, 2, { items: [{ itemId: 3, quantity: 1 }] }),
+    ])
+      await expect(operation()).rejects.toThrow('Travel to this town');
+    expect(tx.shop.update).not.toHaveBeenCalled();
+    expect(tx.shopStock.upsert).not.toHaveBeenCalled();
+  });
+
+  it('rejects a different town shop even while standing in a town', async () => {
+    await expect(service.getShop(1, 1)).rejects.toThrow('Travel to this town');
+  });
 
   it('sells the requested quantity and credits only the selected shop stock', async () => {
     const result = await service.sell(1, 2, { itemId: 3, quantity: 4 });
@@ -183,7 +208,7 @@ describe('ShopService trades', () => {
       name: 'Armory',
       gold: 500,
       nextRestockAt,
-      stock: [{ quantity: 9, item: { id: 3, name: 'Shield', attributes: [], stats: [] } }],
+      stock: [{ quantity: 9, item: { id: 3, level: 4, name: 'Shield', attributes: [], stats: [] } }],
     });
     await expect(service.getShop(1, 2)).resolves.toEqual({
       id: 2,
@@ -191,7 +216,7 @@ describe('ShopService trades', () => {
       gold: 500,
       nextRestockAt,
       refreshCost: 10,
-      items: [{ id: 3, name: 'Shield', quantity: 9, attributes: [], properties: [] }],
+      items: [{ id: 3, level: 4, requiredPlayerLevel: 1, name: 'Shield', quantity: 9, attributes: [], properties: [] }],
     });
     expect(tx.shopStock.deleteMany).toHaveBeenCalledWith({ where: { shopId: 2, quantity: { lte: 0 } } });
     expect(itemGenerator.generate).not.toHaveBeenCalled();
@@ -253,7 +278,14 @@ describe('ShopService trades', () => {
   });
 
   it('does not refresh stock when the player has fewer than ten gems', async () => {
-    tx.gameProfile.findUnique.mockResolvedValue({ id: 5, gold: 200, level: 4, gems: 9 });
+    tx.gameProfile.findUnique.mockResolvedValue({
+      id: 5,
+      gold: 200,
+      level: 4,
+      gems: 9,
+      mapPositionX: 940,
+      mapPositionY: 620,
+    });
 
     await expect(service.refresh(1, 2)).rejects.toThrow('Not enough gems');
 

@@ -18,6 +18,7 @@ type CurrentUserModel = Prisma.UserGetPayload<{
         profileAttributes: { include: { attribute: true } };
         profileStats: { include: { stat: true } };
         buffs: true;
+        dungeonVisits: true;
       };
     };
   };
@@ -62,6 +63,7 @@ describe('UserView.renderCurrent', () => {
         mapPositionX: 1600,
         mapPositionY: 900,
         buffs: [],
+        dungeonVisits: [],
         profileAttributes: [
           {
             gameProfileId: 7,
@@ -182,10 +184,10 @@ describe('UserView.renderCurrent', () => {
     expect(result.properties).toContainEqual({
       name: 'DEFENSE',
       description: 'Damage reduction',
-      baseValue: 14.3,
-      attributeBonus: 10.7,
-      equipmentBonus: 5.2,
-      value: 30.2,
+      baseValue: 4.8,
+      attributeBonus: 4.3,
+      equipmentBonus: 2.4,
+      value: 11.5,
       rating: 13,
       equipmentRatingBonus: 3,
     });
@@ -193,9 +195,9 @@ describe('UserView.renderCurrent', () => {
       name: 'CRIT',
       description: 'Final critical-hit chance, capped at 50%.',
       baseValue: 0,
-      attributeBonus: 12.5,
-      equipmentBonus: 20,
-      value: 32.5,
+      attributeBonus: 2.5,
+      equipmentBonus: 4,
+      value: 6.5,
       rating: 6.5,
       equipmentRatingBonus: 4,
     });

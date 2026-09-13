@@ -1,5 +1,5 @@
 <template>
-  <aside class="relative z-10 w-[320px] flex-shrink-0 overflow-y-auto border-l border-gray-200 bg-white p-5 shadow-sm">
+  <aside class="relative z-10 w-[320px] flex-shrink-0 border-l border-gray-200 bg-white p-5 shadow-sm">
     <h2 class="mb-4 text-lg font-bold text-gray-800">{{ t('shop.inventory') }}</h2>
 
     <div
@@ -9,7 +9,7 @@
       {{ t('shop.inventoryEmpty') }}
     </div>
 
-    <div v-else class="space-y-3">
+    <div v-else class="space-y-3 overflow-y-auto">
       <div
         v-for="inv in inventory"
         :key="inv.id"
@@ -21,6 +21,8 @@
               name: itemTypeName(inv.item.equipmentType),
               nameKey: itemTypeName(inv.item.equipmentType),
               tooltipName: inv.item.name,
+              level: inv.item.level ?? 1,
+              requiredPlayerLevel: inv.item.requiredPlayerLevel ?? 1,
               icon: inv.item.icon,
               description: inv.item.description,
               price: inv.item.price,
@@ -56,12 +58,7 @@
               :disabled="loading"
               @input="
                 (e) =>
-                  $emit(
-                    'update-sell-quantity',
-                    inv.item.id,
-                    inv.quantity,
-                    Number((e.target as HTMLInputElement).value)
-                  )
+                  $emit('update-sell-quantity', inv.item.id, inv.quantity, Number((e.target as HTMLInputElement).value))
               "
               type="number"
               min="0"
@@ -83,7 +80,6 @@
         </div>
       </div>
     </div>
-
   </aside>
 </template>
 

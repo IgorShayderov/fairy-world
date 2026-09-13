@@ -21,6 +21,8 @@ export function useShopActions() {
   const refreshCost = ref(10);
   const nextRestockAt = ref<string | null>(null);
   const shopId = ref(1);
+  const accessError = ref(false);
+  const shopName = ref('');
   const loading = ref(false);
   const token = ref<string | null>(null);
 
@@ -30,11 +32,13 @@ export function useShopActions() {
 
   const loadData = async (forcePlayerRefresh = false) => {
     loading.value = true;
+    accessError.value = false;
     try {
-      const [shop, player] = await Promise.all([
-        getShop(shopId.value),
-        currentUserStore.fetchCurrentUser(forcePlayerRefresh),
-      ]);
+      const player = await currentUserStore.fetchCurrentUser(forcePlayerRefresh);
+      if (!player.currentShopId) throw new Error('Visit a town to trade');
+      shopId.value = player.currentShopId;
+      const shop = await getShop(shopId.value);
+      shopName.value = shop.name;
       shopItems.value = shop.items;
       inventory.value = player.inventory;
       equippedItems.value = player.equippedItems ?? [];
@@ -49,6 +53,9 @@ export function useShopActions() {
         sellQuantity.value[entry.item.id] = 0;
       }
     } catch (e) {
+      accessError.value = true;
+      shopItems.value = [];
+      cart.value = {};
       console.error('Failed to load shop data:', e);
     } finally {
       loading.value = false;
@@ -180,6 +187,8 @@ export function useShopActions() {
   };
 
   return {
+    accessError,
+    shopName,
     shopId,
     shopGold,
     nextRestockAt,

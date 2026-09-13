@@ -35,6 +35,8 @@ describe('profile inventory hydration', () => {
     expect(store.inventory).toEqual([
       {
         inventoryItemId: 9,
+        level: 1,
+        requiredPlayerLevel: 1,
         id: 2,
         nameKey: 'Iron Shield',
         name: 'Iron Shield',

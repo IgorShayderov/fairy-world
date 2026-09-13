@@ -8,6 +8,7 @@ export interface ShopItem {
   description: string;
   price: number;
   level: number;
+  requiredPlayerLevel?: number;
   icon: string;
   quantity: number;
   rarity: ItemRarity;

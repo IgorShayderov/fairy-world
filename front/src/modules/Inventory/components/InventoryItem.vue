@@ -60,6 +60,9 @@
         {{ displayRarity }}
       </div>
       <div v-if="tooltipDescription" class="mt-1 text-xs text-gray-200">{{ tooltipDescription }}</div>
+      <div v-if="item.requiredPlayerLevel" class="mt-1 text-xs text-amber-200">
+        {{ $t('profile.requiredLevel', { level: item.requiredPlayerLevel }) }}
+      </div>
       <div v-if="item.price !== undefined" class="mt-2 text-xs">
         {{ $t('profile.tooltip.price') }}: {{ item.price }}g
       </div>

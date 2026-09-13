@@ -55,6 +55,7 @@ const routes = {
   loginPath: () => '/login',
   profilePath: () => '/profile',
   shopPath: () => '/shop',
+  gemShopPath: () => '/gems',
   registerPath: () => '/register',
   forgotPasswordPath: () => '/forgot-password',
   resetPasswordPath: () => `/reset-password`,

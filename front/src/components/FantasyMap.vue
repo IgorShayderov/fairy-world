@@ -14,7 +14,8 @@
     <div class="map-vignette pointer-events-none absolute inset-0"></div>
     <div class="map-grain pointer-events-none absolute inset-0 opacity-25"></div>
 
-    <header class="pointer-events-none absolute top-5 left-5 z-10">
+    <div class="absolute top-5 left-5 z-10 flex max-w-[calc(100%-6rem)] flex-col items-start gap-4">
+    <header class="pointer-events-none">
       <div class="atlas-panel min-w-[250px] px-5 py-4 text-[#f7e8b5]">
         <div class="mb-1 flex items-center gap-2 text-[10px] font-semibold tracking-[0.32em] text-[#9edbd3] uppercase">
           <span class="h-px w-8 bg-[#78bfb8]/70"></span>
@@ -26,7 +27,8 @@
         <p class="mt-1 text-xs tracking-wide text-[#c7d7cd]">{{ t('fantasy.mapDescription') }}</p>
       </div>
     </header>
-    <ActiveBuffs compact class="absolute top-40 left-5 z-10 max-w-[calc(100%-6rem)]" :buffs="currentUserStore.user?.activeBuffs ?? []" />
+    <ActiveBuffs compact :buffs="currentUserStore.user?.activeBuffs ?? []" />
+    </div>
 
     <aside class="pointer-events-none absolute bottom-5 left-5 z-10 hidden sm:block">
       <div class="atlas-panel px-4 py-3 text-[10px] font-semibold tracking-[0.15em] text-[#d6dfd5] uppercase">
@@ -65,6 +67,7 @@
       :landmark="activeLandmark"
       :pending="landmarkPending"
       :message="landmarkMessage"
+      :next-entry-at="currentUserStore.user?.dungeonCooldowns?.find((entry) => entry.dungeon === activeLandmark?.name)?.nextEntryAt"
       @close="activeLandmark = null"
       @action="handleLandmarkAction"
       @rumors="landmarkMessage = t('fantasy.landmark.rumorText')"
@@ -132,6 +135,7 @@ const handleLandmarkAction = async () => {
     await usersApi.updateMapPosition({ x: Math.round(position.x), y: Math.round(position.y) });
     if (landmark.type === 'dungeon') {
       activeBattle.value = await enterDungeon(landmark.name);
+      await currentUserStore.fetchCurrentUser(true);
       activeLandmark.value = null;
     } else if (landmark.type === 'sanctum') {
       await receiveBlessing(landmark.name);
@@ -162,7 +166,7 @@ const initialX = 1470;
 const initialY = 1040;
 
 const { renderProceduralMap, isPointOnLand } = useMapGenerator();
-const { camera, fitToScreen, startDrag, doDrag, endDrag, zoomAt, zoomBy, screenToMap } = useMapCamera(
+const { camera, centerOn, fitToScreen, startDrag, doDrag, endDrag, zoomAt, zoomBy, screenToMap } = useMapCamera(
   mapWidth,
   mapHeight
 );
@@ -291,6 +295,7 @@ const resizeCanvas = () => {
   canvasRef.value.height = Math.round(height * dpr);
   ctx = canvasRef.value.getContext('2d');
   fitToScreen(width, height);
+  centerOn(position.x, position.y, width, height);
   draw();
 };
 
@@ -349,6 +354,7 @@ const handleZoomBtn = (delta: number) => {
 const resetView = () => {
   if (!containerRef.value) return;
   fitToScreen(containerRef.value.clientWidth, containerRef.value.clientHeight);
+  centerOn(position.x, position.y, containerRef.value.clientWidth, containerRef.value.clientHeight);
   draw();
 };
 

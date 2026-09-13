@@ -23,6 +23,7 @@ describe('shop quantity requests', () => {
             gems: 20,
             experience: 0,
             level: 1,
+            currentShopId: 1,
             inventory: [
               { id: 9, item: { id: 3, name: 'Shield', price: 20 }, quantity: 7 },
               { id: 10, item: { id: 4, name: 'Potion', price: 50 }, quantity: 2 },

@@ -181,6 +181,18 @@ Use Swagger UI for the current request and response schemas.
 
 ## Quality checks
 
+### Player progression
+
+Low-level ratings use denominator floors: chance uses `max(level, 50)`, critical damage uses `max(level, 100)`, and defense uses `max(level, 10)`. With the five starting attributes and no gear/buffs this gives 2.5% crit, 2.5% dodge, 4.8% defense, and 135.6% critical damage.
+
+Markets are accessible only within 70 map units of their town, including all read, buy, sell, and refresh endpoints. Town shop IDs are defined in `back/src/locations/towns.ts`; each has independent gold, stock, and restock timing. Open markets through town arrival panels.
+
+Dungeon entries have a database-backed cooldown of one hour per player per dungeon, starting on entry (retreats and defeats count). Guardians are generated around player level +2, then receive 2× health, 1.5× damage, and +5 defense percentage points. They award 3× gold and XP. Dungeon loot odds: 20% no drop, 40% common, 25% magic, 12% rare, 3% unique.
+
+The experience map is defined in `back/src/users/level-progression.ts`: advancing from level L requires `100 × L²` XP. Victory rewards include active XP bonuses. Reaching the threshold advances one level, adds 5 free attribute points, and resets XP to zero (excess XP is discarded). Level 100 is the maximum; XP is cleared on subsequent rewards at the cap. `/users/me` includes `experienceToNextLevel` (`null` at level 100) and `maxLevel`.
+
+Equipping requires `item level <= player level + 3 × 1.1`, allowing integer item levels up to three above the player's level. The server enforces this for every equip request, and item responses include `requiredPlayerLevel` for tooltips. Existing equipped items are not automatically removed.
+
 ### Item catalog maintenance
 
 Generated equipment reuses the oldest item with the same equipment type, attributes, and stat values. Names, icons, rarity, price, and level do not create a new record when the bonuses match. Potions and scrolls also match by name so distinct consumable effects remain separate.

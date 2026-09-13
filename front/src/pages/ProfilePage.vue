@@ -10,6 +10,7 @@
           :player-properties="currentUserStore.user?.properties ?? []"
           :player-level="currentUserStore.user?.level ?? 1"
           :player-experience="currentUserStore.user?.experience ?? 0"
+          :experience-to-next-level="currentUserStore.user?.experienceToNextLevel ?? null"
           :player-gold="currentUserStore.user?.gold ?? 0"
           :player-gems="currentUserStore.user?.gems ?? 0"
           :player-free-attributes="currentUserStore.user?.freeAttributes ?? 0"
@@ -41,7 +42,9 @@
 </template>
 
 <script setup lang="ts">
+import { useTranslation } from 'i18next-vue';
 import { storeToRefs } from 'pinia';
+import { useQuasar } from 'quasar';
 import { onMounted, ref } from 'vue';
 
 import type { EquipmentSlotId, InventoryItemType } from '@/modules/Inventory/types';
@@ -58,6 +61,14 @@ import InventorySection from '@modules/Inventory/components/InventorySection.vue
 
 const inventoryStore = useInventoryStore();
 const currentUserStore = useCurrentUserStore();
+const { t } = useTranslation();
+const $q = useQuasar();
+const canEquip = (item: InventoryItemType) => {
+  const required = item.requiredPlayerLevel ?? Math.max(1, Math.ceil((item.level ?? 1) - 3 * 1.1));
+  if ((currentUserStore.user?.level ?? 1) >= required) return true;
+  $q.notify({ type: 'negative', message: t('profile.requiredLevel', { level: required }) });
+  return false;
+};
 const { inventory, equipmentSlots } = storeToRefs(inventoryStore);
 
 const dragItem = ref<InventoryItemType | null>(null);
@@ -129,12 +140,12 @@ const onSlotDrop = async (slotId: EquipmentSlotId) => {
   try {
     if (dragItemIndex.value !== null) {
       const item = inventory.value[dragItemIndex.value];
-      if (item?.inventoryItemId && getCompatibleEquipmentSlots(item).includes(slotId)) {
+      if (item?.inventoryItemId && getCompatibleEquipmentSlots(item).includes(slotId) && canEquip(item)) {
         await usersApi.equipItem(item.inventoryItemId, slotId);
       }
     } else if (dragEquipmentSlotId.value !== null && dragEquipmentSlotId.value !== slotId) {
       const source = equipmentSlots.value.find((slot) => slot.id === dragEquipmentSlotId.value)?.item;
-      if (source?.inventoryItemId) await usersApi.equipItem(source.inventoryItemId, slotId);
+      if (source?.inventoryItemId && canEquip(source)) await usersApi.equipItem(source.inventoryItemId, slotId);
     }
     await refreshInventory();
   } finally {
@@ -158,6 +169,7 @@ const equipFromInventory = async (inventoryIndex: number) => {
   }
 
   const compatibleSlots = getCompatibleEquipmentSlots(item);
+  if (!canEquip(item)) return;
   const targetSlot =
     compatibleSlots.find((slotId) => !equipmentSlots.value.find((slot) => slot.id === slotId)?.item) ??
     compatibleSlots[0];

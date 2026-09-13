@@ -25,8 +25,9 @@
 
 <script setup lang="ts">
 import { useTranslation } from 'i18next-vue';
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 
+import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 import routes from '@/routes';
 import { StorageService } from '@services/storage.service';
 
@@ -41,7 +42,8 @@ watch(isSidebarExpanded, (newValue) => {
   StorageService.set('sidebarExpanded', newValue);
 });
 
-const menuItems = [
+const currentUser = useCurrentUserStore();
+const menuItems = computed(() => [
   {
     id: 'home',
     nameKey: 'menu.home',
@@ -54,11 +56,10 @@ const menuItems = [
     route: routes.profilePath(),
     icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z',
   },
-  {
-    id: 'shop',
-    nameKey: 'menu.shop',
-    route: routes.shopPath(),
-    icon: 'M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z',
-  },
-];
+  ...(currentUser.user?.currentShopId ? [{
+    id: 'shop', nameKey: 'menu.shop', route: routes.shopPath(),
+    icon: 'M3 3h2l2 10h10l4-8H5M9 20h.01M17 20h.01',
+  }] : []),
+  { id: 'gems', nameKey: 'menu.gems', route: routes.gemShopPath(), icon: 'M3 8l5-5h8l5 5-9 13L3 8Zm0 0h18M8 3l4 18 4-18' },
+]);
 </script>

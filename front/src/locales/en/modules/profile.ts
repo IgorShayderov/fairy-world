@@ -1,4 +1,6 @@
 export default {
+  maxLevel: 'Maximum level',
+  requiredLevel: 'Requires player level {{level}}',
   inventory: 'Inventory',
   equipment: 'Equipment',
   characteristics: 'Attributes',
@@ -66,10 +68,10 @@ export default {
     CRIT_DAMAGE: 'Damage dealt by a critical hit. It starts at 125%, has diminishing returns, and cannot exceed 300%.',
   },
   propertyFormulas: {
-    defense: 'damage reduction % = defense ÷ (defense + level × 10) × 100',
-    chance: 'final % = min(50%, max(0, rating) × 50 ÷ max(level, 10))',
+    defense: 'damage reduction % = defense ÷ (defense + max(level, 10) × 10) × 100',
+    chance: 'final % = min(50%, max(0, rating) × 50 ÷ max(level, 50))',
     criticalDamage:
-      'effective rating = rating × 10 ÷ max(level, 10); final % = min(300%, 125% + 175% × effective rating ÷ (effective rating + 7.75))',
+      'effective rating = rating × 10 ÷ max(level, 100); final % = min(300%, 125% + 175% × effective rating ÷ (effective rating + 7.75))',
   },
   slots: {
     head: 'Head',

@@ -200,6 +200,7 @@ const props = defineProps<{
   playerProperties: EffectiveModifier[];
   playerLevel: number;
   playerExperience: number;
+  experienceToNextLevel: number | null;
   playerGold: number;
   playerGems: number;
   playerFreeAttributes: number;
@@ -220,7 +221,7 @@ const { t } = useTranslation();
 
 const playerSummary = computed(() => [
   { key: 'level', value: props.playerLevel },
-  { key: 'experience', value: props.playerExperience },
+  { key: 'experience', value: props.experienceToNextLevel === null ? t('profile.maxLevel') : `${props.playerExperience} / ${props.experienceToNextLevel}` },
   { key: 'gold', value: props.playerGold },
   { key: 'gems', value: props.playerGems },
 ]);

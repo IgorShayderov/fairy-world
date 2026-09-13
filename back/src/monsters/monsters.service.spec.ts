@@ -11,6 +11,8 @@ describe('MonstersService', () => {
   let service: MonstersService;
 
   const mockPrismaService = {
+    $executeRaw: jest.fn(),
+    dungeonVisit: { findUnique: jest.fn(), upsert: jest.fn() },
     $transaction: jest.fn(),
     gameProfile: {
       findUnique: jest.fn(),
@@ -45,6 +47,7 @@ describe('MonstersService', () => {
     updatedAt: new Date(),
     gameProfile: {
       level,
+      id: 5,
       gold: 0,
       gems: 0,
       experience: 0,
@@ -60,10 +63,11 @@ describe('MonstersService', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
     jest.restoreAllMocks();
+    mockPrismaService.dungeonVisit.findUnique.mockResolvedValue(null);
     mockPrismaService.$transaction.mockImplementation((operation: (client: typeof mockPrismaService) => unknown) =>
       operation(mockPrismaService),
     );
-    mockPrismaService.gameProfile.update.mockResolvedValue({ id: 5 });
+    mockPrismaService.gameProfile.update.mockResolvedValue({ id: 5, level: 1, experience: 14 });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -102,6 +106,18 @@ describe('MonstersService', () => {
     expect(mockMonsterGenerator.generate).toHaveBeenCalledWith(7);
     expect((await service.enterDungeon(7, 'EMBERDEEP')).id).toBe(battle.id);
     expect(mockMonsterGenerator.generate).toHaveBeenCalledTimes(1);
+    expect(battle.monster.health).toBe(290);
+    expect(battle.monster.damage).toBe(26);
+    expect(battle.monster.rewardGold).toBe(60);
+    expect(battle.monster.rewardExperience).toBe(90);
+    expect(mockPrismaService.dungeonVisit.upsert).toHaveBeenCalledTimes(1);
+    service.retreat(7, battle.id);
+    mockPrismaService.dungeonVisit.findUnique.mockResolvedValue({ nextEntryAt: new Date(Date.now() + 3_600_000) });
+    await expect(service.enterDungeon(7, 'EMBERDEEP')).rejects.toThrow('once per hour');
+    expect(mockMonsterGenerator.generate).toHaveBeenCalledTimes(1);
+    mockPrismaService.dungeonVisit.findUnique.mockResolvedValue({ nextEntryAt: new Date(Date.now() - 1) });
+    await expect(service.enterDungeon(7, 'EMBERDEEP')).resolves.toMatchObject({ status: 'ACTIVE' });
+    expect(mockPrismaService.dungeonVisit.upsert).toHaveBeenCalledTimes(2);
   });
 
   it('rejects dungeon entry while the player is elsewhere', async () => {
@@ -188,6 +204,7 @@ describe('MonstersService', () => {
     });
 
     it('resolves the entire battle with one attack and permanently awards victory rewards', async () => {
+      mockPrismaService.gameProfile.update.mockResolvedValueOnce({ id: 5, level: 5, experience: 2500 });
       jest
         .spyOn(Math, 'random')
         .mockReturnValueOnce(0.01)
@@ -219,9 +236,13 @@ describe('MonstersService', () => {
       expect(mockPrismaService.gameProfile.update).toHaveBeenCalledWith({
         where: { userId: 7 },
         data: { gold: { increment: 7 }, experience: { increment: 14 } },
-        select: { id: true },
+        select: { id: true, level: true, experience: true },
       });
       expect(battle.rewards?.items).toEqual([]);
+      expect(mockPrismaService.gameProfile.update).toHaveBeenCalledWith({
+        where: { id: 5 },
+        data: { level: 6, experience: 0, freeAttributes: { increment: 5 } },
+      });
     });
 
     it('adds a generated rarity-weighted item drop to inventory on victory', async () => {

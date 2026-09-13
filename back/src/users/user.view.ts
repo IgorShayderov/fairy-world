@@ -1,6 +1,8 @@
 import { UserModel } from '../../generated/models';
 import { AttributeType, PlayerBuffType, StatType, type Prisma } from '../../generated/client';
 import { ItemView } from '../common/views/item.view';
+import { townAt } from '../locations/towns';
+import { experienceToNextLevel, MAX_PLAYER_LEVEL } from './level-progression';
 import {
   ATTRIBUTE_EFFECTS,
   convertRatingToPercentage,
@@ -26,6 +28,7 @@ type CurrentUserModel = Prisma.UserGetPayload<{
         profileAttributes: { include: { attribute: true } };
         profileStats: { include: { stat: true } };
         buffs: true;
+        dungeonVisits: true;
       };
     };
   };
@@ -103,6 +106,17 @@ export class UserView {
         equipmentBonus: 0,
         value,
       });
+    }
+
+    // Derived from level so profile and combat agree, including existing characters.
+    for (const [name, perLevel] of [
+      [StatType.HEALTH, 10],
+      [StatType.MANA, 5],
+    ] as const) {
+      const property = properties.get(name)!;
+      const bonus = Math.max(0, Math.min(100, playerLevel) - 1) * perLevel;
+      property.baseValue += bonus;
+      property.value += bonus;
     }
 
     for (const { item } of equippedEntries) {
@@ -204,6 +218,10 @@ export class UserView {
       gold: profile?.gold ?? 0,
       gems: profile?.gems ?? 0,
       experience: profile?.experience ?? 0,
+      experienceToNextLevel: experienceToNextLevel(playerLevel),
+      maxLevel: MAX_PLAYER_LEVEL,
+      currentShopId: profile ? (townAt(profile)?.shopId ?? null) : null,
+      dungeonCooldowns: (profile?.dungeonVisits ?? []).map(({ dungeon, nextEntryAt }) => ({ dungeon, nextEntryAt })),
       level: playerLevel,
       freeAttributes: profile?.freeAttributes ?? 0,
       mapPosition: {

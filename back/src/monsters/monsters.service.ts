@@ -7,8 +7,9 @@ import { UserView } from '../users/user.view';
 import { PlayerBuffType, StatType } from '../../generated/client';
 import { ItemGeneratorService } from '../items/item-generator.service';
 import { ItemView } from '../common/views/item.view';
-import { rollMonsterLootRarity } from './monster-loot';
+import { rollMonsterLootRarity, rollDungeonLootRarity } from './monster-loot';
 import { requireLandmark } from '../locations/landmarks';
+import { progressionAfterExperience } from '../users/level-progression';
 
 type BattleStatus = 'ACTIVE' | 'VICTORY' | 'DEFEAT';
 type Combatant = {
@@ -22,6 +23,7 @@ type Combatant = {
   criticalDamage: number;
 };
 type Battle = {
+  dungeon?: string;
   id: string;
   userId: number;
   status: BattleStatus;
@@ -79,10 +81,30 @@ export class MonstersService {
       (battle) => battle.userId === userId && battle.status === 'ACTIVE',
     );
     if (existing) return this.renderBattle(existing);
+    await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${userId})`;
+      const where = { gameProfileId_dungeon: { gameProfileId: user.gameProfile!.id, dungeon: name } };
+      const visit = await tx.dungeonVisit.findUnique({ where });
+      if (visit && visit.nextEntryAt > new Date())
+        throw new BadRequestException('Dungeon is resting. You can enter once per hour.');
+      const nextEntryAt = new Date(Date.now() + 60 * 60 * 1000);
+      await tx.dungeonVisit.upsert({
+        where,
+        create: { gameProfileId: user.gameProfile!.id, dungeon: name, nextEntryAt },
+        update: { nextEntryAt },
+      });
+    });
     const player = UserView.renderCurrent(user);
     const monster = this.monsterGenerator.generate(player.level + 2);
     monster.name = `${name === 'EMBERDEEP' ? 'Flamebound' : 'Hollow'} Guardian — ${monster.name}`;
     const battle = this.createBattle(userId, player, monster);
+    battle.dungeon = name;
+    battle.monster.health *= 2;
+    battle.monster.maxHealth *= 2;
+    battle.monster.damage = Math.ceil(battle.monster.damage * 1.5);
+    battle.monster.defense = Math.min(60, battle.monster.defense + 5);
+    battle.monster.rewardGold *= 3;
+    battle.monster.rewardExperience *= 3;
     this.battles.set(battle.id, battle);
     return this.renderBattle(battle);
   }
@@ -109,7 +131,7 @@ export class MonstersService {
     }
 
     if (battle.status === 'VICTORY') {
-      const lootRarity = rollMonsterLootRarity();
+      const lootRarity = battle.dungeon ? rollDungeonLootRarity() : rollMonsterLootRarity();
       battle.rewards = {
         gold: battle.monster.rewardGold,
         experience: Math.round(battle.monster.rewardExperience * (1 + battle.experienceBonusPercent / 100)),
@@ -123,8 +145,19 @@ export class MonstersService {
             gold: { increment: rewards.gold },
             experience: { increment: rewards.experience },
           },
-          select: { id: true },
+          select: { id: true, level: true, experience: true },
         });
+        const progression = progressionAfterExperience(profile.level, profile.experience);
+        if (progression.level !== profile.level || progression.experience !== profile.experience) {
+          await tx.gameProfile.update({
+            where: { id: profile.id },
+            data: {
+              level: progression.level,
+              experience: progression.experience,
+              freeAttributes: { increment: progression.freeAttributes },
+            },
+          });
+        }
         if (!lootRarity) return;
 
         const item = await this.itemGenerator.generate({ level: battle.monster.level, rarity: lootRarity }, tx);

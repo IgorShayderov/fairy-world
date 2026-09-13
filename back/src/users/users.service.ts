@@ -6,6 +6,7 @@ import type { EquipItemDto, EquipmentSlotId } from './dto/equip-item.dto';
 import type { AllocateAttributeDto } from './dto/allocate-attribute.dto';
 import type { UpdateMapPositionDto } from './dto/update-map-position.dto';
 import { STARTING_ATTRIBUTE_VALUE } from './player-defaults';
+import { requiredPlayerLevel } from './level-progression';
 import { getPotionEffect, isHealthPotion, POTION_BUFF_DURATION_MS } from '../items/potion-effects';
 
 const SLOT_TYPES: Record<EquipmentSlotId, EquipmentType[]> = {
@@ -57,6 +58,7 @@ export class UsersService {
             profileAttributes: { include: { attribute: true } },
             profileStats: { include: { stat: true } },
             buffs: true,
+            dungeonVisits: true,
           },
         },
       },
@@ -105,7 +107,7 @@ export class UsersService {
   equipItem(userId: number, dto: EquipItemDto) {
     return this.prisma.$transaction(
       async (tx) => {
-        const profile = await tx.gameProfile.findUnique({ where: { userId }, select: { id: true } });
+        const profile = await tx.gameProfile.findUnique({ where: { userId }, select: { id: true, level: true } });
         if (!profile) throw new NotFoundException('Game profile not found');
 
         const source = await tx.inventoryItem.findFirst({
@@ -113,6 +115,9 @@ export class UsersService {
           include: { item: true },
         });
         if (!source) throw new NotFoundException('Inventory item not found');
+        if (profile.level < requiredPlayerLevel(source.item.level)) {
+          throw new BadRequestException(`This item requires player level ${requiredPlayerLevel(source.item.level)}`);
+        }
         if (!source.item.equipmentType.some((type) => SLOT_TYPES[dto.slot].includes(type))) {
           throw new BadRequestException('Item cannot be equipped in this slot');
         }

@@ -1,4 +1,5 @@
 export default {
+  townRequired: 'This market is unavailable. Travel to a town and choose Visit the market.',
   title: 'Items',
   buy: 'Buy',
   loading: 'Loading...',

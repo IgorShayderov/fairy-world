@@ -16,3 +16,12 @@ export const rollMonsterLootRarity = (random: () => number = Math.random): ItemR
   }
   return null;
 };
+
+export const rollDungeonLootRarity = (random: () => number = Math.random): ItemRarity | null => {
+  const roll = random() * 100;
+  if (roll < 20) return null;
+  if (roll < 60) return ItemRarity.COMMON;
+  if (roll < 85) return ItemRarity.MAGIC;
+  if (roll < 97) return ItemRarity.RARE;
+  return ItemRarity.UNIQUE;
+};
