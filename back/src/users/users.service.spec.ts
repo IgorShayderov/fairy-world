@@ -113,6 +113,8 @@ describe('UsersService', () => {
               profileStats: { include: { stat: true } },
               buffs: true,
               dungeonVisits: true,
+              sanctuaryVisits: true,
+              _count: { select: { quests: { where: { completedAt: { not: null } } } } },
             },
           },
         },

@@ -21,6 +21,7 @@ describe('quest victory progress', () => {
       where: {
         gameProfileId: 5,
         completedAt: null,
+        canceledAt: null,
         acceptedAt: { lte: startedAt },
         quest: { monsterType: { in: ['Dire Wolf', '*'] } },
       },
@@ -36,7 +37,7 @@ describe('quest victory progress', () => {
     const { tx, client } = setup(19);
     await recordQuestVictory(client, 5, 'Dire Wolf', startedAt);
     expect(tx.playerQuest.updateMany).toHaveBeenCalledWith({
-      where: { gameProfileId: 5, questId: 1, progress: 19, completedAt: null },
+      where: { gameProfileId: 5, questId: 1, progress: 19, completedAt: null, canceledAt: null },
       data: { progress: 20, completedAt: expect.any(Date) as Date },
     });
     expect(tx.gameProfile.update).toHaveBeenCalledWith({ where: { id: 5 }, data: { gold: { increment: 200 } } });

@@ -1,21 +1,29 @@
-FROM node:20-slim AS base
+FROM node:24-slim AS base
 
 WORKDIR /app
 
 COPY package*.json ./
-
-RUN npm pkg delete scripts.postinstall && npm i
+RUN npm ci
 
 COPY . .
 
 RUN npm run postinstall
 
+
 FROM base AS development
+
 EXPOSE 9000
+
 CMD ["npm", "run", "dev"]
 
+
 FROM base AS build-stage
+
+ARG VITE_BACK_URL
+ENV VITE_BACK_URL=$VITE_BACK_URL
+
 RUN npm run build
+
 
 FROM nginx:alpine AS production-stage
 

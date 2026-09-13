@@ -69,7 +69,10 @@ export class MonstersService {
     const user = await this.usersService.findCurrentUser(userId);
     if (!user?.gameProfile) throw new NotFoundException('Game profile not found');
     const player = UserView.renderCurrent(user);
-    const monster = this.monsterGenerator.generate(player.level);
+    const monster = this.monsterGenerator.generate(player.level, {
+      x: user.gameProfile.mapPositionX,
+      y: user.gameProfile.mapPositionY,
+    });
 
     const battle = this.createBattle(userId, player, monster);
     this.battles.set(battle.id, battle);
@@ -169,6 +172,7 @@ export class MonstersService {
           data: {
             gold: { increment: rewards.gold },
             experience: { increment: rewards.experience },
+            killedMonsters: { increment: 1 },
           },
           select: { id: true, level: true, experience: true },
         });

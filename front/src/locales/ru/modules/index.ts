@@ -72,6 +72,7 @@ const modules = {
         action: 'Принять благословение',
       },
       cooldown: 'Следующий вход через {{minutes}} мин.',
+      blessingCooldown: 'Следующее благословение в этом святилище через {{minutes}} мин.',
       dungeon: {
         label: 'Вход в подземелье',
         story:

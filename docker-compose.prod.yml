@@ -1,0 +1,89 @@
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: fairy_world
+      POSTGRES_USER: fairy
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fairy -d fairy_world"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    build:
+      context: ./back
+      target: build
+
+    environment:
+      DATABASE_URL: postgresql://fairy:${POSTGRES_PASSWORD}@db:5432/fairy_world
+
+    command: npx prisma migrate deploy
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+    restart: "no"
+
+  back:
+    build:
+      context: ./back
+      target: production
+
+    restart: unless-stopped
+
+    environment:
+      NODE_ENV: production
+
+      PORT: 3333
+
+      DATABASE_URL: postgresql://fairy:${POSTGRES_PASSWORD}@db:5432/fairy_world
+
+      FRONT_URL: https://${DOMAIN}
+
+      JWT_SECRET: ${JWT_SECRET}
+
+      ACCESS_COOKIE_LIFETIME: ${ACCESS_COOKIE_LIFETIME}
+      REFRESH_COOKIE_LIFETIME: ${REFRESH_COOKIE_LIFETIME}
+      RESET_PASSWORD_TOKEN_LIFETIME: ${RESET_PASSWORD_TOKEN_LIFETIME}
+
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      SMTP_FROM: ${SMTP_FROM}
+
+      ENABLE_LOGS: "TRUE"
+
+    ports:
+      - "127.0.0.1:3333:3333"
+
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  front:
+    build:
+      context: ./front
+      target: production-stage
+      args:
+        VITE_BACK_URL: https://${DOMAIN}
+
+    restart: unless-stopped
+
+    ports:
+      - "127.0.0.1:8080:80"
+
+    depends_on:
+      - back
+
+volumes:
+  postgres_data:

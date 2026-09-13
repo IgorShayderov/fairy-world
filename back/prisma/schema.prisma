@@ -85,6 +85,7 @@ model GameProfile {
   experience     Int @default(0)
   level          Int @default(1)
   freeAttributes Int @default(0)
+  killedMonsters Int @default(0)
   mapPositionX   Float @default(1470)
   mapPositionY   Float @default(1040)
 
@@ -95,9 +96,14 @@ model GameProfile {
   dungeonVisits     DungeonVisit[]
   shops             Shop[]
   quests            PlayerQuest[]
+  sanctuaryVisits   SanctuaryVisit[]
 }
 
 model Quest {
+  townId       Int?
+  regionKey    String?
+  expiresAt    DateTime?
+  isPrimary    Boolean @default(false)
   id           Int @id @default(autoincrement())
   code         String @unique
   monsterType  String
@@ -107,6 +113,7 @@ model Quest {
 }
 
 model PlayerQuest {
+  canceledAt    DateTime?
   gameProfileId Int
   questId       Int
   townId        Int
@@ -128,6 +135,7 @@ model DungeonVisit {
 }
 
 model Sanctuary {
+  visits SanctuaryVisit[]
   id Int @id
   name String @unique
   x Float
@@ -141,6 +149,15 @@ enum PlayerBuffType {
   DAMAGE
   DEFENSE
   EXPERIENCE
+}
+
+model SanctuaryVisit {
+  gameProfileId Int
+  sanctuaryId   Int
+  nextBlessingAt DateTime
+  gameProfile GameProfile @relation(fields: [gameProfileId], references: [id], onDelete: Cascade)
+  sanctuary Sanctuary @relation(fields: [sanctuaryId], references: [id], onDelete: Cascade)
+  @@id([gameProfileId, sanctuaryId])
 }
 
 model GameProfileBuff {

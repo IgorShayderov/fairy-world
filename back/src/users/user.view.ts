@@ -29,6 +29,8 @@ type CurrentUserModel = Prisma.UserGetPayload<{
         profileStats: { include: { stat: true } };
         buffs: true;
         dungeonVisits: true;
+        sanctuaryVisits: true;
+        _count: { select: { quests: { where: { completedAt: { not: null } } } } };
       };
     };
   };
@@ -217,6 +219,12 @@ export class UserView {
       ...this.render(user),
       gold: profile?.gold ?? 0,
       gems: profile?.gems ?? 0,
+      killedMonsters: profile?.killedMonsters ?? 0,
+      accomplishedQuests: profile?._count?.quests ?? 0,
+      sanctuaryCooldowns: (profile?.sanctuaryVisits ?? []).map(({ sanctuaryId, nextBlessingAt }) => ({
+        sanctuaryId,
+        nextBlessingAt,
+      })),
       experience: profile?.experience ?? 0,
       experienceToNextLevel: experienceToNextLevel(playerLevel),
       maxLevel: MAX_PLAYER_LEVEL,

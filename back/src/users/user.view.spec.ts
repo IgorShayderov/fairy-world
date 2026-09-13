@@ -19,6 +19,8 @@ type CurrentUserModel = Prisma.UserGetPayload<{
         profileStats: { include: { stat: true } };
         buffs: true;
         dungeonVisits: true;
+        sanctuaryVisits: true;
+        _count: { select: { quests: { where: { completedAt: { not: null } } } } };
       };
     };
   };
@@ -64,6 +66,9 @@ describe('UserView.renderCurrent', () => {
         mapPositionY: 900,
         buffs: [],
         dungeonVisits: [],
+        killedMonsters: 42,
+        _count: { quests: 3 },
+        sanctuaryVisits: [{ gameProfileId: 7, sanctuaryId: 1, nextBlessingAt: new Date('2099-01-01T00:00:00Z') }],
         profileAttributes: [
           {
             gameProfileId: 7,
@@ -146,6 +151,9 @@ describe('UserView.renderCurrent', () => {
     } satisfies CurrentUserModel;
 
     const result = UserView.renderCurrent(user);
+    expect(result.killedMonsters).toBe(42);
+    expect(result.accomplishedQuests).toBe(3);
+    expect(result.sanctuaryCooldowns).toEqual([{ sanctuaryId: 1, nextBlessingAt: new Date('2099-01-01T00:00:00Z') }]);
 
     expect(result.gems).toBe(25);
     expect(result.mapPosition).toEqual({ x: 1600, y: 900 });

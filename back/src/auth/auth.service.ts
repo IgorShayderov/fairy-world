@@ -58,7 +58,7 @@ export class AuthService {
       this.jwtService.signAsync(payload, { expiresIn, secret: process.env.JWT_SECRET }),
       this.jwtService.signAsync(
         { sub: user.id, type: 'refresh' },
-        { expiresIn: refreshExpiresIn, secret: process.env.JWT_SECRET },
+        { expiresIn: refreshExpiresIn / 1000, secret: process.env.JWT_SECRET },
       ),
     ]);
 

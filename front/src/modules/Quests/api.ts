@@ -7,6 +7,9 @@ export interface Quest {
   monsterType: string;
   target: number;
   rewardGold: number;
+  isPrimary?: boolean;
+  regionKey?: string | null;
+  huntingLocation?: { key: string; x: number; y: number; nearby: string } | null;
 }
 export interface PlayerQuest {
   questId: number;
@@ -24,3 +27,4 @@ export interface QuestJournal {
 }
 export const getQuests = async () => (await api.get<QuestJournal>(routes.api.quests.listPath())).data;
 export const acceptQuest = async (id: number) => (await api.post<PlayerQuest>(routes.api.quests.acceptPath(id))).data;
+export const cancelQuest = async (id: number) => { await api.post(routes.api.quests.cancelPath(id)); };

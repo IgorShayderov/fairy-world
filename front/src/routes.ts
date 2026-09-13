@@ -8,6 +8,7 @@ const routes = {
     quests: {
       listPath: () => [BASE_API_PATH, 'quests'].join('/'),
       acceptPath: (id: number) => [BASE_API_PATH, 'quests', id, 'accept'].join('/'),
+      cancelPath: (id: number) => [BASE_API_PATH, 'quests', id, 'cancel'].join('/'),
     },
     auth: {
       signInPath: () => [BASE_AUTH_PATH, 'login'].join('/'),

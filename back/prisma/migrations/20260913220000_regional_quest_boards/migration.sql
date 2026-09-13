@@ -1,0 +1,6 @@
+ALTER TABLE "Quest"
+  ADD COLUMN "townId" INTEGER,
+  ADD COLUMN "regionKey" TEXT,
+  ADD COLUMN "expiresAt" TIMESTAMP(3),
+  ADD COLUMN "isPrimary" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "PlayerQuest" ADD COLUMN "canceledAt" TIMESTAMP(3);

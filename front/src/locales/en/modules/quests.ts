@@ -1,4 +1,12 @@
 export default {
+  cancel: 'Cancel quest', confirmCancel: 'Yes, cancel', keep: 'Keep quest',
+  cancelWarning: 'Cancel this quest? Its progress will be lost if you accept it again.',
+  cancelError: 'Could not cancel this quest. It may already be completed. Please refresh.',
+  dailyBoard: 'Each town posts three different hunting contracts daily (00:00 UTC). Accepted quests do not expire.',
+  huntTitle: 'Hunt: {{monster}}', huntDescription: 'Defeat {{count}} monsters of type {{monster}}. All ranks count.',
+  huntingLocation: 'Hunt in {{region}}, near {{town}} ({{x}}, {{y}}). Travel around that area to encounter local monsters.',
+  regions: { whisperwood: 'Whisperwood', crossroads: 'the Crossroads', southern_woods: 'the Southern Woods', moonfall_heights: 'Moonfall Heights', frostwatch_peaks: 'Frostwatch Peaks', eastern_badlands: 'the Eastern Badlands' },
+  monsters: { 'Dire Wolf': 'Dire Wolf', 'Forest Troll': 'Forest Troll', 'Goblin Raider': 'Goblin Raider', 'Stone Golem': 'Stone Golem', 'Shadow Stalker': 'Shadow Stalker', 'Arcane Chimera': 'Arcane Chimera', 'Storm Harpy': 'Storm Harpy', 'Void Wraith': 'Void Wraith', 'Frost Giant': 'Frost Giant', 'Dragon': 'Dragon', 'Bone Knight': 'Bone Knight', 'Infernal Minotaur': 'Infernal Minotaur' },
   title: 'Quest journal', intro: 'Help the townsfolk and make the roads safer.',
   active: 'Current quests', completed: 'Finished quests', board: 'Town quest board',
   noActive: 'No current quests. Visit a town to find your next adventure.',
