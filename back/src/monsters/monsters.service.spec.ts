@@ -11,6 +11,7 @@ describe('MonstersService', () => {
   let service: MonstersService;
 
   const mockPrismaService = {
+    playerQuest: { findMany: jest.fn().mockResolvedValue([]) },
     $executeRaw: jest.fn(),
     dungeonVisit: { findUnique: jest.fn(), upsert: jest.fn(), delete: jest.fn() },
     $transaction: jest.fn(),

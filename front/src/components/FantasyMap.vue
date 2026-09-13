@@ -15,34 +15,32 @@
     <div class="map-grain pointer-events-none absolute inset-0 opacity-25"></div>
 
     <div class="absolute top-5 left-5 z-10 flex max-w-[calc(100%-6rem)] flex-col items-start gap-4">
-    <header class="pointer-events-none">
-      <div class="atlas-panel min-w-[250px] px-5 py-4 text-[#f7e8b5]">
-        <div class="mb-1 flex items-center gap-2 text-[10px] font-semibold tracking-[0.32em] text-[#9edbd3] uppercase">
-          <span class="h-px w-8 bg-[#78bfb8]/70"></span>
-          {{ t('fantasy.realm') }}
-        </div>
-        <h1 class="font-serif text-2xl leading-tight font-semibold tracking-wide text-[#fff0bd]">
-          {{ t('fantasy.mapTitle') }}
-        </h1>
-        <p class="mt-1 text-xs tracking-wide text-[#c7d7cd]">{{ t('fantasy.mapDescription') }}</p>
-      </div>
-    </header>
-    <ActiveBuffs compact :buffs="currentUserStore.user?.activeBuffs ?? []" />
+      <ActiveBuffs compact :buffs="currentUserStore.user?.activeBuffs ?? []" />
     </div>
 
     <aside class="pointer-events-none absolute bottom-5 left-5 z-10 hidden sm:block">
       <div class="atlas-panel px-4 py-3 text-[10px] font-semibold tracking-[0.15em] text-[#d6dfd5] uppercase">
         <div class="mb-2 text-[#8dcfc7]">{{ t('fantasy.legend') }}</div>
         <div class="grid grid-cols-2 gap-x-5 gap-y-2">
-          <span class="flex items-center gap-2"><i class="h-2 w-2 rounded-full bg-[#f6cf72] shadow-[0_0_8px_#f6cf72]"></i>{{ t('fantasy.city') }}</span>
-          <span class="flex items-center gap-2"><i class="h-2 w-2 rounded-full bg-[#a9d48c] shadow-[0_0_8px_#a9d48c]"></i>{{ t('fantasy.village') }}</span>
-          <span class="flex items-center gap-2"><i class="h-2 w-2 rounded-full bg-[#ff8067] shadow-[0_0_8px_#ff8067]"></i>{{ t('fantasy.dungeon') }}</span>
-          <span class="flex items-center gap-2"><i class="h-2 w-2 rounded-full bg-[#8ce5ca] shadow-[0_0_8px_#8ce5ca]"></i>{{ t('fantasy.sanctum') }}</span>
+          <span class="flex items-center gap-2"
+            ><i class="h-2 w-2 rounded-full bg-[#f6cf72] shadow-[0_0_8px_#f6cf72]"></i>{{ t('fantasy.city') }}</span
+          >
+          <span class="flex items-center gap-2"
+            ><i class="h-2 w-2 rounded-full bg-[#a9d48c] shadow-[0_0_8px_#a9d48c]"></i>{{ t('fantasy.village') }}</span
+          >
+          <span class="flex items-center gap-2"
+            ><i class="h-2 w-2 rounded-full bg-[#ff8067] shadow-[0_0_8px_#ff8067]"></i>{{ t('fantasy.dungeon') }}</span
+          >
+          <span class="flex items-center gap-2"
+            ><i class="h-2 w-2 rounded-full bg-[#8ce5ca] shadow-[0_0_8px_#8ce5ca]"></i>{{ t('fantasy.sanctum') }}</span
+          >
         </div>
       </div>
     </aside>
 
-    <div class="absolute top-5 right-5 z-20 flex flex-col overflow-hidden rounded-xl border border-[#d6bd75]/30 bg-[#102734]/90 shadow-2xl backdrop-blur-md">
+    <div
+      class="absolute top-5 right-5 z-20 flex flex-col overflow-hidden rounded-xl border border-[#d6bd75]/30 bg-[#102734]/90 shadow-2xl backdrop-blur-md"
+    >
       <button class="map-control" :aria-label="t('fantasy.zoomIn')" @click="handleZoomBtn(0.18)">
         <QIcon name="add" size="19px" />
       </button>
@@ -57,7 +55,9 @@
     </div>
 
     <div class="pointer-events-none absolute right-5 bottom-5 z-10 hidden md:block">
-      <div class="rounded-full border border-[#d6bd75]/20 bg-[#102734]/80 px-4 py-2 text-[10px] tracking-[0.12em] text-[#c8d8cf] uppercase shadow-xl backdrop-blur-md">
+      <div
+        class="rounded-full border border-[#d6bd75]/20 bg-[#102734]/80 px-4 py-2 text-[10px] tracking-[0.12em] text-[#c8d8cf] uppercase shadow-xl backdrop-blur-md"
+      >
         {{ t('fantasy.controlsHint') }}
       </div>
     </div>
@@ -69,10 +69,12 @@
       :message="landmarkMessage"
       :gems="currentUserStore.user?.gems ?? 0"
       @reset-dungeon="handleDungeonReset"
-      :next-entry-at="currentUserStore.user?.dungeonCooldowns?.find((entry) => entry.dungeon === activeLandmark?.name)?.nextEntryAt"
+      :next-entry-at="
+        currentUserStore.user?.dungeonCooldowns?.find((entry) => entry.dungeon === activeLandmark?.name)?.nextEntryAt
+      "
       @close="activeLandmark = null"
       @action="handleLandmarkAction"
-      @rumors="landmarkMessage = t('fantasy.landmark.rumorText')"
+      @quests="openQuests"
     />
 
     <BattleEncounter
@@ -92,8 +94,6 @@ import { useTranslation } from 'i18next-vue';
 import { QIcon } from 'quasar';
 import { onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-
-
 
 import { usersApi } from '@/modules/Auth/api/users';
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
@@ -123,13 +123,28 @@ const handleDungeonReset = async () => {
     landmarkMessage.value = t('fantasy.landmark.resetDone');
   } catch {
     landmarkMessage.value = t('fantasy.landmark.error');
-  } finally { landmarkPending.value = false; }
+  } finally {
+    landmarkPending.value = false;
+  }
 };
 const landmarkPending = ref(false);
 const landmarkMessage = ref('');
+const openQuests = async () => {
+  if (landmarkPending.value) return;
+  landmarkPending.value = true;
+  try {
+    await usersApi.updateMapPosition({ x: Math.round(position.x), y: Math.round(position.y) });
+    await router.push(routes.questsPath());
+  } catch {
+    landmarkMessage.value = t('fantasy.landmark.error');
+  } finally {
+    landmarkPending.value = false;
+  }
+};
 let visitedLandmark: string | null = null;
 let disposed = false;
-const nearbyLandmark = (x: number, y: number) => landmarks.find((landmark) => Math.hypot(x - landmark.x, y - landmark.y) <= 70);
+const nearbyLandmark = (x: number, y: number) =>
+  landmarks.find((landmark) => Math.hypot(x - landmark.x, y - landmark.y) <= 70);
 
 const openLandmark = (landmark: Landmark) => {
   stop();
@@ -151,7 +166,10 @@ const handleLandmarkAction = async () => {
       await currentUserStore.fetchCurrentUser(true);
       activeLandmark.value = null;
     } else if (landmark.type === 'sanctum') {
-      await receiveBlessing(landmark.name === 'STARGLEN' ? 1 : 2, { x: Math.round(position.x), y: Math.round(position.y) });
+      await receiveBlessing(landmark.name === 'STARGLEN' ? 1 : 2, {
+        x: Math.round(position.x),
+        y: Math.round(position.y),
+      });
       await currentUserStore.fetchCurrentUser(true);
       landmarkMessage.value = t('fantasy.landmark.blessed');
     } else {
@@ -190,13 +208,16 @@ offscreenCanvas.height = mapHeight;
 const offscreenCtx = offscreenCanvas.getContext('2d');
 if (offscreenCtx) renderProceduralMap(offscreenCtx, mapWidth, mapHeight);
 const canMoveTo = (x: number, y: number) => Boolean(offscreenCtx && isPointOnLand(offscreenCtx, x, y));
-const { position, isMoving, walkTo, update, render: renderCharacter, consumeTravelStep, stop, setPosition } = useCharacter(
-  initialX,
-  initialY,
-  mapWidth,
-  mapHeight,
-  canMoveTo
-);
+const {
+  position,
+  isMoving,
+  walkTo,
+  update,
+  render: renderCharacter,
+  consumeTravelStep,
+  stop,
+  setPosition,
+} = useCharacter(initialX, initialY, mapWidth, mapHeight, canMoveTo);
 let lastSavedPosition = `${initialX}:${initialY}`;
 
 const persistPosition = async () => {

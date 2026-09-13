@@ -5,6 +5,10 @@ const BASE_AUTH_PATH = `${BASE_API_PATH}/auth`;
 
 const routes = {
   api: {
+    quests: {
+      listPath: () => [BASE_API_PATH, 'quests'].join('/'),
+      acceptPath: (id: number) => [BASE_API_PATH, 'quests', id, 'accept'].join('/'),
+    },
     auth: {
       signInPath: () => [BASE_AUTH_PATH, 'login'].join('/'),
       signUpPath: () => [BASE_AUTH_PATH, 'register'].join('/'),
@@ -54,6 +58,7 @@ const routes = {
     },
   },
   rootPath: () => '/',
+  questsPath: () => '/quests',
   loginPath: () => '/login',
   profilePath: () => '/profile',
   shopPath: () => '/shop',

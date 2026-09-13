@@ -14,6 +14,7 @@ describe('MonsterGeneratorService', () => {
 
     expect(monster.level).toBe(100);
     expect(monster.name).toBe(`Wandering ${MONSTER_ARCHETYPES[0].name}`);
+    expect(monster.monsterType).toBe(MONSTER_ARCHETYPES[0].name);
     expect(monster.rewardGold).toBeGreaterThan(0);
     expect(monster.rewardExperience).toBeGreaterThan(0);
     expect(monster.attributes).toEqual([

@@ -3,6 +3,7 @@ import { AttributeType } from '../../generated/client';
 import { MONSTER_ARCHETYPES, MONSTER_RANKS, MonsterRank } from './monster-generator.config';
 
 export interface GeneratedMonster {
+  monsterType: string;
   id: number;
   name: string;
   description: string;
@@ -21,6 +22,7 @@ export class MonsterGeneratorService {
     const attributeBase = Math.max(1, Math.round((2 + level * 0.65) * rank.powerMultiplier));
 
     return {
+      monsterType: archetype.name,
       id: this.randomInt(1_000_000, 2_000_000_000),
       name: `${rank.name} ${archetype.name}`,
       description: `${archetype.description} This ${rank.name.toLowerCase()} creature is level ${level}.`,

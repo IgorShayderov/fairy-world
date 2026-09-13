@@ -46,7 +46,14 @@ watch(isSidebarExpanded, (newValue) => {
 const currentUser = useCurrentUserStore();
 const inTown = computed(() => {
   const position = currentUser.user?.mapPosition;
-  return !!position && landmarks.some((landmark) => ['city', 'capital', 'village'].includes(landmark.type) && Math.hypot(position.x - landmark.x, position.y - landmark.y) <= 70);
+  return (
+    !!position &&
+    landmarks.some(
+      (landmark) =>
+        ['city', 'capital', 'village'].includes(landmark.type) &&
+        Math.hypot(position.x - landmark.x, position.y - landmark.y) <= 70
+    )
+  );
 });
 const menuItems = computed(() => [
   {
@@ -61,10 +68,28 @@ const menuItems = computed(() => [
     route: routes.profilePath(),
     icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z',
   },
-  ...(currentUser.user?.currentShopId && inTown.value ? [{
-    id: 'shop', nameKey: 'menu.shop', route: routes.shopPath(),
-    icon: 'M3 3h2l2 10h10l4-8H5M9 17a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm8 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z',
-  }] : []),
-  { id: 'gems', nameKey: 'menu.gems', route: routes.gemShopPath(), icon: 'M3 8l5-5h8l5 5-9 13L3 8Zm0 0h18M8 3l4 18 4-18' },
+  {
+    id: 'quests',
+    nameKey: 'menu.quests',
+    route: routes.questsPath(),
+    icon: 'M9 5H5v16h14V5h-4M9 3h6v4H9V3Zm-1 9h8m-8 4h6',
+  },
+
+  ...(currentUser.user?.currentShopId && inTown.value
+    ? [
+        {
+          id: 'shop',
+          nameKey: 'menu.shop',
+          route: routes.shopPath(),
+          icon: 'M3 3h2l2 10h10l4-8H5M9 17a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm8 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z',
+        },
+      ]
+    : []),
+  {
+    id: 'gems',
+    nameKey: 'menu.gems',
+    route: routes.gemShopPath(),
+    icon: 'M3 8l5-5h8l5 5-9 13L3 8Zm0 0h18M8 3l4 18 4-18',
+  },
 ]);
 </script>
