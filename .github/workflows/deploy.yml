@@ -23,6 +23,9 @@ jobs:
     name: Deploy
     runs-on: ubuntu-latest
 
+    environment:
+      name: production
+
     if: >
       ${{
         github.event_name == 'workflow_dispatch' ||
