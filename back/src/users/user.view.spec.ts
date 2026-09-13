@@ -17,6 +17,8 @@ type CurrentUserModel = Prisma.UserGetPayload<{
         };
         profileAttributes: { include: { attribute: true } };
         profileStats: { include: { stat: true } };
+        buffs: true;
+        dungeonVisits: true;
       };
     };
   };
@@ -58,6 +60,10 @@ describe('UserView.renderCurrent', () => {
         experience: 20,
         level: 3,
         freeAttributes: 0,
+        mapPositionX: 1600,
+        mapPositionY: 900,
+        buffs: [],
+        dungeonVisits: [],
         profileAttributes: [
           {
             gameProfileId: 7,
@@ -142,6 +148,7 @@ describe('UserView.renderCurrent', () => {
     const result = UserView.renderCurrent(user);
 
     expect(result.gems).toBe(25);
+    expect(result.mapPosition).toEqual({ x: 1600, y: 900 });
     expect(result.inventory).toHaveLength(1);
     expect(result.equippedItems).toHaveLength(1);
     expect(result.equippedItems[0]).toMatchObject({
@@ -177,10 +184,10 @@ describe('UserView.renderCurrent', () => {
     expect(result.properties).toContainEqual({
       name: 'DEFENSE',
       description: 'Damage reduction',
-      baseValue: 14.3,
-      attributeBonus: 10.7,
-      equipmentBonus: 5.2,
-      value: 30.2,
+      baseValue: 4.8,
+      attributeBonus: 4.3,
+      equipmentBonus: 2.4,
+      value: 11.5,
       rating: 13,
       equipmentRatingBonus: 3,
     });
@@ -188,11 +195,43 @@ describe('UserView.renderCurrent', () => {
       name: 'CRIT',
       description: 'Final critical-hit chance, capped at 50%.',
       baseValue: 0,
-      attributeBonus: 12.5,
-      equipmentBonus: 20,
-      value: 32.5,
+      attributeBonus: 2.5,
+      equipmentBonus: 4,
+      value: 6.5,
       rating: 6.5,
       equipmentRatingBonus: 4,
     });
+  });
+
+  it('applies active stat buffs and ignores expired buffs', () => {
+    const user = {
+      id: 1,
+      name: 'Hero',
+      email: 'hero@example.com',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      gameProfile: {
+        gold: 0,
+        gems: 0,
+        experience: 0,
+        level: 1,
+        freeAttributes: 0,
+        mapPositionX: 1470,
+        mapPositionY: 1040,
+        inventory: [],
+        profileAttributes: [],
+        profileStats: [],
+        buffs: [
+          { type: 'DAMAGE', value: 15, expiresAt: new Date(Date.now() + 60_000) },
+          { type: 'DEFENSE', value: 50, expiresAt: new Date(Date.now() - 60_000) },
+        ],
+      },
+    } as unknown as Parameters<typeof UserView.renderCurrent>[0];
+
+    const result = UserView.renderCurrent(user);
+
+    expect(result.activeBuffs).toEqual([expect.objectContaining({ type: 'DAMAGE', value: 15 })]);
+    expect(result.properties).toContainEqual(expect.objectContaining({ name: 'DAMAGE', value: 21, buffBonus: 15 }));
+    expect(result.properties.find(({ name }) => name === 'DEFENSE')).not.toHaveProperty('buffBonus');
   });
 });

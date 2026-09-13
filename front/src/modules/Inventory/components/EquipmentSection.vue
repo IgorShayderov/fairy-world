@@ -92,6 +92,7 @@
                   </small>
                 </span>
                 <QBtn
+                  v-if="playerFreeAttributes > 0"
                   dense
                   round
                   unelevated
@@ -110,6 +111,7 @@
             </div>
           </div>
 
+
           <h3 class="mt-5 mb-3 text-xs font-bold tracking-wider text-gray-500 uppercase">
             {{ t('profile.tooltip.properties') }}
           </h3>
@@ -126,6 +128,9 @@
                 {{ formatPropertyValue(property.name, property.value) }}
                 <small v-if="property.equipmentBonus" class="text-green-600">
                   (+{{ formatPropertyValue(property.name, property.equipmentBonus) }} {{ t('profile.fromItems') }})
+                </small>
+                <small v-if="property.buffBonus" class="text-amber-600">
+                  (+{{ formatPropertyValue(property.name, property.buffBonus) }} {{ t('profile.fromBuff') }})
                 </small>
               </span>
               <span v-if="property.rating !== undefined" class="mt-1 text-[10px] font-medium text-gray-500">
@@ -173,6 +178,7 @@ import { computed, ref } from 'vue';
 import type { Component } from 'vue';
 import type { EffectiveModifier, EquipmentSlotId, EquipmentSlot } from '@/modules/Inventory/types';
 
+
 import BodyArmorIcon from './icons/BodyArmorIcon.vue';
 import BootsIcon from './icons/BootsIcon.vue';
 import GlovesIcon from './icons/GlovesIcon.vue';
@@ -194,6 +200,7 @@ const props = defineProps<{
   playerProperties: EffectiveModifier[];
   playerLevel: number;
   playerExperience: number;
+  experienceToNextLevel: number | null;
   playerGold: number;
   playerGems: number;
   playerFreeAttributes: number;
@@ -214,7 +221,7 @@ const { t } = useTranslation();
 
 const playerSummary = computed(() => [
   { key: 'level', value: props.playerLevel },
-  { key: 'experience', value: props.playerExperience },
+  { key: 'experience', value: props.experienceToNextLevel === null ? t('profile.maxLevel') : `${props.playerExperience} / ${props.experienceToNextLevel}` },
   { key: 'gold', value: props.playerGold },
   { key: 'gems', value: props.playerGems },
 ]);
@@ -232,6 +239,7 @@ const propertyFormula = (property: EffectiveModifier) => {
     ? t('profile.propertyFormulas.criticalDamage')
     : t('profile.propertyFormulas.chance');
 };
+
 
 const blocks = [
   { key: 'equipment', titleKey: 'profile.equipment' },

@@ -1,6 +1,8 @@
 import { UserModel } from '../../generated/models';
-import { AttributeType, StatType, type Prisma } from '../../generated/client';
+import { AttributeType, PlayerBuffType, StatType, type Prisma } from '../../generated/client';
 import { ItemView } from '../common/views/item.view';
+import { townAt } from '../locations/towns';
+import { experienceToNextLevel, MAX_PLAYER_LEVEL } from './level-progression';
 import {
   ATTRIBUTE_EFFECTS,
   convertRatingToPercentage,
@@ -25,6 +27,8 @@ type CurrentUserModel = Prisma.UserGetPayload<{
         };
         profileAttributes: { include: { attribute: true } };
         profileStats: { include: { stat: true } };
+        buffs: true;
+        dungeonVisits: true;
       };
     };
   };
@@ -39,6 +43,8 @@ type EffectiveModifier = {
   value: number;
   rating?: number;
   equipmentRatingBonus?: number;
+  buffBonus?: number;
+  buffRatingBonus?: number;
 };
 
 // 1. Задаем строгий тип для возможных вариантов view.
@@ -102,6 +108,17 @@ export class UserView {
       });
     }
 
+    // Derived from level so profile and combat agree, including existing characters.
+    for (const [name, perLevel] of [
+      [StatType.HEALTH, 10],
+      [StatType.MANA, 5],
+    ] as const) {
+      const property = properties.get(name)!;
+      const bonus = Math.max(0, Math.min(100, playerLevel) - 1) * perLevel;
+      property.baseValue += bonus;
+      property.value += bonus;
+    }
+
     for (const { item } of equippedEntries) {
       for (const { attribute, value } of item.attributes) {
         const current = attributes.get(attribute.name) ?? {
@@ -147,6 +164,16 @@ export class UserView {
       }
     }
 
+    const activeBuffs = (profile?.buffs ?? []).filter(({ expiresAt }) => expiresAt.getTime() > Date.now());
+    for (const buff of activeBuffs) {
+      const stat = buff.type === PlayerBuffType.DAMAGE ? StatType.DAMAGE : StatType.DEFENSE;
+      if (buff.type === PlayerBuffType.EXPERIENCE) continue;
+      const property = properties.get(stat);
+      if (!property) continue;
+      property.buffBonus = (property.buffBonus ?? 0) + buff.value;
+      property.value += buff.value;
+    }
+
     const renderedProperties = [...properties.values()].map((property) => {
       const stat = property.name as StatType;
       if (
@@ -159,7 +186,13 @@ export class UserView {
 
       const rating = property.value;
       const ratingWithoutEquipment = rating - property.equipmentBonus;
+      const ratingWithoutEquipmentOrBuff = ratingWithoutEquipment - (property.buffBonus ?? 0);
       const basePercentage = convertRatingToPercentage(stat, property.baseValue, playerLevel);
+      const percentageWithoutEquipmentOrBuff = convertRatingToPercentage(
+        stat,
+        ratingWithoutEquipmentOrBuff,
+        playerLevel,
+      );
       const percentageWithoutEquipment = convertRatingToPercentage(stat, ratingWithoutEquipment, playerLevel);
       const value = convertRatingToPercentage(stat, rating, playerLevel);
 
@@ -168,9 +201,15 @@ export class UserView {
         rating,
         equipmentRatingBonus: property.equipmentBonus,
         baseValue: basePercentage,
-        attributeBonus: Math.round((percentageWithoutEquipment - basePercentage) * 10) / 10,
+        attributeBonus: Math.round((percentageWithoutEquipmentOrBuff - basePercentage) * 10) / 10,
         equipmentBonus: Math.round((value - percentageWithoutEquipment) * 10) / 10,
         value,
+        ...(property.buffBonus
+          ? {
+              buffRatingBonus: property.buffBonus,
+              buffBonus: Math.round((percentageWithoutEquipment - percentageWithoutEquipmentOrBuff) * 10) / 10,
+            }
+          : {}),
       };
     });
 
@@ -179,8 +218,20 @@ export class UserView {
       gold: profile?.gold ?? 0,
       gems: profile?.gems ?? 0,
       experience: profile?.experience ?? 0,
+      experienceToNextLevel: experienceToNextLevel(playerLevel),
+      maxLevel: MAX_PLAYER_LEVEL,
+      devGemPurchasesEnabled:
+        process.env.NODE_ENV !== 'production' &&
+        (process.env.NODE_ENV === 'development' || process.env.npm_lifecycle_event === 'start:dev'),
+      currentShopId: profile ? (townAt(profile)?.shopId ?? null) : null,
+      dungeonCooldowns: (profile?.dungeonVisits ?? []).map(({ dungeon, nextEntryAt }) => ({ dungeon, nextEntryAt })),
       level: playerLevel,
       freeAttributes: profile?.freeAttributes ?? 0,
+      mapPosition: {
+        x: profile?.mapPositionX ?? 1470,
+        y: profile?.mapPositionY ?? 1040,
+      },
+      activeBuffs: activeBuffs.map(({ type, value, expiresAt }) => ({ type, value, expiresAt })),
       attributes: [...attributes.values()],
       properties: renderedProperties,
       inventory: entries.filter((entry) => !entry.isEquiped).map(renderEntry),

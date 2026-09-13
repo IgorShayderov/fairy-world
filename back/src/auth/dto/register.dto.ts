@@ -18,6 +18,6 @@ export class RegisterDto {
   @Matches(/[!@#$%^&*(),.?":{}|<>]/, { message: 'password must contain at least 1 symbol' })
   @Matches(/[a-z]/, { message: 'password must contain at least 1 latin character in lower register' })
   @Matches(/[A-Z]/, { message: 'password must contain at least 1 latin character in upper register' })
-  @Matches(/(.)\1{3}/, { message: 'no character may repeat more than 3 times consecutively', each: true })
+  @Matches(/^(?![\s\S]*(.)\1{3})[\s\S]*$/, { message: 'no character may repeat more than 3 times consecutively' })
   password!: string;
 }

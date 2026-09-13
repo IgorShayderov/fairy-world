@@ -28,6 +28,15 @@ export const refresh = async () => {
   return data;
 };
 
+export const signUp = async ({ email, password }: ISignData) => {
+  const { data } = await api.post<{ access_token: string; expiresIn: number }>(
+    routes.api.auth.signUpPath(), { email, password }
+  );
+  localStorage.setItem('access_token', data.access_token);
+  localStorage.setItem('access_token_expires_at', String(Date.now() + data.expiresIn * 1000));
+  return data;
+};
+
 export const signOut = async () => {
   await api.post(routes.api.auth.logoutPath());
   localStorage.removeItem('access_token');

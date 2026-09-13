@@ -1,4 +1,5 @@
 export default {
+  townRequired: 'This market is unavailable. Travel to a town and choose Visit the market.',
   title: 'Items',
   buy: 'Buy',
   loading: 'Loading...',
@@ -11,6 +12,7 @@ export default {
   successBuy: 'Purchase successful!',
   errorBuy: 'Not enough gold or an error occurred',
   successSell: 'Sold {{quantity}}× {{name}} for {{price}}g',
+  successSellMany: 'Sold {{quantity}} items for {{price}}g',
   errorSell: 'Sale error',
   newItemsIn: 'New items in',
   refreshItems: 'New stock',

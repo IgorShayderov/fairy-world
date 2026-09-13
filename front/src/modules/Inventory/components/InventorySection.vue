@@ -16,6 +16,7 @@
           v-for="(item, idx) in displayedInventory"
           :key="currentPage + '-' + idx"
           :item="item"
+          :comparison-item="item ? findEquippedItemForInventoryItem(equipmentSlots, item) : null"
           :is-hovered="isHovered === null"
           :is-dragging="dragIndex === getAbsoluteIndex(idx)"
           :empty-icon="ScrollIcon"
@@ -35,7 +36,9 @@
 import { useTranslation } from 'i18next-vue';
 import { ref, computed } from 'vue';
 
-import type { InventoryItemType } from '@/modules/Inventory/types';
+import type { EquipmentSlot, InventoryItemType } from '@/modules/Inventory/types';
+
+import { findEquippedItemForInventoryItem } from '@/modules/Inventory/utils/equipment';
 
 import ScrollIcon from './icons/ScrollIcon.vue';
 import InventoryItem from './InventoryItem.vue';
@@ -44,6 +47,7 @@ import SectionNavigation from '@/shared/components/SectionNavigation.vue';
 
 const props = defineProps<{
   inventory: (InventoryItemType | null)[];
+  equipmentSlots: EquipmentSlot[];
   dragIndex: number | null;
   isHovered: string | null;
 }>();

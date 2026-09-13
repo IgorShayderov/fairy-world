@@ -30,4 +30,13 @@ describe('character movement boundaries', () => {
     expect(character.consumeTravelStep()).toBe(true);
     expect(character.consumeTravelStep()).toBe(false);
   });
+
+  it('restores a saved position only when it is walkable', () => {
+    const character = useCharacter(1, 1, 20, 20, (x) => x < 10);
+
+    expect(character.setPosition(8, 7)).toBe(true);
+    expect(character.position).toMatchObject({ x: 8, y: 7 });
+    expect(character.setPosition(15, 7)).toBe(false);
+    expect(character.position).toMatchObject({ x: 8, y: 7 });
+  });
 });

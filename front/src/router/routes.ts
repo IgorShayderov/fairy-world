@@ -14,6 +14,7 @@ const appRoutes: RouteRecordRaw[] = [
         component: () => import('@pages/RootPage.vue'),
         children: [
           { path: routes.shopPath(), name: 'ShopPage', component: () => import('@pages/ShopPage.vue') },
+          { path: routes.gemShopPath(), name: 'GemShopPage', component: () => import('@pages/GemShopPage.vue') },
           {
             path: routes.profilePath(),
             name: 'ProfilePage',

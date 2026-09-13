@@ -4,8 +4,10 @@
   >
     <div class="flex items-center gap-3">
       <div>
-      <h2 class="text-lg font-bold text-gray-800">{{ t('shop.title') }}</h2>
-      <div v-if="nextRestockAt" class="text-xs text-gray-500">{{ t('shop.newItemsIn') }}: {{ countdown }}</div>
+        <h2 class="text-lg font-bold text-gray-800">{{ t('shop.title') }}</h2>
+        <div v-if="nextRestockAt" class="text-xs text-gray-500">
+          {{ t('shop.newItemsIn') }}: {{ countdown }}
+        </div>
       </div>
       <button
         class="rounded bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
@@ -19,13 +21,22 @@
       <span class="text-yellow-600">💰 {{ gold }} gold</span>
       <span class="text-violet-600">💎 {{ gems }} {{ t('shop.gems') }}</span>
     </span>
-    <button
-      class="rounded bg-green-500 px-4 py-1.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-green-600 disabled:opacity-50"
-      :disabled="disabled"
-      @click="$emit('buy')"
-    >
-      {{ t('shop.buy') }} ({{ cartTotal }}g)
-    </button>
+    <div class="flex items-stretch gap-2">
+      <button
+        class="rounded bg-green-500 px-4 py-1.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-green-600 disabled:opacity-50"
+        :disabled="disabled"
+        @click="$emit('buy')"
+      >
+        {{ t('shop.buy') }} ({{ cartTotal }}g)
+      </button>
+      <button
+        class="rounded bg-red-500 px-4 py-1.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-red-600 disabled:opacity-50"
+        :disabled="sellDisabled"
+        @click="$emit('sell')"
+      >
+        {{ t('shop.sell') }} ({{ sellTotal }}g)
+      </button>
+    </div>
   </div>
 </template>
 
@@ -38,6 +49,8 @@ const props = defineProps<{
   gems: number;
   cartTotal: number;
   disabled: boolean;
+  sellTotal: number;
+  sellDisabled: boolean;
   refreshCost: number;
   refreshDisabled: boolean;
   nextRestockAt: string | null;
@@ -45,6 +58,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'buy'): void;
+  (e: 'sell'): void;
   (e: 'refresh'): void;
   (e: 'restock-due'): void;
 }>();

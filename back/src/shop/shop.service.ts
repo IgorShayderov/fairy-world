@@ -3,9 +3,11 @@ import { EquipmentType, Prisma } from '../../generated/client';
 import { PrismaService } from '../prisma.service';
 import { BuyDto } from './dto/buy.dto';
 import { SellDto } from './dto/sell.dto';
+import { SellManyDto } from './dto/sell-many.dto';
 import { ItemView } from '../common/views/item.view';
 import { ItemGeneratorService } from '../items/item-generator.service';
 import { SEEDED_CONSUMABLES } from '../items/seeded-consumables';
+import { townAt } from '../locations/towns';
 
 const SHOP_RESTOCK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const SHOP_RESTOCK_ITEM_COUNT = 12;
@@ -22,7 +24,7 @@ export class ShopService {
   ) {}
 
   async getShop(userId: number, shopId: number) {
-    return this.trade(async (tx) => {
+    return this.trade(userId, shopId, async (tx, shopId) => {
       const [shop, profile] = await Promise.all([
         tx.shop.findUnique({ where: { id: shopId } }),
         tx.gameProfile.findUnique({ where: { userId }, select: { level: true } }),
@@ -33,7 +35,7 @@ export class ShopService {
       await tx.shopStock.deleteMany({ where: { shopId, quantity: { lte: 0 } } });
 
       const now = new Date();
-      if (!shop.nextRestockAt || shop.nextRestockAt <= now) {
+      if (!shop.nextRestockAt || shop.nextRestockAt <= now || shop.stockLevel !== profile.level) {
         await this.restock(tx, shopId, profile.level, now);
       }
 
@@ -57,7 +59,10 @@ export class ShopService {
       if (!currentShop) throw new NotFoundException('Shop not found');
       const { stock, ...details } = currentShop;
       return {
-        ...details,
+        id: details.townId ?? details.id,
+        name: details.name,
+        gold: details.gold,
+        nextRestockAt: details.nextRestockAt,
         refreshCost: SHOP_REFRESH_GEM_COST,
         items: stock.map(({ item, quantity }) => ({ ...ItemView.render(item), quantity })),
       };
@@ -65,7 +70,7 @@ export class ShopService {
   }
 
   async refresh(userId: number, shopId: number) {
-    return this.trade(async (tx) => {
+    return this.trade(userId, shopId, async (tx, shopId) => {
       const [shop, profile] = await Promise.all([
         tx.shop.findUnique({ where: { id: shopId }, select: { id: true } }),
         tx.gameProfile.findUnique({ where: { userId }, select: { id: true, level: true, gems: true } }),
@@ -91,7 +96,11 @@ export class ShopService {
       const levelOffset = SHOP_ITEM_LEVEL_OFFSETS[index % SHOP_ITEM_LEVEL_OFFSETS.length];
       const itemLevel = Math.max(1, playerLevel + levelOffset);
       const item = await this.itemGenerator.generate({ level: itemLevel }, tx);
-      await tx.shopStock.create({ data: { shopId, itemId: item.id, quantity: 1 } });
+      await tx.shopStock.upsert({
+        where: { shopId_itemId: { shopId, itemId: item.id } },
+        create: { shopId, itemId: item.id, quantity: 1 },
+        update: { quantity: { increment: 1 } },
+      });
       stockCount++;
     }
 
@@ -101,7 +110,11 @@ export class ShopService {
         { level: Math.max(1, playerLevel + levelOffset), equipmentType },
         tx,
       );
-      await tx.shopStock.create({ data: { shopId, itemId: item.id, quantity: 1 } });
+      await tx.shopStock.upsert({
+        where: { shopId_itemId: { shopId, itemId: item.id } },
+        create: { shopId, itemId: item.id, quantity: 1 },
+        update: { quantity: { increment: 1 } },
+      });
       stockCount++;
     }
 
@@ -118,19 +131,27 @@ export class ShopService {
       if (matchingItems.length === 0) continue;
 
       const item = matchingItems[Math.floor(Math.random() * matchingItems.length)];
-      await tx.shopStock.create({ data: { shopId, itemId: item.id, quantity: 1 } });
+      await tx.shopStock.upsert({
+        where: { shopId_itemId: { shopId, itemId: item.id } },
+        create: { shopId, itemId: item.id, quantity: 1 },
+        update: { quantity: { increment: 1 } },
+      });
       stockCount++;
     }
 
     while (stockCount < SHOP_RESTOCK_ITEM_COUNT) {
       const levelOffset = SHOP_ITEM_LEVEL_OFFSETS[stockCount % SHOP_ITEM_LEVEL_OFFSETS.length];
       const item = await this.itemGenerator.generate({ level: Math.max(1, playerLevel + levelOffset) }, tx);
-      await tx.shopStock.create({ data: { shopId, itemId: item.id, quantity: 1 } });
+      await tx.shopStock.upsert({
+        where: { shopId_itemId: { shopId, itemId: item.id } },
+        create: { shopId, itemId: item.id, quantity: 1 },
+        update: { quantity: { increment: 1 } },
+      });
       stockCount++;
     }
 
     const nextRestockAt = new Date(now.getTime() + SHOP_RESTOCK_INTERVAL_MS);
-    await tx.shop.update({ where: { id: shopId }, data: { nextRestockAt } });
+    await tx.shop.update({ where: { id: shopId }, data: { nextRestockAt, stockLevel: playerLevel } });
     return nextRestockAt;
   }
 
@@ -141,12 +162,30 @@ export class ShopService {
   }
 
   // Retry serialization conflicts so concurrent trades cannot spend the same stock or gold.
-  private async trade<T>(operation: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+  private async trade<T>(
+    userId: number,
+    shopId: number,
+    operation: (tx: Prisma.TransactionClient, personalShopId: number) => Promise<T>,
+  ): Promise<T> {
     for (let attempt = 0; ; attempt++) {
       try {
-        return await this.prisma.$transaction(operation, {
-          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-        });
+        return await this.prisma.$transaction(
+          async (tx) => {
+            const profile = await tx.gameProfile.findUnique({ where: { userId } });
+            if (!profile) throw new NotFoundException('Game profile not found');
+            const town = townAt(profile);
+            if (!town || town.shopId !== shopId) throw new BadRequestException('Travel to this town to use its shop');
+            const shop = await tx.shop.upsert({
+              where: { ownerId_townId: { ownerId: profile.id, townId: shopId } },
+              create: { ownerId: profile.id, townId: shopId, name: `${town.name} Market`, gold: 10000 },
+              update: {},
+            });
+            return operation(tx, shop.id);
+          },
+          {
+            isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+          },
+        );
       } catch (error) {
         if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034' && attempt < 3) continue;
         throw error;
@@ -156,7 +195,7 @@ export class ShopService {
 
   async buy(userId: number, shopId: number, dto: BuyDto) {
     this.validateQuantity(dto.quantity);
-    return this.trade(async (tx) => {
+    return this.trade(userId, shopId, async (tx, shopId) => {
       const shop = await tx.shop.findUnique({ where: { id: shopId } });
       if (!shop) throw new NotFoundException('Shop not found');
       const profile = await tx.gameProfile.findUnique({ where: { userId } });
@@ -205,7 +244,7 @@ export class ShopService {
 
   async sell(userId: number, shopId: number, dto: SellDto) {
     this.validateQuantity(dto.quantity);
-    return this.trade(async (tx) => {
+    return this.trade(userId, shopId, async (tx, shopId) => {
       const shop = await tx.shop.findUnique({ where: { id: shopId } });
       if (!shop) throw new NotFoundException('Shop not found');
       const entry = await tx.inventoryItem.findFirst({
@@ -229,6 +268,76 @@ export class ShopService {
         await tx.inventoryItem.update({ where: { id: entry.id }, data: { quantity: { decrement: dto.quantity } } });
       }
       return { success: true, itemId: dto.itemId, quantity: dto.quantity, earnedGold };
+    });
+  }
+
+  async sellMany(userId: number, shopId: number, dto: SellManyDto) {
+    if (dto.items.length === 0) throw new BadRequestException('At least one item is required');
+    for (const item of dto.items) this.validateQuantity(item.quantity);
+    const requested = new Map<number, number>();
+    for (const { itemId, quantity } of dto.items) requested.set(itemId, (requested.get(itemId) ?? 0) + quantity);
+    const items = [...requested].map(([itemId, quantity]) => ({ itemId, quantity }));
+    for (const item of items) this.validateQuantity(item.quantity);
+
+    return this.trade(userId, shopId, async (tx, shopId) => {
+      const [shop, profile] = await Promise.all([
+        tx.shop.findUnique({ where: { id: shopId } }),
+        tx.gameProfile.findUnique({ where: { userId }, select: { id: true } }),
+      ]);
+      if (!shop) throw new NotFoundException('Shop not found');
+      if (!profile) throw new NotFoundException('Game profile not found');
+
+      const entries = await tx.inventoryItem.findMany({
+        where: {
+          gameProfileId: profile.id,
+          itemId: { in: items.map(({ itemId }) => itemId) },
+          isEquiped: false,
+        },
+        include: { item: true },
+      });
+      const saleLines = items.map(({ itemId, quantity }) => {
+        const stacks = entries.filter((entry) => entry.itemId === itemId).sort((a, b) => a.id - b.id);
+        if (!stacks.length) throw new NotFoundException(`Item ${itemId} not found in inventory`);
+        if (stacks.reduce((sum, entry) => sum + entry.quantity, 0) < quantity)
+          throw new BadRequestException(`Not enough item ${itemId} in inventory`);
+        return {
+          stacks,
+          itemId,
+          quantity,
+          earnedGold: Math.max(1, Math.floor(stacks[0].item.price * 0.5 * quantity)),
+        };
+      });
+      const earnedGold = saleLines.reduce((total, line) => total + line.earnedGold, 0);
+      if (shop.gold < earnedGold) throw new BadRequestException('Shop does not have enough gold');
+
+      await tx.shop.update({ where: { id: shopId }, data: { gold: { decrement: earnedGold } } });
+      await tx.gameProfile.update({ where: { id: profile.id }, data: { gold: { increment: earnedGold } } });
+      for (const line of saleLines) {
+        await tx.shopStock.upsert({
+          where: { shopId_itemId: { shopId, itemId: line.itemId } },
+          update: { quantity: { increment: line.quantity } },
+          create: { shopId, itemId: line.itemId, quantity: line.quantity },
+        });
+        let remaining = line.quantity;
+        for (const entry of line.stacks) {
+          if (!remaining) break;
+          const sold = Math.min(remaining, entry.quantity);
+          if (sold === entry.quantity) await tx.inventoryItem.delete({ where: { id: entry.id } });
+          else await tx.inventoryItem.update({ where: { id: entry.id }, data: { quantity: { decrement: sold } } });
+          remaining -= sold;
+        }
+      }
+
+      return {
+        success: true,
+        quantity: saleLines.reduce((total, line) => total + line.quantity, 0),
+        earnedGold,
+        items: saleLines.map(({ itemId, quantity, earnedGold: lineGold }) => ({
+          itemId,
+          quantity,
+          earnedGold: lineGold,
+        })),
+      };
     });
   }
 }

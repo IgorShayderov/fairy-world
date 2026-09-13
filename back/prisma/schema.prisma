@@ -85,10 +85,54 @@ model GameProfile {
   experience     Int @default(0)
   level          Int @default(1)
   freeAttributes Int @default(0)
+  mapPositionX   Float @default(1470)
+  mapPositionY   Float @default(1040)
 
   inventory         InventoryItem[]
   profileAttributes ProfileAttribute[]
   profileStats      ProfileStat[]
+  buffs             GameProfileBuff[]
+  dungeonVisits     DungeonVisit[]
+  shops             Shop[]
+}
+
+model DungeonVisit {
+  gameProfileId Int
+  dungeon String
+  nextEntryAt DateTime
+  gameProfile GameProfile @relation(fields: [gameProfileId], references: [id], onDelete: Cascade)
+  @@id([gameProfileId, dungeon])
+}
+
+model Sanctuary {
+  id Int @id
+  name String @unique
+  x Float
+  y Float
+  buffType PlayerBuffType
+  buffValue Float
+  durationMinutes Int @default(240)
+}
+
+enum PlayerBuffType {
+  DAMAGE
+  DEFENSE
+  EXPERIENCE
+}
+
+model GameProfileBuff {
+  id            Int            @id @default(autoincrement())
+  gameProfileId Int
+  type          PlayerBuffType
+  value         Float
+  expiresAt     DateTime
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @default(now()) @updatedAt
+
+  gameProfile GameProfile @relation(fields: [gameProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([gameProfileId, type])
+  @@index([expiresAt])
 }
 
 enum AttributeType {
@@ -192,6 +236,10 @@ model Item {
 }
 
 model Shop {
+  ownerId       Int?
+  townId        Int?
+  stockLevel    Int?
+  owner         GameProfile? @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   id            Int         @id @default(autoincrement())
   name          String
   gold          Int         @default(0)
@@ -199,6 +247,7 @@ model Shop {
   nextRestockAt DateTime?
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
+  @@unique([ownerId, townId])
 }
 
 model ShopStock {

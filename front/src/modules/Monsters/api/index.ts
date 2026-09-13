@@ -1,3 +1,5 @@
+import type { InventoryEntry } from '@/modules/Inventory/types';
+
 import routes from '@/routes';
 import { api } from '@shared/api';
 
@@ -53,7 +55,7 @@ export interface BattleState {
     rewardExperience: number;
   };
   events: Array<{ actor: 'PLAYER' | 'MONSTER'; damage: number; critical: boolean; dodged: boolean }>;
-  rewards?: { gold: number; experience: number };
+  rewards?: { gold: number; experience: number; items: Array<InventoryEntry['item'] & { level: number; quantity: 1 }> };
 }
 
 export type EncounterRoll =

@@ -14,7 +14,8 @@
     <div class="map-vignette pointer-events-none absolute inset-0"></div>
     <div class="map-grain pointer-events-none absolute inset-0 opacity-25"></div>
 
-    <header class="pointer-events-none absolute top-5 left-5 z-10">
+    <div class="absolute top-5 left-5 z-10 flex max-w-[calc(100%-6rem)] flex-col items-start gap-4">
+    <header class="pointer-events-none">
       <div class="atlas-panel min-w-[250px] px-5 py-4 text-[#f7e8b5]">
         <div class="mb-1 flex items-center gap-2 text-[10px] font-semibold tracking-[0.32em] text-[#9edbd3] uppercase">
           <span class="h-px w-8 bg-[#78bfb8]/70"></span>
@@ -26,6 +27,8 @@
         <p class="mt-1 text-xs tracking-wide text-[#c7d7cd]">{{ t('fantasy.mapDescription') }}</p>
       </div>
     </header>
+    <ActiveBuffs compact :buffs="currentUserStore.user?.activeBuffs ?? []" />
+    </div>
 
     <aside class="pointer-events-none absolute bottom-5 left-5 z-10 hidden sm:block">
       <div class="atlas-panel px-4 py-3 text-[10px] font-semibold tracking-[0.15em] text-[#d6dfd5] uppercase">
@@ -59,6 +62,19 @@
       </div>
     </div>
 
+    <LandmarkEncounter
+      v-if="activeLandmark && !activeBattle"
+      :landmark="activeLandmark"
+      :pending="landmarkPending"
+      :message="landmarkMessage"
+      :gems="currentUserStore.user?.gems ?? 0"
+      @reset-dungeon="handleDungeonReset"
+      :next-entry-at="currentUserStore.user?.dungeonCooldowns?.find((entry) => entry.dungeon === activeLandmark?.name)?.nextEntryAt"
+      @close="activeLandmark = null"
+      @action="handleLandmarkAction"
+      @rumors="landmarkMessage = t('fantasy.landmark.rumorText')"
+    />
+
     <BattleEncounter
       v-if="activeBattle"
       :battle="activeBattle"
@@ -75,19 +91,78 @@
 import { useTranslation } from 'i18next-vue';
 import { QIcon } from 'quasar';
 import { onMounted, onUnmounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
 
 
+
+import { usersApi } from '@/modules/Auth/api/users';
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
+import { landmarks, type Landmark } from '@/modules/Game/composables/useMapObjects';
+import { enterDungeon, receiveBlessing, resetDungeon } from '@/modules/Locations/api';
 import type { BattleState } from '@/modules/Monsters/api';
 import { attackMonster, retreatFromBattle, rollMonsterEncounter } from '@/modules/Monsters/api';
+import routes from '@/routes';
 import { useCharacter } from '@modules/Game/composables/useCharacter';
 import { useMapCamera } from '@modules/Game/composables/useMapCamera';
 import { useMapGenerator } from '@modules/Game/composables/useMapGenerator';
 
+import ActiveBuffs from '@/modules/Game/components/ActiveBuffs.vue';
 import BattleEncounter from '@/modules/Game/components/BattleEncounter.vue';
+import LandmarkEncounter from '@/modules/Game/components/LandmarkEncounter.vue';
 
 const { t } = useTranslation();
 const currentUserStore = useCurrentUserStore();
+const router = useRouter();
+const activeLandmark = ref<Landmark | null>(null);
+const handleDungeonReset = async () => {
+  if (!activeLandmark.value || landmarkPending.value) return;
+  landmarkPending.value = true;
+  try {
+    await resetDungeon(activeLandmark.value.name);
+    await currentUserStore.fetchCurrentUser(true);
+    landmarkMessage.value = t('fantasy.landmark.resetDone');
+  } catch {
+    landmarkMessage.value = t('fantasy.landmark.error');
+  } finally { landmarkPending.value = false; }
+};
+const landmarkPending = ref(false);
+const landmarkMessage = ref('');
+let visitedLandmark: string | null = null;
+let disposed = false;
+const nearbyLandmark = (x: number, y: number) => landmarks.find((landmark) => Math.hypot(x - landmark.x, y - landmark.y) <= 70);
+
+const openLandmark = (landmark: Landmark) => {
+  stop();
+  visitedLandmark = landmark.name;
+  activeLandmark.value = landmark;
+  landmarkMessage.value = '';
+  void persistPosition();
+};
+
+const handleLandmarkAction = async () => {
+  const landmark = activeLandmark.value;
+  if (!landmark || landmarkPending.value) return;
+  landmarkPending.value = true;
+  try {
+    // Wait for the exact arrival coordinates before the server checks proximity.
+    await usersApi.updateMapPosition({ x: Math.round(position.x), y: Math.round(position.y) });
+    if (landmark.type === 'dungeon') {
+      activeBattle.value = await enterDungeon(landmark.name);
+      await currentUserStore.fetchCurrentUser(true);
+      activeLandmark.value = null;
+    } else if (landmark.type === 'sanctum') {
+      await receiveBlessing(landmark.name === 'STARGLEN' ? 1 : 2, { x: Math.round(position.x), y: Math.round(position.y) });
+      await currentUserStore.fetchCurrentUser(true);
+      landmarkMessage.value = t('fantasy.landmark.blessed');
+    } else {
+      await router.push(routes.shopPath());
+    }
+  } catch {
+    landmarkMessage.value = t('fantasy.landmark.error');
+  } finally {
+    landmarkPending.value = false;
+  }
+};
 const containerRef = ref<HTMLElement | null>(null);
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 const isDragging = ref(false);
@@ -104,7 +179,7 @@ const initialX = 1470;
 const initialY = 1040;
 
 const { renderProceduralMap, isPointOnLand } = useMapGenerator();
-const { camera, fitToScreen, startDrag, doDrag, endDrag, zoomAt, zoomBy, screenToMap } = useMapCamera(
+const { camera, centerOn, fitToScreen, startDrag, doDrag, endDrag, zoomAt, zoomBy, screenToMap } = useMapCamera(
   mapWidth,
   mapHeight
 );
@@ -115,13 +190,31 @@ offscreenCanvas.height = mapHeight;
 const offscreenCtx = offscreenCanvas.getContext('2d');
 if (offscreenCtx) renderProceduralMap(offscreenCtx, mapWidth, mapHeight);
 const canMoveTo = (x: number, y: number) => Boolean(offscreenCtx && isPointOnLand(offscreenCtx, x, y));
-const { isMoving, walkTo, update, render: renderCharacter, consumeTravelStep, stop } = useCharacter(
+const { position, isMoving, walkTo, update, render: renderCharacter, consumeTravelStep, stop, setPosition } = useCharacter(
   initialX,
   initialY,
   mapWidth,
   mapHeight,
   canMoveTo
 );
+let lastSavedPosition = `${initialX}:${initialY}`;
+
+const persistPosition = async () => {
+  const nextPosition = {
+    x: Math.round(position.x * 1000) / 1000,
+    y: Math.round(position.y * 1000) / 1000,
+  };
+  const positionKey = `${nextPosition.x}:${nextPosition.y}`;
+  if (positionKey === lastSavedPosition) return;
+  lastSavedPosition = positionKey;
+  try {
+    await usersApi.updateMapPosition(nextPosition);
+    if (currentUserStore.user) currentUserStore.user.mapPosition = nextPosition;
+  } catch (error) {
+    lastSavedPosition = '';
+    console.error('Failed to save map position:', error);
+  }
+};
 
 const draw = () => {
   if (!ctx || !canvasRef.value || !containerRef.value) return;
@@ -143,7 +236,7 @@ const draw = () => {
 const checkForEncounter = async () => {
   encounterPending.value = true;
   try {
-    const result = await rollMonsterEncounter();
+    const [, result] = await Promise.all([persistPosition(), rollMonsterEncounter()]);
     if (result.encountered) {
       stop();
       activeBattle.value = result.battle;
@@ -156,7 +249,7 @@ const checkForEncounter = async () => {
     encounterPending.value = false;
   }
 
-  if (isMoving.value) animationFrame = requestAnimationFrame(tick);
+  if (!disposed && !activeLandmark.value && isMoving.value) animationFrame = requestAnimationFrame(tick);
 };
 
 const handleAttack = async () => {
@@ -186,13 +279,23 @@ const handleRetreat = async () => {
 };
 
 const tick = () => {
+  if (disposed || activeBattle.value || activeLandmark.value) return;
   const stillMoving = update();
   draw();
+  const landmark = nearbyLandmark(position.x, position.y);
+  if (!landmark) visitedLandmark = null;
+  if (landmark && visitedLandmark !== landmark.name) {
+    openLandmark(landmark);
+    draw();
+    animationFrame = null;
+    return;
+  }
   if (consumeTravelStep() && !encounterPending.value) {
     animationFrame = null;
     void checkForEncounter();
     return;
   }
+  if (!stillMoving) void persistPosition();
   animationFrame = stillMoving ? requestAnimationFrame(tick) : null;
 };
 
@@ -205,6 +308,7 @@ const resizeCanvas = () => {
   canvasRef.value.height = Math.round(height * dpr);
   ctx = canvasRef.value.getContext('2d');
   fitToScreen(width, height);
+  centerOn(position.x, position.y, width, height);
   draw();
 };
 
@@ -227,9 +331,16 @@ const onPointerUp = (event: PointerEvent) => {
   isDragging.value = false;
   canvasRef.value?.releasePointerCapture(event.pointerId);
   if (!endDrag(event.clientX, event.clientY) || !canvasRef.value) return;
+  if (activeBattle.value || activeLandmark.value || encounterPending.value) return;
 
   const pointer = relativePointer(event);
   const mapCoords = screenToMap(pointer.x, pointer.y);
+  const landmark = nearbyLandmark(mapCoords.x, mapCoords.y);
+  if (landmark && nearbyLandmark(position.x, position.y)?.name === landmark.name) {
+    openLandmark(landmark);
+    draw();
+    return;
+  }
   const wasMoving = isMoving.value;
   if (!walkTo(mapCoords.x, mapCoords.y)) return;
   if (!wasMoving) animationFrame = requestAnimationFrame(tick);
@@ -256,16 +367,31 @@ const handleZoomBtn = (delta: number) => {
 const resetView = () => {
   if (!containerRef.value) return;
   fitToScreen(containerRef.value.clientWidth, containerRef.value.clientHeight);
+  centerOn(position.x, position.y, containerRef.value.clientWidth, containerRef.value.clientHeight);
   draw();
 };
 
-onMounted(() => {
+onMounted(async () => {
+  const user = await currentUserStore.fetchCurrentUser();
+  if (disposed) return;
+  const savedPosition = user.mapPosition;
+  if (savedPosition && setPosition(savedPosition.x, savedPosition.y)) {
+    lastSavedPosition = `${savedPosition.x}:${savedPosition.y}`;
+  } else {
+    lastSavedPosition = '';
+    void persistPosition();
+  }
   resizeCanvas();
+  const landmark = nearbyLandmark(position.x, position.y);
+  // Restoring a saved position is not a new arrival. Explicit nearby clicks still open it.
+  visitedLandmark = landmark?.name ?? null;
   resizeObserver = new ResizeObserver(resizeCanvas);
   if (containerRef.value) resizeObserver.observe(containerRef.value);
 });
 
 onUnmounted(() => {
+  disposed = true;
+  void persistPosition();
   resizeObserver?.disconnect();
   if (animationFrame !== null) cancelAnimationFrame(animationFrame);
 });

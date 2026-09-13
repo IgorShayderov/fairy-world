@@ -1,4 +1,7 @@
 export default {
+  levelUp: 'Level {{level}} reached! +5 free points, +10 HP and +5 mana.',
+  maxLevel: 'Maximum level',
+  requiredLevel: 'Requires player level {{level}}',
   inventory: 'Inventory',
   equipment: 'Equipment',
   characteristics: 'Attributes',
@@ -6,6 +9,21 @@ export default {
   freeAttributes: 'Free points',
   increaseAttribute: 'Increase {{attribute}} by 1',
   fromItems: 'from items',
+  fromBuff: 'from buff',
+  activeBuffs: 'Active buffs',
+  noActiveBuffs: 'No active buffs',
+  buffDescriptions: {
+    DAMAGE: 'Increases damage by {{value}}.',
+    DEFENSE: 'Increases defense rating by {{value}}.',
+    EXPERIENCE: 'Increases experience gained by {{value}}%.',
+  },
+  rating: 'rating',
+  buffTimeRemaining: '{{hours}}h {{minutes}}m remaining',
+  buffNames: {
+    DAMAGE: 'Damage',
+    DEFENSE: 'Defense',
+    EXPERIENCE: 'Experience gained',
+  },
   ratingPoints: 'Rating: {{value}}',
   summary: {
     level: 'Level',
@@ -51,10 +69,10 @@ export default {
     CRIT_DAMAGE: 'Damage dealt by a critical hit. It starts at 125%, has diminishing returns, and cannot exceed 300%.',
   },
   propertyFormulas: {
-    defense: 'damage reduction % = defense ÷ (defense + level × 10) × 100',
-    chance: 'final % = min(50%, max(0, rating) × 50 ÷ max(level, 10))',
+    defense: 'damage reduction % = defense ÷ (defense + max(level, 10) × 10) × 100',
+    chance: 'final % = min(50%, max(0, rating) × 50 ÷ max(level, 50))',
     criticalDamage:
-      'effective rating = rating × 10 ÷ max(level, 10); final % = min(300%, 125% + 175% × effective rating ÷ (effective rating + 7.75))',
+      'effective rating = rating × 10 ÷ max(level, 100); final % = min(300%, 125% + 175% × effective rating ÷ (effective rating + 7.75))',
   },
   slots: {
     head: 'Head',

@@ -25,6 +25,11 @@ export function useMapCamera(mapWidth: number, mapHeight: number) {
     mouseStart.y = clientY;
   };
 
+  const centerOn = (x: number, y: number, width: number, height: number) => {
+    camera.x = width / 2 - x * camera.scale;
+    camera.y = height / 2 - y * camera.scale;
+  };
+
   const doDrag = (clientX: number, clientY: number) => {
     if (!isDragging.value) return false;
     camera.x = clientX - dragStart.x;
@@ -68,6 +73,7 @@ export function useMapCamera(mapWidth: number, mapHeight: number) {
 
   return {
     camera,
+    centerOn,
     fitToScreen,
     startDrag,
     doDrag,

@@ -1,15 +1,18 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { EquipmentType, Prisma } from '../../generated/client';
 import { PrismaService } from '../prisma.service';
 import { UserModel, UserWhereInput } from '../../generated/models';
 import type { EquipItemDto, EquipmentSlotId } from './dto/equip-item.dto';
 import type { AllocateAttributeDto } from './dto/allocate-attribute.dto';
+import type { UpdateMapPositionDto } from './dto/update-map-position.dto';
 import { STARTING_ATTRIBUTE_VALUE } from './player-defaults';
+import { requiredPlayerLevel } from './level-progression';
+import { getPotionEffect, isHealthPotion, POTION_BUFF_DURATION_MS } from '../items/potion-effects';
 
 const SLOT_TYPES: Record<EquipmentSlotId, EquipmentType[]> = {
   head: [EquipmentType.HELMET],
   body: [EquipmentType.BODY],
-  'left-hand': [EquipmentType.WEAPON, EquipmentType.SHIELD],
+  'left-hand': [EquipmentType.WEAPON],
   'right-hand': [EquipmentType.WEAPON, EquipmentType.SHIELD],
   hands: [EquipmentType.GLOVES],
   legs: [EquipmentType.LEGS],
@@ -21,6 +24,18 @@ const SLOT_TYPES: Record<EquipmentSlotId, EquipmentType[]> = {
 
 @Injectable()
 export class UsersService {
+  async claimDevGems(userId: number) {
+    if (
+      process.env.NODE_ENV === 'production' ||
+      (process.env.NODE_ENV !== 'development' && process.env.npm_lifecycle_event !== 'start:dev')
+    )
+      throw new ForbiddenException('Development only');
+    return this.prisma.gameProfile.update({
+      where: { userId },
+      data: { gems: { increment: 100 } },
+      select: { gems: true },
+    });
+  }
   constructor(private prisma: PrismaService) {}
 
   findBy(where: UserWhereInput): Promise<UserModel | null> {
@@ -54,6 +69,8 @@ export class UsersService {
             },
             profileAttributes: { include: { attribute: true } },
             profileStats: { include: { stat: true } },
+            buffs: true,
+            dungeonVisits: true,
           },
         },
       },
@@ -102,7 +119,7 @@ export class UsersService {
   equipItem(userId: number, dto: EquipItemDto) {
     return this.prisma.$transaction(
       async (tx) => {
-        const profile = await tx.gameProfile.findUnique({ where: { userId }, select: { id: true } });
+        const profile = await tx.gameProfile.findUnique({ where: { userId }, select: { id: true, level: true } });
         if (!profile) throw new NotFoundException('Game profile not found');
 
         const source = await tx.inventoryItem.findFirst({
@@ -110,14 +127,81 @@ export class UsersService {
           include: { item: true },
         });
         if (!source) throw new NotFoundException('Inventory item not found');
+        if (profile.level < requiredPlayerLevel(source.item.level)) {
+          throw new BadRequestException(`This item requires player level ${requiredPlayerLevel(source.item.level)}`);
+        }
         if (!source.item.equipmentType.some((type) => SLOT_TYPES[dto.slot].includes(type))) {
           throw new BadRequestException('Item cannot be equipped in this slot');
+        }
+        if (source.item.equipmentType.includes(EquipmentType.POTION) && !isHealthPotion(source.item.name)) {
+          throw new BadRequestException('Only health potions can be equipped');
         }
 
         const target = await tx.inventoryItem.findFirst({
           where: { gameProfileId: profile.id, isEquiped: true, slot: dto.slot },
           include: { item: true },
         });
+
+        if (dto.slot === 'potion') {
+          if (source.isEquiped) return { success: true };
+
+          if (target?.itemId === source.itemId) {
+            const transferQuantity = Math.min(5 - target.quantity, source.quantity);
+            if (transferQuantity <= 0) throw new BadRequestException('Health potion slot is full');
+            await tx.inventoryItem.update({
+              where: { id: target.id },
+              data: { quantity: { increment: transferQuantity } },
+            });
+            if (source.quantity === transferQuantity) {
+              await tx.inventoryItem.delete({ where: { id: source.id } });
+            } else {
+              await tx.inventoryItem.update({
+                where: { id: source.id },
+                data: { quantity: { decrement: transferQuantity } },
+              });
+            }
+            return { success: true };
+          }
+
+          if (target) {
+            const backpackEntry = await tx.inventoryItem.findFirst({
+              where: { gameProfileId: profile.id, itemId: target.itemId, isEquiped: false },
+              select: { id: true },
+            });
+            if (backpackEntry) {
+              await tx.inventoryItem.update({
+                where: { id: backpackEntry.id },
+                data: { quantity: { increment: target.quantity } },
+              });
+              await tx.inventoryItem.delete({ where: { id: target.id } });
+            } else {
+              await tx.inventoryItem.update({ where: { id: target.id }, data: { isEquiped: false, slot: null } });
+            }
+          }
+
+          const equipQuantity = Math.min(5, source.quantity);
+          if (source.quantity > equipQuantity) {
+            await tx.inventoryItem.update({
+              where: { id: source.id },
+              data: { quantity: { decrement: equipQuantity } },
+            });
+            await tx.inventoryItem.create({
+              data: {
+                gameProfileId: profile.id,
+                itemId: source.itemId,
+                quantity: equipQuantity,
+                isEquiped: true,
+                slot: dto.slot,
+              },
+            });
+          } else {
+            await tx.inventoryItem.update({
+              where: { id: source.id },
+              data: { quantity: equipQuantity, isEquiped: true, slot: dto.slot },
+            });
+          }
+          return { success: true };
+        }
 
         if (source.isEquiped) {
           if (!source.slot) throw new BadRequestException('Equipped item has no slot');
@@ -171,6 +255,64 @@ export class UsersService {
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
+  }
+
+  consumeInventoryItem(userId: number, inventoryItemId: number) {
+    return this.prisma.$transaction(
+      async (tx) => {
+        const profile = await tx.gameProfile.findUnique({ where: { userId }, select: { id: true } });
+        if (!profile) throw new NotFoundException('Game profile not found');
+
+        const inventoryEntry = await tx.inventoryItem.findFirst({
+          where: { id: inventoryItemId, gameProfileId: profile.id, isEquiped: false },
+          include: { item: true },
+        });
+        if (!inventoryEntry) throw new NotFoundException('Inventory item not found');
+
+        const effect = getPotionEffect(inventoryEntry.item.name);
+        if (!inventoryEntry.item.isConsumable || !effect) {
+          throw new BadRequestException('Item cannot be consumed');
+        }
+        if (effect.kind === 'HEALTH') {
+          throw new BadRequestException('Health potions must be equipped');
+        }
+
+        if (inventoryEntry.quantity > 1) {
+          await tx.inventoryItem.update({
+            where: { id: inventoryEntry.id },
+            data: { quantity: { decrement: 1 } },
+          });
+        } else {
+          await tx.inventoryItem.delete({ where: { id: inventoryEntry.id } });
+        }
+
+        if (effect.kind === 'FREE_ATTRIBUTE') {
+          await tx.gameProfile.update({
+            where: { id: profile.id },
+            data: { freeAttributes: { increment: effect.value } },
+          });
+          return { success: true, effect: 'FREE_ATTRIBUTE', value: effect.value };
+        }
+
+        const expiresAt = new Date(Date.now() + POTION_BUFF_DURATION_MS);
+        const buff = await tx.gameProfileBuff.upsert({
+          where: { gameProfileId_type: { gameProfileId: profile.id, type: effect.type } },
+          create: { gameProfileId: profile.id, type: effect.type, value: effect.value, expiresAt },
+          update: { value: effect.value, expiresAt },
+        });
+        return { success: true, effect: buff.type, value: buff.value, expiresAt: buff.expiresAt };
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+  }
+
+  async updateMapPosition(userId: number, position: UpdateMapPositionDto) {
+    const result = await this.prisma.gameProfile.updateMany({
+      where: { userId },
+      data: { mapPositionX: position.x, mapPositionY: position.y },
+    });
+    if (result.count === 0) throw new NotFoundException('Game profile not found');
+    return { x: position.x, y: position.y };
   }
 
   unequipItem(userId: number, slot: EquipmentSlotId) {

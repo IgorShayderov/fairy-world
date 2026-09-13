@@ -1,0 +1,6 @@
+CREATE TABLE "Sanctuary" (
+ "id" INTEGER PRIMARY KEY, "name" TEXT NOT NULL UNIQUE, "x" DOUBLE PRECISION NOT NULL, "y" DOUBLE PRECISION NOT NULL,
+ "buffType" "PlayerBuffType" NOT NULL, "buffValue" DOUBLE PRECISION NOT NULL, "durationMinutes" INTEGER NOT NULL DEFAULT 240
+);
+INSERT INTO "Sanctuary" ("id", "name", "x", "y", "buffType", "buffValue") VALUES
+(1, 'STARGLEN', 720, 1480, 'DEFENSE', 10), (2, 'DAWNSHRINE', 2240, 1540, 'EXPERIENCE', 20);

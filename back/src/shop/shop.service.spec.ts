@@ -4,7 +4,7 @@ import { ItemGeneratorService } from '../items/item-generator.service';
 
 describe('ShopService trades', () => {
   const tx = {
-    shop: { findUnique: jest.fn(), update: jest.fn() },
+    shop: { findUnique: jest.fn(), update: jest.fn(), upsert: jest.fn() },
     shopStock: {
       findUnique: jest.fn(),
       update: jest.fn(),
@@ -15,7 +15,13 @@ describe('ShopService trades', () => {
     },
     gameProfile: { findUnique: jest.fn(), update: jest.fn() },
     item: { findMany: jest.fn() },
-    inventoryItem: { findFirst: jest.fn(), update: jest.fn(), delete: jest.fn(), create: jest.fn() },
+    inventoryItem: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+      create: jest.fn(),
+    },
   };
   const prisma = { $transaction: jest.fn() };
   const itemGenerator = { generate: jest.fn() };
@@ -24,8 +30,16 @@ describe('ShopService trades', () => {
   beforeEach(() => {
     jest.resetAllMocks();
     prisma.$transaction.mockImplementation((operation: (client: typeof tx) => unknown) => operation(tx));
-    tx.shop.findUnique.mockResolvedValue({ id: 2, gold: 1000, nextRestockAt: new Date('2099-01-01') });
-    tx.gameProfile.findUnique.mockResolvedValue({ id: 5, gold: 200, gems: 20, level: 4 });
+    tx.shop.upsert.mockResolvedValue({ id: 2 });
+    tx.shop.findUnique.mockResolvedValue({ id: 2, stockLevel: 4, gold: 1000, nextRestockAt: new Date('2099-01-01') });
+    tx.gameProfile.findUnique.mockResolvedValue({
+      id: 5,
+      gold: 200,
+      gems: 20,
+      level: 4,
+      mapPositionX: 940,
+      mapPositionY: 620,
+    });
     tx.shopStock.findUnique.mockResolvedValue({ quantity: 10, item: { price: 20 } });
     tx.inventoryItem.findFirst.mockResolvedValue({
       id: 8,
@@ -34,6 +48,10 @@ describe('ShopService trades', () => {
       quantity: 7,
       item: { price: 20 },
     });
+    tx.inventoryItem.findMany.mockResolvedValue([
+      { id: 8, gameProfileId: 5, itemId: 3, quantity: 7, item: { price: 20 } },
+      { id: 9, gameProfileId: 5, itemId: 4, quantity: 2, item: { price: 50 } },
+    ]);
     tx.item.findMany.mockResolvedValue([
       { id: 101, equipmentType: ['POTION'] },
       { id: 102, equipmentType: ['SCROLL'] },
@@ -41,6 +59,51 @@ describe('ShopService trades', () => {
   });
 
   afterEach(() => jest.useRealTimers());
+
+  it('sells across multiple dropped stacks with the same item id', async () => {
+    tx.inventoryItem.findMany.mockResolvedValue([
+      { id: 41, itemId: 3, quantity: 1, item: { price: 20 } },
+      { id: 42, itemId: 3, quantity: 1, item: { price: 20 } },
+    ]);
+    await expect(
+      service.sellMany(1, 2, {
+        items: [
+          { itemId: 3, quantity: 1 },
+          { itemId: 3, quantity: 1 },
+        ],
+      }),
+    ).resolves.toMatchObject({ quantity: 2, earnedGold: 20 });
+    expect(tx.inventoryItem.delete).toHaveBeenCalledWith({ where: { id: 41 } });
+    expect(tx.inventoryItem.delete).toHaveBeenCalledWith({ where: { id: 42 } });
+    expect(tx.shopStock.upsert).toHaveBeenCalledTimes(1);
+  });
+
+  it('resolves a shop by both player and town', async () => {
+    await service.buy(1, 2, { itemId: 3, quantity: 1 });
+    expect(tx.shop.upsert).toHaveBeenCalledWith({
+      where: { ownerId_townId: { ownerId: 5, townId: 2 } },
+      create: { ownerId: 5, townId: 2, name: 'AURELIA Market', gold: 10000 },
+      update: {},
+    });
+  });
+
+  it('rejects every shop operation outside a town before mutations', async () => {
+    tx.gameProfile.findUnique.mockResolvedValue({ id: 5, mapPositionX: 2000, mapPositionY: 1800 });
+    for (const operation of [
+      () => service.getShop(1, 2),
+      () => service.refresh(1, 2),
+      () => service.buy(1, 2, { itemId: 3, quantity: 1 }),
+      () => service.sell(1, 2, { itemId: 3, quantity: 1 }),
+      () => service.sellMany(1, 2, { items: [{ itemId: 3, quantity: 1 }] }),
+    ])
+      await expect(operation()).rejects.toThrow('Travel to this town');
+    expect(tx.shop.update).not.toHaveBeenCalled();
+    expect(tx.shopStock.upsert).not.toHaveBeenCalled();
+  });
+
+  it('rejects a different town shop even while standing in a town', async () => {
+    await expect(service.getShop(1, 1)).rejects.toThrow('Travel to this town');
+  });
 
   it('sells the requested quantity and credits only the selected shop stock', async () => {
     const result = await service.sell(1, 2, { itemId: 3, quantity: 4 });
@@ -69,6 +132,46 @@ describe('ShopService trades', () => {
       update: { quantity: { increment: 7 } },
       create: { shopId: 2, itemId: 3, quantity: 7 },
     });
+  });
+
+  it('sells several selected item stacks atomically', async () => {
+    const result = await service.sellMany(1, 2, {
+      items: [
+        { itemId: 3, quantity: 4 },
+        { itemId: 4, quantity: 2 },
+      ],
+    });
+
+    expect(result).toEqual({
+      success: true,
+      quantity: 6,
+      earnedGold: 90,
+      items: [
+        { itemId: 3, quantity: 4, earnedGold: 40 },
+        { itemId: 4, quantity: 2, earnedGold: 50 },
+      ],
+    });
+    expect(tx.shop.update).toHaveBeenCalledTimes(1);
+    expect(tx.shop.update).toHaveBeenCalledWith({ where: { id: 2 }, data: { gold: { decrement: 90 } } });
+    expect(tx.gameProfile.update).toHaveBeenCalledWith({ where: { id: 5 }, data: { gold: { increment: 90 } } });
+    expect(tx.shopStock.upsert).toHaveBeenCalledTimes(2);
+    expect(tx.inventoryItem.update).toHaveBeenCalledWith({
+      where: { id: 8 },
+      data: { quantity: { decrement: 4 } },
+    });
+    expect(tx.inventoryItem.delete).toHaveBeenCalledWith({ where: { id: 9 } });
+  });
+
+  it('combines duplicate requested item lines into one sale', async () => {
+    await expect(
+      service.sellMany(1, 2, {
+        items: [
+          { itemId: 3, quantity: 1 },
+          { itemId: 3, quantity: 2 },
+        ],
+      }),
+    ).resolves.toMatchObject({ success: true, quantity: 3, earnedGold: 30 });
+    expect(tx.shopStock.upsert).toHaveBeenCalledTimes(1);
   });
 
   it('rejects a sale when the shop cannot afford it before any mutation', async () => {
@@ -131,9 +234,10 @@ describe('ShopService trades', () => {
     tx.shop.findUnique.mockResolvedValue({
       id: 2,
       name: 'Armory',
+      stockLevel: 4,
       gold: 500,
       nextRestockAt,
-      stock: [{ quantity: 9, item: { id: 3, name: 'Shield', attributes: [], stats: [] } }],
+      stock: [{ quantity: 9, item: { id: 3, level: 4, name: 'Shield', attributes: [], stats: [] } }],
     });
     await expect(service.getShop(1, 2)).resolves.toEqual({
       id: 2,
@@ -141,7 +245,7 @@ describe('ShopService trades', () => {
       gold: 500,
       nextRestockAt,
       refreshCost: 10,
-      items: [{ id: 3, name: 'Shield', quantity: 9, attributes: [], properties: [] }],
+      items: [{ id: 3, level: 4, requiredPlayerLevel: 1, name: 'Shield', quantity: 9, attributes: [], properties: [] }],
     });
     expect(tx.shopStock.deleteMany).toHaveBeenCalledWith({ where: { shopId: 2, quantity: { lte: 0 } } });
     expect(itemGenerator.generate).not.toHaveBeenCalled();
@@ -167,12 +271,20 @@ describe('ShopService trades', () => {
     expect(itemGenerator.generate).toHaveBeenNthCalledWith(9, { level: 5, equipmentType: 'GLOVES' }, tx);
     expect(itemGenerator.generate).toHaveBeenNthCalledWith(10, { level: 6, equipmentType: 'LEGS' }, tx);
     expect(tx.shopStock.deleteMany).toHaveBeenCalledWith({ where: { shopId: 2 } });
-    expect(tx.shopStock.create).toHaveBeenCalledTimes(12);
-    expect(tx.shopStock.create).toHaveBeenCalledWith({ data: { shopId: 2, itemId: 101, quantity: 1 } });
-    expect(tx.shopStock.create).toHaveBeenCalledWith({ data: { shopId: 2, itemId: 102, quantity: 1 } });
+    expect(tx.shopStock.upsert).toHaveBeenCalledTimes(12);
+    expect(tx.shopStock.upsert).toHaveBeenCalledWith({
+      where: { shopId_itemId: { shopId: 2, itemId: 101 } },
+      create: { shopId: 2, itemId: 101, quantity: 1 },
+      update: { quantity: { increment: 1 } },
+    });
+    expect(tx.shopStock.upsert).toHaveBeenCalledWith({
+      where: { shopId_itemId: { shopId: 2, itemId: 102 } },
+      create: { shopId: 2, itemId: 102, quantity: 1 },
+      update: { quantity: { increment: 1 } },
+    });
     expect(tx.shop.update).toHaveBeenCalledWith({
       where: { id: 2 },
-      data: { nextRestockAt },
+      data: { nextRestockAt, stockLevel: 4 },
     });
   });
 
@@ -190,12 +302,19 @@ describe('ShopService trades', () => {
     });
     expect(tx.shopStock.deleteMany).toHaveBeenCalledWith({ where: { shopId: 2 } });
     expect(itemGenerator.generate).toHaveBeenCalledTimes(10);
-    expect(tx.shopStock.create).toHaveBeenCalledTimes(12);
-    expect(tx.shop.update).toHaveBeenCalledWith({ where: { id: 2 }, data: { nextRestockAt } });
+    expect(tx.shopStock.upsert).toHaveBeenCalledTimes(12);
+    expect(tx.shop.update).toHaveBeenCalledWith({ where: { id: 2 }, data: { nextRestockAt, stockLevel: 4 } });
   });
 
   it('does not refresh stock when the player has fewer than ten gems', async () => {
-    tx.gameProfile.findUnique.mockResolvedValue({ id: 5, gold: 200, level: 4, gems: 9 });
+    tx.gameProfile.findUnique.mockResolvedValue({
+      id: 5,
+      gold: 200,
+      level: 4,
+      gems: 9,
+      mapPositionX: 940,
+      mapPositionY: 620,
+    });
 
     await expect(service.refresh(1, 2)).rejects.toThrow('Not enough gems');
 

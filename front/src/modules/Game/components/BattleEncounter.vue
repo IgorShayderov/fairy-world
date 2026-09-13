@@ -40,9 +40,27 @@
           </div>
         </div>
         <p v-else class="mt-2 text-sm text-[#92aaa5]">{{ t('fantasy.encounter.chooseAction') }}</p>
-        <div v-if="battle.rewards" class="mt-3 flex gap-4 font-bold text-[#efca72]">
-          <span>+{{ battle.rewards.gold }} {{ t('profile.summary.gold') }}</span>
-          <span>+{{ battle.rewards.experience }} {{ t('profile.summary.experience') }}</span>
+        <div v-if="battle.rewards" class="mt-3">
+          <div class="flex gap-4 font-bold text-[#efca72]">
+            <span>+{{ battle.rewards.gold }} {{ t('profile.summary.gold') }}</span>
+            <span>+{{ battle.rewards.experience }} {{ t('profile.summary.experience') }}</span>
+          </div>
+          <div v-if="battle.rewards.items.length" class="mt-3">
+            <div class="mb-2 text-xs font-bold tracking-[0.14em] text-[#efca72] uppercase">
+              {{ t('fantasy.encounter.loot') }}
+            </div>
+            <div class="flex flex-wrap gap-3">
+              <div v-for="item in battle.rewards.items" :key="item.id" class="text-center">
+                <InventoryItem :item="lootInventoryItem(item)" class="h-24 w-24 bg-white" />
+                <div class="mt-1 text-[10px] font-bold uppercase" :class="getRarityTextClass(item.rarity)">
+                  {{ t(`profile.rarity.${item.rarity.toLowerCase()}`) }}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div v-else class="mt-2 text-xs font-medium text-[#92aaa5]">
+            {{ t('fantasy.encounter.noLoot') }}
+          </div>
         </div>
       </div>
 
@@ -80,12 +98,33 @@ import { useTranslation } from 'i18next-vue';
 import { QIcon } from 'quasar';
 import { computed, defineComponent, h } from 'vue';
 
+import type { InventoryItemType } from '@/modules/Inventory/types';
+
 import { getBattleEventSubject } from '@/modules/Game/battleEvent';
+import { getRarityTextClass } from '@/modules/Inventory/utils/rarity';
 import type { BattleState } from '@/modules/Monsters/api';
+
+import InventoryItem from '@/modules/Inventory/components/InventoryItem.vue';
 
 const props = defineProps<{ battle: BattleState; playerName: string; loading: boolean }>();
 defineEmits<{ (event: 'attack'): void; (event: 'retreat'): void; (event: 'close'): void }>();
 const { t } = useTranslation();
+
+const lootInventoryItem = (item: NonNullable<BattleState['rewards']>['items'][number]): InventoryItemType => ({
+  id: item.id,
+  nameKey: item.name,
+  name: item.name,
+  tooltipName: item.name,
+  icon: item.icon,
+  description: item.description,
+  price: item.price,
+  rarity: t(`profile.rarity.${item.rarity.toLowerCase()}`),
+  rarityKey: item.rarity,
+  equipmentType: item.equipmentType,
+  attributes: item.attributes,
+  properties: item.properties,
+  quantity: item.quantity,
+});
 
 const statusTitle = computed(() => {
   if (props.battle.status === 'VICTORY') return t('fantasy.encounter.victory');

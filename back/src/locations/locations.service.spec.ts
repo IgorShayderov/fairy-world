@@ -6,6 +6,11 @@ describe('LocationsService', () => {
   let service: LocationsService;
 
   const mockPrismaService = {
+    $executeRaw: jest.fn(),
+    sanctuary: { findUnique: jest.fn() },
+    $transaction: jest.fn(),
+    gameProfile: { findUnique: jest.fn() },
+    gameProfileBuff: { findUnique: jest.fn(), upsert: jest.fn() },
     location: {
       findMany: jest.fn(),
       findUnique: jest.fn(),
@@ -18,6 +23,18 @@ describe('LocationsService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    mockPrismaService.gameProfileBuff.findUnique.mockResolvedValue(null);
+    mockPrismaService.sanctuary.findUnique.mockResolvedValue({
+      id: 1,
+      x: 720,
+      y: 1480,
+      buffType: 'DEFENSE',
+      buffValue: 10,
+      durationMinutes: 240,
+    });
+    mockPrismaService.$transaction.mockImplementation((operation: (tx: typeof mockPrismaService) => unknown) =>
+      operation(mockPrismaService),
+    );
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [LocationsService, { provide: PrismaService, useValue: mockPrismaService }],
@@ -28,6 +45,60 @@ describe('LocationsService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+  });
+
+  it('rejects unknown sanctuary ids and forged coordinates', async () => {
+    mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4, mapPositionX: 720, mapPositionY: 1480 });
+    await expect(service.bless(7, 1, { x: 0, y: 0 })).rejects.toThrow('Travel to this landmark first');
+    mockPrismaService.sanctuary.findUnique.mockResolvedValue(null);
+    await expect(service.bless(7, 999, { x: 720, y: 1480 })).rejects.toThrow('Sanctuary not found');
+    expect(mockPrismaService.gameProfileBuff.upsert).not.toHaveBeenCalled();
+  });
+
+  it('uses Dawnshrine experience bonuses defined by the database', async () => {
+    mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4, mapPositionX: 2240, mapPositionY: 1540 });
+    mockPrismaService.sanctuary.findUnique.mockResolvedValue({
+      id: 2,
+      x: 2240,
+      y: 1540,
+      buffType: 'EXPERIENCE',
+      buffValue: 20,
+      durationMinutes: 240,
+    });
+    await service.bless(7, 2, { x: 2240, y: 1540 });
+    const calls = mockPrismaService.gameProfileBuff.upsert.mock.calls as [
+      { create: { type: string; value: number } },
+    ][];
+    expect(calls[0][0].create).toMatchObject({ type: 'EXPERIENCE', value: 20 });
+  });
+
+  it('grants a four-hour blessing at a sanctuary', async () => {
+    mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4, mapPositionX: 720, mapPositionY: 1480 });
+    mockPrismaService.gameProfileBuff.findUnique.mockResolvedValue(null);
+    const before = Date.now();
+    await service.bless(7, 1, { x: 720, y: 1480 });
+    const calls = mockPrismaService.gameProfileBuff.upsert.mock.calls as [
+      {
+        create: { gameProfileId: number; type: string; value: number; expiresAt: Date };
+      },
+    ][];
+    const args = calls[0][0];
+    expect(args.create).toMatchObject({ gameProfileId: 4, type: 'DEFENSE', value: 10 });
+    expect(args.create.expiresAt.getTime()).toBeGreaterThanOrEqual(before + 4 * 60 * 60 * 1000);
+  });
+
+  it('preserves an active defense potion', async () => {
+    mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4, mapPositionX: 720, mapPositionY: 1480 });
+    const buff = { value: 50, expiresAt: new Date(Date.now() + 60_000) };
+    mockPrismaService.gameProfileBuff.findUnique.mockResolvedValue(buff);
+    await expect(service.bless(7, 1, { x: 720, y: 1480 })).resolves.toBe(buff);
+    expect(mockPrismaService.gameProfileBuff.upsert).not.toHaveBeenCalled();
+  });
+
+  it('rejects a blessing from a distant landmark', async () => {
+    mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4, mapPositionX: 1470, mapPositionY: 1040 });
+    await expect(service.bless(7, 1, { x: 720, y: 1480 })).rejects.toThrow('Travel to this landmark first');
+    expect(mockPrismaService.gameProfileBuff.upsert).not.toHaveBeenCalled();
   });
 
   describe('findAll', () => {

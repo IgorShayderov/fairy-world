@@ -15,10 +15,10 @@ export interface GeneratedMonster {
 @Injectable()
 export class MonsterGeneratorService {
   generate(playerLevel: number): GeneratedMonster {
-    const level = Math.max(1, playerLevel + this.randomInt(-2, 2));
+    const level = Math.max(1, playerLevel + this.randomInt(0, 2));
     const archetype = this.randomElement(MONSTER_ARCHETYPES);
     const rank = this.generateRank();
-    const attributeBase = Math.max(1, Math.round((2 + level * 0.12) * rank.powerMultiplier));
+    const attributeBase = Math.max(1, Math.round((2 + level * 0.65) * rank.powerMultiplier));
 
     return {
       id: this.randomInt(1_000_000, 2_000_000_000),

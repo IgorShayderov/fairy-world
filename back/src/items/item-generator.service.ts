@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { AttributeType, EquipmentType, ItemRarity, StatType, type Prisma } from '../../generated/client';
 import { PrismaService } from '../prisma.service';
 import { BASE_ITEMS, BaseItem, Modifier, PREFIXES, RARITY_WEIGHTS, SUFFIXES } from './item-generator.config';
+import { itemIdentity } from './item-identity';
 
 interface GenerateItemOptions {
   level: number;
@@ -18,7 +19,17 @@ interface GeneratedModifier {
 export class ItemGeneratorService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async generate(options: GenerateItemOptions, client: Pick<Prisma.TransactionClient, 'item'> = this.prisma) {
+  async generate(
+    options: GenerateItemOptions,
+    client?: Prisma.TransactionClient,
+  ): Promise<
+    Prisma.ItemGetPayload<{
+      include: { stats: { include: { stat: true } }; attributes: { include: { attribute: true } } };
+    }>
+  > {
+    if (!client) return this.prisma.$transaction((tx) => this.generate(options, tx));
+    // Serialize catalog generation across shop refreshes and battle drops.
+    await client.$executeRaw`SELECT pg_advisory_xact_lock(7241901)`;
     const level = Math.max(1, options.level);
 
     const baseItem = this.pickBaseItem(options.equipmentType);
@@ -46,6 +57,34 @@ export class ItemGeneratorService {
       } else {
         attributes.set(modifier.attribute, (attributes.get(modifier.attribute) ?? 0) + value);
       }
+    }
+
+    const identity = itemIdentity({
+      equipmentType: [baseItem.equipmentType],
+      isConsumable: false,
+      name,
+      stats: [...stats].map(([name, value]) => ({ stat: { name }, value })),
+      attributes: [...attributes].map(([name, value]) => ({ attribute: { name }, value })),
+    });
+    const candidates = await client.item.findMany({
+      where: { equipmentType: { equals: [baseItem.equipmentType] }, isConsumable: false },
+      include: { stats: { include: { stat: true } }, attributes: { include: { attribute: true } } },
+      orderBy: { id: 'asc' },
+    });
+    const existing = candidates.find((item) => itemIdentity(item) === identity);
+    if (existing) {
+      if (existing.level > level) {
+        return client.item.update({
+          where: { id: existing.id },
+          data: {
+            level,
+            description: existing.description.replace(/level \d+/, `level ${level}`),
+            price: Math.min(existing.price, price),
+          },
+          include: { stats: { include: { stat: true } }, attributes: { include: { attribute: true } } },
+        });
+      }
+      return existing;
     }
 
     return client.item.create({
@@ -131,12 +170,27 @@ export class ItemGeneratorService {
     }
 
     const modifierCount =
-      rarity === ItemRarity.MAGIC ? this.randomInt(1, 2) : rarity === ItemRarity.RARE ? this.randomInt(3, 5) : 0;
+      rarity === ItemRarity.MAGIC
+        ? this.randomInt(1, 2)
+        : rarity === ItemRarity.RARE
+          ? this.randomInt(2, 3)
+          : rarity === ItemRarity.UNIQUE
+            ? this.randomInt(4, 5)
+            : 0;
 
     const available = [...PREFIXES, ...SUFFIXES].filter((modifier) => modifier.equipmentTypes.includes(equipmentType));
 
     const selected: GeneratedModifier[] = [];
     const pool = [...available];
+    // Every magic-or-better item has an attribute affix, regardless of its source.
+    if (modifierCount > 0) {
+      const attributePool = pool.filter((modifier) => modifier.kind === 'attribute');
+      if (attributePool.length) {
+        const modifier = this.randomElement(attributePool);
+        pool.splice(pool.indexOf(modifier), 1);
+        selected.push({ modifier, value: this.generateModifierValue(modifier, level) });
+      }
+    }
 
     while (selected.length < modifierCount && pool.length > 0) {
       const index = this.randomInt(0, pool.length - 1);
@@ -162,9 +216,9 @@ export class ItemGeneratorService {
      * lvl 20 => примерно x1.95
      * lvl 50 => примерно x3.45
      */
-    const levelMultiplier = 1 + Math.max(0, level - 1) * 0.05;
+    const levelMultiplier = 1 + Math.max(0, level - 1) * 0.025;
 
-    return Math.max(1, Math.round(baseValue * levelMultiplier));
+    return Math.max(1, Math.round(baseValue * levelMultiplier * 0.5));
   }
 
   private generateName(baseItem: BaseItem, rarity: ItemRarity, modifiers: GeneratedModifier[]): string {

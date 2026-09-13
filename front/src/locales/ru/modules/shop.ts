@@ -1,4 +1,5 @@
 export default {
+  townRequired: 'Рынок недоступен. Доберитесь до поселения и выберите «Посетить рынок».',
   title: 'Товары',
   buy: 'Купить',
   loading: 'Загрузка...',
@@ -11,6 +12,7 @@ export default {
   successBuy: 'Покупка успешна!',
   errorBuy: 'Недостаточно золота или ошибка',
   successSell: 'Продано {{quantity}}× {{name}} за {{price}}g',
+  successSellMany: 'Продано предметов: {{quantity}}, получено {{price}}g',
   errorSell: 'Ошибка продажи',
   newItemsIn: 'Новые товары через',
   refreshItems: 'Новый товар',

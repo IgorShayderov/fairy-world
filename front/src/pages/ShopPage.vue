@@ -1,16 +1,21 @@
 <template>
   <div class="flex h-full min-h-0 flex-1 flex-col bg-gray-50 text-gray-900">
-    <div class="flex min-h-0 flex-1 overflow-hidden">
+    <div v-if="accessError" class="p-6 text-center text-gray-600">{{ t('shop.townRequired') }}</div>
+    <div v-else class="shop-panels min-h-0 flex-1 overflow-hidden">
       <main class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <div class="shrink-0 bg-white px-6 pt-2 font-semibold">{{ shopName }}</div>
         <ShopHeader
           :gold="gold"
           :gems="gems"
           :cart-total="cartTotal()"
           :disabled="!cartHasItems() || loading"
+          :sell-total="sellTotal()"
+          :sell-disabled="!sellHasItems() || loading"
           :refresh-cost="refreshCost"
           :refresh-disabled="loading || gems < refreshCost"
           :next-restock-at="nextRestockAt"
           @buy="buyFromCart"
+          @sell="sellSelectedItems"
           @refresh="refreshStock"
           @restock-due="loadData"
         />
@@ -33,15 +38,6 @@
           </div>
         </div>
 
-        <div
-          v-if="Object.keys(cart).length > 0"
-          class="shrink-0 border-t border-gray-200 bg-white px-6 py-3 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]"
-        >
-          <div class="flex items-center justify-between text-sm">
-            <span class="font-medium text-gray-500">{{ t('shop.inCart') }}</span>
-            <span class="text-lg font-bold text-gray-900">{{ cartTotal() }} gold</span>
-          </div>
-        </div>
       </main>
 
       <ShopInventorySidebar
@@ -50,8 +46,7 @@
         :sell-quantity="sellQuantity"
         :loading="loading"
         @adjust-sell="adjustSell"
-        @update-sell-quantity="(id, val) => (sellQuantity[id] = val)"
-        @sell="sellFromInventory"
+        @update-sell-quantity="setSellQuantity"
         @add-one-to-sell="addOneToSell"
       />
     </div>
@@ -82,6 +77,8 @@ import ShopProductCard from '@/modules/Shop/components/ShopProductCard.vue';
 const { t } = useTranslation();
 
 const {
+  accessError,
+  shopName,
   shopItems,
   inventory,
   equippedItems,
@@ -99,14 +96,17 @@ const {
   cartHasItems,
   buyFromCart,
   adjustSell,
-  sellFromInventory,
+  setSellQuantity,
+  sellTotal,
+  sellHasItems,
+  sellSelectedItems,
   addOneToSell,
   refreshStock,
   loadData,
 } = useShopActions();
 
 onMounted(async () => {
-  await loadData();
+  await loadData(true);
 });
 
 const findEquippedItem = (equipmentTypes: EquipmentType[]): InventoryItemType | null => {
@@ -128,3 +128,11 @@ const findEquippedItem = (equipmentTypes: EquipmentType[]): InventoryItemType | 
   };
 };
 </script>
+
+<style scoped>
+.shop-panels {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr);
+}
+</style>

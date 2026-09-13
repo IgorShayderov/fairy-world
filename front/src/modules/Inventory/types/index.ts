@@ -28,9 +28,13 @@ export interface EffectiveModifier extends ItemModifier {
   equipmentBonus: number;
   rating?: number;
   equipmentRatingBonus?: number;
+  buffBonus?: number;
+  buffRatingBonus?: number;
 }
 
 export interface InventoryItemType {
+  level?: number;
+  requiredPlayerLevel?: number;
   inventoryItemId?: number;
   id?: number;
   nameKey: string;
@@ -52,6 +56,8 @@ export interface InventoryItemType {
 export interface InventoryEntry {
   id: number;
   item: {
+    level?: number;
+    requiredPlayerLevel?: number;
     id: number;
     name: string;
     description: string;

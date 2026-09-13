@@ -8,6 +8,8 @@
           name: itemTypeName,
           nameKey: itemTypeName,
           tooltipName: item.name,
+          level: item.level,
+          requiredPlayerLevel: item.requiredPlayerLevel ?? 1,
           icon: item.icon,
           description: item.description,
           price: item.price,
