@@ -18,11 +18,21 @@ export class LocationsService {
         throw new BadRequestException('Travel to this landmark first');
       }
       const blessing = { type: sanctuary.buffType, value: sanctuary.buffValue };
+      const visitKey = { gameProfileId_sanctuaryId: { gameProfileId: profile.id, sanctuaryId } };
+      const visit = await tx.sanctuaryVisit.findUnique({ where: visitKey });
+      if (visit && visit.nextBlessingAt > new Date()) {
+        throw new BadRequestException('This sanctuary grants a blessing only once every four hours');
+      }
       const existing = await tx.gameProfileBuff.findUnique({
         where: { gameProfileId_type: { gameProfileId: profile.id, type: blessing.type } },
       });
       // A blessing never replaces a stronger potion or stacks with another blessing.
       if (existing && existing.expiresAt > new Date()) return existing;
+      await tx.sanctuaryVisit.upsert({
+        where: visitKey,
+        create: { gameProfileId: profile.id, sanctuaryId, nextBlessingAt: new Date(Date.now() + 4 * 60 * 60 * 1000) },
+        update: { nextBlessingAt: new Date(Date.now() + 4 * 60 * 60 * 1000) },
+      });
       const expiresAt = new Date(Date.now() + sanctuary.durationMinutes * 60 * 1000);
       return tx.gameProfileBuff.upsert({
         where: { gameProfileId_type: { gameProfileId: profile.id, type: blessing.type } },

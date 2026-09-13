@@ -7,9 +7,9 @@
       <p class="mt-5 leading-relaxed">{{ t(`fantasy.landmark.${kind}.story`) }}</p>
       <p class="mt-3 text-sm text-[#efca72]">{{ t(kind === 'sanctum' ? `fantasy.landmark.blessings.${landmark.name}` : `fantasy.landmark.${kind}.effect`) }}</p>
       <p v-if="message" role="status" class="mt-4 rounded-lg bg-white/10 p-3 text-sm">{{ message }}</p>
-      <p v-if="coolingDown" class="mt-3 text-sm text-amber-200">{{ t('fantasy.landmark.cooldown', { minutes: Math.ceil((Date.parse(nextEntryAt!) - now) / 60000) }) }}</p>
+      <p v-if="coolingDown" class="mt-3 text-sm text-amber-200">{{ t(kind === 'sanctum' ? 'fantasy.landmark.blessingCooldown' : 'fantasy.landmark.cooldown', { minutes: Math.ceil((Date.parse(nextEntryAt!) - now) / 60000) }) }}</p>
       <div class="mt-6 flex flex-wrap justify-end gap-3">
-        <button v-if="coolingDown" class="rounded-lg border border-violet-300 px-4 py-2 text-violet-200 disabled:opacity-50" :disabled="pending || gems < 10" @click="$emit('reset-dungeon')">{{ t('fantasy.landmark.resetDungeon') }}</button>
+        <button v-if="coolingDown && kind === 'dungeon'" class="rounded-lg border border-violet-300 px-4 py-2 text-violet-200 disabled:opacity-50" :disabled="pending || gems < 10" @click="$emit('reset-dungeon')">{{ t('fantasy.landmark.resetDungeon') }}</button>
         <button class="rounded-lg border border-white/20 px-4 py-2 disabled:opacity-50" :disabled="pending" @click="$emit('close')">{{ t('fantasy.landmark.leave') }}</button>
         <button v-if="kind === 'village'" class="rounded-lg border border-white/20 px-4 py-2 disabled:opacity-50" :disabled="pending" @click="$emit('quests')">{{ t('menu.quests') }}</button>
         <button class="rounded-lg bg-[#dfc16d] px-4 py-2 font-semibold text-[#102831] disabled:opacity-50" :disabled="pending || coolingDown" @click="$emit('action')">{{ pending ? t('shop.loading') : t(`fantasy.landmark.${kind}.action`) }}</button>

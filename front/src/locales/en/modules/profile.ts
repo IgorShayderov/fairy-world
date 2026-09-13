@@ -1,5 +1,5 @@
 export default {
-  levelUp: 'Level {{level}} reached! +5 free points, +10 HP and +5 mana.',
+  levelUp: 'Level {{level}} reached!',
   maxLevel: 'Maximum level',
   requiredLevel: 'Requires player level {{level}}',
   inventory: 'Inventory',
@@ -26,6 +26,8 @@ export default {
   },
   ratingPoints: 'Rating: {{value}}',
   summary: {
+    killedMonsters: 'Monsters killed',
+    accomplishedQuests: 'Quests completed',
     level: 'Level',
     experience: 'Experience',
     gold: 'Gold',

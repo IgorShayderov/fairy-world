@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { AttributeType } from '../../generated/client';
 import { MONSTER_ARCHETYPES, MONSTER_RANKS, MonsterRank } from './monster-generator.config';
+import { habitatAt } from './monster-habitats';
 
 export interface GeneratedMonster {
   monsterType: string;
@@ -15,9 +16,13 @@ export interface GeneratedMonster {
 
 @Injectable()
 export class MonsterGeneratorService {
-  generate(playerLevel: number): GeneratedMonster {
+  generate(playerLevel: number, position?: { x: number; y: number }): GeneratedMonster {
     const level = Math.max(1, playerLevel + this.randomInt(0, 2));
-    const archetype = this.randomElement(MONSTER_ARCHETYPES);
+    const habitat = position ? habitatAt(position) : null;
+    const candidates = habitat
+      ? MONSTER_ARCHETYPES.filter((archetype) => (habitat.monsters as readonly string[]).includes(archetype.name))
+      : MONSTER_ARCHETYPES;
+    const archetype = this.randomElement(candidates);
     const rank = this.generateRank();
     const attributeBase = Math.max(1, Math.round((2 + level * 0.65) * rank.powerMultiplier));
 

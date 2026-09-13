@@ -11,6 +11,7 @@ export async function recordQuestVictory(
     where: {
       gameProfileId,
       completedAt: null,
+      canceledAt: null,
       acceptedAt: { lte: battleStartedAt },
       quest: { monsterType: { in: [monsterType, '*'] } },
     },
@@ -20,7 +21,7 @@ export async function recordQuestVictory(
     const progress = Math.min(entry.quest.target, entry.progress + 1);
     const completed = progress === entry.quest.target;
     const updated = await tx.playerQuest.updateMany({
-      where: { gameProfileId, questId: entry.questId, progress: entry.progress, completedAt: null },
+      where: { gameProfileId, questId: entry.questId, progress: entry.progress, completedAt: null, canceledAt: null },
       data: { progress, completedAt: completed ? new Date() : null },
     });
     if (completed && updated.count === 1) {

@@ -13,6 +13,8 @@
           :experience-to-next-level="currentUserStore.user?.experienceToNextLevel ?? null"
           :player-gold="currentUserStore.user?.gold ?? 0"
           :player-gems="currentUserStore.user?.gems ?? 0"
+          :killed-monsters="currentUserStore.user?.killedMonsters ?? 0"
+          :accomplished-quests="currentUserStore.user?.accomplishedQuests ?? 0"
           :player-free-attributes="currentUserStore.user?.freeAttributes ?? 0"
           :allocating-attribute="allocatingAttribute"
           @slot-enter="(id) => (isHoveredSlot = id)"

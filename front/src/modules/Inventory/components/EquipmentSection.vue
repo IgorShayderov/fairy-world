@@ -203,6 +203,8 @@ const props = defineProps<{
   experienceToNextLevel: number | null;
   playerGold: number;
   playerGems: number;
+  killedMonsters: number;
+  accomplishedQuests: number;
   playerFreeAttributes: number;
   allocatingAttribute: string | null;
 }>();
@@ -224,6 +226,8 @@ const playerSummary = computed(() => [
   { key: 'experience', value: props.experienceToNextLevel === null ? t('profile.maxLevel') : `${props.playerExperience} / ${props.experienceToNextLevel}` },
   { key: 'gold', value: props.playerGold },
   { key: 'gems', value: props.playerGems },
+  { key: 'killedMonsters', value: props.killedMonsters },
+  { key: 'accomplishedQuests', value: props.accomplishedQuests },
 ]);
 
 const percentageProperties = new Set(['DEFENSE', 'CRIT', 'DODGE', 'CRIT_DAMAGE']);

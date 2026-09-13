@@ -9,6 +9,9 @@ export type CurrentUser = {
   email: string;
   gold: number;
   gems: number;
+  killedMonsters?: number;
+  accomplishedQuests?: number;
+  sanctuaryCooldowns?: Array<{ sanctuaryId: number; nextBlessingAt: string }>;
   experience: number;
   experienceToNextLevel?: number | null;
   maxLevel?: number;

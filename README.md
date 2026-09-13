@@ -215,6 +215,16 @@ npx ts-node scripts/deduplicate-items.ts --apply # merge in one transaction
 
 The merge preserves inventory row IDs, quantities, and equipped slots, combines shop quantities, and saves a recovery snapshot in `back/backups/` before removing duplicate catalog records. Backups are excluded from Git.
 
+### Quests and activity statistics
+
+Cities and villages offer a quest board instead of rumors. Players can accept a quest or choose “Not now”; declined offers remain available later. `/quests` shows current progress and finished quests, and is linked from the side menu.
+
+Each town now generates three distinct hunting contracts daily at 00:00 UTC, with 8–20 targets and 10 gold per kill. A town/day seed keeps randomized offers stable across reloads, with nearby hunting grounds favored. Existing accepted and completed quests remain intact; accepted contracts do not expire when the board refreshes. `GET /api/v1/quests` returns the journal and offers when the player is in town. `POST /api/v1/quests/:id/accept` validates the saved town and offer expiry; repeated acceptance never resets an active quest. `POST /api/v1/quests/:id/cancel` cancels an optional active quest from anywhere. Reaccepting a canceled, still-available offer resets its progress. Primary and finished quests cannot be canceled.
+
+Travel encounters use the saved player coordinates to choose the nearest hunting region from `back/src/monsters/monster-habitats.ts`. Each region has two equally likely species (for example, Dire Wolves and Forest Trolls in Whisperwood near Westmere). Quests describe the region, nearby landmark, and coordinates. All ranks count; accepting a quest does not change encounter odds. Dungeon generators retain their independent monster pool. Only victories in battles started after acceptance count, including dungeon monsters of the matching type. Completion and the gold reward are saved atomically with battle rewards.
+
+Each sanctuary grants a blessing at most once per player every four hours. Its database cooldown is independent of the buff, so replacing a buff cannot reset the timer. `/api/v1/users/me` exposes `sanctuaryCooldowns`, `killedMonsters`, and `accomplishedQuests`; the profile Statistics block shows both counts. Kill tracking starts with this migration because historical battles were not persisted.
+
 ### Lint, types, and tests
 
 Before opening a pull request, run:

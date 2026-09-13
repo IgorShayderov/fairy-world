@@ -63,19 +63,23 @@
     </div>
 
     <LandmarkEncounter
-      v-if="activeLandmark && !activeBattle"
+      v-if="activeLandmark && !activeBattle && !showQuestOffers"
       :landmark="activeLandmark"
       :pending="landmarkPending"
       :message="landmarkMessage"
       :gems="currentUserStore.user?.gems ?? 0"
       @reset-dungeon="handleDungeonReset"
       :next-entry-at="
-        currentUserStore.user?.dungeonCooldowns?.find((entry) => entry.dungeon === activeLandmark?.name)?.nextEntryAt
+        activeLandmark.type === 'sanctum'
+          ? currentUserStore.user?.sanctuaryCooldowns?.find((entry) => entry.sanctuaryId === (activeLandmark?.name === 'STARGLEN' ? 1 : 2))?.nextBlessingAt
+          : currentUserStore.user?.dungeonCooldowns?.find((entry) => entry.dungeon === activeLandmark?.name)?.nextEntryAt
       "
       @close="activeLandmark = null"
       @action="handleLandmarkAction"
       @quests="openQuests"
     />
+
+    <TownQuestDialog v-if="showQuestOffers && activeLandmark" :town-name="activeLandmark.name" @close="showQuestOffers = false" />
 
     <BattleEncounter
       v-if="activeBattle"
@@ -109,6 +113,7 @@ import { useMapGenerator } from '@modules/Game/composables/useMapGenerator';
 import ActiveBuffs from '@/modules/Game/components/ActiveBuffs.vue';
 import BattleEncounter from '@/modules/Game/components/BattleEncounter.vue';
 import LandmarkEncounter from '@/modules/Game/components/LandmarkEncounter.vue';
+import TownQuestDialog from '@/modules/Quests/TownQuestDialog.vue';
 
 const { t } = useTranslation();
 const currentUserStore = useCurrentUserStore();
@@ -134,13 +139,14 @@ const openQuests = async () => {
   landmarkPending.value = true;
   try {
     await usersApi.updateMapPosition({ x: Math.round(position.x), y: Math.round(position.y) });
-    await router.push(routes.questsPath());
+    showQuestOffers.value = true;
   } catch {
     landmarkMessage.value = t('fantasy.landmark.error');
   } finally {
     landmarkPending.value = false;
   }
 };
+const showQuestOffers = ref(false);
 let visitedLandmark: string | null = null;
 let disposed = false;
 const nearbyLandmark = (x: number, y: number) =>
@@ -257,7 +263,10 @@ const draw = () => {
 const checkForEncounter = async () => {
   encounterPending.value = true;
   try {
-    const [, result] = await Promise.all([persistPosition(), rollMonsterEncounter()]);
+    const encounterPosition = { x: Math.round(position.x), y: Math.round(position.y) };
+    await usersApi.updateMapPosition(encounterPosition);
+    if (currentUserStore.user) currentUserStore.user.mapPosition = encounterPosition;
+    const result = await rollMonsterEncounter();
     if (result.encountered) {
       stop();
       activeBattle.value = result.battle;

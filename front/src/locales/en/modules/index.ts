@@ -73,6 +73,7 @@ const modules = {
         action: 'Receive blessing',
       },
       cooldown: 'You can enter again in {{minutes}} minutes.',
+      blessingCooldown: 'This sanctuary can bless you again in {{minutes}} minutes.',
       dungeon: {
         label: 'Dungeon entrance',
         story:

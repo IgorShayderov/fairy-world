@@ -8,6 +8,7 @@ describe('LocationsService', () => {
   const mockPrismaService = {
     $executeRaw: jest.fn(),
     sanctuary: { findUnique: jest.fn() },
+    sanctuaryVisit: { findUnique: jest.fn(), upsert: jest.fn() },
     $transaction: jest.fn(),
     gameProfile: { findUnique: jest.fn() },
     gameProfileBuff: { findUnique: jest.fn(), upsert: jest.fn() },
@@ -23,6 +24,7 @@ describe('LocationsService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    mockPrismaService.sanctuaryVisit.findUnique.mockResolvedValue(null);
     mockPrismaService.gameProfileBuff.findUnique.mockResolvedValue(null);
     mockPrismaService.sanctuary.findUnique.mockResolvedValue({
       id: 1,
@@ -93,6 +95,23 @@ describe('LocationsService', () => {
     mockPrismaService.gameProfileBuff.findUnique.mockResolvedValue(buff);
     await expect(service.bless(7, 1, { x: 720, y: 1480 })).resolves.toBe(buff);
     expect(mockPrismaService.gameProfileBuff.upsert).not.toHaveBeenCalled();
+  });
+
+  it('rejects another blessing during cooldown even if the original buff is gone', async () => {
+    mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4, mapPositionX: 720, mapPositionY: 1480 });
+    mockPrismaService.sanctuaryVisit.findUnique.mockResolvedValue({ nextBlessingAt: new Date(Date.now() + 60_000) });
+    await expect(service.bless(7, 1, { x: 720, y: 1480 })).rejects.toThrow('only once every four hours');
+    expect(mockPrismaService.gameProfileBuff.upsert).not.toHaveBeenCalled();
+  });
+
+  it('allows a blessing after the saved cooldown expires and saves a new four-hour cooldown', async () => {
+    mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4, mapPositionX: 720, mapPositionY: 1480 });
+    mockPrismaService.sanctuaryVisit.findUnique.mockResolvedValue({ nextBlessingAt: new Date(Date.now() - 1) });
+    const before = Date.now();
+    await service.bless(7, 1, { x: 720, y: 1480 });
+    expect(mockPrismaService.gameProfileBuff.upsert).toHaveBeenCalledTimes(1);
+    const calls = mockPrismaService.sanctuaryVisit.upsert.mock.calls as [{ create: { nextBlessingAt: Date } }][];
+    expect(calls[0][0].create.nextBlessingAt.getTime()).toBeGreaterThanOrEqual(before + 4 * 60 * 60 * 1000);
   });
 
   it('rejects a blessing from a distant landmark', async () => {

@@ -55,6 +55,8 @@ describe('MonstersService', () => {
       experience: 0,
       freeAttributes: 0,
       buffs,
+      mapPositionX: 1470,
+      mapPositionY: 1040,
       inventory: [],
       profileAttributes: [],
       profileStats:
@@ -207,7 +209,7 @@ describe('MonstersService', () => {
       const result = await service.rollEncounter(7);
       expect(result.encountered).toBe(true);
       if (!result.encountered) throw new Error('Expected encounter');
-      expect(mockMonsterGenerator.generate).toHaveBeenCalledWith(100);
+      expect(mockMonsterGenerator.generate).toHaveBeenCalledWith(100, { x: 1470, y: 1040 });
       expect(result.monster).toBe(monster);
       expect(typeof result.battle.id).toBe('string');
       expect(result.battle.status).toBe('ACTIVE');
@@ -257,7 +259,7 @@ describe('MonstersService', () => {
       expect(battle.events.length).toBeGreaterThan(0);
       expect(mockPrismaService.gameProfile.update).toHaveBeenCalledWith({
         where: { userId: 7 },
-        data: { gold: { increment: 7 }, experience: { increment: 14 } },
+        data: { gold: { increment: 7 }, experience: { increment: 14 }, killedMonsters: { increment: 1 } },
         select: { id: true, level: true, experience: true },
       });
       expect(battle.rewards?.items).toEqual([]);

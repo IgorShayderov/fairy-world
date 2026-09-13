@@ -20,4 +20,9 @@ export class QuestsController {
   accept(@Request() req: RequestWithUser, @Param('id', ParseIntPipe) id: number) {
     return this.quests.accept(req.user.sub, id);
   }
+
+  @Post(':id/cancel')
+  cancel(@Request() req: RequestWithUser, @Param('id', ParseIntPipe) id: number) {
+    return this.quests.cancel(req.user.sub, id);
+  }
 }

@@ -1,0 +1,176 @@
+name: Deploy production
+
+on:
+  workflow_run:
+    workflows:
+      - project-check
+    branches:
+      - master
+    types:
+      - completed
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to VPS
+    runs-on: ubuntu-latest
+
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    env:
+      DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+      DEPLOY_PORT: ${{ vars.DEPLOY_PORT }}
+      DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+      DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+
+    steps:
+      - name: Checkout deployed commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Validate configuration
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          : "${DEPLOY_HOST:?DEPLOY_HOST is not configured}"
+          : "${DEPLOY_USER:?DEPLOY_USER is not configured}"
+          : "${DEPLOY_PATH:?DEPLOY_PATH is not configured}"
+
+      - name: Configure SSH
+        shell: bash
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          set -Eeuo pipefail
+
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          ssh-keyscan \
+            -p "${DEPLOY_PORT:-22}" \
+            "$DEPLOY_HOST" \
+            >> ~/.ssh/known_hosts
+
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Check server availability
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          PORT="${DEPLOY_PORT:-22}"
+
+          ssh \
+            -i ~/.ssh/deploy_key \
+            -p "$PORT" \
+            -o BatchMode=yes \
+            -o ConnectTimeout=10 \
+            -o StrictHostKeyChecking=yes \
+            "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "echo 'Server is available'"
+
+      - name: Create deploy directory
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          PORT="${DEPLOY_PORT:-22}"
+
+          ssh \
+            -i ~/.ssh/deploy_key \
+            -p "$PORT" \
+            -o StrictHostKeyChecking=yes \
+            "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "mkdir -p '${DEPLOY_PATH}/front' '${DEPLOY_PATH}/back'"
+
+      - name: Upload application
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          PORT="${DEPLOY_PORT:-22}"
+
+          rsync \
+            -az \
+            --delete \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='front/.env.production' \
+            --exclude='back/.env.production' \
+            --exclude='front/node_modules' \
+            --exclude='back/node_modules' \
+            -e "ssh -i ~/.ssh/deploy_key -p $PORT -o StrictHostKeyChecking=yes" \
+            ./ \
+            "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/"
+
+      - name: Verify production env files
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          PORT="${DEPLOY_PORT:-22}"
+
+          ssh \
+            -i ~/.ssh/deploy_key \
+            -p "$PORT" \
+            -o StrictHostKeyChecking=yes \
+            "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "
+              set -e
+
+              test -f '${DEPLOY_PATH}/front/.env.production' \
+                || { echo 'front/.env.production not found'; exit 1; }
+
+              test -f '${DEPLOY_PATH}/back/.env.production' \
+                || { echo 'back/.env.production not found'; exit 1; }
+
+              echo 'Production env files found'
+            "
+
+      - name: Deploy
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          PORT="${DEPLOY_PORT:-22}"
+
+          ssh \
+            -i ~/.ssh/deploy_key \
+            -p "$PORT" \
+            -o StrictHostKeyChecking=yes \
+            "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "
+              set -Eeuo pipefail
+
+              cd '${DEPLOY_PATH}'
+
+              echo 'Deploying commit: ${{ github.event.workflow_run.head_sha }}'
+
+              docker compose \
+                -f docker-compose.prod.yml \
+                config --quiet
+
+              docker compose \
+                -f docker-compose.prod.yml \
+                up \
+                -d \
+                --build \
+                --remove-orphans
+
+              docker image prune -f
+
+              docker compose \
+                -f docker-compose.prod.yml \
+                ps
+            "

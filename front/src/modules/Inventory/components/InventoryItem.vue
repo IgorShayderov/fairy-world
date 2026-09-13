@@ -70,14 +70,12 @@
         <div class="font-semibold">{{ $t('profile.tooltip.attributes') }}</div>
         <div v-for="attribute in item.attributes" :key="attribute.name">
           <div>{{ modifierName(attribute.name, 'attribute') }}: {{ signedValue(attribute.value) }}</div>
-          <div v-if="attribute.description" class="text-gray-300">{{ attribute.description }}</div>
         </div>
       </div>
       <div v-if="item.properties?.length" class="mt-2 text-xs">
         <div class="font-semibold">{{ $t('profile.tooltip.properties') }}</div>
         <div v-for="property in item.properties" :key="property.name">
           <div>{{ modifierName(property.name, 'property') }}: {{ signedValue(property.value) }}</div>
-          <div v-if="property.description" class="text-gray-300">{{ property.description }}</div>
         </div>
       </div>
 
