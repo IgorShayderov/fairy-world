@@ -138,6 +138,16 @@ describe('UsersService', () => {
   });
 
   describe('equipment', () => {
+    it('blocks shields in the left hand', async () => {
+      mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4, level: 1 });
+      mockPrismaService.inventoryItem.findFirst.mockResolvedValueOnce({
+        item: { level: 1, equipmentType: ['SHIELD'] },
+      });
+      await expect(service.equipItem(7, { inventoryItemId: 9, slot: 'left-hand' })).rejects.toThrow(
+        'cannot be equipped',
+      );
+      expect(mockPrismaService.inventoryItem.update).not.toHaveBeenCalled();
+    });
     it('rejects items more than three levels higher before modifying inventory', async () => {
       mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4, level: 1 });
       mockPrismaService.inventoryItem.findFirst.mockResolvedValueOnce({

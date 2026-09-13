@@ -109,6 +109,28 @@ export class MonstersService {
     return this.renderBattle(battle);
   }
 
+  async resetDungeon(userId: number, name: string) {
+    if ([...this.battles.values()].some((battle) => battle.userId === userId && battle.status === 'ACTIVE')) {
+      throw new BadRequestException('Finish the active battle first');
+    }
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${userId})`;
+      const profile = await tx.gameProfile.findUnique({ where: { userId } });
+      if (!profile) throw new NotFoundException('Game profile not found');
+      requireLandmark(name, 'dungeon', profile);
+      const where = { gameProfileId_dungeon: { gameProfileId: profile.id, dungeon: name } };
+      const visit = await tx.dungeonVisit.findUnique({ where });
+      if (!visit || visit.nextEntryAt <= new Date()) throw new BadRequestException('Dungeon is already available');
+      const paid = await tx.gameProfile.updateMany({
+        where: { id: profile.id, gems: { gte: 10 } },
+        data: { gems: { decrement: 10 } },
+      });
+      if (paid.count !== 1) throw new BadRequestException('Not enough gems');
+      await tx.dungeonVisit.delete({ where });
+      return { success: true, cost: 10 };
+    });
+  }
+
   async attack(userId: number, battleId: string) {
     const battle = this.battles.get(battleId);
     if (!battle || battle.userId !== userId) throw new NotFoundException('Active battle not found');

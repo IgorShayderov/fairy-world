@@ -16,7 +16,7 @@ const item = (equipmentType: NonNullable<InventoryItemType['equipmentType']>): I
 
 describe('equipment slot selection', () => {
   it('prefers the right hand for shields', () => {
-    expect(getCompatibleEquipmentSlots(item(['SHIELD']))).toEqual(['right-hand', 'left-hand']);
+    expect(getCompatibleEquipmentSlots(item(['SHIELD']))).toEqual(['right-hand']);
   });
 
   it('returns the matching armor slot', () => {

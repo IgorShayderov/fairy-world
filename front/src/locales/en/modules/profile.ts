@@ -1,4 +1,5 @@
 export default {
+  levelUp: 'Level {{level}} reached! +5 free points, +10 HP and +5 mana.',
   maxLevel: 'Maximum level',
   requiredLevel: 'Requires player level {{level}}',
   inventory: 'Inventory',

@@ -59,7 +59,10 @@ export class ShopService {
       if (!currentShop) throw new NotFoundException('Shop not found');
       const { stock, ...details } = currentShop;
       return {
-        ...details,
+        id: details.townId ?? details.id,
+        name: details.name,
+        gold: details.gold,
+        nextRestockAt: details.nextRestockAt,
         refreshCost: SHOP_REFRESH_GEM_COST,
         items: stock.map(({ item, quantity }) => ({ ...ItemView.render(item), quantity })),
       };
@@ -270,10 +273,11 @@ export class ShopService {
 
   async sellMany(userId: number, shopId: number, dto: SellManyDto) {
     if (dto.items.length === 0) throw new BadRequestException('At least one item is required');
-    if (new Set(dto.items.map(({ itemId }) => itemId)).size !== dto.items.length) {
-      throw new BadRequestException('Each item may appear only once');
-    }
     for (const item of dto.items) this.validateQuantity(item.quantity);
+    const requested = new Map<number, number>();
+    for (const { itemId, quantity } of dto.items) requested.set(itemId, (requested.get(itemId) ?? 0) + quantity);
+    const items = [...requested].map(([itemId, quantity]) => ({ itemId, quantity }));
+    for (const item of items) this.validateQuantity(item.quantity);
 
     return this.trade(userId, shopId, async (tx, shopId) => {
       const [shop, profile] = await Promise.all([
@@ -286,21 +290,21 @@ export class ShopService {
       const entries = await tx.inventoryItem.findMany({
         where: {
           gameProfileId: profile.id,
-          itemId: { in: dto.items.map(({ itemId }) => itemId) },
+          itemId: { in: items.map(({ itemId }) => itemId) },
           isEquiped: false,
         },
         include: { item: true },
       });
-      const entriesByItemId = new Map(entries.map((entry) => [entry.itemId, entry]));
-      const saleLines = dto.items.map(({ itemId, quantity }) => {
-        const entry = entriesByItemId.get(itemId);
-        if (!entry) throw new NotFoundException(`Item ${itemId} not found in inventory`);
-        if (entry.quantity < quantity) throw new BadRequestException(`Not enough item ${itemId} in inventory`);
+      const saleLines = items.map(({ itemId, quantity }) => {
+        const stacks = entries.filter((entry) => entry.itemId === itemId).sort((a, b) => a.id - b.id);
+        if (!stacks.length) throw new NotFoundException(`Item ${itemId} not found in inventory`);
+        if (stacks.reduce((sum, entry) => sum + entry.quantity, 0) < quantity)
+          throw new BadRequestException(`Not enough item ${itemId} in inventory`);
         return {
-          entry,
+          stacks,
           itemId,
           quantity,
-          earnedGold: Math.max(1, Math.floor(entry.item.price * 0.5 * quantity)),
+          earnedGold: Math.max(1, Math.floor(stacks[0].item.price * 0.5 * quantity)),
         };
       });
       const earnedGold = saleLines.reduce((total, line) => total + line.earnedGold, 0);
@@ -314,13 +318,13 @@ export class ShopService {
           update: { quantity: { increment: line.quantity } },
           create: { shopId, itemId: line.itemId, quantity: line.quantity },
         });
-        if (line.entry.quantity === line.quantity) {
-          await tx.inventoryItem.delete({ where: { id: line.entry.id } });
-        } else {
-          await tx.inventoryItem.update({
-            where: { id: line.entry.id },
-            data: { quantity: { decrement: line.quantity } },
-          });
+        let remaining = line.quantity;
+        for (const entry of line.stacks) {
+          if (!remaining) break;
+          const sold = Math.min(remaining, entry.quantity);
+          if (sold === entry.quantity) await tx.inventoryItem.delete({ where: { id: entry.id } });
+          else await tx.inventoryItem.update({ where: { id: entry.id }, data: { quantity: { decrement: sold } } });
+          remaining -= sold;
         }
       }
 

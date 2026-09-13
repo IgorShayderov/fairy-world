@@ -30,6 +30,23 @@ describe('ItemGeneratorService', () => {
 
   afterEach(() => jest.restoreAllMocks());
 
+  it.each([ItemRarity.MAGIC, ItemRarity.RARE, ItemRarity.UNIQUE])(
+    'guarantees an attribute bonus for %s items',
+    async (rarity) => {
+      for (const equipmentType of [
+        EquipmentType.WEAPON,
+        EquipmentType.SHIELD,
+        EquipmentType.RING,
+        EquipmentType.AMULET,
+      ]) {
+        await service.generate({ level: 1, equipmentType, rarity });
+        const args = create.mock.calls.at(-1)?.[0] as GeneratedItemCreateArgs;
+        expect(args.data.attributes.create.length).toBeGreaterThan(0);
+        expect(args.data.attributes.create.every(({ value }) => value > 0)).toBe(true);
+      }
+    },
+  );
+
   it('reuses identical bonuses despite different presentation and level', async () => {
     const existing = {
       id: 42,

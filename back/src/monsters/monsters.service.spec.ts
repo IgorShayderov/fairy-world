@@ -12,9 +12,10 @@ describe('MonstersService', () => {
 
   const mockPrismaService = {
     $executeRaw: jest.fn(),
-    dungeonVisit: { findUnique: jest.fn(), upsert: jest.fn() },
+    dungeonVisit: { findUnique: jest.fn(), upsert: jest.fn(), delete: jest.fn() },
     $transaction: jest.fn(),
     gameProfile: {
+      updateMany: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(),
     },
@@ -130,6 +131,26 @@ describe('MonstersService', () => {
     expect(mockMonsterGenerator.generate).not.toHaveBeenCalled();
   });
 
+  it('charges ten gems to reset an active dungeon cooldown', async () => {
+    mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 5, mapPositionX: 2470, mapPositionY: 1370 });
+    mockPrismaService.dungeonVisit.findUnique.mockResolvedValue({ nextEntryAt: new Date(Date.now() + 60000) });
+    mockPrismaService.gameProfile.updateMany.mockResolvedValue({ count: 1 });
+    await expect(service.resetDungeon(7, 'EMBERDEEP')).resolves.toEqual({ success: true, cost: 10 });
+    expect(mockPrismaService.gameProfile.updateMany).toHaveBeenCalledWith({
+      where: { id: 5, gems: { gte: 10 } },
+      data: { gems: { decrement: 10 } },
+    });
+    expect(mockPrismaService.dungeonVisit.delete).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not reset cooldown when gems are insufficient', async () => {
+    mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 5, mapPositionX: 2470, mapPositionY: 1370 });
+    mockPrismaService.dungeonVisit.findUnique.mockResolvedValue({ nextEntryAt: new Date(Date.now() + 60000) });
+    mockPrismaService.gameProfile.updateMany.mockResolvedValue({ count: 0 });
+    await expect(service.resetDungeon(7, 'EMBERDEEP')).rejects.toThrow('Not enough gems');
+    expect(mockPrismaService.dungeonVisit.delete).not.toHaveBeenCalled();
+  });
+
   describe('findAll', () => {
     it('should return all monsters ordered by id', async () => {
       const monsters = [{ id: 1, name: 'Goblin', level: 1 }];
@@ -191,8 +212,8 @@ describe('MonstersService', () => {
       expect(result.battle.status).toBe('ACTIVE');
       expect(result.battle.player).toMatchObject({
         name: 'Hero',
-        health: 2_050,
-        maxHealth: 2_050,
+        health: 3_040,
+        maxHealth: 3_040,
         damage: 6,
         defense: 0.5,
         dodge: 1.3,

@@ -67,6 +67,8 @@
       :landmark="activeLandmark"
       :pending="landmarkPending"
       :message="landmarkMessage"
+      :gems="currentUserStore.user?.gems ?? 0"
+      @reset-dungeon="handleDungeonReset"
       :next-entry-at="currentUserStore.user?.dungeonCooldowns?.find((entry) => entry.dungeon === activeLandmark?.name)?.nextEntryAt"
       @close="activeLandmark = null"
       @action="handleLandmarkAction"
@@ -96,7 +98,7 @@ import { useRouter } from 'vue-router';
 import { usersApi } from '@/modules/Auth/api/users';
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 import { landmarks, type Landmark } from '@/modules/Game/composables/useMapObjects';
-import { enterDungeon, receiveBlessing } from '@/modules/Locations/api';
+import { enterDungeon, receiveBlessing, resetDungeon } from '@/modules/Locations/api';
 import type { BattleState } from '@/modules/Monsters/api';
 import { attackMonster, retreatFromBattle, rollMonsterEncounter } from '@/modules/Monsters/api';
 import routes from '@/routes';
@@ -112,6 +114,17 @@ const { t } = useTranslation();
 const currentUserStore = useCurrentUserStore();
 const router = useRouter();
 const activeLandmark = ref<Landmark | null>(null);
+const handleDungeonReset = async () => {
+  if (!activeLandmark.value || landmarkPending.value) return;
+  landmarkPending.value = true;
+  try {
+    await resetDungeon(activeLandmark.value.name);
+    await currentUserStore.fetchCurrentUser(true);
+    landmarkMessage.value = t('fantasy.landmark.resetDone');
+  } catch {
+    landmarkMessage.value = t('fantasy.landmark.error');
+  } finally { landmarkPending.value = false; }
+};
 const landmarkPending = ref(false);
 const landmarkMessage = ref('');
 let visitedLandmark: string | null = null;
@@ -138,7 +151,7 @@ const handleLandmarkAction = async () => {
       await currentUserStore.fetchCurrentUser(true);
       activeLandmark.value = null;
     } else if (landmark.type === 'sanctum') {
-      await receiveBlessing(landmark.name);
+      await receiveBlessing(landmark.name === 'STARGLEN' ? 1 : 2, { x: Math.round(position.x), y: Math.round(position.y) });
       await currentUserStore.fetchCurrentUser(true);
       landmarkMessage.value = t('fantasy.landmark.blessed');
     } else {

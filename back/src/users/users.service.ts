@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { EquipmentType, Prisma } from '../../generated/client';
 import { PrismaService } from '../prisma.service';
 import { UserModel, UserWhereInput } from '../../generated/models';
@@ -12,7 +12,7 @@ import { getPotionEffect, isHealthPotion, POTION_BUFF_DURATION_MS } from '../ite
 const SLOT_TYPES: Record<EquipmentSlotId, EquipmentType[]> = {
   head: [EquipmentType.HELMET],
   body: [EquipmentType.BODY],
-  'left-hand': [EquipmentType.WEAPON, EquipmentType.SHIELD],
+  'left-hand': [EquipmentType.WEAPON],
   'right-hand': [EquipmentType.WEAPON, EquipmentType.SHIELD],
   hands: [EquipmentType.GLOVES],
   legs: [EquipmentType.LEGS],
@@ -24,6 +24,18 @@ const SLOT_TYPES: Record<EquipmentSlotId, EquipmentType[]> = {
 
 @Injectable()
 export class UsersService {
+  async claimDevGems(userId: number) {
+    if (
+      process.env.NODE_ENV === 'production' ||
+      (process.env.NODE_ENV !== 'development' && process.env.npm_lifecycle_event !== 'start:dev')
+    )
+      throw new ForbiddenException('Development only');
+    return this.prisma.gameProfile.update({
+      where: { userId },
+      data: { gems: { increment: 100 } },
+      select: { gems: true },
+    });
+  }
   constructor(private prisma: PrismaService) {}
 
   findBy(where: UserWhereInput): Promise<UserModel | null> {

@@ -1,7 +1,7 @@
 <template>
   <div class="flex h-full min-h-0 flex-1 flex-col bg-gray-50 text-gray-900">
     <div v-if="accessError" class="p-6 text-center text-gray-600">{{ t('shop.townRequired') }}</div>
-    <div v-else class="flex min-h-0 flex-1 overflow-hidden">
+    <div v-else class="shop-panels min-h-0 flex-1 overflow-hidden">
       <main class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <div class="shrink-0 bg-white px-6 pt-2 font-semibold">{{ shopName }}</div>
         <ShopHeader
@@ -128,3 +128,11 @@ const findEquippedItem = (equipmentTypes: EquipmentType[]): InventoryItemType | 
   };
 };
 </script>
+
+<style scoped>
+.shop-panels {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr);
+}
+</style>

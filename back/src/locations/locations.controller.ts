@@ -1,4 +1,5 @@
-import { Controller, Get, Post, UseGuards, Body, Request, Param } from '@nestjs/common';
+import { Controller, Get, Post, UseGuards, Body, Request, Param, ParseIntPipe } from '@nestjs/common';
+import { UpdateMapPositionDto } from '../users/dto/update-map-position.dto';
 import { ApiOkResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { IsInt, Min } from 'class-validator';
 
@@ -15,11 +16,15 @@ export class SetLocationDto {
 export class LocationsController {
   constructor(private readonly locationsService: LocationsService) {}
 
-  @Post(':name/blessing')
+  @Post('sanctuaries/:id/blessing')
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
-  bless(@Request() req: RequestWithUser, @Param('name') name: string) {
-    return this.locationsService.bless(req.user.sub, name);
+  bless(
+    @Request() req: RequestWithUser,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() coordinates: UpdateMapPositionDto,
+  ) {
+    return this.locationsService.bless(req.user.sub, id, coordinates);
   }
 
   @Get()

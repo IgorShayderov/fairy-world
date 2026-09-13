@@ -220,6 +220,9 @@ export class UserView {
       experience: profile?.experience ?? 0,
       experienceToNextLevel: experienceToNextLevel(playerLevel),
       maxLevel: MAX_PLAYER_LEVEL,
+      devGemPurchasesEnabled:
+        process.env.NODE_ENV !== 'production' &&
+        (process.env.NODE_ENV === 'development' || process.env.npm_lifecycle_event === 'start:dev'),
       currentShopId: profile ? (townAt(profile)?.shopId ?? null) : null,
       dungeonCooldowns: (profile?.dungeonVisits ?? []).map(({ dungeon, nextEntryAt }) => ({ dungeon, nextEntryAt })),
       level: playerLevel,

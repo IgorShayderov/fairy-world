@@ -28,6 +28,11 @@ export class MonstersController {
     return this.monstersService.enterDungeon(req.user.sub, name);
   }
 
+  @Post('dungeon/:name/reset')
+  resetDungeon(@Param('name') name: string, @Request() req: RequestWithUser) {
+    return this.monstersService.resetDungeon(req.user.sub, name);
+  }
+
   @Post('battle/:battleId/attack')
   attack(@Param('battleId') battleId: string, @Request() req: RequestWithUser) {
     return this.monstersService.attack(req.user.sub, battleId);

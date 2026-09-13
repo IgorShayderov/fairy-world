@@ -12,6 +12,7 @@ export type CurrentUser = {
   experience: number;
   experienceToNextLevel?: number | null;
   maxLevel?: number;
+  devGemPurchasesEnabled?: boolean;
   currentShopId?: number | null;
   dungeonCooldowns?: Array<{ dungeon: string; nextEntryAt: string }>;
   level: number;
@@ -36,6 +37,9 @@ export type ActiveBuff = {
 };
 
 export const usersApi = {
+  async claimDevGems(): Promise<void> {
+    await api.post(routes.api.users.devGemsPath());
+  },
   async getMe(): Promise<CurrentUser> {
     const { data } = await api.get<CurrentUser>(routes.api.users.mePath());
 

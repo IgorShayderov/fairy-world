@@ -1,5 +1,5 @@
 <template>
-  <aside class="relative z-10 w-[320px] flex-shrink-0 border-l border-gray-200 bg-white p-5 shadow-sm">
+  <aside class="shop-inventory relative z-10 min-h-0 w-[320px] overflow-hidden border-l border-gray-200 bg-white p-5 shadow-sm">
     <h2 class="mb-4 text-lg font-bold text-gray-800">{{ t('shop.inventory') }}</h2>
 
     <div
@@ -9,7 +9,7 @@
       {{ t('shop.inventoryEmpty') }}
     </div>
 
-    <div v-else class="space-y-3 overflow-y-auto">
+    <div v-else class="shop-inventory-list min-h-0 space-y-3 overflow-y-auto overscroll-contain">
       <div
         v-for="inv in inventory"
         :key="inv.id"
@@ -130,3 +130,14 @@ const findEquippedItem = (equipmentTypes: EquipmentType[]): InventoryItemType | 
   };
 };
 </script>
+
+<style scoped>
+.shop-inventory {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.shop-inventory-list {
+  scrollbar-gutter: stable;
+}
+</style>

@@ -4,7 +4,7 @@ import { isHealthPotion, isPotion } from './potions';
 
 const EQUIPMENT_TYPE_SLOTS: Record<EquipmentType, EquipmentSlotId[]> = {
   WEAPON: ['left-hand', 'right-hand'],
-  SHIELD: ['right-hand', 'left-hand'],
+  SHIELD: ['right-hand'],
   BODY: ['body'],
   HELMET: ['head'],
   BOOTS: ['feet'],

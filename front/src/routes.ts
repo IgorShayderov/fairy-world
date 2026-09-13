@@ -21,6 +21,7 @@ const routes = {
       messagePath: () => [BASE_API_PATH, 'chat', 'messages'].join('/'),
     },
     users: {
+      devGemsPath: () => [BASE_API_PATH, 'users', 'me', 'dev-gems'].join('/'),
       mePath: () => [BASE_API_PATH, 'users', 'me'].join('/'),
       attributesPath: () => [BASE_API_PATH, 'users', 'me', 'attributes'].join('/'),
       consumeInventoryItemPath: (inventoryItemId: number) =>
@@ -30,11 +31,12 @@ const routes = {
       equipmentSlotPath: (slot: string) => [BASE_API_PATH, 'users', 'me', 'equipment', slot].join('/'),
     },
     locations: {
-      blessingPath: (name: string) => [BASE_API_PATH, 'locations', name, 'blessing'].join('/'),
+      blessingPath: (id: number) => [BASE_API_PATH, 'locations', 'sanctuaries', String(id), 'blessing'].join('/'),
       listPath: () => [BASE_API_PATH, 'locations'].join('/'),
       mePath: () => [BASE_API_PATH, 'locations', 'me'].join('/'),
     },
     monsters: {
+      dungeonResetPath: (name: string) => [BASE_API_PATH, 'monsters', 'dungeon', name, 'reset'].join('/'),
       dungeonPath: (name: string) => [BASE_API_PATH, 'monsters', 'dungeon', name].join('/'),
       listPath: () => [BASE_API_PATH, 'monsters'].join('/'),
       byIdPath: (id: number) => [BASE_API_PATH, 'monsters', String(id)].join('/'),

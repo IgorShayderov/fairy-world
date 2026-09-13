@@ -40,7 +40,13 @@ export function useShopActions() {
       const shop = await getShop(shopId.value);
       shopName.value = shop.name;
       shopItems.value = shop.items;
-      inventory.value = player.inventory;
+      const stacks = new Map<number, InventoryEntry>();
+      for (const entry of player.inventory) {
+        const existing = stacks.get(entry.item.id);
+        if (existing) existing.quantity += entry.quantity;
+        else stacks.set(entry.item.id, { ...entry });
+      }
+      inventory.value = [...stacks.values()];
       equippedItems.value = player.equippedItems ?? [];
       gold.value = player.gold;
       gems.value = player.gems;

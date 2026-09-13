@@ -185,9 +185,17 @@ Use Swagger UI for the current request and response schemas.
 
 Low-level ratings use denominator floors: chance uses `max(level, 50)`, critical damage uses `max(level, 100)`, and defense uses `max(level, 10)`. With the five starting attributes and no gear/buffs this gives 2.5% crit, 2.5% dodge, 4.8% defense, and 135.6% critical damage.
 
-Markets are accessible only within 70 map units of their town, including all read, buy, sell, and refresh endpoints. Town shop IDs are defined in `back/src/locations/towns.ts`; each has independent gold, stock, and restock timing. Open markets through town arrival panels.
+Markets are accessible only within 70 map units of their town, including all read, buy, sell, and refresh endpoints. Town IDs are defined in `back/src/locations/towns.ts`. Each player/town pair has its own gold, stock, and restock timer. Stock is generated for the player's level on the first visit, level change, daily refresh, or paid refresh; navigating to Profile and back preserves it. API shop IDs remain town IDs, not private stock IDs. Duplicate backpack stacks are grouped in the shop UI and batch sales consume all matching rows atomically.
 
 Dungeon entries have a database-backed cooldown of one hour per player per dungeon, starting on entry (retreats and defeats count). Guardians are generated around player level +2, then receive 2× health, 1.5× damage, and +5 defense percentage points. They award 3× gold and XP. Dungeon loot odds: 20% no drop, 40% common, 25% magic, 12% rare, 3% unique.
+
+An active dungeon cooldown can be reset at its entrance for 10 gems, outside an active battle. Normal monsters generate at player level through player level +2, with attributes scaling with level. Shops and loot share the same item generator; magic, rare, and unique equipment always has an attribute affix. New affix rolls use reduced values; existing owned equipment is preserved. Shields can only be equipped and compared in the right hand.
+
+Sanctuaries are predefined database records. Requests send the sanctuary ID and coordinates; the server checks both submitted and saved player positions and selects the effect from the database. Starglen grants +10 defense rating; Dawnshrine grants +20% XP, both for four hours. An active effect of the same type is neither stacked nor extended.
+
+Every level after the first adds 10 maximum HP and 5 maximum mana, derived from level in the shared profile/combat calculation. A confirmed level increase triggers a frontend notification.
+
+The gem store is at `/gems`. In development, its free-claim button grants 100 gems through an authenticated endpoint. The endpoint permits `NODE_ENV=development` or the `start:dev` npm lifecycle, and always rejects `NODE_ENV=production`. Production PayPal/USD checkout is not implemented or enabled; merchant credentials and pack prices are still needed.
 
 The experience map is defined in `back/src/users/level-progression.ts`: advancing from level L requires `100 × L²` XP. Victory rewards include active XP bonuses. Reaching the threshold advances one level, adds 5 free attribute points, and resets XP to zero (excess XP is discarded). Level 100 is the maximum; XP is cleared on subsequent rewards at the cap. `/users/me` includes `experienceToNextLevel` (`null` at level 100) and `maxLevel`.
 

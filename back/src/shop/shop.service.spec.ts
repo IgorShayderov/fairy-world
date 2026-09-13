@@ -4,7 +4,7 @@ import { ItemGeneratorService } from '../items/item-generator.service';
 
 describe('ShopService trades', () => {
   const tx = {
-    shop: { findUnique: jest.fn(), update: jest.fn() },
+    shop: { findUnique: jest.fn(), update: jest.fn(), upsert: jest.fn() },
     shopStock: {
       findUnique: jest.fn(),
       update: jest.fn(),
@@ -30,7 +30,8 @@ describe('ShopService trades', () => {
   beforeEach(() => {
     jest.resetAllMocks();
     prisma.$transaction.mockImplementation((operation: (client: typeof tx) => unknown) => operation(tx));
-    tx.shop.findUnique.mockResolvedValue({ id: 2, gold: 1000, nextRestockAt: new Date('2099-01-01') });
+    tx.shop.upsert.mockResolvedValue({ id: 2 });
+    tx.shop.findUnique.mockResolvedValue({ id: 2, stockLevel: 4, gold: 1000, nextRestockAt: new Date('2099-01-01') });
     tx.gameProfile.findUnique.mockResolvedValue({
       id: 5,
       gold: 200,
@@ -58,6 +59,33 @@ describe('ShopService trades', () => {
   });
 
   afterEach(() => jest.useRealTimers());
+
+  it('sells across multiple dropped stacks with the same item id', async () => {
+    tx.inventoryItem.findMany.mockResolvedValue([
+      { id: 41, itemId: 3, quantity: 1, item: { price: 20 } },
+      { id: 42, itemId: 3, quantity: 1, item: { price: 20 } },
+    ]);
+    await expect(
+      service.sellMany(1, 2, {
+        items: [
+          { itemId: 3, quantity: 1 },
+          { itemId: 3, quantity: 1 },
+        ],
+      }),
+    ).resolves.toMatchObject({ quantity: 2, earnedGold: 20 });
+    expect(tx.inventoryItem.delete).toHaveBeenCalledWith({ where: { id: 41 } });
+    expect(tx.inventoryItem.delete).toHaveBeenCalledWith({ where: { id: 42 } });
+    expect(tx.shopStock.upsert).toHaveBeenCalledTimes(1);
+  });
+
+  it('resolves a shop by both player and town', async () => {
+    await service.buy(1, 2, { itemId: 3, quantity: 1 });
+    expect(tx.shop.upsert).toHaveBeenCalledWith({
+      where: { ownerId_townId: { ownerId: 5, townId: 2 } },
+      create: { ownerId: 5, townId: 2, name: 'AURELIA Market', gold: 10000 },
+      update: {},
+    });
+  });
 
   it('rejects every shop operation outside a town before mutations', async () => {
     tx.gameProfile.findUnique.mockResolvedValue({ id: 5, mapPositionX: 2000, mapPositionY: 1800 });
@@ -134,7 +162,7 @@ describe('ShopService trades', () => {
     expect(tx.inventoryItem.delete).toHaveBeenCalledWith({ where: { id: 9 } });
   });
 
-  it('rejects duplicate item lines before starting a batch sale', async () => {
+  it('combines duplicate requested item lines into one sale', async () => {
     await expect(
       service.sellMany(1, 2, {
         items: [
@@ -142,8 +170,8 @@ describe('ShopService trades', () => {
           { itemId: 3, quantity: 2 },
         ],
       }),
-    ).rejects.toThrow('Each item may appear only once');
-    expect(prisma.$transaction).not.toHaveBeenCalled();
+    ).resolves.toMatchObject({ success: true, quantity: 3, earnedGold: 30 });
+    expect(tx.shopStock.upsert).toHaveBeenCalledTimes(1);
   });
 
   it('rejects a sale when the shop cannot afford it before any mutation', async () => {
@@ -206,6 +234,7 @@ describe('ShopService trades', () => {
     tx.shop.findUnique.mockResolvedValue({
       id: 2,
       name: 'Armory',
+      stockLevel: 4,
       gold: 500,
       nextRestockAt,
       stock: [{ quantity: 9, item: { id: 3, level: 4, name: 'Shield', attributes: [], stats: [] } }],
@@ -255,7 +284,7 @@ describe('ShopService trades', () => {
     });
     expect(tx.shop.update).toHaveBeenCalledWith({
       where: { id: 2 },
-      data: { nextRestockAt },
+      data: { nextRestockAt, stockLevel: 4 },
     });
   });
 
@@ -274,7 +303,7 @@ describe('ShopService trades', () => {
     expect(tx.shopStock.deleteMany).toHaveBeenCalledWith({ where: { shopId: 2 } });
     expect(itemGenerator.generate).toHaveBeenCalledTimes(10);
     expect(tx.shopStock.upsert).toHaveBeenCalledTimes(12);
-    expect(tx.shop.update).toHaveBeenCalledWith({ where: { id: 2 }, data: { nextRestockAt } });
+    expect(tx.shop.update).toHaveBeenCalledWith({ where: { id: 2 }, data: { nextRestockAt, stockLevel: 4 } });
   });
 
   it('does not refresh stock when the player has fewer than ten gems', async () => {

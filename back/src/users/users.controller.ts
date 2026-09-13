@@ -27,6 +27,12 @@ import { UpdateMapPositionDto } from './dto/update-map-position.dto';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
+  @Post('me/dev-gems')
+  @UseGuards(AuthGuard)
+  claimDevGems(@Request() req: RequestWithUser) {
+    return this.usersService.claimDevGems(req.user.sub);
+  }
+
   @Get('me')
   @UseGuards(AuthGuard)
   @ApiBearerAuth()

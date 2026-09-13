@@ -6,6 +6,8 @@ describe('LocationsService', () => {
   let service: LocationsService;
 
   const mockPrismaService = {
+    $executeRaw: jest.fn(),
+    sanctuary: { findUnique: jest.fn() },
     $transaction: jest.fn(),
     gameProfile: { findUnique: jest.fn() },
     gameProfileBuff: { findUnique: jest.fn(), upsert: jest.fn() },
@@ -21,6 +23,15 @@ describe('LocationsService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    mockPrismaService.gameProfileBuff.findUnique.mockResolvedValue(null);
+    mockPrismaService.sanctuary.findUnique.mockResolvedValue({
+      id: 1,
+      x: 720,
+      y: 1480,
+      buffType: 'DEFENSE',
+      buffValue: 10,
+      durationMinutes: 240,
+    });
     mockPrismaService.$transaction.mockImplementation((operation: (tx: typeof mockPrismaService) => unknown) =>
       operation(mockPrismaService),
     );
@@ -36,11 +47,36 @@ describe('LocationsService', () => {
     expect(service).toBeDefined();
   });
 
+  it('rejects unknown sanctuary ids and forged coordinates', async () => {
+    mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4, mapPositionX: 720, mapPositionY: 1480 });
+    await expect(service.bless(7, 1, { x: 0, y: 0 })).rejects.toThrow('Travel to this landmark first');
+    mockPrismaService.sanctuary.findUnique.mockResolvedValue(null);
+    await expect(service.bless(7, 999, { x: 720, y: 1480 })).rejects.toThrow('Sanctuary not found');
+    expect(mockPrismaService.gameProfileBuff.upsert).not.toHaveBeenCalled();
+  });
+
+  it('uses Dawnshrine experience bonuses defined by the database', async () => {
+    mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4, mapPositionX: 2240, mapPositionY: 1540 });
+    mockPrismaService.sanctuary.findUnique.mockResolvedValue({
+      id: 2,
+      x: 2240,
+      y: 1540,
+      buffType: 'EXPERIENCE',
+      buffValue: 20,
+      durationMinutes: 240,
+    });
+    await service.bless(7, 2, { x: 2240, y: 1540 });
+    const calls = mockPrismaService.gameProfileBuff.upsert.mock.calls as [
+      { create: { type: string; value: number } },
+    ][];
+    expect(calls[0][0].create).toMatchObject({ type: 'EXPERIENCE', value: 20 });
+  });
+
   it('grants a four-hour blessing at a sanctuary', async () => {
     mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4, mapPositionX: 720, mapPositionY: 1480 });
     mockPrismaService.gameProfileBuff.findUnique.mockResolvedValue(null);
     const before = Date.now();
-    await service.bless(7, 'STARGLEN');
+    await service.bless(7, 1, { x: 720, y: 1480 });
     const calls = mockPrismaService.gameProfileBuff.upsert.mock.calls as [
       {
         create: { gameProfileId: number; type: string; value: number; expiresAt: Date };
@@ -55,13 +91,13 @@ describe('LocationsService', () => {
     mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4, mapPositionX: 720, mapPositionY: 1480 });
     const buff = { value: 50, expiresAt: new Date(Date.now() + 60_000) };
     mockPrismaService.gameProfileBuff.findUnique.mockResolvedValue(buff);
-    await expect(service.bless(7, 'STARGLEN')).resolves.toBe(buff);
+    await expect(service.bless(7, 1, { x: 720, y: 1480 })).resolves.toBe(buff);
     expect(mockPrismaService.gameProfileBuff.upsert).not.toHaveBeenCalled();
   });
 
   it('rejects a blessing from a distant landmark', async () => {
     mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4, mapPositionX: 1470, mapPositionY: 1040 });
-    await expect(service.bless(7, 'STARGLEN')).rejects.toThrow('Travel to this landmark first');
+    await expect(service.bless(7, 1, { x: 720, y: 1480 })).rejects.toThrow('Travel to this landmark first');
     expect(mockPrismaService.gameProfileBuff.upsert).not.toHaveBeenCalled();
   });
 

@@ -9,6 +9,7 @@
       <p v-if="message" role="status" class="mt-4 rounded-lg bg-white/10 p-3 text-sm">{{ message }}</p>
       <p v-if="coolingDown" class="mt-3 text-sm text-amber-200">{{ t('fantasy.landmark.cooldown', { minutes: Math.ceil((Date.parse(nextEntryAt!) - now) / 60000) }) }}</p>
       <div class="mt-6 flex flex-wrap justify-end gap-3">
+        <button v-if="coolingDown" class="rounded-lg border border-violet-300 px-4 py-2 text-violet-200 disabled:opacity-50" :disabled="pending || gems < 10" @click="$emit('reset-dungeon')">{{ t('fantasy.landmark.resetDungeon') }}</button>
         <button class="rounded-lg border border-white/20 px-4 py-2 disabled:opacity-50" :disabled="pending" @click="$emit('close')">{{ t('fantasy.landmark.leave') }}</button>
         <button v-if="kind === 'village'" class="rounded-lg border border-white/20 px-4 py-2" @click="$emit('rumors')">{{ t('fantasy.landmark.rumors') }}</button>
         <button class="rounded-lg bg-[#dfc16d] px-4 py-2 font-semibold text-[#102831] disabled:opacity-50" :disabled="pending || coolingDown" @click="$emit('action')">{{ pending ? t('shop.loading') : t(`fantasy.landmark.${kind}.action`) }}</button>
@@ -23,13 +24,13 @@ import { computed, ref, onMounted, onUnmounted } from 'vue';
 
 import type { Landmark } from '@/modules/Game/composables/useMapObjects';
 
-const props = defineProps<{ landmark: Landmark; pending: boolean; message: string; nextEntryAt?: string | undefined }>();
+const props = defineProps<{ landmark: Landmark; pending: boolean; message: string; gems: number; nextEntryAt?: string | undefined }>();
 const now = ref(Date.now());
 const coolingDown = computed(() => !!props.nextEntryAt && Date.parse(props.nextEntryAt) > now.value);
 let timer: ReturnType<typeof setInterval>;
 onMounted(() => { timer = setInterval(() => { now.value = Date.now(); }, 1000); });
 onUnmounted(() => clearInterval(timer));
-defineEmits<{ (event: 'close'): void; (event: 'action'): void; (event: 'rumors'): void }>();
+defineEmits<{ (event: 'close'): void; (event: 'action'): void; (event: 'rumors'): void; (event: 'reset-dungeon'): void }>();
 const { t } = useTranslation();
 const kind = computed(() => props.landmark.type === 'dungeon' || props.landmark.type === 'sanctum' ? props.landmark.type : 'village');
 </script>

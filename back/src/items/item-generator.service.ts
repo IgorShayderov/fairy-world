@@ -173,15 +173,24 @@ export class ItemGeneratorService {
       rarity === ItemRarity.MAGIC
         ? this.randomInt(1, 2)
         : rarity === ItemRarity.RARE
-          ? this.randomInt(3, 5)
+          ? this.randomInt(2, 3)
           : rarity === ItemRarity.UNIQUE
-            ? this.randomInt(6, 8)
+            ? this.randomInt(4, 5)
             : 0;
 
     const available = [...PREFIXES, ...SUFFIXES].filter((modifier) => modifier.equipmentTypes.includes(equipmentType));
 
     const selected: GeneratedModifier[] = [];
     const pool = [...available];
+    // Every magic-or-better item has an attribute affix, regardless of its source.
+    if (modifierCount > 0) {
+      const attributePool = pool.filter((modifier) => modifier.kind === 'attribute');
+      if (attributePool.length) {
+        const modifier = this.randomElement(attributePool);
+        pool.splice(pool.indexOf(modifier), 1);
+        selected.push({ modifier, value: this.generateModifierValue(modifier, level) });
+      }
+    }
 
     while (selected.length < modifierCount && pool.length > 0) {
       const index = this.randomInt(0, pool.length - 1);
@@ -207,9 +216,9 @@ export class ItemGeneratorService {
      * lvl 20 => примерно x1.95
      * lvl 50 => примерно x3.45
      */
-    const levelMultiplier = 1 + Math.max(0, level - 1) * 0.05;
+    const levelMultiplier = 1 + Math.max(0, level - 1) * 0.025;
 
-    return Math.max(1, Math.round(baseValue * levelMultiplier));
+    return Math.max(1, Math.round(baseValue * levelMultiplier * 0.5));
   }
 
   private generateName(baseItem: BaseItem, rarity: ItemRarity, modifiers: GeneratedModifier[]): string {

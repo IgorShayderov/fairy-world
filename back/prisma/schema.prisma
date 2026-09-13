@@ -104,6 +104,16 @@ model DungeonVisit {
   @@id([gameProfileId, dungeon])
 }
 
+model Sanctuary {
+  id Int @id
+  name String @unique
+  x Float
+  y Float
+  buffType PlayerBuffType
+  buffValue Float
+  durationMinutes Int @default(240)
+}
+
 enum PlayerBuffType {
   DAMAGE
   DEFENSE

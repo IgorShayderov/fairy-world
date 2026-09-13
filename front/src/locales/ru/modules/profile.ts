@@ -1,5 +1,6 @@
 export default {
   profile: {
+    levelUp: 'Достигнут уровень {{level}}! +5 свободных очков, +10 здоровья и +5 маны.',
     maxLevel: 'Максимальный уровень',
     requiredLevel: 'Требуется уровень игрока {{level}}',
     inventory: 'Инвентарь',

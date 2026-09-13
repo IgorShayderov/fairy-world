@@ -23,6 +23,7 @@ const modules = {
     },
   },
   gemStore: {
+    devClaim: 'Development: +100 gems for free', devError: 'Start the backend in development mode to claim free gems.',
     title: 'The Gem Treasury', description: 'Gem packs for your adventures.',
     pending: 'Purchases are not enabled yet. PayPal checkout and USD prices still need to be configured. No payments can be taken here.',
     pricePending: 'Price to be confirmed (USD)', unavailable: 'Coming soon',
@@ -36,6 +37,7 @@ const modules = {
   },
   fantasy: {
     landmark: {
+      resetDungeon: 'Reset cooldown (10 💎)', resetDone: 'The dungeon is ready to enter again.',
       blessings: { STARGLEN: '+10 Defense rating for 4 hours. Preserves an active defense effect.', DAWNSHRINE: '+20% experience gained for 4 hours. Preserves an active experience effect.' },
       leave: 'Continue journey', rumors: 'Ask for rumors',
       rumorText: 'The keepers of Starglen and Dawnshrine bless travelers. Beyond Emberdeep and Hollowgate, guardians protect treasure. Prepare your equipment before entering.',

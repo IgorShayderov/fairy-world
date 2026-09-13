@@ -2,8 +2,12 @@ import type { BattleState } from '@/modules/Monsters/api';
 import routes from '@/routes';
 import { api } from '@shared/api';
 
-export const receiveBlessing = async (name: string): Promise<void> => {
-  await api.post(routes.api.locations.blessingPath(name));
+export const receiveBlessing = async (id: number, coordinates: { x: number; y: number }): Promise<void> => {
+  await api.post(routes.api.locations.blessingPath(id), coordinates);
+};
+
+export const resetDungeon = async (name: string): Promise<void> => {
+  await api.post(routes.api.monsters.dungeonResetPath(name));
 };
 
 export const enterDungeon = async (name: string): Promise<BattleState> => {
