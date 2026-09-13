@@ -14,7 +14,7 @@ CMD ["npm", "run", "start:dev"]
 FROM base AS build
 RUN npm run build
 
-FROM node:22-alpine AS production
+FROM node:24-alpine AS production
 WORKDIR /app
 COPY package*.json ./
 RUN npm install --omit=dev

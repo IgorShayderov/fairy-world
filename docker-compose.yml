@@ -26,6 +26,6 @@ services:
     image: axllent/mailpit
     container_name: mailpit
     ports:
-      - "8025:8025" # Веб-интерфейс (тут вы будете читать письма)
-      - "1025:1025" # SMTP порт (сюда NestJS будет отправлять письма)
+      - "8025:8025"
+      - "1025:1025"
     restart: unless-stopped
