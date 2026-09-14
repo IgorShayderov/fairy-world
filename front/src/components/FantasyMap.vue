@@ -71,7 +71,7 @@
       @reset-dungeon="handleDungeonReset"
       :next-entry-at="
         activeLandmark.type === 'sanctum'
-          ? currentUserStore.user?.sanctuaryCooldowns?.find((entry) => entry.sanctuaryId === (activeLandmark?.name === 'STARGLEN' ? 1 : 2))?.nextBlessingAt
+          ? currentUserStore.user?.sanctuaryCooldowns?.find((entry) => entry.sanctuaryId === activeLandmark?.sanctuaryId)?.nextBlessingAt
           : currentUserStore.user?.dungeonCooldowns?.find((entry) => entry.dungeon === activeLandmark?.name)?.nextEntryAt
       "
       @close="activeLandmark = null"
@@ -172,7 +172,8 @@ const handleLandmarkAction = async () => {
       await currentUserStore.fetchCurrentUser(true);
       activeLandmark.value = null;
     } else if (landmark.type === 'sanctum') {
-      await receiveBlessing(landmark.name === 'STARGLEN' ? 1 : 2, {
+      if (!landmark.sanctuaryId) throw new Error('Unknown sanctuary');
+      await receiveBlessing(landmark.sanctuaryId, {
         x: Math.round(position.x),
         y: Math.round(position.y),
       });
@@ -287,7 +288,19 @@ const handleAttack = async () => {
   battlePending.value = true;
   try {
     activeBattle.value = await attackMonster(activeBattle.value.id);
-    if (activeBattle.value.status === 'VICTORY') await currentUserStore.fetchCurrentUser(true);
+    if (activeBattle.value.status === 'DEFEAT') {
+      setPosition(1470, 1040);
+      lastSavedPosition = '1470:1040';
+      visitedLandmark = 'EVERCROSS';
+      activeLandmark.value = null;
+      if (currentUserStore.user) {
+        currentUserStore.user.mapPosition = { x: 1470, y: 1040 };
+        currentUserStore.user.activeBuffs = [];
+      }
+      if (containerRef.value) centerOn(1470, 1040, containerRef.value.clientWidth, containerRef.value.clientHeight);
+      draw();
+    }
+    if (activeBattle.value.status !== 'ACTIVE') await currentUserStore.fetchCurrentUser(true);
   } catch (error) {
     console.error('Battle attack failed:', error);
   } finally {

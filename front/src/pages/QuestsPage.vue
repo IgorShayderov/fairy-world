@@ -1,5 +1,5 @@
 <template>
-  <div class="h-full min-h-0 w-full overflow-y-auto bg-gray-50 p-6 text-gray-800">
+  <div class="realm-page h-full min-h-0 w-full overflow-y-auto p-6">
     <div class="mx-auto max-w-5xl space-y-8">
       <header>
         <h1 class="text-3xl font-bold">{{ t('quests.title') }}</h1>
@@ -24,7 +24,8 @@
               <p v-if="entry.quest.huntingLocation" class="mt-2 text-sm text-blue-700">{{ huntingLocation(entry.quest) }}</p>
               <div class="mt-4 flex justify-between text-sm"><span>{{ t('quests.progress') }}</span><span>{{ entry.progress }} / {{ entry.quest.target }}</span></div>
               <progress class="mt-2 h-3 w-full accent-blue-600" :value="entry.progress" :max="entry.quest.target" :aria-label="title(entry.quest)" />
-              <p class="mt-3 text-sm text-amber-700">{{ t('quests.reward', { gold: entry.quest.rewardGold }) }}</p>
+              <p class="mt-3 text-sm text-amber-700">{{ t('quests.reward', { gold: entry.quest.rewardGold, experience: entry.quest.rewardExperience ?? 0 }) }}</p>
+              <p class="mt-1 text-xs text-gray-500">{{ t('quests.itemChance') }}</p>
               <template v-if="!entry.quest.isPrimary">
                 <button v-if="cancelingId !== entry.questId" class="mt-4 text-sm text-red-700 underline" :disabled="pending !== null" @click="cancelingId = entry.questId">{{ t('quests.cancel') }}</button>
                 <div v-else class="mt-4 rounded-lg bg-red-50 p-3 text-sm">
@@ -44,7 +45,7 @@
             <article v-for="entry in journal.completed" :key="entry.questId" class="rounded-xl border border-green-200 bg-green-50 p-5">
               <h3 class="text-sm leading-snug font-semibold">✓ {{ title(entry.quest) }}</h3>
               <p class="mt-2 text-sm">{{ description(entry.quest) }} — {{ entry.progress }} / {{ entry.quest.target }}</p>
-              <p class="mt-3 text-sm text-green-700">{{ t('quests.rewardPaid', { gold: entry.quest.rewardGold }) }}</p>
+              <p class="mt-3 text-sm text-green-700">{{ t('quests.rewardPaid', { gold: entry.quest.rewardGold, experience: entry.quest.rewardExperience ?? 0 }) }}</p>
               <p class="mt-2 text-xs text-gray-500">{{ new Date(entry.completedAt!).toLocaleString() }}</p>
             </article>
           </div>
@@ -56,6 +57,7 @@
 </template>
 
 <script setup lang="ts">
+import '@/css/realm-pages.css';
 import { useTranslation } from 'i18next-vue';
 import { QTab, QTabs, QTabPanel, QTabPanels } from 'quasar';
 import { onMounted, ref } from 'vue';

@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 test.use({ baseURL: 'http://localhost:9001' });
 
 test('journal separates current and finished quests without a town board', async ({ page }) => {
-  const wolf = { id: 1, code: 'wolf_hunt', monsterType: 'Dire Wolf', target: 20, rewardGold: 200 };
+  const wolf = { id: 1, code: 'wolf_hunt', monsterType: 'Dire Wolf', target: 20, rewardGold: 200, rewardExperience: 400 };
   let accepted = true;
   let completed = false;
   await page.addInitScript(() => {
@@ -32,6 +32,9 @@ test('journal separates current and finished quests without a town board', async
   await expect(page.getByRole('tab', { name: 'Current quests (1)' })).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByRole('progressbar')).toHaveAttribute('value', '0');
   await expect(page.getByRole('heading', { name: 'Wolves at the gates' })).toHaveCSS('font-size', '14px');
+  await expect(page.locator('.realm-page')).toHaveCSS('color', 'rgb(214, 225, 222)');
+  await expect(page.locator('.realm-page article')).toHaveCSS('background-color', 'rgb(19, 44, 56)');
+  await page.screenshot({ path: 'test-results/quests-theme.png' });
   await page.getByRole('tab', { name: 'Finished quests (0)' }).click();
   await expect(page.getByRole('progressbar')).toHaveCount(0);
   await expect(page.getByText('Your completed quests will appear here.')).toBeVisible();
@@ -44,6 +47,9 @@ test('journal separates current and finished quests without a town board', async
   await expect(page.getByRole('button', { name: 'Accept quest' })).toHaveCount(0);
   accepted = false;
   completed = false;
+  await page.goto('/profile');
+  await expect(page.locator('.realm-page')).toBeVisible();
+  await page.screenshot({ path: 'test-results/profile-theme.png' });
   await page.goto('/');
   await page.locator('canvas').click();
   await page.getByRole('button', { name: 'Quests', exact: true }).click();

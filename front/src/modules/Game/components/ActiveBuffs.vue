@@ -1,7 +1,7 @@
 <template>
   <section
     v-if="!compact || active.length"
-    :class="compact ? '' : 'rounded-xl border border-gray-200 bg-white p-5 shadow-sm'"
+    :class="compact ? '' : 'rounded-xl border border-gray-200 bg-gray-200 p-5 shadow-sm'"
     :aria-label="t('profile.activeBuffs')"
   >
     <h2 v-if="!compact" class="mb-4 text-sm font-bold text-gray-700">{{ t('profile.activeBuffs') }}</h2>

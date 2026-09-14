@@ -49,6 +49,24 @@ describe('LocationsService', () => {
     expect(service).toBeDefined();
   });
 
+  it('grants the northern sanctuary attack blessing from its database definition', async () => {
+    mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4, mapPositionX: 1200, mapPositionY: 330 });
+    mockPrismaService.sanctuary.findUnique.mockResolvedValue({
+      id: 3,
+      x: 1200,
+      y: 330,
+      buffType: 'DAMAGE',
+      buffValue: 5,
+      durationMinutes: 240,
+    });
+    await service.bless(7, 3, { x: 1200, y: 330 });
+    expect(mockPrismaService.gameProfileBuff.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: { gameProfileId: 4, type: 'DAMAGE', value: 5, expiresAt: expect.any(Date) as Date },
+      }),
+    );
+  });
+
   it('rejects unknown sanctuary ids and forged coordinates', async () => {
     mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4, mapPositionX: 720, mapPositionY: 1480 });
     await expect(service.bless(7, 1, { x: 0, y: 0 })).rejects.toThrow('Travel to this landmark first');

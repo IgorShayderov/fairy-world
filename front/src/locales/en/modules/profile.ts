@@ -68,13 +68,13 @@ export default {
     DEFENSE: 'Your final damage reduction. More Defense is required to retain the same reduction at higher levels.',
     CRIT: 'Your final chance to land a critical hit. It cannot exceed 50%.',
     DODGE: 'Your final chance to avoid an enemy attack. It cannot exceed 50%.',
-    CRIT_DAMAGE: 'Damage dealt by a critical hit. It starts at 125%, has diminishing returns, and cannot exceed 300%.',
+    CRIT_DAMAGE: 'Damage dealt by a critical hit. It starts at 150%, has diminishing returns, and cannot exceed 300%.',
   },
   propertyFormulas: {
     defense: 'damage reduction % = defense ÷ (defense + max(level, 10) × 10) × 100',
-    chance: 'final % = min(50%, max(0, rating) × 50 ÷ max(level, 50))',
+    chance: 'final % = min(50%, max(0, rating) × 65 ÷ max(level, 50))',
     criticalDamage:
-      'effective rating = rating × 10 ÷ max(level, 100); final % = min(300%, 125% + 175% × effective rating ÷ (effective rating + 7.75))',
+      'effective rating = rating × 15 ÷ max(level, 100); final % = min(300%, 150% + 150% × effective rating ÷ (effective rating + 6))',
   },
   slots: {
     head: 'Head',

@@ -4,9 +4,12 @@ import { QuestsService } from './quests.service';
 import { habitatForMonster } from '../monsters/monster-habitats';
 
 describe('QuestsService', () => {
-  const profile = { id: 5, mapPositionX: 1470, mapPositionY: 1040 };
+  const profile = { id: 5, gems: 60, mapPositionX: 1470, mapPositionY: 1040 };
+  const board = { id: 'board-1', revision: 0, nextRefreshAt: new Date('2099-01-01') };
   const quest = {
     id: 1,
+    boardId: 'board-1',
+    boardRevision: 0,
     code: 'hunt',
     target: 20,
     rewardGold: 200,
@@ -17,13 +20,17 @@ describe('QuestsService', () => {
   };
   const prisma = {
     $transaction: jest.fn(),
+    questBoard: { findUnique: jest.fn(), upsert: jest.fn() },
     gameProfile: { findUnique: jest.fn(), update: jest.fn() },
     quest: { findMany: jest.fn(), findUnique: jest.fn(), createMany: jest.fn() },
-    playerQuest: { findMany: jest.fn(), findUnique: jest.fn(), upsert: jest.fn(), update: jest.fn() },
+    playerQuest: { findMany: jest.fn(), findUnique: jest.fn(), upsert: jest.fn(), update: jest.fn(), count: jest.fn() },
   };
   const service = new QuestsService(prisma as unknown as PrismaService);
   beforeEach(() => {
     jest.resetAllMocks();
+    prisma.questBoard.findUnique.mockResolvedValue(board);
+    prisma.questBoard.upsert.mockResolvedValue({ ...board, revision: 1 });
+    prisma.playerQuest.count.mockResolvedValue(0);
     prisma.$transaction.mockImplementation((fn: (tx: typeof prisma) => unknown) => fn(prisma));
     prisma.gameProfile.findUnique.mockResolvedValue(profile);
     prisma.gameProfile.update.mockResolvedValue(profile);
@@ -38,6 +45,9 @@ describe('QuestsService', () => {
     prisma.playerQuest.findMany.mockResolvedValue([active, completed]);
     expect(await service.list(7)).toEqual({
       town: { id: 1, name: 'EVERCROSS' },
+      nextRefreshAt: board.nextRefreshAt,
+      refreshCost: 30,
+      maxActive: 5,
       available: [rendered],
       active: [{ ...active, quest: rendered }],
       completed: [{ ...completed, quest: rendered }],
@@ -46,6 +56,8 @@ describe('QuestsService', () => {
       expect.objectContaining({
         where: {
           townId: 1,
+          boardId: board.id,
+          boardRevision: board.revision,
           expiresAt: { gt: expect.any(Date) as Date },
           players: { none: { gameProfileId: 5, canceledAt: null } },
         },
@@ -53,7 +65,7 @@ describe('QuestsService', () => {
     );
   });
   it('hides offers outside towns, without hiding the journal', async () => {
-    prisma.gameProfile.findUnique.mockResolvedValue({ ...profile, mapPositionX: 0, mapPositionY: 0 });
+    prisma.gameProfile.update.mockResolvedValue({ ...profile, mapPositionX: 0, mapPositionY: 0 });
     expect((await service.list(7)).available).toEqual([]);
     expect(prisma.quest.findMany).not.toHaveBeenCalled();
   });
@@ -61,6 +73,39 @@ describe('QuestsService', () => {
     prisma.gameProfile.update.mockResolvedValue({ ...profile, mapPositionX: 0, mapPositionY: 0 });
     await expect(service.accept(7, 1)).rejects.toThrow(BadRequestException);
     expect(prisma.playerQuest.upsert).not.toHaveBeenCalled();
+  });
+
+  it('enforces the five-active-quest limit', async () => {
+    prisma.playerQuest.count.mockResolvedValue(5);
+    await expect(service.accept(7, 1)).rejects.toThrow('at most five');
+    expect(prisma.playerQuest.upsert).not.toHaveBeenCalled();
+  });
+
+  it('refreshes only this players board and charges exactly 30 gems', async () => {
+    await service.refresh(7);
+    expect(prisma.gameProfile.update).toHaveBeenCalledWith({ where: { id: 5 }, data: { gems: { decrement: 30 } } });
+    expect(prisma.questBoard.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { gameProfileId_townId: { gameProfileId: 5, townId: 1 } },
+        update: { revision: { increment: 1 }, nextRefreshAt: expect.any(Date) as Date },
+      }),
+    );
+    expect(prisma.playerQuest.update).not.toHaveBeenCalled();
+  });
+
+  it('does not charge or reroll when gems are insufficient', async () => {
+    prisma.gameProfile.update.mockResolvedValue({ ...profile, gems: 29 });
+    await expect(service.refresh(7)).rejects.toThrow('Not enough gems');
+    expect(prisma.questBoard.upsert).not.toHaveBeenCalled();
+    expect(prisma.gameProfile.update).toHaveBeenCalledTimes(1);
+  });
+
+  it('automatically renews an expired board without charging gems', async () => {
+    prisma.questBoard.findUnique.mockResolvedValue({ ...board, nextRefreshAt: new Date(0) });
+    await service.list(7);
+    expect(prisma.questBoard.upsert).toHaveBeenCalledTimes(1);
+    expect(prisma.quest.createMany).toHaveBeenCalledTimes(1);
+    expect(prisma.gameProfile.update).toHaveBeenCalledTimes(1);
   });
   it('rejects unknown quests', async () => {
     prisma.quest.findUnique.mockResolvedValue(null);

@@ -1,6 +1,7 @@
 type Point = { x: number; y: number };
 
 export type Landmark = Point & {
+  sanctuaryId?: number;
   name: string;
   subtitle: string;
   type: 'capital' | 'city' | 'village' | 'dungeon' | 'sanctum';
@@ -8,17 +9,20 @@ export type Landmark = Point & {
 };
 
 export const landmarks: Landmark[] = [
+  { x: 1200, y: 330, name: 'SUNSPIRE', subtitle: 'Sanctuary of the Northern Sun', type: 'sanctum', sanctuaryId: 3, accent: '#ffd477' },
+  { x: 1770, y: 300, name: 'ICEVAULT', subtitle: 'The Frozen Depths', type: 'dungeon', accent: '#8bcfe8' },
+  { x: 450, y: 350, name: 'RAVENCRYPT', subtitle: 'The Forgotten Barrows', type: 'dungeon', accent: '#bb91de' },
   { x: 940, y: 620, name: 'AURELIA', subtitle: 'The Sunlit Citadel', type: 'capital', accent: '#f6cf72' },
   { x: 2060, y: 570, name: 'MOONFALL', subtitle: 'City of Silver Spires', type: 'city', accent: '#b8d9ff' },
   { x: 1470, y: 1040, name: 'EVERCROSS', subtitle: 'The Wandering Market', type: 'village', accent: '#efbd74' },
   { x: 2470, y: 1370, name: 'EMBERDEEP', subtitle: 'Vault of the First Flame', type: 'dungeon', accent: '#ff8067' },
-  { x: 720, y: 1480, name: 'STARGLEN', subtitle: 'Sanctuary of Whispers', type: 'sanctum', accent: '#8ce5ca' },
+  { x: 720, y: 1480, name: 'STARGLEN', subtitle: 'Sanctuary of Whispers', type: 'sanctum', sanctuaryId: 1, accent: '#8ce5ca' },
   { x: 1720, y: 1640, name: 'MOSSKEEP', subtitle: 'Village beneath the Boughs', type: 'village', accent: '#a9d48c' },
   { x: 520, y: 850, name: 'WESTMERE', subtitle: 'Harbor of Amber Sails', type: 'city', accent: '#f4bd72' },
   { x: 2530, y: 520, name: 'FROSTWATCH', subtitle: 'The Northern Beacon', type: 'village', accent: '#c5e4ef' },
   { x: 1120, y: 1580, name: 'LARKHAVEN', subtitle: 'City of Green Glass', type: 'city', accent: '#91d6ae' },
   { x: 2680, y: 1040, name: 'HOLLOWGATE', subtitle: 'The Door Below', type: 'dungeon', accent: '#cf84f1' },
-  { x: 2240, y: 1540, name: 'DAWNSHRINE', subtitle: 'Temple of the Last Star', type: 'sanctum', accent: '#ffe08a' },
+  { x: 2240, y: 1540, name: 'DAWNSHRINE', subtitle: 'Temple of the Last Star', type: 'sanctum', sanctuaryId: 2, accent: '#ffe08a' },
 ];
 
 const seededRandom = (seed: number) => {

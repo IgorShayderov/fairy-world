@@ -24,6 +24,10 @@ export const useCurrentUserStore = defineStore('currentUser', () => {
         if (user.value?.id === currentUser.id && currentUser.level > user.value.level) {
           Notify.create({ type: 'positive', timeout: 6000, message: i18n.t('profile.levelUp', { level: currentUser.level }) });
         }
+        const completed = (currentUser.accomplishedQuests ?? 0) - (user.value?.accomplishedQuests ?? 0);
+        if (user.value?.id === currentUser.id && completed > 0) {
+          Notify.create({ type: 'positive', timeout: 6000, message: i18n.t('quests.completedNotice', { count: completed }) });
+        }
         user.value = currentUser;
         return currentUser;
       })

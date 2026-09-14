@@ -4,10 +4,10 @@ import { PrismaService } from '../prisma.service';
 import { GeneratedMonster, MonsterGeneratorService } from './monster-generator.service';
 import { UsersService } from '../users/users.service';
 import { UserView } from '../users/user.view';
-import { PlayerBuffType, StatType } from '../../generated/client';
+import { ItemRarity, PlayerBuffType, StatType } from '../../generated/client';
 import { ItemGeneratorService } from '../items/item-generator.service';
 import { ItemView } from '../common/views/item.view';
-import { rollMonsterLootRarity, rollDungeonLootRarity } from './monster-loot';
+import { rollMonsterLootRarity, rollDungeonLootRarity, rollQuestLootRarity } from './monster-loot';
 import { requireLandmark } from '../locations/landmarks';
 import { progressionAfterExperience } from '../users/level-progression';
 import { recordQuestVictory } from '../quests/quest-progress';
@@ -46,7 +46,7 @@ export class MonstersService {
     private itemGenerator: ItemGeneratorService,
   ) {}
 
-  private readonly encounterChance = 0.5;
+  private readonly encounterChance = 0.4;
   private readonly battles = new Map<string, Battle>();
 
   findAll() {
@@ -176,7 +176,18 @@ export class MonstersService {
           },
           select: { id: true, level: true, experience: true },
         });
-        const progression = progressionAfterExperience(profile.level, profile.experience);
+        const finished = await recordQuestVictory(tx, profile.id, battle.monsterType, battle.startedAt);
+        const questGold = finished.reduce((sum, quest) => sum + quest.rewardGold, 0);
+        const questExperience = finished.reduce((sum, quest) => sum + quest.rewardExperience, 0);
+        if (finished.length) {
+          await tx.gameProfile.update({
+            where: { id: profile.id },
+            data: { gold: { increment: questGold }, experience: { increment: questExperience } },
+          });
+          rewards.gold += questGold;
+          rewards.experience += questExperience;
+        }
+        const progression = progressionAfterExperience(profile.level, profile.experience + questExperience);
         if (progression.level !== profile.level || progression.experience !== profile.experience) {
           await tx.gameProfile.update({
             where: { id: profile.id },
@@ -187,21 +198,36 @@ export class MonstersService {
             },
           });
         }
-        await recordQuestVictory(tx, profile.id, battle.monsterType, battle.startedAt);
-        if (!lootRarity) return;
-
-        const item = await this.itemGenerator.generate({ level: battle.monster.level, rarity: lootRarity }, tx);
-        await tx.inventoryItem.create({
-          data: {
-            gameProfileId: profile.id,
-            itemId: item.id,
-            quantity: 1,
-            slot: null,
-            isEquiped: false,
-          },
-        });
-        rewards.items.push({ ...ItemView.render(item), quantity: 1 });
+        const drops = [lootRarity, ...finished.map(() => rollQuestLootRarity())];
+        for (const [index, rarity] of drops.entries()) {
+          if (!rarity) continue;
+          const item = await this.itemGenerator.generate(
+            { level: battle.monster.level, rarity, ...(index > 0 ? { minimumRarity: ItemRarity.MAGIC } : {}) },
+            tx,
+          );
+          await tx.inventoryItem.create({
+            data: {
+              gameProfileId: profile.id,
+              itemId: item.id,
+              quantity: 1,
+              slot: null,
+              isEquiped: false,
+            },
+          });
+          rewards.items.push({ ...ItemView.render(item), quantity: 1 });
+        }
       });
+    }
+
+    if (battle.status === 'DEFEAT') {
+      await this.prisma.$transaction(async (tx) => {
+        const profile = await tx.gameProfile.update({
+          where: { userId },
+          data: { mapPositionX: 1470, mapPositionY: 1040 },
+        });
+        await tx.gameProfileBuff.deleteMany({ where: { gameProfileId: profile.id } });
+      });
+      for (const [id, other] of this.battles) if (other.userId === userId) this.battles.delete(id);
     }
 
     this.battles.delete(battleId);

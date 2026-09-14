@@ -3,21 +3,21 @@ import { AttributeType, StatType } from '../../generated/client';
 export const STARTING_ATTRIBUTE_VALUE = 5;
 export const STARTING_FREE_ATTRIBUTES = 0;
 export const MAX_CHANCE_PERCENT = 50;
-export const BASE_CRITICAL_DAMAGE_PERCENT = 125;
+export const BASE_CRITICAL_DAMAGE_PERCENT = 150;
 export const MAX_CRITICAL_DAMAGE_PERCENT = 300;
-const CRITICAL_DAMAGE_RATING_PIVOT = 7.75;
+const CRITICAL_DAMAGE_RATING_PIVOT = 6;
 
 const roundPercentage = (value: number) => Math.round(value * 10) / 10;
 
 export const convertRatingToPercentage = (stat: StatType, rating: number, level: number): number => {
   const nonNegativeRating = Math.max(0, rating);
-  const scaledRating = (nonNegativeRating * 50) / Math.max(50, level);
+  const scaledRating = (nonNegativeRating * 65) / Math.max(50, level);
 
   if (stat === StatType.CRIT || stat === StatType.DODGE) {
     return roundPercentage(Math.min(MAX_CHANCE_PERCENT, scaledRating));
   }
   if (stat === StatType.CRIT_DAMAGE) {
-    const effectiveRating = (nonNegativeRating * 10) / Math.max(100, level);
+    const effectiveRating = (nonNegativeRating * 15) / Math.max(100, level);
     const availableBonus = MAX_CRITICAL_DAMAGE_PERCENT - BASE_CRITICAL_DAMAGE_PERCENT;
     const diminishingBonus = (availableBonus * effectiveRating) / (effectiveRating + CRITICAL_DAMAGE_RATING_PIVOT);
     return roundPercentage(Math.min(MAX_CRITICAL_DAMAGE_PERCENT, BASE_CRITICAL_DAMAGE_PERCENT + diminishingBonus));
@@ -74,5 +74,5 @@ export const PROPERTY_DESCRIPTIONS: Record<StatType, string> = {
   [StatType.DEFENSE]: 'Final damage reduction percentage, scaled against the player level.',
   [StatType.CRIT]: 'Final critical-hit chance, capped at 50%.',
   [StatType.DODGE]: 'Final chance to avoid an attack, capped at 50%.',
-  [StatType.CRIT_DAMAGE]: 'Final critical-hit damage multiplier, from a 125% base up to a 300% maximum.',
+  [StatType.CRIT_DAMAGE]: 'Final critical-hit damage multiplier, from a 150% base up to a 300% maximum.',
 };

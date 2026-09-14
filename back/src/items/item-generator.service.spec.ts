@@ -30,6 +30,35 @@ describe('ItemGeneratorService', () => {
 
   afterEach(() => jest.restoreAllMocks());
 
+  it('does not reuse Common gear for a Magic-or-better quest reward', async () => {
+    jest.spyOn(Math, 'random').mockReturnValue(0);
+    const options = {
+      level: 1,
+      equipmentType: EquipmentType.WEAPON,
+      rarity: ItemRarity.MAGIC,
+      minimumRarity: ItemRarity.MAGIC,
+    };
+    await service.generate(options);
+    const args = create.mock.calls[0][0] as GeneratedItemCreateArgs;
+    findMany.mockResolvedValue([
+      {
+        id: 42,
+        name: 'Old sword',
+        equipmentType: ['WEAPON'],
+        isConsumable: false,
+        rarity: ItemRarity.COMMON,
+        stats: args.data.stats.create.map((entry) => ({ value: entry.value, stat: { name: entry.stat.connect.name } })),
+        attributes: args.data.attributes.create.map((entry) => ({
+          value: entry.value,
+          attribute: { name: entry.attribute.connect.name },
+        })),
+      },
+    ]);
+    create.mockClear();
+    await service.generate(options);
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+
   it.each([ItemRarity.MAGIC, ItemRarity.RARE, ItemRarity.UNIQUE])(
     'guarantees an attribute bonus for %s items',
     async (rarity) => {

@@ -1,5 +1,5 @@
 <template>
-  <div class="flex min-h-0 flex-1 flex-col overflow-auto bg-gray-50 p-6">
+  <div class="realm-page flex min-h-0 flex-1 flex-col overflow-auto p-6">
     <div class="mx-auto flex w-max min-w-full flex-col gap-6">
       <div class="flex flex-row items-start justify-center gap-8">
         <EquipmentSection
@@ -44,6 +44,7 @@
 </template>
 
 <script setup lang="ts">
+import '@/css/realm-pages.css';
 import { useTranslation } from 'i18next-vue';
 import { storeToRefs } from 'pinia';
 import { useQuasar } from 'quasar';

@@ -5,6 +5,7 @@ import { BASE_ITEMS, BaseItem, Modifier, PREFIXES, RARITY_WEIGHTS, SUFFIXES } fr
 import { itemIdentity } from './item-identity';
 
 interface GenerateItemOptions {
+  minimumRarity?: ItemRarity;
   level: number;
   equipmentType?: EquipmentType;
   rarity?: ItemRarity;
@@ -71,7 +72,12 @@ export class ItemGeneratorService {
       include: { stats: { include: { stat: true } }, attributes: { include: { attribute: true } } },
       orderBy: { id: 'asc' },
     });
-    const existing = candidates.find((item) => itemIdentity(item) === identity);
+    const rarityOrder: ItemRarity[] = [ItemRarity.COMMON, ItemRarity.MAGIC, ItemRarity.RARE, ItemRarity.UNIQUE];
+    const existing = candidates.find(
+      (item) =>
+        itemIdentity(item) === identity &&
+        (!options.minimumRarity || rarityOrder.indexOf(item.rarity) >= rarityOrder.indexOf(options.minimumRarity)),
+    );
     if (existing) {
       if (existing.level > level) {
         return client.item.update({

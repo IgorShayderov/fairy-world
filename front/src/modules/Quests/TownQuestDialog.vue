@@ -11,14 +11,20 @@
         <p v-if="!journal.town" class="text-sm">{{ t('quests.visitTown') }}</p>
         <template v-else>
           <p class="mb-4 text-xs text-gray-500">{{ t('quests.dailyBoard') }}</p>
+          <div class="mb-4 flex items-center justify-between gap-3 text-xs">
+            <span>{{ t('quests.boardTimer', { time: remaining }) }}</span>
+            <button class="rounded bg-violet-700 px-3 py-2 text-white disabled:opacity-50" :disabled="pending || (store.user?.gems ?? 0) < 30" @click="refresh">{{ t('quests.refresh') }}</button>
+          </div>
+          <p class="mb-3 text-xs">{{ t('quests.activeLimit', { count: journal.active.length }) }}</p>
           <p v-if="!offers.length" class="text-sm text-gray-500">{{ t('quests.noOffers') }}</p>
           <article v-for="quest in offers" :key="quest.id" class="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-xs">
             <h3 class="text-sm leading-snug font-semibold">{{ title(quest) }}</h3>
             <p class="mt-2">{{ description(quest) }}</p>
             <p v-if="quest.huntingLocation" class="mt-2 text-blue-700">{{ huntingLocation(quest) }}</p>
-            <p class="mt-2 text-amber-800">{{ t('quests.reward', { gold: quest.rewardGold }) }}</p>
+            <p class="mt-2 text-amber-800">{{ t('quests.reward', { gold: quest.rewardGold, experience: quest.rewardExperience ?? 0 }) }}</p>
+            <p class="mt-1">{{ t('quests.itemChance') }}</p>
             <div class="mt-3 flex gap-3">
-              <button class="rounded bg-blue-600 px-3 py-2 text-white disabled:opacity-50" :disabled="pending" @click="accept(quest.id)">{{ t('quests.accept') }}</button>
+              <button class="rounded bg-blue-600 px-3 py-2 text-white disabled:opacity-50" :disabled="pending || journal.active.length >= 5" @click="accept(quest.id)">{{ t('quests.accept') }}</button>
               <button class="rounded border border-gray-300 px-3 py-2 disabled:opacity-50" :disabled="pending" @click="dismissed.push(quest.id)">{{ t('quests.decline') }}</button>
             </div>
           </article>
@@ -32,15 +38,26 @@
 <script setup lang="ts">
 import { useTranslation } from 'i18next-vue';
 import { QDialog } from 'quasar';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import type { Quest, QuestJournal } from './api';
 
-import { acceptQuest, getQuests } from './api';
+import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
+
+import { acceptQuest, getQuests, refreshQuests } from './api';
 
 defineProps<{ townName: string }>();
 const emit = defineEmits<{ (event: 'close'): void }>();
 const { t } = useTranslation();
+const store = useCurrentUserStore();
+const now = ref(Date.now());
+let clock: ReturnType<typeof setInterval>;
+onMounted(() => { clock = setInterval(() => { now.value = Date.now(); }, 1000); });
+onUnmounted(() => clearInterval(clock));
+const remaining = computed(() => {
+  const seconds = Math.max(0, Math.ceil((Date.parse(journal.value?.nextRefreshAt ?? '') - now.value) / 1000) || 0);
+  return `${Math.floor(seconds / 3600)}:${String(Math.floor(seconds / 60) % 60).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+});
 const journal = ref<QuestJournal | null>(null);
 const loading = ref(false);
 const pending = ref(false);
@@ -69,4 +86,12 @@ const accept = async (id: number) => {
   finally { pending.value = false; }
 };
 onMounted(load);
+watch(remaining, value => { if (value === '0:00:00' && journal.value?.nextRefreshAt && !pending.value && !loading.value) void load(); });
+const refresh = async () => {
+  if (pending.value) return;
+  pending.value = true;
+  try { await refreshQuests(); await store.fetchCurrentUser(true); dismissed.value = []; await load(); }
+  catch { error.value = t('quests.refreshError'); }
+  finally { pending.value = false; }
+};
 </script>

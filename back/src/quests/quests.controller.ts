@@ -21,6 +21,11 @@ export class QuestsController {
     return this.quests.accept(req.user.sub, id);
   }
 
+  @Post('refresh')
+  refresh(@Request() req: RequestWithUser) {
+    return this.quests.refresh(req.user.sub);
+  }
+
   @Post(':id/cancel')
   cancel(@Request() req: RequestWithUser, @Param('id', ParseIntPipe) id: number) {
     return this.quests.cancel(req.user.sub, id);

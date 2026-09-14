@@ -1,6 +1,6 @@
 <template>
   <aside
-    class="relative flex min-h-0 min-w-0 shrink-0 flex-col border-l border-gray-200 bg-white transition-all duration-300 ease-in-out"
+    class="relative flex min-h-0 min-w-0 shrink-0 flex-col border-l border-gray-200 bg-gray-200 *:transition-all duration-300 ease-in-out"
     :class="isSidebarExpanded ? 'w-[25%] min-w-[200px]' : 'w-[50px]'"
   >
     <ToggleExpandButton

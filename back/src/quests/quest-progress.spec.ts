@@ -33,14 +33,14 @@ describe('quest victory progress', () => {
     expect(tx.gameProfile.update).not.toHaveBeenCalled();
   });
 
-  it('finishes at the target and grants gold in the same transaction', async () => {
+  it('finishes at the target and returns the quest for transactional rewards', async () => {
     const { tx, client } = setup(19);
-    await recordQuestVictory(client, 5, 'Dire Wolf', startedAt);
+    const finished = await recordQuestVictory(client, 5, 'Dire Wolf', startedAt);
     expect(tx.playerQuest.updateMany).toHaveBeenCalledWith({
       where: { gameProfileId: 5, questId: 1, progress: 19, completedAt: null, canceledAt: null },
       data: { progress: 20, completedAt: expect.any(Date) as Date },
     });
-    expect(tx.gameProfile.update).toHaveBeenCalledWith({ where: { id: 5 }, data: { gold: { increment: 200 } } });
+    expect(finished).toEqual([{ target: 20, rewardGold: 200 }]);
   });
 
   it('does not pay a reward when another update already completed the quest', async () => {
