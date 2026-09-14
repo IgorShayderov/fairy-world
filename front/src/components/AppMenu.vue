@@ -1,6 +1,6 @@
 <template>
   <aside
-    class="relative flex min-h-0 min-w-0 shrink-0 flex-col border-l border-gray-200 bg-gray-200 *:transition-all duration-300 ease-in-out"
+    class="relative flex min-h-0 min-w-0 shrink-0 flex-col border-l border-gray-200 bg-gray-200 duration-300 ease-in-out *:transition-all"
     :class="isSidebarExpanded ? 'w-[25%] min-w-[200px]' : 'w-[50px]'"
   >
     <ToggleExpandButton
@@ -57,12 +57,6 @@ const inTown = computed(() => {
 });
 const menuItems = computed(() => [
   {
-    id: 'settings',
-    nameKey: 'menu.settings',
-    route: routes.settingsPath(),
-    icon: 'M4 7h16M4 17h16M8 4v6m8 4v6',
-  },
-  {
     id: 'home',
     nameKey: 'menu.home',
     route: routes.rootPath(),
@@ -96,6 +90,12 @@ const menuItems = computed(() => [
     nameKey: 'menu.gems',
     route: routes.gemShopPath(),
     icon: 'M3 8l5-5h8l5 5-9 13L3 8Zm0 0h18M8 3l4 18 4-18',
+  },
+  {
+    id: 'settings',
+    nameKey: 'menu.settings',
+    route: routes.settingsPath(),
+    icon: 'M4 7h16M4 17h16M8 4v6m8 4v6',
   },
 ]);
 </script>
