@@ -1,15 +1,61 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
-import { townAt } from '../locations/towns';
+import { TOWNS, townAt } from '../locations/towns';
 import { generateTownOffers } from './quest-board';
 import { habitatForMonster } from '../monsters/monster-habitats';
 import type { Quest, Prisma } from '../../generated/client';
+import { ItemRarity } from '../../generated/client';
+import { ItemGeneratorService } from '../items/item-generator.service';
+import { rollQuestLootRarity } from '../monsters/monster-loot';
+import { progressionAfterExperience } from '../users/level-progression';
 
-const renderQuest = (quest: Quest) => ({ ...quest, huntingLocation: habitatForMonster(quest.monsterType) ?? null });
+const renderQuest = (quest: Quest) => ({
+  ...quest,
+  destination: TOWNS.find((town) => town.shopId === quest.destinationTownId) ?? null,
+  huntingLocation: habitatForMonster(quest.monsterType) ?? null,
+});
 
 @Injectable()
 export class QuestsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly itemGenerator: ItemGeneratorService,
+  ) {}
+
+  async deliver(userId: number, questId: number) {
+    return this.prisma.$transaction(async (tx) => {
+      const profile = await tx.gameProfile.update({ where: { userId }, data: { gold: { increment: 0 } } });
+      const key = { gameProfileId_questId: { gameProfileId: profile.id, questId } };
+      const entry = await tx.playerQuest.findUnique({ where: key, include: { quest: true } });
+      if (!entry || entry.canceledAt) throw new NotFoundException('Active quest not found');
+      if (entry.completedAt) return { success: true };
+      const town = townAt(profile);
+      if (!town || entry.quest.destinationTownId !== town.shopId)
+        throw new BadRequestException('Visit the destination town to deliver this message');
+      await tx.playerQuest.update({ where: key, data: { progress: 1, completedAt: new Date() } });
+      const progression = progressionAfterExperience(profile.level, profile.experience + entry.quest.rewardExperience);
+      await tx.gameProfile.update({
+        where: { id: profile.id },
+        data: {
+          gold: { increment: entry.quest.rewardGold },
+          experience: progression.experience,
+          level: progression.level,
+          freeAttributes: { increment: progression.freeAttributes },
+        },
+      });
+      const rarity = rollQuestLootRarity();
+      if (rarity) {
+        const item = await this.itemGenerator.generate(
+          { level: profile.level, rarity, minimumRarity: ItemRarity.MAGIC },
+          tx,
+        );
+        await tx.inventoryItem.create({
+          data: { gameProfileId: profile.id, itemId: item.id, quantity: 1, isEquiped: false, slot: null },
+        });
+      }
+      return { success: true };
+    });
+  }
 
   async list(userId: number) {
     return this.prisma.$transaction(async (tx) => {

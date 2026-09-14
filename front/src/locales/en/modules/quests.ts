@@ -1,8 +1,12 @@
 export default {
+  deliveryTitle: 'Message for {{town}}',
+  deliveryDescription: 'Travel to {{town}} ({{x}}, {{y}}), then open Quests and deliver the message.',
+  deliver: 'Deliver message',
+  deliveryError: 'Could not deliver. Visit the destination town and try again.',
   cancel: 'Cancel quest', confirmCancel: 'Yes, cancel', keep: 'Keep quest',
   cancelWarning: 'Cancel this quest? Its progress will be lost if you accept it again.',
   cancelError: 'Could not cancel this quest. It may already be completed. Please refresh.',
-  dailyBoard: 'Cities offer 3 quests; villages offer 1. Boards refresh every 24 hours. Accepted quests do not expire.',
+  dailyBoard: 'Cities offer 3 quests; villages offer 2, including a delivery. Boards refresh every 24 hours. Accepted quests do not expire.',
   completedNotice: 'Quests completed: {{count}}! Your rewards have been added.',
   activeLimit: 'Active quests: {{count}} / 5', boardTimer: 'New quests in {{time}}',
   refresh: 'New quests (30 💎)', refreshError: 'Could not refresh quests. Visit a town with at least 30 gems.',

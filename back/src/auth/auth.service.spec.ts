@@ -7,6 +7,7 @@ import type { Prisma } from '../../generated/client';
 
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
+import { ItemGeneratorService } from '../items/item-generator.service';
 
 jest.mock('bcrypt');
 
@@ -30,16 +31,19 @@ describe('AuthService', () => {
   };
 
   const mockPrismaService: {
+    $transaction: jest.Mock;
     user: {
       create: jest.Mock<Promise<{ id: number; email: string }>, [Prisma.UserCreateArgs]>;
     };
   } = {
+    $transaction: jest.fn(),
     user: {
       create: jest.fn<Promise<{ id: number; email: string }>, [Prisma.UserCreateArgs]>(),
     },
   };
 
   const originalEnv = process.env;
+  const itemGenerator = { generate: jest.fn() };
 
   beforeAll(() => {
     process.env = {
@@ -56,6 +60,11 @@ describe('AuthService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    mockPrismaService.$transaction.mockImplementation((operation: (tx: unknown) => unknown) =>
+      operation(mockPrismaService),
+    );
+    itemGenerator.generate.mockReset();
+    itemGenerator.generate.mockResolvedValueOnce({ id: 101 }).mockResolvedValueOnce({ id: 102 });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -63,6 +72,7 @@ describe('AuthService', () => {
         { provide: UsersService, useValue: mockUsersService },
         { provide: JwtService, useValue: mockJwtService },
         { provide: PrismaService, useValue: mockPrismaService },
+        { provide: ItemGeneratorService, useValue: itemGenerator },
       ],
     }).compile();
 
@@ -135,6 +145,20 @@ describe('AuthService', () => {
       const createData = mockPrismaService.user.create.mock.calls[0][0].data;
       const profile = 'create' in createData.gameProfile! ? createData.gameProfile.create : undefined;
       expect(profile?.gems).toBe(0);
+      expect(itemGenerator.generate).toHaveBeenNthCalledWith(
+        1,
+        { level: 1, rarity: 'COMMON', equipmentType: 'WEAPON' },
+        mockPrismaService,
+      );
+      expect(itemGenerator.generate).toHaveBeenNthCalledWith(
+        2,
+        { level: 1, rarity: 'COMMON', equipmentType: 'SHIELD' },
+        mockPrismaService,
+      );
+      expect(profile?.inventory?.create).toEqual([
+        { item: { connect: { id: 101 } }, quantity: 1, isEquiped: false, slot: null },
+        { item: { connect: { id: 102 } }, quantity: 1, isEquiped: false, slot: null },
+      ]);
       expect(profile?.freeAttributes).toBe(0);
       expect(profile?.profileAttributes?.create).toHaveLength(5);
       expect(profile?.profileAttributes?.create).toEqual(

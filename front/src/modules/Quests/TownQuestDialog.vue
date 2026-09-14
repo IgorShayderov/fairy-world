@@ -65,8 +65,8 @@ const error = ref('');
 const dismissed = ref<number[]>([]);
 const offers = computed(() => journal.value?.available.filter(q => !dismissed.value.includes(q.id)) ?? []);
 const monsterName = (quest: Quest) => t(`quests.monsters.${quest.monsterType}`, { defaultValue: quest.monsterType });
-const title = (quest: Quest) => quest.regionKey ? t('quests.huntTitle', { monster: monsterName(quest) }) : t(`quests.definitions.${quest.code}.title`, { defaultValue: quest.code });
-const description = (quest: Quest) => quest.regionKey ? t('quests.huntDescription', { monster: monsterName(quest), count: quest.target }) : t(`quests.definitions.${quest.code}.description`, { count: quest.target });
+const title = (quest: Quest) => quest.destination ? t('quests.deliveryTitle', { town: quest.destination.name }) : quest.regionKey ? t('quests.huntTitle', { monster: monsterName(quest) }) : t(`quests.definitions.${quest.code}.title`, { defaultValue: quest.code });
+const description = (quest: Quest) => quest.destination ? t('quests.deliveryDescription', { town: quest.destination.name, x: quest.destination.x, y: quest.destination.y }) : quest.regionKey ? t('quests.huntDescription', { monster: monsterName(quest), count: quest.target }) : t(`quests.definitions.${quest.code}.description`, { count: quest.target });
 const huntingLocation = (quest: Quest) => {
   const location = quest.huntingLocation;
   return location ? t('quests.huntingLocation', { region: t(`quests.regions.${location.key}`), town: location.nearby, x: location.x, y: location.y }) : '';

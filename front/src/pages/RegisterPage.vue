@@ -13,28 +13,58 @@
             :label="t('auth.fields.email.label')"
             :rules="emailRules"
             lazy-rules
-          />
+          >
+            <template #prepend><QIcon name="mail" /></template>
+          </QInput>
           <QInput
             v-model="form.password"
-            type="password"
+            :type="showPassword ? 'text' : 'password'"
             name="password"
             autocomplete="new-password"
             outlined
             :label="t('auth.fields.password.label')"
             :rules="passwordRules"
             lazy-rules
-          />
+          >
+            <template #prepend><QIcon name="lock" /></template>
+            <template #append>
+              <QBtn
+                type="button"
+                flat
+                round
+                dense
+                :icon="showPassword ? 'visibility_off' : 'visibility'"
+                :aria-label="t(showPassword ? 'auth.buttons.hidePassword' : 'auth.buttons.showPassword')"
+                :aria-pressed="showPassword"
+                @click="showPassword = !showPassword"
+              />
+            </template>
+          </QInput>
           <p class="text-xs text-gray-500">{{ t('auth.registration.passwordHint') }}</p>
           <QInput
             v-model="form.confirm"
-            type="password"
+            :type="showConfirmation ? 'text' : 'password'"
             name="password-confirm"
             autocomplete="new-password"
             outlined
             :label="t('auth.fields.passwordConfirm.label')"
             :rules="[(value: string) => value === form.password || t('auth.validation.errors.password.mismatch')]"
             lazy-rules
-          />
+          >
+            <template #prepend><QIcon name="lock" /></template>
+            <template #append>
+              <QBtn
+                type="button"
+                flat
+                round
+                dense
+                :icon="showConfirmation ? 'visibility_off' : 'visibility'"
+                :aria-label="t(showConfirmation ? 'auth.buttons.hideConfirmation' : 'auth.buttons.showConfirmation')"
+                :aria-pressed="showConfirmation"
+                @click="showConfirmation = !showConfirmation"
+              />
+            </template>
+          </QInput>
           <p v-if="error" role="alert" class="text-sm text-red-600">{{ error }}</p>
           <QBtn type="submit" color="primary" class="w-full" :label="t('auth.buttons.register')" :loading="loading" />
         </QForm>
@@ -48,7 +78,7 @@
 
 <script setup lang="ts">
 import { useTranslation } from 'i18next-vue';
-import { QBtn, QCard, QCardSection, QForm, QInput } from 'quasar';
+import { QBtn, QCard, QCardSection, QForm, QIcon, QInput } from 'quasar';
 import { reactive, ref } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 
@@ -62,6 +92,8 @@ const { t } = useTranslation();
 const router = useRouter();
 const currentUser = useCurrentUserStore();
 const form = reactive({ email: '', password: '', confirm: '' });
+const showPassword = ref(false);
+const showConfirmation = ref(false);
 const loading = ref(false);
 const error = ref('');
 const emailRules = [(value: string) => /.+@.+\..+/.test(value.trim()) || t('auth.validation.errors.email.incorrect')];

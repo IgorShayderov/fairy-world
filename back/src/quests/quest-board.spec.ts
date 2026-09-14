@@ -21,6 +21,12 @@ describe('daily town boards', () => {
       const offers = generateTownOffers(town, now);
       expect(new Set(offers.map((q) => q.monsterType)).size).toBe(townQuestCount(town.shopId));
       for (const quest of offers) {
+        if (quest.destinationTownId) {
+          expect(quest.destinationTownId).not.toBe(town.shopId);
+          expect(TOWNS.some((destination) => destination.shopId === quest.destinationTownId)).toBe(true);
+          expect(quest.target).toBe(1);
+          continue;
+        }
         expect(quest.target).toBeGreaterThanOrEqual(8);
         expect(quest.target).toBeLessThanOrEqual(20);
         expect(quest.regionKey).toBe(habitatForMonster(quest.monsterType)?.key);

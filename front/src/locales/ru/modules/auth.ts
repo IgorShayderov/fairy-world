@@ -22,6 +22,10 @@ export default {
       },
     },
     buttons: {
+      showPassword: 'Показать пароль',
+      hidePassword: 'Скрыть пароль',
+      showConfirmation: 'Показать подтверждение пароля',
+      hideConfirmation: 'Скрыть подтверждение пароля',
       register: 'Создать аккаунт',
       login: 'Войти',
       forgotPassword: 'Забыли пароль?',

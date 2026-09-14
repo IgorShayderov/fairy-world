@@ -101,6 +101,7 @@ model GameProfile {
 }
 
 model Quest {
+  destinationTownId Int?
   boardId      String?
   boardRevision Int @default(0)
   board        QuestBoard? @relation(fields: [boardId], references: [id])

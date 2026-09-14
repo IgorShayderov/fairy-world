@@ -265,10 +265,10 @@ describe('MonstersService', () => {
   });
 
   describe('rollEncounter', () => {
-    it('does not query monsters when the forty-percent roll misses', async () => {
-      jest.spyOn(Math, 'random').mockReturnValue(0.4);
+    it('does not query monsters when the twenty-percent roll misses', async () => {
+      jest.spyOn(Math, 'random').mockReturnValue(0.2);
 
-      await expect(service.rollEncounter(7)).resolves.toEqual({ encountered: false, chance: 0.4 });
+      await expect(service.rollEncounter(7)).resolves.toEqual({ encountered: false, chance: 0.2 });
       expect(mockUsersService.findCurrentUser).not.toHaveBeenCalled();
     });
 

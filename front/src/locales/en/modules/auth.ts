@@ -38,6 +38,10 @@ export default {
     },
   },
   buttons: {
+    showPassword: 'Show password',
+    hidePassword: 'Hide password',
+    showConfirmation: 'Show password confirmation',
+    hideConfirmation: 'Hide password confirmation',
     register: 'Create an account',
     login: 'Login',
     forgotPassword: 'Forgot password?',

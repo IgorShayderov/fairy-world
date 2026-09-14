@@ -5,7 +5,8 @@ import * as bcrypt from 'bcrypt';
 
 import type { TokenResult } from './interfaces/token-payload.interface';
 import { UsersService } from '../users/users.service';
-import { AttributeType, StatType } from '../../generated/client';
+import { AttributeType, EquipmentType, ItemRarity, StatType } from '../../generated/client';
+import { ItemGeneratorService } from '../items/item-generator.service';
 import { STARTING_ATTRIBUTE_VALUE, STARTING_FREE_ATTRIBUTES, STARTING_PROPERTIES } from '../users/player-defaults';
 
 @Injectable()
@@ -14,6 +15,7 @@ export class AuthService {
     private usersService: UsersService,
     private jwtService: JwtService,
     private prisma: PrismaService,
+    private itemGenerator: ItemGeneratorService,
   ) {}
 
   async signIn(email: string, password: string): Promise<TokenResult> {
@@ -89,31 +91,47 @@ export class AuthService {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const user = await this.prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-        name: email.split('@')[0], // derive name from email
-        role: 'USER',
-        gameProfile: {
-          create: {
-            gems: 0,
-            freeAttributes: STARTING_FREE_ATTRIBUTES,
-            profileAttributes: {
-              create: Object.values(AttributeType).map((name) => ({
-                value: STARTING_ATTRIBUTE_VALUE,
-                attribute: { connect: { name } },
-              })),
-            },
-            profileStats: {
-              create: Object.values(StatType).map((name) => ({
-                value: STARTING_PROPERTIES[name],
-                stat: { connect: { name } },
-              })),
+    const user = await this.prisma.$transaction(async (tx) => {
+      const starterItems: Array<{ id: number }> = [];
+      for (const equipmentType of [EquipmentType.WEAPON, EquipmentType.SHIELD]) {
+        starterItems.push(
+          await this.itemGenerator.generate({ level: 1, rarity: ItemRarity.COMMON, equipmentType }, tx),
+        );
+      }
+      return tx.user.create({
+        data: {
+          email,
+          password: hashedPassword,
+          name: email.split('@')[0], // derive name from email
+          role: 'USER',
+          gameProfile: {
+            create: {
+              gems: 0,
+              inventory: {
+                create: starterItems.map((item) => ({
+                  item: { connect: { id: item.id } },
+                  quantity: 1,
+                  isEquiped: false,
+                  slot: null,
+                })),
+              },
+              freeAttributes: STARTING_FREE_ATTRIBUTES,
+              profileAttributes: {
+                create: Object.values(AttributeType).map((name) => ({
+                  value: STARTING_ATTRIBUTE_VALUE,
+                  attribute: { connect: { name } },
+                })),
+              },
+              profileStats: {
+                create: Object.values(StatType).map((name) => ({
+                  value: STARTING_PROPERTIES[name],
+                  stat: { connect: { name } },
+                })),
+              },
             },
           },
         },
-      },
+      });
     });
 
     return this.generateTokens(user);
