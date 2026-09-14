@@ -20,9 +20,36 @@ export const landmarks: Landmark[] = [
   { x: 1720, y: 1640, name: 'MOSSKEEP', subtitle: 'Village beneath the Boughs', type: 'village', accent: '#a9d48c' },
   { x: 520, y: 850, name: 'WESTMERE', subtitle: 'Harbor of Amber Sails', type: 'city', accent: '#f4bd72' },
   { x: 2530, y: 520, name: 'FROSTWATCH', subtitle: 'The Northern Beacon', type: 'village', accent: '#c5e4ef' },
-  { x: 1120, y: 1580, name: 'LARKHAVEN', subtitle: 'City of Green Glass', type: 'city', accent: '#91d6ae' },
+  { x: 1120, y: 1580, name: 'LARKHAVEN', subtitle: 'City of Green Glass', type: 'city', accent: '#f4bd72' },
   { x: 2680, y: 1040, name: 'HOLLOWGATE', subtitle: 'The Door Below', type: 'dungeon', accent: '#cf84f1' },
   { x: 2240, y: 1540, name: 'DAWNSHRINE', subtitle: 'Temple of the Last Star', type: 'sanctum', sanctuaryId: 2, accent: '#ffe08a' },
+];
+
+// Named endpoints keep roads stable when landmarks are inserted or reordered.
+const road = (from: string, to: string, ...via: Point[]): Point[] => {
+  const endpoint = (name: string) => {
+    const point = landmarks.find((landmark) => landmark.name === name);
+    if (!point) throw new Error(`Unknown road endpoint: ${name}`);
+    return point;
+  };
+  return [endpoint(from), ...via, endpoint(to)];
+};
+
+export const roads: Point[][] = [
+  road('WESTMERE', 'AURELIA'),
+  road('RAVENCRYPT', 'AURELIA'),
+  road('AURELIA', 'SUNSPIRE'),
+  road('SUNSPIRE', 'ICEVAULT'),
+  road('AURELIA', 'EVERCROSS'),
+  road('EVERCROSS', 'MOONFALL'),
+  road('MOONFALL', 'FROSTWATCH', { x: 2250, y: 535 }, { x: 2580, y: 535 }),
+  road('FROSTWATCH', 'HOLLOWGATE', { x: 2770, y: 600 }, { x: 2850, y: 950 }),
+  road('EVERCROSS', 'STARGLEN'),
+  road('STARGLEN', 'LARKHAVEN'),
+  road('EVERCROSS', 'LARKHAVEN'),
+  road('LARKHAVEN', 'MOSSKEEP'),
+  road('MOSSKEEP', 'DAWNSHRINE'),
+  road('DAWNSHRINE', 'EMBERDEEP'),
 ];
 
 const seededRandom = (seed: number) => {
@@ -35,6 +62,21 @@ const seededRandom = (seed: number) => {
     return ((result ^ (result >>> 14)) >>> 0) / 4294967296;
   };
 };
+
+export const mountains = (() => {
+  const random = seededRandom(9127);
+  return [
+    { x: 1510, y: 520, count: 15, dx: 69, slope: -4 },
+    { x: 2380, y: 650, count: 13, dx: 23, slope: 64 },
+  ].flatMap((range) => Array.from({ length: range.count }, (_, index) => {
+    const size = 72 + random() * 42;
+    return {
+      x: range.x + index * range.dx + (random() - 0.5) * 34,
+      y: range.y + index * range.slope + (random() - 0.5) * 46,
+      size,
+    };
+  }));
+})();
 
 const traceMainland = (ctx: CanvasRenderingContext2D) => {
   ctx.beginPath();
@@ -190,24 +232,17 @@ export function useMapObjects() {
   };
 
   const drawRoads = (ctx: CanvasRenderingContext2D) => {
-    const roads: Point[][] = [
-      [landmarks[0]!, landmarks[2]!, landmarks[1]!],
-      [landmarks[2]!, landmarks[5]!, landmarks[3]!],
-      [landmarks[0]!, landmarks[4]!, landmarks[5]!],
-      [landmarks[6]!, landmarks[0]!, landmarks[7]!],
-      [landmarks[4]!, landmarks[8]!, landmarks[5]!],
-      [landmarks[1]!, landmarks[9]!, landmarks[3]!],
-      [landmarks[5]!, landmarks[10]!, landmarks[3]!],
-    ];
-
     ctx.save();
     ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
     for (const road of roads) {
-      drawPath(ctx, road);
+      ctx.beginPath();
+      ctx.moveTo(road[0]!.x, road[0]!.y);
+      for (const point of road.slice(1)) ctx.lineTo(point.x, point.y);
+      ctx.setLineDash([]);
       ctx.lineWidth = 10;
       ctx.strokeStyle = 'rgba(77, 53, 31, 0.28)';
       ctx.stroke();
-      drawPath(ctx, road);
       ctx.lineWidth = 4;
       ctx.setLineDash([14, 12]);
       ctx.strokeStyle = '#765633';
@@ -248,23 +283,7 @@ export function useMapObjects() {
   };
 
   const drawMountainRanges = (ctx: CanvasRenderingContext2D) => {
-    const random = seededRandom(9127);
-    const ranges = [
-      { x: 1510, y: 520, count: 15, dx: 69, slope: -4 },
-      { x: 2380, y: 650, count: 13, dx: 23, slope: 64 },
-    ];
-
-    for (const range of ranges) {
-      for (let index = 0; index < range.count; index++) {
-        const size = 72 + random() * 42;
-        drawMountain(
-          ctx,
-          range.x + index * range.dx + (random() - 0.5) * 34,
-          range.y + index * range.slope + (random() - 0.5) * 46,
-          size
-        );
-      }
-    }
+    for (const mountain of mountains) drawMountain(ctx, mountain.x, mountain.y, mountain.size);
 
     ctx.save();
     ctx.font = '600 23px Georgia, serif';

@@ -10,6 +10,18 @@ import { i18n, initializeI18n } from '@/locales/i18n';
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 
 describe('current user loading', () => {
+  it('does not restore pre-death buffs from an older in-flight request', async () => {
+    let resolveOld!: (value: unknown) => void;
+    mocks.getMe.mockImplementationOnce(() => new Promise((resolve) => { resolveOld = resolve; }));
+    const store = useCurrentUserStore();
+    const oldRequest = store.fetchCurrentUser();
+    mocks.getMe.mockResolvedValueOnce({ id: 5, level: 1, activeBuffs: [] });
+    await store.fetchCurrentUser(true);
+    resolveOld({ id: 5, level: 1, activeBuffs: [{ type: 'DAMAGE', value: 5 }] });
+    await oldRequest;
+    expect(store.user?.activeBuffs).toEqual([]);
+    expect(mocks.getMe).toHaveBeenCalledTimes(2);
+  });
   it('notifies once on quest completion, but not on initial load or unchanged data', async () => {
     const store = useCurrentUserStore();
     mocks.getMe.mockResolvedValue({ id: 5, level: 1, accomplishedQuests: 3 });
