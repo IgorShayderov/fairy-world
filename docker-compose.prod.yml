@@ -36,6 +36,9 @@ services:
       context: ./back
       target: production
 
+    env_file:
+      - ./back/.env.production
+
     restart: unless-stopped
 
     environment:
