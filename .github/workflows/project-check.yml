@@ -14,7 +14,12 @@ jobs:
           node-version: '24'
 
       - name: installation
-        run: cd ./front && rm -f package-lock.json && npm i && cd ../back && npm i
+        run: |
+          cd ./front
+          npm ci
+
+          cd ../back
+          npm ci
 
       - name: lint
         run: make lint

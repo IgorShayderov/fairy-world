@@ -97,9 +97,14 @@ model GameProfile {
   shops             Shop[]
   quests            PlayerQuest[]
   sanctuaryVisits   SanctuaryVisit[]
+  questBoards       QuestBoard[]
 }
 
 model Quest {
+  boardId      String?
+  boardRevision Int @default(0)
+  board        QuestBoard? @relation(fields: [boardId], references: [id])
+  rewardExperience Int @default(0)
   townId       Int?
   regionKey    String?
   expiresAt    DateTime?
@@ -110,6 +115,17 @@ model Quest {
   target       Int
   rewardGold   Int
   players      PlayerQuest[]
+}
+
+model QuestBoard {
+  id String @id @default(uuid())
+  gameProfileId Int
+  townId Int
+  revision Int @default(0)
+  nextRefreshAt DateTime
+  profile GameProfile @relation(fields: [gameProfileId], references: [id], onDelete: Cascade)
+  quests Quest[]
+  @@unique([gameProfileId, townId])
 }
 
 model PlayerQuest {

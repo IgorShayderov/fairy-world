@@ -10,3 +10,5 @@ export const TOWNS = [
 
 export const townAt = (profile: { mapPositionX: number; mapPositionY: number }) =>
   TOWNS.find((town) => Math.hypot(profile.mapPositionX - town.x, profile.mapPositionY - town.y) <= 70);
+
+export const townQuestCount = (townId: number) => [1, 4, 6].includes(townId) ? 1 : 3;

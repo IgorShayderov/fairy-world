@@ -1,6 +1,9 @@
 import { BadRequestException } from '@nestjs/common';
 
 export const encounterLandmarks = {
+  ICEVAULT: { x: 1770, y: 300, type: 'dungeon' },
+  RAVENCRYPT: { x: 450, y: 350, type: 'dungeon' },
+  SUNSPIRE: { x: 1200, y: 330, type: 'sanctum' },
   EMBERDEEP: { x: 2470, y: 1370, type: 'dungeon' },
   HOLLOWGATE: { x: 2680, y: 1040, type: 'dungeon' },
   STARGLEN: { x: 720, y: 1480, type: 'sanctum' },

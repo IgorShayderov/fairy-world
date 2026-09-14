@@ -1,4 +1,4 @@
-import type { Prisma } from '../../generated/client';
+import type { Prisma, Quest } from '../../generated/client';
 
 // Called within the victory transaction after locking/updating the profile.
 export async function recordQuestVictory(
@@ -7,6 +7,7 @@ export async function recordQuestVictory(
   monsterType: string,
   battleStartedAt: Date,
 ) {
+  const finished: Quest[] = [];
   const active = await tx.playerQuest.findMany({
     where: {
       gameProfileId,
@@ -25,10 +26,8 @@ export async function recordQuestVictory(
       data: { progress, completedAt: completed ? new Date() : null },
     });
     if (completed && updated.count === 1) {
-      await tx.gameProfile.update({
-        where: { id: gameProfileId },
-        data: { gold: { increment: entry.quest.rewardGold } },
-      });
+      finished.push(entry.quest);
     }
   }
+  return finished;
 }

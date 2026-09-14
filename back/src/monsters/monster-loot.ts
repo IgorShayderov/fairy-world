@@ -1,11 +1,11 @@
 import { ItemRarity } from '../../generated/client';
 
 export const MONSTER_LOOT_TABLE: Array<{ rarity: ItemRarity | null; chance: number }> = [
-  { rarity: null, chance: 60 },
-  { rarity: ItemRarity.COMMON, chance: 27 },
-  { rarity: ItemRarity.MAGIC, chance: 9 },
-  { rarity: ItemRarity.RARE, chance: 3 },
-  { rarity: ItemRarity.UNIQUE, chance: 1 },
+  { rarity: null, chance: 80 },
+  { rarity: ItemRarity.COMMON, chance: 13.5 },
+  { rarity: ItemRarity.MAGIC, chance: 4.5 },
+  { rarity: ItemRarity.RARE, chance: 1.5 },
+  { rarity: ItemRarity.UNIQUE, chance: 0.5 },
 ];
 
 export const rollMonsterLootRarity = (random: () => number = Math.random): ItemRarity | null => {
@@ -23,5 +23,13 @@ export const rollDungeonLootRarity = (random: () => number = Math.random): ItemR
   if (roll < 60) return ItemRarity.COMMON;
   if (roll < 85) return ItemRarity.MAGIC;
   if (roll < 97) return ItemRarity.RARE;
+  return ItemRarity.UNIQUE;
+};
+
+export const rollQuestLootRarity = (random: () => number = Math.random): ItemRarity | null => {
+  const roll = random();
+  if (roll < 0.9) return null;
+  if (roll < 0.97) return ItemRarity.MAGIC;
+  if (roll < 0.995) return ItemRarity.RARE;
   return ItemRarity.UNIQUE;
 };
