@@ -57,6 +57,12 @@ const inTown = computed(() => {
 });
 const menuItems = computed(() => [
   {
+    id: 'settings',
+    nameKey: 'menu.settings',
+    route: routes.settingsPath(),
+    icon: 'M4 7h16M4 17h16M8 4v6m8 4v6',
+  },
+  {
     id: 'home',
     nameKey: 'menu.home',
     route: routes.rootPath(),

@@ -1,6 +1,6 @@
 export default {
   deliveryTitle: 'Письмо в {{town}}',
-  deliveryDescription: 'Отправляйтесь в {{town}} ({{x}}, {{y}}), затем откройте задания и доставьте письмо.',
+  deliveryDescription: 'Отправляйтесь в {{town}}, затем откройте задания и доставьте письмо.',
   deliver: 'Доставить письмо',
   deliveryError: 'Не удалось доставить письмо. Посетите нужный город и повторите попытку.',
   cancel: 'Отменить задание', confirmCancel: 'Да, отменить', keep: 'Оставить задание',
@@ -12,7 +12,7 @@ export default {
   refresh: 'Новые задания (30 💎)', refreshError: 'Не удалось обновить задания. Нужны город и не менее 30 самоцветов.',
   itemChance: 'Шанс 10% получить предмет: магический или более редкий.',
   huntTitle: 'Охота: {{monster}}', huntDescription: 'Победите монстров типа «{{monster}}»: {{count}}. Учитываются все ранги.',
-  huntingLocation: 'Место охоты: {{region}}, рядом с {{town}} ({{x}}, {{y}}). Путешествуйте по этой области, чтобы встретить местных монстров.',
+  huntingLocation: 'Место охоты: {{region}}, рядом с {{town}}. Путешествуйте по этой области, чтобы встретить местных монстров.',
   regions: { whisperwood: 'Шепчущий лес', crossroads: 'Перекрёсток', southern_woods: 'Южные леса', moonfall_heights: 'Высоты Мунфолла', frostwatch_peaks: 'Пики Фроствотча', eastern_badlands: 'Восточные пустоши' },
   monsters: { 'Dire Wolf': 'Лютый волк', 'Forest Troll': 'Лесной тролль', 'Goblin Raider': 'Гоблин-налётчик', 'Stone Golem': 'Каменный голем', 'Shadow Stalker': 'Теневой охотник', 'Arcane Chimera': 'Магическая химера', 'Storm Harpy': 'Грозовая гарпия', 'Void Wraith': 'Призрак пустоты', 'Frost Giant': 'Ледяной великан', 'Dragon': 'Дракон', 'Bone Knight': 'Костяной рыцарь', 'Infernal Minotaur': 'Адский минотавр' },
   title: 'Журнал заданий', intro: 'Помогайте жителям городов и защищайте дороги.',

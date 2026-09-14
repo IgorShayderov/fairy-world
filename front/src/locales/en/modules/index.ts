@@ -4,6 +4,7 @@ import quests from './quests';
 import shop from './shop';
 
 const modules = {
+  settings: { title: 'Settings', language: 'Language', languageHint: 'Choose your interface language. Changes are saved automatically on this device.' },
   quests,
   auth,
   profile,
@@ -35,6 +36,7 @@ const modules = {
     unavailable: 'Coming soon',
   },
   menu: {
+    settings: 'Settings',
     quests: 'Quests',
     gems: 'Gem store',
     title: 'Menu',

@@ -61,6 +61,7 @@ const routes = {
     },
   },
   rootPath: () => '/',
+  settingsPath: () => '/settings',
   questsPath: () => '/quests',
   loginPath: () => '/login',
   profilePath: () => '/profile',

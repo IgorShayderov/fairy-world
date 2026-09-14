@@ -4,6 +4,7 @@ import quests from './quests';
 import shop from './shop';
 
 const modules = {
+  settings: { title: 'Настройки', language: 'Язык', languageHint: 'Выберите язык интерфейса. Изменения автоматически сохраняются на этом устройстве.' },
   quests,
   ...auth,
   ...profile,
@@ -35,6 +36,7 @@ const modules = {
     unavailable: 'Скоро',
   },
   menu: {
+    settings: 'Настройки',
     quests: 'Задания',
     gems: 'Магазин самоцветов',
     title: 'Меню',

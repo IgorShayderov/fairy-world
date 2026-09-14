@@ -3,6 +3,7 @@ import type { ChatPosition } from '@/shared/types/settings';
 const SETTINGS_KEY = 'fw_settings';
 
 export interface AppSettings {
+  language: 'en' | 'ru';
   sidebarExpanded: boolean;
   chatPosition: ChatPosition;
   selectedChannelId: string | null;
@@ -10,6 +11,7 @@ export interface AppSettings {
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
+  language: 'en',
   sidebarExpanded: true,
   chatPosition: 'standard',
   selectedChannelId: null,
