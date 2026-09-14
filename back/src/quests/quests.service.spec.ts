@@ -2,6 +2,7 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { QuestsService } from './quests.service';
 import { habitatForMonster } from '../monsters/monster-habitats';
+import { ItemGeneratorService } from '../items/item-generator.service';
 
 describe('QuestsService', () => {
   const profile = { id: 5, gems: 60, mapPositionX: 1470, mapPositionY: 1040 };
@@ -19,14 +20,17 @@ describe('QuestsService', () => {
     isPrimary: false,
   };
   const prisma = {
+    inventoryItem: { create: jest.fn() },
     $transaction: jest.fn(),
     questBoard: { findUnique: jest.fn(), upsert: jest.fn() },
     gameProfile: { findUnique: jest.fn(), update: jest.fn() },
     quest: { findMany: jest.fn(), findUnique: jest.fn(), createMany: jest.fn() },
     playerQuest: { findMany: jest.fn(), findUnique: jest.fn(), upsert: jest.fn(), update: jest.fn(), count: jest.fn() },
   };
-  const service = new QuestsService(prisma as unknown as PrismaService);
+  const items = { generate: jest.fn() };
+  const service = new QuestsService(prisma as unknown as PrismaService, items as unknown as ItemGeneratorService);
   beforeEach(() => {
+    jest.restoreAllMocks();
     jest.resetAllMocks();
     prisma.questBoard.findUnique.mockResolvedValue(board);
     prisma.questBoard.upsert.mockResolvedValue({ ...board, revision: 1 });
@@ -41,7 +45,7 @@ describe('QuestsService', () => {
   it('offers quests in towns and separates current from completed entries', async () => {
     const active = { questId: 1, completedAt: null, quest };
     const completed = { questId: 2, completedAt: new Date(), quest };
-    const rendered = { ...quest, huntingLocation: habitatForMonster(quest.monsterType) };
+    const rendered = { ...quest, destination: null, huntingLocation: habitatForMonster(quest.monsterType) };
     prisma.playerQuest.findMany.mockResolvedValue([active, completed]);
     expect(await service.list(7)).toEqual({
       town: { id: 1, name: 'EVERCROSS' },
@@ -63,6 +67,49 @@ describe('QuestsService', () => {
         },
       }),
     );
+  });
+
+  it('rejects delivery from the wrong town without granting rewards', async () => {
+    prisma.playerQuest.findUnique.mockResolvedValue({ quest: { ...quest, destinationTownId: 2 } });
+    await expect(service.deliver(7, 1)).rejects.toThrow(BadRequestException);
+    expect(prisma.playerQuest.update).not.toHaveBeenCalled();
+    expect(items.generate).not.toHaveBeenCalled();
+  });
+
+  it('delivers at the destination once, grants XP and gold, and can grant Magic loot', async () => {
+    jest.spyOn(Math, 'random').mockReturnValue(0.95);
+    prisma.gameProfile.update.mockResolvedValue({ ...profile, level: 1, experience: 0 });
+    prisma.playerQuest.findUnique.mockResolvedValue({
+      quest: { ...quest, destinationTownId: 1, rewardGold: 50, rewardExperience: 100 },
+    });
+    items.generate.mockResolvedValue({ id: 42 });
+    await service.deliver(7, 1);
+    expect(prisma.playerQuest.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { progress: 1, completedAt: expect.any(Date) as Date } }),
+    );
+    expect(prisma.gameProfile.update).toHaveBeenLastCalledWith({
+      where: { id: 5 },
+      data: {
+        gold: { increment: 50 },
+        experience: 0,
+        level: 2,
+        freeAttributes: { increment: 5 },
+      },
+    });
+    expect(items.generate).toHaveBeenCalledWith({ level: 1, rarity: 'MAGIC', minimumRarity: 'MAGIC' }, prisma);
+    expect(prisma.inventoryItem.create).toHaveBeenCalledTimes(1);
+    prisma.playerQuest.findUnique.mockResolvedValue({ completedAt: new Date() });
+    await service.deliver(7, 1);
+    expect(prisma.playerQuest.update).toHaveBeenCalledTimes(1);
+    expect(prisma.inventoryItem.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects canceled and unaccepted deliveries', async () => {
+    prisma.playerQuest.findUnique.mockResolvedValue(null);
+    await expect(service.deliver(7, 1)).rejects.toThrow(NotFoundException);
+    prisma.playerQuest.findUnique.mockResolvedValue({ canceledAt: new Date() });
+    await expect(service.deliver(7, 1)).rejects.toThrow(NotFoundException);
+    expect(prisma.playerQuest.update).not.toHaveBeenCalled();
   });
   it('hides offers outside towns, without hiding the journal', async () => {
     prisma.gameProfile.update.mockResolvedValue({ ...profile, mapPositionX: 0, mapPositionY: 0 });

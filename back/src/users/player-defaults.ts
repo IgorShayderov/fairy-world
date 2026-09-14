@@ -11,19 +11,19 @@ const roundPercentage = (value: number) => Math.round(value * 10) / 10;
 
 export const convertRatingToPercentage = (stat: StatType, rating: number, level: number): number => {
   const nonNegativeRating = Math.max(0, rating);
-  const scaledRating = (nonNegativeRating * 65) / Math.max(50, level);
+  const scaledRating = (nonNegativeRating * 65) / Math.max(35, level);
 
   if (stat === StatType.CRIT || stat === StatType.DODGE) {
     return roundPercentage(Math.min(MAX_CHANCE_PERCENT, scaledRating));
   }
   if (stat === StatType.CRIT_DAMAGE) {
-    const effectiveRating = (nonNegativeRating * 15) / Math.max(100, level);
+    const effectiveRating = (nonNegativeRating * 15) / Math.max(70, level);
     const availableBonus = MAX_CRITICAL_DAMAGE_PERCENT - BASE_CRITICAL_DAMAGE_PERCENT;
     const diminishingBonus = (availableBonus * effectiveRating) / (effectiveRating + CRITICAL_DAMAGE_RATING_PIVOT);
     return roundPercentage(Math.min(MAX_CRITICAL_DAMAGE_PERCENT, BASE_CRITICAL_DAMAGE_PERCENT + diminishingBonus));
   }
   if (stat === StatType.DEFENSE) {
-    const levelPressure = Math.max(10, level) * 10;
+    const levelPressure = Math.max(7, level) * 10;
     return roundPercentage((nonNegativeRating / (nonNegativeRating + levelPressure)) * 100);
   }
 

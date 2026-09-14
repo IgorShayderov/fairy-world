@@ -46,7 +46,7 @@ export class MonstersService {
     private itemGenerator: ItemGeneratorService,
   ) {}
 
-  private readonly encounterChance = 0.4;
+  private readonly encounterChance = 0.2;
   private readonly battles = new Map<string, Battle>();
 
   findAll() {

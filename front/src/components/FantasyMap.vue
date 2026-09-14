@@ -95,7 +95,7 @@
 
 <script setup lang="ts">
 import { useTranslation } from 'i18next-vue';
-import { QIcon } from 'quasar';
+import { Notify, QIcon } from 'quasar';
 import { onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
@@ -289,6 +289,7 @@ const handleAttack = async () => {
   try {
     activeBattle.value = await attackMonster(activeBattle.value.id);
     if (activeBattle.value.status === 'DEFEAT') {
+      Notify.create({ type: 'negative', color: 'negative', timeout: 6000, message: `${t('fantasy.encounter.defeat')}. ${t('fantasy.encounter.respawn')}` });
       setPosition(1470, 1040);
       lastSavedPosition = '1470:1040';
       visitedLandmark = 'EVERCROSS';

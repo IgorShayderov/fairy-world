@@ -192,10 +192,10 @@ describe('UserView.renderCurrent', () => {
     expect(result.properties).toContainEqual({
       name: 'DEFENSE',
       description: 'Damage reduction',
-      baseValue: 4.8,
-      attributeBonus: 4.3,
-      equipmentBonus: 2.4,
-      value: 11.5,
+      baseValue: 6.7,
+      attributeBonus: 5.8,
+      equipmentBonus: 3.2,
+      value: 15.7,
       rating: 13,
       equipmentRatingBonus: 3,
     });
@@ -203,9 +203,9 @@ describe('UserView.renderCurrent', () => {
       name: 'CRIT',
       description: 'Final critical-hit chance, capped at 50%.',
       baseValue: 0,
-      attributeBonus: 3.3,
-      equipmentBonus: 5.2,
-      value: 8.5,
+      attributeBonus: 4.6,
+      equipmentBonus: 7.5,
+      value: 12.1,
       rating: 6.5,
       equipmentRatingBonus: 4,
     });

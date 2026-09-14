@@ -2,6 +2,8 @@ import routes from '@/routes';
 import { api } from '@shared/api';
 
 export interface Quest {
+  destinationTownId?: number | null;
+  destination?: { shopId: number; name: string; x: number; y: number } | null;
   id: number;
   code: string;
   monsterType: string;
@@ -33,3 +35,4 @@ export const getQuests = async () => (await api.get<QuestJournal>(routes.api.que
 export const acceptQuest = async (id: number) => (await api.post<PlayerQuest>(routes.api.quests.acceptPath(id))).data;
 export const cancelQuest = async (id: number) => { await api.post(routes.api.quests.cancelPath(id)); };
 export const refreshQuests = async () => { await api.post(routes.api.quests.refreshPath()); };
+export const deliverQuest = async (id: number) => { await api.post(routes.api.quests.deliverPath(id)); };

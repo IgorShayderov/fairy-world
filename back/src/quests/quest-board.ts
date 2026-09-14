@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { MONSTER_HABITATS } from '../monsters/monster-habitats';
-import { townQuestCount } from '../locations/towns';
+import { TOWNS, townQuestCount } from '../locations/towns';
 
 // A daily, town-specific random seed keeps offers stable across reloads and servers.
 export function generateTownOffers(town: { shopId: number; x: number; y: number }, now: Date, seed = '') {
@@ -15,6 +15,21 @@ export function generateTownOffers(town: { shopId: number; x: number; y: number 
     (habitat.monsters as readonly string[]).map((monsterType) => ({ habitat, monsterType })),
   );
   return Array.from({ length: townQuestCount(town.shopId) }, (_, slot) => {
+    if (slot === 0) {
+      const destinations = TOWNS.filter((entry) => entry.shopId !== town.shopId);
+      const destination = destinations[Math.floor(random() * destinations.length)];
+      return {
+        code: `town_${town.shopId}_${seed || day}_${slot}`,
+        townId: town.shopId,
+        destinationTownId: destination.shopId,
+        regionKey: null,
+        monsterType: 'DELIVERY',
+        target: 1,
+        rewardGold: 50,
+        rewardExperience: 100,
+        expiresAt,
+      };
+    }
     // Favor nearby regions, while still offering expeditions farther away.
     const weights = pool.map(({ habitat }) => 1 / (250 + Math.hypot(town.x - habitat.x, town.y - habitat.y)));
     let remaining = random() * weights.reduce((sum, weight) => sum + weight, 0);
