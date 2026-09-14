@@ -49,6 +49,7 @@ const modules = {
       blessings: {
         STARGLEN: '+10 Defense rating for 4 hours. Preserves an active defense effect.',
         DAWNSHRINE: '+20% experience gained for 4 hours. Preserves an active experience effect.',
+        SUNSPIRE: '+5 Attack for 4 hours. Preserves an active attack effect.',
       },
       leave: 'Continue journey',
       rumors: 'Ask for rumors',
@@ -115,6 +116,7 @@ const modules = {
       retreat: 'Retreat',
       victory: 'Victory',
       defeat: 'Defeat',
+      respawn: 'You have returned to Evercross. All active buffs were removed.',
       you: 'You',
       enemy: 'Enemy',
       dodged: '{{actor}} dodged the attack.',

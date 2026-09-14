@@ -1,0 +1,20 @@
+.realm-page {
+  background: radial-gradient(ellipse at top left, #173943 0, #0f2131 42%, #020617 100%);
+  color: #d6e1de;
+}
+.realm-page h1, .realm-page h2, .realm-page h3 { color: #fff0bd; }
+/* Tailwind utilities are important; earlier-layer important rules take priority. */
+@layer base {
+.realm-page :is(.bg-gray-200, .bg-white) { background-color: #132c38 !important; }
+.realm-page :is(.bg-gray-50, .bg-gray-100) { background-color: #0d202d !important; }
+.realm-page :is(.bg-green-50, .bg-amber-50, .bg-red-50) { background-color: #19343a !important; }
+.realm-page :is(.text-gray-800, .text-gray-900, .text-gray-700) { color: #e2e8f0 !important; }
+.realm-page :is(.text-gray-500, .text-gray-600, .text-gray-400) { color: #a9bec8 !important; }
+.realm-page :is(.text-blue-600, .text-blue-700) { color: #84c8ee !important; }
+.realm-page :is(.text-green-600, .text-green-700) { color: #6ee7b7 !important; }
+.realm-page :is(.text-amber-700, .text-amber-800) { color: #efca72 !important; }
+.realm-page .text-red-700 { color: #fca5a5 !important; }
+.realm-page :is(.border-gray-100, .border-gray-200, .border-gray-300, .border-blue-100, .border-green-200) { border-color: #39525c !important; }
+.realm-page .q-tab--active { color: #efca72 !important; }
+.realm-page .q-tab__indicator { background: #efca72; }
+}

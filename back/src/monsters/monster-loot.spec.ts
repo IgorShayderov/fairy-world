@@ -1,5 +1,5 @@
 import { ItemRarity } from '../../generated/client';
-import { rollMonsterLootRarity, rollDungeonLootRarity } from './monster-loot';
+import { rollMonsterLootRarity, rollDungeonLootRarity, rollQuestLootRarity } from './monster-loot';
 
 describe('monster loot rarity', () => {
   it.each([
@@ -13,11 +13,23 @@ describe('monster loot rarity', () => {
   });
   it.each([
     [0.1, null],
-    [0.6, ItemRarity.COMMON],
-    [0.87, ItemRarity.MAGIC],
-    [0.96, ItemRarity.RARE],
-    [0.995, ItemRarity.UNIQUE],
+    [0.8, ItemRarity.COMMON],
+    [0.935, ItemRarity.MAGIC],
+    [0.98, ItemRarity.RARE],
+    [0.999, ItemRarity.UNIQUE],
   ])('maps roll %s to %s', (roll, expected) => {
     expect(rollMonsterLootRarity(() => roll)).toBe(expected);
+  });
+});
+
+describe('quest loot', () => {
+  it.each([
+    [0, null],
+    [0.8999, null],
+    [0.9, ItemRarity.MAGIC],
+    [0.97, ItemRarity.RARE],
+    [0.999, ItemRarity.UNIQUE],
+  ])('roll %s gives %s', (roll, rarity) => {
+    expect(rollQuestLootRarity(() => roll)).toBe(rarity);
   });
 });

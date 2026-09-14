@@ -50,7 +50,7 @@
               {{ t('fantasy.encounter.loot') }}
             </div>
             <div class="flex flex-wrap gap-3">
-              <div v-for="item in battle.rewards.items" :key="item.id" class="text-center">
+              <div v-for="(item, index) in battle.rewards.items" :key="`${item.id}-${index}`" class="text-center">
                 <InventoryItem :item="lootInventoryItem(item)" class="h-24 w-24 bg-white" />
                 <div class="mt-1 text-[10px] font-bold uppercase" :class="getRarityTextClass(item.rarity)">
                   {{ t(`profile.rarity.${item.rarity.toLowerCase()}`) }}
@@ -62,6 +62,7 @@
             {{ t('fantasy.encounter.noLoot') }}
           </div>
         </div>
+        <p v-if="battle.status === 'DEFEAT'" class="mt-3 text-sm text-amber-200">{{ t('fantasy.encounter.respawn') }}</p>
       </div>
 
       <footer class="flex justify-end gap-3 border-t border-[#ddbd6b]/15 bg-[#081a23] px-6 py-4">

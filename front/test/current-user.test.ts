@@ -10,6 +10,17 @@ import { i18n, initializeI18n } from '@/locales/i18n';
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 
 describe('current user loading', () => {
+  it('notifies once on quest completion, but not on initial load or unchanged data', async () => {
+    const store = useCurrentUserStore();
+    mocks.getMe.mockResolvedValue({ id: 5, level: 1, accomplishedQuests: 3 });
+    await store.fetchCurrentUser();
+    expect(mocks.notify).not.toHaveBeenCalled();
+    mocks.getMe.mockResolvedValue({ id: 5, level: 1, accomplishedQuests: 4 });
+    await store.fetchCurrentUser(true);
+    await store.fetchCurrentUser(true);
+    expect(mocks.notify).toHaveBeenCalledTimes(1);
+    expect(mocks.notify).toHaveBeenCalledWith(expect.objectContaining({ message: 'Quests completed: 1! Your rewards have been added.' }));
+  });
   it('notifies once when refreshed data confirms a level-up', async () => {
     const store = useCurrentUserStore();
     mocks.getMe.mockResolvedValue({ id: 5, level: 1 });

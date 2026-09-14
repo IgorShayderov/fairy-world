@@ -11,7 +11,8 @@ describe('MonstersService', () => {
   let service: MonstersService;
 
   const mockPrismaService = {
-    playerQuest: { findMany: jest.fn().mockResolvedValue([]) },
+    playerQuest: { findMany: jest.fn().mockResolvedValue([]), updateMany: jest.fn() },
+    gameProfileBuff: { deleteMany: jest.fn() },
     $executeRaw: jest.fn(),
     dungeonVisit: { findUnique: jest.fn(), upsert: jest.fn(), delete: jest.fn() },
     $transaction: jest.fn(),
@@ -67,6 +68,8 @@ describe('MonstersService', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
     jest.restoreAllMocks();
+    mockPrismaService.playerQuest.findMany.mockResolvedValue([]);
+    mockPrismaService.playerQuest.updateMany.mockResolvedValue({ count: 1 });
     mockPrismaService.dungeonVisit.findUnique.mockResolvedValue(null);
     mockPrismaService.$transaction.mockImplementation((operation: (client: typeof mockPrismaService) => unknown) =>
       operation(mockPrismaService),
@@ -88,6 +91,83 @@ describe('MonstersService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+  });
+
+  it('respawns in Evercross and clears all buffs on defeat without awarding a kill', async () => {
+    jest.spyOn(Math, 'random').mockReturnValueOnce(0).mockReturnValue(0.99);
+    mockUsersService.findCurrentUser.mockResolvedValue(currentUser(1));
+    mockMonsterGenerator.generate.mockReturnValue({
+      id: 2,
+      name: 'Dire Wolf',
+      monsterType: 'Dire Wolf',
+      level: 1,
+      attributes: [],
+      rewardGold: 7,
+      rewardExperience: 11,
+    });
+    const result = await service.rollEncounter(7);
+    if (!result.encountered) throw new Error('Expected battle');
+    result.battle.player.health = 1;
+    result.battle.player.damage = 1;
+    const battle = await service.attack(7, result.battle.id);
+    expect(battle.status).toBe('DEFEAT');
+    expect(mockPrismaService.gameProfile.update).toHaveBeenCalledWith({
+      where: { userId: 7 },
+      data: { mapPositionX: 1470, mapPositionY: 1040 },
+    });
+    expect(mockPrismaService.gameProfileBuff.deleteMany).toHaveBeenCalledWith({ where: { gameProfileId: 5 } });
+    expect(mockPrismaService.playerQuest.findMany).not.toHaveBeenCalled();
+    expect(mockPrismaService.gameProfile.update).toHaveBeenCalledTimes(1);
+  });
+
+  it('grants quest gold, XP and Magic-or-better loot once, including XP in level-up calculation', async () => {
+    jest
+      .spyOn(Math, 'random')
+      .mockReturnValueOnce(0)
+      .mockReturnValueOnce(0.99)
+      .mockReturnValueOnce(0.99)
+      .mockReturnValueOnce(0.1)
+      .mockReturnValue(0.95);
+    mockUsersService.findCurrentUser.mockResolvedValue(currentUser(1));
+    mockMonsterGenerator.generate.mockReturnValue({
+      id: 2,
+      name: 'Dire Wolf',
+      monsterType: 'Dire Wolf',
+      level: 1,
+      attributes: [],
+      rewardGold: 7,
+      rewardExperience: 11,
+    });
+    mockPrismaService.playerQuest.findMany.mockResolvedValue([
+      { questId: 1, progress: 19, quest: { target: 20, rewardGold: 200, rewardExperience: 400 } },
+    ]);
+    mockItemGenerator.generate.mockResolvedValue({
+      id: 99,
+      name: 'Quest sword',
+      description: '',
+      price: 1,
+      icon: '',
+      equipmentType: ['WEAPON'],
+      rarity: 'MAGIC',
+      level: 1,
+      attributes: [],
+      stats: [],
+    });
+    const result = await service.rollEncounter(7);
+    if (!result.encountered) throw new Error('Expected battle');
+    result.battle.player.damage = 10000;
+    const battle = await service.attack(7, result.battle.id);
+    expect(battle.rewards).toMatchObject({ gold: 207, experience: 411, items: [{ id: 99, rarity: 'MAGIC' }] });
+    expect(mockItemGenerator.generate).toHaveBeenCalledWith(
+      { level: 1, rarity: 'MAGIC', minimumRarity: 'MAGIC' },
+      mockPrismaService,
+    );
+    expect(mockPrismaService.gameProfile.update).toHaveBeenCalledWith({
+      where: { id: 5 },
+      data: { level: 2, experience: 0, freeAttributes: { increment: 5 } },
+    });
+    await expect(service.attack(7, result.battle.id)).rejects.toThrow('Active battle not found');
+    expect(mockPrismaService.inventoryItem.create).toHaveBeenCalledTimes(1);
   });
 
   it('starts a guaranteed guardian battle at a dungeon and reuses it on repeated entry', async () => {
@@ -185,10 +265,10 @@ describe('MonstersService', () => {
   });
 
   describe('rollEncounter', () => {
-    it('does not query monsters when the fifty-percent roll misses', async () => {
-      jest.spyOn(Math, 'random').mockReturnValue(0.5);
+    it('does not query monsters when the forty-percent roll misses', async () => {
+      jest.spyOn(Math, 'random').mockReturnValue(0.4);
 
-      await expect(service.rollEncounter(7)).resolves.toEqual({ encountered: false, chance: 0.5 });
+      await expect(service.rollEncounter(7)).resolves.toEqual({ encountered: false, chance: 0.4 });
       expect(mockUsersService.findCurrentUser).not.toHaveBeenCalled();
     });
 
@@ -219,9 +299,9 @@ describe('MonstersService', () => {
         maxHealth: 3_040,
         damage: 6,
         defense: 0.5,
-        dodge: 1.3,
-        criticalChance: 1.3,
-        criticalDamage: 135.6,
+        dodge: 1.6,
+        criticalChance: 1.6,
+        criticalDamage: 166.7,
       });
       expect(result.battle.monster.id).toBe(2);
       expect(result.battle.monster.health).toBeGreaterThan(0);
@@ -271,7 +351,7 @@ describe('MonstersService', () => {
 
     it('adds a generated rarity-weighted item drop to inventory on victory', async () => {
       const random = jest.spyOn(Math, 'random');
-      random.mockReturnValueOnce(0.01).mockReturnValueOnce(0.99).mockReturnValueOnce(0.99).mockReturnValueOnce(0.9);
+      random.mockReturnValueOnce(0.01).mockReturnValueOnce(0.99).mockReturnValueOnce(0.99).mockReturnValueOnce(0.95);
       mockUsersService.findCurrentUser.mockResolvedValue(currentUser(5));
       mockMonsterGenerator.generate.mockReturnValue({
         id: 2,

@@ -1,5 +1,5 @@
 import { generateTownOffers } from './quest-board';
-import { TOWNS } from '../locations/towns';
+import { TOWNS, townQuestCount } from '../locations/towns';
 import { habitatForMonster } from '../monsters/monster-habitats';
 
 describe('daily town boards', () => {
@@ -19,7 +19,7 @@ describe('daily town boards', () => {
   it('offers three distinct types with attainable targets and matching habitats', () => {
     for (const town of TOWNS) {
       const offers = generateTownOffers(town, now);
-      expect(new Set(offers.map((q) => q.monsterType)).size).toBe(3);
+      expect(new Set(offers.map((q) => q.monsterType)).size).toBe(townQuestCount(town.shopId));
       for (const quest of offers) {
         expect(quest.target).toBeGreaterThanOrEqual(8);
         expect(quest.target).toBeLessThanOrEqual(20);

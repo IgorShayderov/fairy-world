@@ -6,7 +6,7 @@ CREATE TABLE "QuestBoard" (
   "nextRefreshAt" TIMESTAMP(3) NOT NULL,
   UNIQUE ("gameProfileId", "townId")
 );
-ALTER TABLE "Quest" ADD COLUMN "boardId" TEXT REFERENCES "QuestBoard"("id"),
+ALTER TABLE "Quest" ADD COLUMN "boardId" TEXT REFERENCES "QuestBoard"("id") ON DELETE SET NULL,
   ADD COLUMN "boardRevision" INTEGER NOT NULL DEFAULT 0,
   ADD COLUMN "rewardExperience" INTEGER NOT NULL DEFAULT 0;
 UPDATE "Quest" SET "rewardExperience" = "target" * 20;
