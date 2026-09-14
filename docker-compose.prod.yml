@@ -10,7 +10,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
 
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U fairy -d fairy_world"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -41,29 +41,6 @@ services:
 
     restart: unless-stopped
 
-    environment:
-      NODE_ENV: production
-
-      PORT: 3333
-
-      DATABASE_URL: postgresql://fairy:${POSTGRES_PASSWORD}@db:5432/fairy_world
-
-      FRONT_URL: https://${DOMAIN}
-
-      JWT_SECRET: ${JWT_SECRET}
-
-      ACCESS_COOKIE_LIFETIME: ${ACCESS_COOKIE_LIFETIME}
-      REFRESH_COOKIE_LIFETIME: ${REFRESH_COOKIE_LIFETIME}
-      RESET_PASSWORD_TOKEN_LIFETIME: ${RESET_PASSWORD_TOKEN_LIFETIME}
-
-      SMTP_HOST: ${SMTP_HOST}
-      SMTP_PORT: ${SMTP_PORT}
-      SMTP_USER: ${SMTP_USER}
-      SMTP_PASSWORD: ${SMTP_PASSWORD}
-      SMTP_FROM: ${SMTP_FROM}
-
-      ENABLE_LOGS: "TRUE"
-
     ports:
       - "127.0.0.1:3333:3333"
 
@@ -75,8 +52,6 @@ services:
     build:
       context: ./front
       target: production-stage
-      args:
-        VITE_BACK_URL: https://${DOMAIN}
 
     restart: unless-stopped
 
