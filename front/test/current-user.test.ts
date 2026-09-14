@@ -50,8 +50,9 @@ describe('current user loading', () => {
   });
   beforeEach(async () => {
     await initializeI18n();
+    await i18n.changeLanguage('en');
     setActivePinia(createPinia());
-    vi.clearAllMocks();
+    vi.resetAllMocks();
   });
 
   it('uses the active application language for level-up text', async () => {
