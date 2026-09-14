@@ -20,8 +20,8 @@ services:
       context: ./back
       target: build
 
-    environment:
-      DATABASE_URL: postgresql://fairy:${POSTGRES_PASSWORD}@db:5432/fairy_world
+    env_file:
+      - ./back/.env.production
 
     command: npx prisma migrate deploy
 
