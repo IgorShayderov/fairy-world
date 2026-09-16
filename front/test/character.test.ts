@@ -39,4 +39,15 @@ describe('character movement boundaries', () => {
     expect(character.setPosition(15, 7)).toBe(false);
     expect(character.position).toMatchObject({ x: 8, y: 7 });
   });
+
+  it('moves thirty percent faster while the speed resolver identifies a route', () => {
+    const character = useCharacter(0, 0, 20, 20, () => true, (x) => x < 2 ? 1.3 : 1);
+    character.walkTo(10, 0);
+    character.update();
+    expect(character.position.x).toBeCloseTo(1.3);
+    character.update();
+    expect(character.position.x).toBeCloseTo(2.6);
+    character.update();
+    expect(character.position.x).toBeCloseTo(3.6);
+  });
 });

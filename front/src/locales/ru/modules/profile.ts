@@ -28,7 +28,7 @@ export default {
     ratingPoints: 'Рейтинг: {{value}}',
     summary: {
       killedMonsters: 'Убито монстров',
-      accomplishedQuests: 'Завершено заданий',
+      accomplishedQuests: 'Завершено задание',
       level: 'Уровень',
       experience: 'Опыт',
       gold: 'Золото',

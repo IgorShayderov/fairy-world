@@ -265,11 +265,24 @@ describe('MonstersService', () => {
   });
 
   describe('rollEncounter', () => {
-    it('does not query monsters when the twenty-percent roll misses', async () => {
+    it('uses ten percent on a route and does not generate a monster when the roll misses', async () => {
       jest.spyOn(Math, 'random').mockReturnValue(0.2);
+      mockUsersService.findCurrentUser.mockResolvedValue(currentUser(1));
 
-      await expect(service.rollEncounter(7)).resolves.toEqual({ encountered: false, chance: 0.2 });
-      expect(mockUsersService.findCurrentUser).not.toHaveBeenCalled();
+      await expect(service.rollEncounter(7)).resolves.toEqual({ encountered: false, chance: 0.1 });
+      expect(mockMonsterGenerator.generate).not.toHaveBeenCalled();
+    });
+
+    it('keeps twenty percent encounter chance away from routes', async () => {
+      jest.spyOn(Math, 'random').mockReturnValue(0.15);
+      const user = currentUser(1);
+      user.gameProfile.mapPositionX = 1000;
+      user.gameProfile.mapPositionY = 1000;
+      mockUsersService.findCurrentUser.mockResolvedValue(user);
+      mockMonsterGenerator.generate.mockReturnValue({ id: 2, name: 'Wolf', level: 1, attributes: [] });
+      const result = await service.rollEncounter(7);
+      expect(result.encountered).toBe(true);
+      expect(result.chance).toBe(0.2);
     });
 
     it('returns a generated level-appropriate monster when the roll succeeds', async () => {

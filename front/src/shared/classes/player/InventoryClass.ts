@@ -38,21 +38,6 @@ class Inventory {
     this.backpackedItems = new Backpack();
     this.quickSlots = new Set();
   }
-
-  // equipItem(item: Item): void {
-  //   const { itemType } = item;
-
-  //   this.equipedItems[itemType] = item;
-  //   console.info(`%c${item} item is successfully equiped.`, 'color: red;');
-  // }
-
-  // unequipItem(itemType: ItemType): void {
-  //   if (itemType in this.equipedItems) {
-  //     this.equipedItems[itemType] = null;
-  //   } else {
-  //     throw new Error('Wrong item type');
-  //   }
-  // }
 }
 
 export default Inventory;

@@ -11,6 +11,7 @@ import { rollMonsterLootRarity, rollDungeonLootRarity, rollQuestLootRarity } fro
 import { requireLandmark } from '../locations/landmarks';
 import { progressionAfterExperience } from '../users/level-progression';
 import { recordQuestVictory } from '../quests/quest-progress';
+import { isOnTravelRoute } from '../locations/travel-routes';
 
 type BattleStatus = 'ACTIVE' | 'VICTORY' | 'DEFEAT';
 type Combatant = {
@@ -46,7 +47,8 @@ export class MonstersService {
     private itemGenerator: ItemGeneratorService,
   ) {}
 
-  private readonly encounterChance = 0.2;
+  private readonly offRouteEncounterChance = 0.2;
+  private readonly routeEncounterChance = 0.1;
   private readonly battles = new Map<string, Battle>();
 
   findAll() {
@@ -62,12 +64,12 @@ export class MonstersService {
   }
 
   async rollEncounter(userId: number) {
-    if (Math.random() >= this.encounterChance) {
-      return { encountered: false as const, chance: this.encounterChance };
-    }
-
     const user = await this.usersService.findCurrentUser(userId);
     if (!user?.gameProfile) throw new NotFoundException('Game profile not found');
+    const chance = isOnTravelRoute(user.gameProfile.mapPositionX, user.gameProfile.mapPositionY)
+      ? this.routeEncounterChance
+      : this.offRouteEncounterChance;
+    if (Math.random() >= chance) return { encountered: false as const, chance };
     const player = UserView.renderCurrent(user);
     const monster = this.monsterGenerator.generate(player.level, {
       x: user.gameProfile.mapPositionX,
@@ -76,7 +78,7 @@ export class MonstersService {
 
     const battle = this.createBattle(userId, player, monster);
     this.battles.set(battle.id, battle);
-    return { encountered: true as const, chance: this.encounterChance, monster, battle: this.renderBattle(battle) };
+    return { encountered: true as const, chance, monster, battle: this.renderBattle(battle) };
   }
 
   async enterDungeon(userId: number, name: string) {

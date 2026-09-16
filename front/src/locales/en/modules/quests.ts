@@ -7,7 +7,7 @@ export default {
   cancelWarning: 'Cancel this quest? Its progress will be lost if you accept it again.',
   cancelError: 'Could not cancel this quest. It may already be completed. Please refresh.',
   dailyBoard: 'Cities offer 3 quests; villages offer 2, including a delivery. Boards refresh every 24 hours. Accepted quests do not expire.',
-  completedNotice: 'Quests completed: {{count}}! Your rewards have been added.',
+  completedNotice: 'Quests completed.',
   activeLimit: 'Active quests: {{count}} / 5', boardTimer: 'New quests in {{time}}',
   refresh: 'New quests (30 💎)', refreshError: 'Could not refresh quests. Visit a town with at least 30 gems.',
   itemChance: '10% chance of an item: Magic rarity or better.',

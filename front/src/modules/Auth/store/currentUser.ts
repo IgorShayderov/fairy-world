@@ -26,7 +26,7 @@ export const useCurrentUserStore = defineStore('currentUser', () => {
         }
         const completed = (currentUser.accomplishedQuests ?? 0) - (user.value?.accomplishedQuests ?? 0);
         if (user.value?.id === currentUser.id && completed > 0) {
-          Notify.create({ type: 'positive', timeout: 6000, message: i18n.t('quests.completedNotice', { count: completed }) });
+          Notify.create({ type: 'positive', timeout: 6000, message: i18n.t('quests.completedNotice') });
         }
         user.value = currentUser;
         return currentUser;
