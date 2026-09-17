@@ -23,4 +23,5 @@ export default {
   thisItem: 'This',
   equipped: 'Equipped',
   difference: 'Diff.',
+  shopGold: 'Shop gold',
 };

@@ -25,8 +25,14 @@ export const getCompatibleEquipmentSlotsForTypes = (equipmentTypes: EquipmentTyp
   return [...slots];
 };
 
+export const isTwoHanded = (item?: { name?: string; isTwoHanded?: boolean } | null): boolean => {
+  if (!item) return false;
+  return item.isTwoHanded ?? item.name?.toLowerCase().includes('two-handed') ?? false;
+};
+
 export const getCompatibleEquipmentSlots = (item: InventoryItemType): EquipmentSlotId[] => {
   if (isPotion(item) && !isHealthPotion(item)) return [];
+  if (isTwoHanded(item)) return ['left-hand'];
   return getCompatibleEquipmentSlotsForTypes(item.equipmentType ?? item.equipmentTypes ?? []);
 };
 

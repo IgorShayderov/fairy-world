@@ -76,7 +76,7 @@ describe('QuestsService', () => {
     expect(items.generate).not.toHaveBeenCalled();
   });
 
-  it('delivers at the destination once, grants XP and gold, and can grant Magic loot', async () => {
+  it('delivers at the destination once, grants XP and gold, and does not grant items', async () => {
     jest.spyOn(Math, 'random').mockReturnValue(0.95);
     prisma.gameProfile.update.mockResolvedValue({ ...profile, level: 1, experience: 0 });
     prisma.playerQuest.findUnique.mockResolvedValue({
@@ -96,12 +96,12 @@ describe('QuestsService', () => {
         freeAttributes: { increment: 5 },
       },
     });
-    expect(items.generate).toHaveBeenCalledWith({ level: 1, rarity: 'MAGIC', minimumRarity: 'MAGIC' }, prisma);
-    expect(prisma.inventoryItem.create).toHaveBeenCalledTimes(1);
+    expect(items.generate).not.toHaveBeenCalled();
+    expect(prisma.inventoryItem.create).not.toHaveBeenCalled();
     prisma.playerQuest.findUnique.mockResolvedValue({ completedAt: new Date() });
     await service.deliver(7, 1);
     expect(prisma.playerQuest.update).toHaveBeenCalledTimes(1);
-    expect(prisma.inventoryItem.create).toHaveBeenCalledTimes(1);
+    expect(prisma.inventoryItem.create).not.toHaveBeenCalled();
   });
 
   it('rejects canceled and unaccepted deliveries', async () => {

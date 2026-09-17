@@ -212,16 +212,13 @@ export class ItemGeneratorService {
   }
 
   private generateModifierValue(modifier: Modifier, level: number): number {
-    const baseValue = this.randomInt(modifier.min, modifier.max);
+    if (modifier.kind === 'stat') {
+      const minRoll = Math.max(1, Math.round(modifier.min * (1 + Math.max(0, level - 1) * 0.12)));
+      const maxRoll = Math.max(minRoll, Math.round(modifier.max * (1 + Math.max(0, level - 1) * 0.2)));
+      return this.randomInt(minRoll, maxRoll);
+    }
 
-    /*
-     * Пока простое масштабирование.
-     *
-     * lvl 1  => x1
-     * lvl 10 => примерно x1.45
-     * lvl 20 => примерно x1.95
-     * lvl 50 => примерно x3.45
-     */
+    const baseValue = this.randomInt(modifier.min, modifier.max);
     const levelMultiplier = 1 + Math.max(0, level - 1) * 0.025;
 
     return Math.max(1, Math.round(baseValue * levelMultiplier * 0.5));

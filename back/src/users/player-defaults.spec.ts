@@ -33,5 +33,6 @@ describe('convertRatingToPercentage', () => {
   it('converts defense rating into level-scaled damage reduction', () => {
     expect(convertRatingToPercentage(StatType.DEFENSE, 100, 100)).toBe(9.1);
     expect(convertRatingToPercentage(StatType.DEFENSE, 100, 10)).toBe(50);
+    expect(convertRatingToPercentage(StatType.DEFENSE, 500, 10)).toBe(50);
   });
 });

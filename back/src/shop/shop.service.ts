@@ -15,6 +15,7 @@ const SHOP_RANDOM_EQUIPMENT_COUNT = 8;
 const SHOP_GUARANTEED_EQUIPMENT_TYPES = [EquipmentType.GLOVES, EquipmentType.LEGS] as const;
 const SHOP_ITEM_LEVEL_OFFSETS = [-2, -1, 0, 1, 2] as const;
 export const SHOP_REFRESH_GEM_COST = 10;
+export const SHOP_DEFAULT_GOLD = 1_000_000;
 
 @Injectable()
 export class ShopService {
@@ -151,7 +152,14 @@ export class ShopService {
     }
 
     const nextRestockAt = new Date(now.getTime() + SHOP_RESTOCK_INTERVAL_MS);
-    await tx.shop.update({ where: { id: shopId }, data: { nextRestockAt, stockLevel: playerLevel } });
+    await tx.shop.update({
+      where: { id: shopId },
+      data: {
+        nextRestockAt,
+        stockLevel: playerLevel,
+        gold: SHOP_DEFAULT_GOLD,
+      },
+    });
     return nextRestockAt;
   }
 
@@ -177,7 +185,7 @@ export class ShopService {
             if (!town || town.shopId !== shopId) throw new BadRequestException('Travel to this town to use its shop');
             const shop = await tx.shop.upsert({
               where: { ownerId_townId: { ownerId: profile.id, townId: shopId } },
-              create: { ownerId: profile.id, townId: shopId, name: `${town.name} Market`, gold: 10000 },
+              create: { ownerId: profile.id, townId: shopId, name: `${town.name} Market`, gold: SHOP_DEFAULT_GOLD },
               update: {},
             });
             return operation(tx, shop.id);
@@ -228,6 +236,10 @@ export class ShopService {
           data: { quantity: { increment: dto.quantity } },
         });
       } else {
+        const backpackCount = await tx.inventoryItem.count({
+          where: { gameProfileId: profile.id, isEquiped: false },
+        });
+        if (backpackCount >= 24) throw new BadRequestException('Inventory is full (maximum 24 slots)');
         await tx.inventoryItem.create({
           data: {
             gameProfileId: profile.id,

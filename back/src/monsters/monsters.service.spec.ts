@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { MonstersService } from './monsters.service';
+import { MonstersService, rollDeathCurse, DEATH_CURSES } from './monsters.service';
 import { PrismaService } from '../prisma.service';
 import { NotFoundException } from '@nestjs/common';
 import { MonsterGeneratorService } from './monster-generator.service';
@@ -12,7 +12,7 @@ describe('MonstersService', () => {
 
   const mockPrismaService = {
     playerQuest: { findMany: jest.fn().mockResolvedValue([]), updateMany: jest.fn() },
-    gameProfileBuff: { deleteMany: jest.fn() },
+    gameProfileBuff: { deleteMany: jest.fn(), create: jest.fn() },
     $executeRaw: jest.fn(),
     dungeonVisit: { findUnique: jest.fn(), upsert: jest.fn(), delete: jest.fn() },
     $transaction: jest.fn(),
@@ -26,7 +26,8 @@ describe('MonstersService', () => {
       findUnique: jest.fn(),
     },
     inventoryItem: {
-      create: jest.fn(),
+      create: jest.fn().mockResolvedValue({ id: 99 }),
+      count: jest.fn().mockResolvedValue(0),
     },
   };
   const mockMonsterGenerator = {
@@ -116,8 +117,45 @@ describe('MonstersService', () => {
       data: { mapPositionX: 1470, mapPositionY: 1040 },
     });
     expect(mockPrismaService.gameProfileBuff.deleteMany).toHaveBeenCalledWith({ where: { gameProfileId: 5 } });
+    expect(mockPrismaService.gameProfileBuff.create).not.toHaveBeenCalled();
     expect(mockPrismaService.playerQuest.findMany).not.toHaveBeenCalled();
     expect(mockPrismaService.gameProfile.update).toHaveBeenCalledTimes(1);
+  });
+
+  it('rolls a death curse only for levels above 10 and with 20% probability', () => {
+    expect(rollDeathCurse(10, () => 0.1)).toBeNull();
+    expect(rollDeathCurse(11, () => 0.25)).toBeNull();
+    const curse = rollDeathCurse(11, () => 0.1);
+    expect(curse).not.toBeNull();
+    expect(DEATH_CURSES).toContainEqual(curse);
+    expect(curse!.value).toBeLessThan(0);
+  });
+
+  it('applies a curse on defeat when player level is above 10 and roll succeeds', async () => {
+    mockPrismaService.gameProfile.update.mockResolvedValue({ id: 5, level: 15 });
+    jest.spyOn(Math, 'random').mockReturnValue(0.05);
+    mockUsersService.findCurrentUser.mockResolvedValue(currentUser(15, 1));
+    mockMonsterGenerator.generate.mockReturnValue({
+      id: 99,
+      name: 'Dragon',
+      monsterType: 'Dragon',
+      level: 15,
+      attributes: [],
+      rewardGold: 50,
+      rewardExperience: 50,
+    });
+    const result = await service.rollEncounter(7);
+    if (!result.encountered) throw new Error('Expected battle');
+    result.battle.player.health = 1;
+    result.battle.player.damage = 1;
+    await service.attack(7, result.battle.id);
+    expect(mockPrismaService.gameProfileBuff.create).toHaveBeenCalledTimes(1);
+    const callArgs = mockPrismaService.gameProfileBuff.create.mock.calls[0] as [
+      { data: { gameProfileId: number; value: number; expiresAt: Date } },
+    ];
+    expect(callArgs[0].data.gameProfileId).toBe(5);
+    expect(callArgs[0].data.value).toBeLessThan(0);
+    expect(callArgs[0].data.expiresAt).toBeInstanceOf(Date);
   });
 
   it('grants quest gold, XP and Magic-or-better loot once, including XP in level-up calculation', async () => {
@@ -404,6 +442,51 @@ describe('MonstersService', () => {
       expect(battle.rewards?.items).toEqual([
         expect.objectContaining({ id: 44, name: 'Lucky Ring', rarity: 'MAGIC', quantity: 1 }),
       ]);
+    });
+
+    it('marks drop as inventoryFull and does not insert into inventory when backpack is at 24 slots', async () => {
+      mockPrismaService.inventoryItem.count.mockResolvedValue(24);
+      const random = jest.spyOn(Math, 'random');
+      random
+        .mockReturnValueOnce(0.01)
+        .mockReturnValueOnce(0.99)
+        .mockReturnValueOnce(0.99)
+        .mockReturnValue(0.95);
+      const droppedItem = {
+        id: 44,
+        name: 'Lucky Ring',
+        description: 'Magic ring',
+        price: 100,
+        icon: 'icon_ring.png',
+        isConsumable: false,
+        rarity: 'MAGIC' as const,
+        equipmentType: ['RING' as const],
+        level: 4,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        attributes: [],
+        stats: [],
+      };
+      mockItemGenerator.generate.mockResolvedValue(droppedItem);
+      mockMonsterGenerator.generate.mockReturnValue({
+        id: 99,
+        name: 'Spider',
+        monsterType: 'Spider',
+        level: 1,
+        attributes: [],
+        rewardGold: 7,
+        rewardExperience: 11,
+      });
+      const result = await service.rollEncounter(7);
+      if (!result.encountered) throw new Error('Expected battle');
+      result.battle.player.damage = 1_000;
+      mockPrismaService.inventoryItem.create.mockClear();
+
+      const battle = await service.attack(7, result.battle.id);
+      expect(battle.status).toBe('VICTORY');
+      expect(battle.rewards?.items.length).toBeGreaterThan(0);
+      expect(battle.rewards?.items[0].inventoryFull).toBe(true);
+      expect(mockPrismaService.inventoryItem.create).not.toHaveBeenCalled();
     });
   });
 });

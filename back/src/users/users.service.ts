@@ -5,9 +5,11 @@ import { UserModel, UserWhereInput } from '../../generated/models';
 import type { EquipItemDto, EquipmentSlotId } from './dto/equip-item.dto';
 import type { AllocateAttributeDto } from './dto/allocate-attribute.dto';
 import type { UpdateMapPositionDto } from './dto/update-map-position.dto';
+import type { ReplaceInventoryItemDto } from './dto/replace-inventory-item.dto';
 import { STARTING_ATTRIBUTE_VALUE } from './player-defaults';
 import { requiredPlayerLevel } from './level-progression';
 import { getPotionEffect, isHealthPotion, POTION_BUFF_DURATION_MS } from '../items/potion-effects';
+import { isTwoHandedWeapon } from '../items/weapon-types';
 
 const SLOT_TYPES: Record<EquipmentSlotId, EquipmentType[]> = {
   head: [EquipmentType.HELMET],
@@ -138,11 +140,64 @@ export class UsersService {
         if (source.item.equipmentType.includes(EquipmentType.POTION) && !isHealthPotion(source.item.name)) {
           throw new BadRequestException('Only health potions can be equipped');
         }
+        if (isTwoHandedWeapon(source.item.name) && dto.slot !== 'left-hand') {
+          throw new BadRequestException('Two-handed weapons must be equipped in the left hand');
+        }
 
         const target = await tx.inventoryItem.findFirst({
           where: { gameProfileId: profile.id, isEquiped: true, slot: dto.slot },
           include: { item: true },
         });
+
+        if (dto.slot === 'left-hand' && isTwoHandedWeapon(source.item.name)) {
+          const rightHand = await tx.inventoryItem.findFirst({
+            where: { gameProfileId: profile.id, isEquiped: true, slot: 'right-hand' },
+            select: { id: true, itemId: true, quantity: true },
+          });
+          if (rightHand) {
+            const backpackEntry = await tx.inventoryItem.findFirst({
+              where: { gameProfileId: profile.id, itemId: rightHand.itemId, isEquiped: false },
+              select: { id: true },
+            });
+            if (backpackEntry) {
+              await tx.inventoryItem.update({
+                where: { id: backpackEntry.id },
+                data: { quantity: { increment: rightHand.quantity } },
+              });
+              await tx.inventoryItem.delete({ where: { id: rightHand.id } });
+            } else {
+              await tx.inventoryItem.update({
+                where: { id: rightHand.id },
+                data: { isEquiped: false, slot: null },
+              });
+            }
+          }
+        }
+
+        if (dto.slot === 'right-hand') {
+          const leftHand = await tx.inventoryItem.findFirst({
+            where: { gameProfileId: profile.id, isEquiped: true, slot: 'left-hand' },
+            include: { item: true },
+          });
+          if (leftHand && isTwoHandedWeapon(leftHand.item.name)) {
+            const backpackEntry = await tx.inventoryItem.findFirst({
+              where: { gameProfileId: profile.id, itemId: leftHand.itemId, isEquiped: false },
+              select: { id: true },
+            });
+            if (backpackEntry) {
+              await tx.inventoryItem.update({
+                where: { id: backpackEntry.id },
+                data: { quantity: { increment: leftHand.quantity } },
+              });
+              await tx.inventoryItem.delete({ where: { id: leftHand.id } });
+            } else {
+              await tx.inventoryItem.update({
+                where: { id: leftHand.id },
+                data: { isEquiped: false, slot: null },
+              });
+            }
+          }
+        }
 
         if (dto.slot === 'potion') {
           if (source.isEquiped) return { success: true };
@@ -337,6 +392,10 @@ export class UsersService {
           });
           await tx.inventoryItem.delete({ where: { id: equipped.id } });
         } else {
+          const backpackCount = await tx.inventoryItem.count({
+            where: { gameProfileId: profile.id, isEquiped: false },
+          });
+          if (backpackCount >= 24) throw new BadRequestException('Inventory is full (maximum 24 slots)');
           await tx.inventoryItem.update({
             where: { id: equipped.id },
             data: { isEquiped: false, slot: null },
@@ -348,10 +407,67 @@ export class UsersService {
     );
   }
 
+  async dropInventoryItem(userId: number, inventoryItemId: number) {
+    return this.prisma.$transaction(async (tx) => {
+      const profile = await tx.gameProfile.findUnique({ where: { userId }, select: { id: true } });
+      if (!profile) throw new NotFoundException('Game profile not found');
+      const entry = await tx.inventoryItem.findFirst({
+        where: { id: inventoryItemId, gameProfileId: profile.id, isEquiped: false },
+      });
+      if (!entry) throw new NotFoundException('Inventory item not found');
+      await tx.inventoryItem.delete({ where: { id: entry.id } });
+      return { success: true };
+    });
+  }
+
+  async replaceInventoryItem(userId: number, dto: ReplaceInventoryItemDto) {
+    return this.prisma.$transaction(async (tx) => {
+      const profile = await tx.gameProfile.findUnique({ where: { userId }, select: { id: true } });
+      if (!profile) throw new NotFoundException('Game profile not found');
+      const toReplace = await tx.inventoryItem.findFirst({
+        where: { id: dto.replaceInventoryItemId, gameProfileId: profile.id, isEquiped: false },
+      });
+      if (!toReplace) throw new NotFoundException('Item to replace not found in inventory');
+      const newItem = await tx.item.findUnique({ where: { id: dto.newItemId } });
+      if (!newItem) throw new NotFoundException('New item not found');
+
+      await tx.inventoryItem.delete({ where: { id: toReplace.id } });
+      const created = await tx.inventoryItem.create({
+        data: {
+          gameProfileId: profile.id,
+          itemId: newItem.id,
+          quantity: 1,
+          slot: null,
+          isEquiped: false,
+        },
+      });
+      return { success: true, inventoryItemId: created.id };
+    });
+  }
+
   update(id: number, data: Partial<Omit<UserModel, 'id'>>) {
     return this.prisma.user.update({
       where: { id },
       data,
     });
+  }
+
+  async getLeaderboard(limit = 50) {
+    const profiles = await this.prisma.gameProfile.findMany({
+      take: limit,
+      orderBy: [{ level: 'desc' }, { killedMonsters: 'desc' }, { experience: 'desc' }],
+      include: {
+        user: { select: { name: true } },
+        _count: { select: { quests: { where: { completedAt: { not: null } } } } },
+      },
+    });
+
+    return profiles.map((profile, index) => ({
+      rank: index + 1,
+      name: profile.user.name,
+      level: profile.level,
+      killedMonsters: profile.killedMonsters,
+      questsCompleted: profile._count.quests,
+    }));
   }
 }

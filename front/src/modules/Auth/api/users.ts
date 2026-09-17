@@ -54,6 +54,16 @@ export const usersApi = {
   async consumeInventoryItem(inventoryItemId: number): Promise<void> {
     await api.post(routes.api.users.consumeInventoryItemPath(inventoryItemId));
   },
+  async dropInventoryItem(inventoryItemId: number): Promise<void> {
+    await api.delete(routes.api.users.dropInventoryItemPath(inventoryItemId));
+  },
+  async replaceInventoryItem(replaceInventoryItemId: number, newItemId: number): Promise<{ inventoryItemId: number }> {
+    const { data } = await api.post<{ inventoryItemId: number }>(routes.api.users.replaceInventoryItemPath(), {
+      replaceInventoryItemId,
+      newItemId,
+    });
+    return data;
+  },
   async updateMapPosition(position: MapPosition): Promise<MapPosition> {
     const { data } = await api.put<MapPosition>(routes.api.users.mapPositionPath(), position);
     return data;

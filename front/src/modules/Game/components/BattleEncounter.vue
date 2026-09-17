@@ -49,11 +49,52 @@
             <div class="mb-2 text-xs font-bold tracking-[0.14em] text-[#efca72] uppercase">
               {{ t('fantasy.encounter.loot') }}
             </div>
-            <div class="flex flex-wrap gap-3">
-              <div v-for="(item, index) in battle.rewards.items" :key="`${item.id}-${index}`" class="text-center">
+            <div class="flex flex-wrap gap-4">
+              <div v-for="(item, index) in battle.rewards.items" :key="`${item.id}-${index}`" class="flex flex-col items-center text-center">
                 <InventoryItem :item="lootInventoryItem(item)" class="h-24 w-24 bg-white" />
                 <div class="mt-1 text-[10px] font-bold uppercase" :class="getRarityTextClass(item.rarity)">
                   {{ t(`profile.rarity.${item.rarity.toLowerCase()}`) }}
+                </div>
+                <div v-if="itemActions[index] === 'dropped'" class="mt-1 text-[11px] font-semibold text-red-400">
+                  {{ t('fantasy.encounter.itemDropped') }}
+                </div>
+                <div v-else-if="itemActions[index] === 'replaced'" class="mt-1 text-[11px] font-semibold text-emerald-400">
+                  {{ t('fantasy.encounter.itemReplaced') }}
+                </div>
+                <div v-else class="mt-1.5 flex flex-col items-center gap-1">
+                  <template v-if="item.inventoryFull">
+                    <div class="rounded bg-amber-900/80 px-2 py-0.5 text-[9px] font-bold text-amber-200">
+                      {{ t('fantasy.encounter.inventoryFullLootNotice') }}
+                    </div>
+                    <div class="flex gap-1.5">
+                      <button
+                        type="button"
+                        class="rounded bg-amber-600 px-2.5 py-1 text-[10px] font-bold uppercase text-white hover:bg-amber-500"
+                        @click="openReplaceModal(item, index)"
+                      >
+                        {{ t('fantasy.encounter.replaceItem') }}
+                      </button>
+                      <button
+                        type="button"
+                        class="rounded bg-red-800/80 px-2.5 py-1 text-[10px] font-bold uppercase text-white hover:bg-red-700"
+                        @click="dropLootItem(item, index)"
+                      >
+                        {{ t('fantasy.encounter.dropItem') }}
+                      </button>
+                    </div>
+                  </template>
+                  <template v-else>
+                    <div class="rounded border border-emerald-500/30 bg-emerald-950/80 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
+                      ✓ {{ t('fantasy.encounter.addedToInventory') }}
+                    </div>
+                    <button
+                      type="button"
+                      class="rounded bg-red-800/60 px-2 py-0.5 text-[9px] font-bold uppercase text-white/80 hover:bg-red-700"
+                      @click="dropLootItem(item, index)"
+                    >
+                      {{ t('fantasy.encounter.dropItem') }}
+                    </button>
+                  </template>
                 </div>
               </div>
             </div>
@@ -91,16 +132,135 @@
         </button>
       </footer>
     </section>
+
+    <!-- Modal to choose an item from inventory to replace -->
+    <div
+      v-if="replacingItemIndex !== null && replacingLootItem"
+      class="absolute inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+    >
+      <div class="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-amber-400/50 bg-[#0d222d] text-white shadow-2xl">
+        <header class="border-b border-[#ddbd6b]/20 bg-[#081a23] px-6 py-4">
+          <h3 class="font-serif text-xl font-bold text-amber-300">
+            {{ t('fantasy.encounter.selectItemToReplace') }}
+          </h3>
+          <p class="mt-1 text-xs text-amber-200/80">
+            {{ t('fantasy.encounter.inventoryFullLootNotice') }}
+          </p>
+        </header>
+
+        <div class="flex-1 space-y-5 overflow-y-auto p-6">
+          <!-- Comparison Panel: New Loot Item vs Selected Item to Replace -->
+          <div class="grid grid-cols-2 gap-4 rounded-xl border border-amber-500/25 bg-[#06141d]/80 p-4">
+            <!-- Left: New loot item -->
+            <div class="flex items-center gap-3">
+              <InventoryItem :item="lootInventoryItem(replacingLootItem)" class="h-20 w-20 shrink-0 bg-white" />
+              <div class="min-w-0 flex-1">
+                <div class="text-[10px] font-bold tracking-wider text-amber-400 uppercase">
+                  {{ t('fantasy.encounter.newItemToReceive') }}
+                </div>
+                <div class="truncate text-sm font-bold text-white">{{ replacingLootItem.name }}</div>
+                <div class="text-xs" :class="getRarityTextClass(replacingLootItem.rarity)">
+                  {{ t(`profile.rarity.${replacingLootItem.rarity.toLowerCase()}`) }} · {{ t('profile.summary.level') }} {{ replacingLootItem.level }}
+                </div>
+              </div>
+            </div>
+
+            <!-- Right: Selected item to discard -->
+            <div class="flex items-center gap-3 border-l border-white/10 pl-4">
+              <template v-if="selectedBackpackItem">
+                <InventoryItem :item="selectedBackpackItem" class="h-20 w-20 shrink-0 bg-white" />
+                <div class="min-w-0 flex-1">
+                  <div class="text-[10px] font-bold tracking-wider text-red-400 uppercase">
+                    {{ t('fantasy.encounter.itemToDiscard') }}
+                  </div>
+                  <div class="truncate text-sm font-bold text-white">{{ selectedBackpackItem.name }}</div>
+                  <div class="text-xs" :class="getRarityTextClass(selectedBackpackItem.rarityKey)">
+                    {{ selectedBackpackItem.rarity }} · {{ t('profile.summary.level') }} {{ selectedBackpackItem.level }}
+                  </div>
+                </div>
+              </template>
+              <template v-else>
+                <div class="flex h-20 w-20 shrink-0 items-center justify-center rounded-lg border-2 border-dashed border-gray-600 text-xs text-gray-400">
+                  ?
+                </div>
+                <div class="text-xs text-gray-400 italic">
+                  {{ t('fantasy.encounter.selectItemToReplace') }}
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- Backpack Items Grid -->
+          <div>
+            <div class="mb-2 flex items-center justify-between">
+              <span class="text-xs font-bold tracking-wider text-gray-300 uppercase">
+                {{ t('profile.inventory') }} ({{ playerBackpackItems.length }}/24)
+              </span>
+              <span class="text-[11px] text-gray-400">
+                {{ t('shop.comparedWithEquipped') }}
+              </span>
+            </div>
+
+            <div v-if="playerBackpackItems.length === 0" class="rounded-lg border border-dashed border-gray-700 py-8 text-center text-sm text-gray-400">
+              {{ t('shop.inventoryEmpty') }}
+            </div>
+
+            <div v-else class="grid grid-cols-4 gap-3 sm:grid-cols-6">
+              <div
+                v-for="invItem in playerBackpackItems"
+                :key="invItem.inventoryItemId"
+                class="group relative flex cursor-pointer flex-col items-center rounded-xl p-1.5 transition"
+                :class="selectedBackpackItem?.inventoryItemId === invItem.inventoryItemId
+                  ? 'scale-105 bg-amber-950/60 shadow-lg ring-2 ring-amber-400'
+                  : 'bg-white/5 hover:bg-white/10 hover:ring-1 hover:ring-white/30'"
+                @click="selectedBackpackItem = invItem"
+              >
+                <InventoryItem :item="invItem" class="h-20 w-20 shrink-0 bg-white" />
+                <span class="mt-1 w-20 truncate text-center text-[10px] font-medium text-gray-200">
+                  {{ invItem.name }}
+                </span>
+                <span
+                  v-if="selectedBackpackItem?.inventoryItemId === invItem.inventoryItemId"
+                  class="mt-0.5 rounded bg-red-800 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white"
+                >
+                  {{ t('fantasy.encounter.replaceItem') }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <footer class="flex items-center justify-end gap-3 border-t border-[#ddbd6b]/20 bg-[#081a23] px-6 py-4">
+          <button
+            type="button"
+            class="rounded-lg border border-gray-600 px-4 py-2 text-xs font-semibold text-gray-300 transition hover:bg-gray-800"
+            @click="closeReplaceModal"
+          >
+            {{ t('fantasy.encounter.cancel') }}
+          </button>
+          <button
+            type="button"
+            class="rounded-lg bg-amber-600 px-5 py-2 text-xs font-bold uppercase tracking-wider text-white shadow-lg transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-40"
+            :disabled="!selectedBackpackItem"
+            @click="selectedBackpackItem && confirmReplace(selectedBackpackItem)"
+          >
+            {{ t('fantasy.encounter.confirmReplace') }}
+          </button>
+        </footer>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { useTranslation } from 'i18next-vue';
-import { QIcon } from 'quasar';
-import { computed, defineComponent, h } from 'vue';
+import { Notify, QIcon } from 'quasar';
+import { computed, defineComponent, h, onMounted, ref } from 'vue';
 
 import type { InventoryItemType } from '@/modules/Inventory/types';
 
+import { usersApi } from '@/modules/Auth/api/users';
+import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 import { getBattleEventSubject } from '@/modules/Game/battleEvent';
 import { getRarityTextClass } from '@/modules/Inventory/utils/rarity';
 import type { BattleState } from '@/modules/Monsters/api';
@@ -110,6 +270,72 @@ import InventoryItem from '@/modules/Inventory/components/InventoryItem.vue';
 const props = defineProps<{ battle: BattleState; playerName: string; loading: boolean }>();
 defineEmits<{ (event: 'attack'): void; (event: 'retreat'): void; (event: 'close'): void }>();
 const { t } = useTranslation();
+
+const currentUserStore = useCurrentUserStore();
+const itemActions = ref<Record<number, 'dropped' | 'replaced'>>({});
+const replacingItemIndex = ref<number | null>(null);
+const replacingLootItem = ref<NonNullable<BattleState['rewards']>['items'][number] | null>(null);
+const selectedBackpackItem = ref<InventoryItemType | null>(null);
+
+const playerBackpackItems = computed<InventoryItemType[]>(() => {
+  return (currentUserStore.user?.inventory ?? []).map((entry) => ({
+    inventoryItemId: entry.inventoryItemId ?? entry.id,
+    id: entry.item?.id ?? entry.id,
+    level: entry.item?.level ?? entry.level ?? 1,
+    requiredPlayerLevel: entry.item?.requiredPlayerLevel ?? entry.requiredPlayerLevel ?? 1,
+    nameKey: entry.item?.name ?? entry.name ?? '',
+    name: entry.item?.name ?? entry.name ?? '',
+    tooltipName: entry.item?.name ?? entry.name ?? '',
+    icon: entry.item?.icon ?? entry.icon ?? '',
+    description: entry.item?.description ?? entry.description ?? '',
+    price: entry.item?.price ?? entry.price ?? 0,
+    rarity: t(`profile.rarity.${(entry.item?.rarity ?? entry.rarity ?? 'COMMON').toLowerCase()}`),
+    rarityKey: entry.item?.rarity ?? entry.rarity ?? 'COMMON',
+    equipmentType: entry.item?.equipmentType ?? entry.equipmentType ?? [],
+    attributes: entry.item?.attributes ?? entry.attributes ?? [],
+    properties: entry.item?.properties ?? entry.properties ?? [],
+    quantity: entry.quantity ?? 1,
+    slot: null,
+  }));
+});
+
+const openReplaceModal = (item: NonNullable<BattleState['rewards']>['items'][number], index: number) => {
+  replacingLootItem.value = item;
+  replacingItemIndex.value = index;
+  selectedBackpackItem.value = null;
+};
+
+const closeReplaceModal = () => {
+  replacingItemIndex.value = null;
+  replacingLootItem.value = null;
+  selectedBackpackItem.value = null;
+};
+
+const confirmReplace = async (invItem: { inventoryItemId?: number }) => {
+  if (replacingItemIndex.value === null || !replacingLootItem.value || !invItem.inventoryItemId) return;
+  try {
+    await usersApi.replaceInventoryItem(invItem.inventoryItemId, replacingLootItem.value.id);
+    itemActions.value[replacingItemIndex.value] = 'replaced';
+    closeReplaceModal();
+    await currentUserStore.fetchCurrentUser(true);
+    Notify.create({ type: 'positive', message: t('fantasy.encounter.itemReplaced') });
+  } catch (error) {
+    console.error('Replace failed:', error);
+  }
+};
+
+const dropLootItem = async (item: NonNullable<BattleState['rewards']>['items'][number], index: number) => {
+  try {
+    if (item.inventoryItemId) {
+      await usersApi.dropInventoryItem(item.inventoryItemId);
+      await currentUserStore.fetchCurrentUser(true);
+    }
+    itemActions.value[index] = 'dropped';
+    Notify.create({ type: 'info', message: t('fantasy.encounter.itemDropped') });
+  } catch (error) {
+    console.error('Drop failed:', error);
+  }
+};
 
 const lootInventoryItem = (item: NonNullable<BattleState['rewards']>['items'][number]): InventoryItemType => ({
   id: item.id,
@@ -122,8 +348,8 @@ const lootInventoryItem = (item: NonNullable<BattleState['rewards']>['items'][nu
   rarity: t(`profile.rarity.${item.rarity.toLowerCase()}`),
   rarityKey: item.rarity,
   equipmentType: item.equipmentType,
-  attributes: item.attributes,
-  properties: item.properties,
+  attributes: item.attributes ?? [],
+  properties: item.properties ?? [],
   quantity: item.quantity,
 });
 

@@ -13,6 +13,21 @@ import { progressionAfterExperience } from '../users/level-progression';
 import { recordQuestVictory } from '../quests/quest-progress';
 import { isOnTravelRoute } from '../locations/travel-routes';
 
+export const DEATH_CURSES: Array<{ type: PlayerBuffType; value: number }> = [
+  { type: PlayerBuffType.DEFENSE, value: -4 },
+  { type: PlayerBuffType.DAMAGE, value: -2 },
+  { type: PlayerBuffType.EXPERIENCE, value: -8 },
+];
+
+export const rollDeathCurse = (
+  level: number,
+  random: () => number = Math.random,
+): { type: PlayerBuffType; value: number } | null => {
+  if (level <= 10) return null;
+  if (random() >= 0.2) return null;
+  return DEATH_CURSES[Math.floor(random() * DEATH_CURSES.length)];
+};
+
 type BattleStatus = 'ACTIVE' | 'VICTORY' | 'DEFEAT';
 type Combatant = {
   name: string;
@@ -36,7 +51,18 @@ type Battle = {
   monster: Combatant & { id: number; level: number; rewardGold: number; rewardExperience: number };
   events: Array<{ actor: 'PLAYER' | 'MONSTER'; damage: number; critical: boolean; dodged: boolean }>;
   experienceBonusPercent: number;
-  rewards?: { gold: number; experience: number; items: Array<ReturnType<typeof ItemView.render> & { quantity: 1 }> };
+  rewards?: {
+    gold: number;
+    experience: number;
+    items: Array<
+      ReturnType<typeof ItemView.render> & {
+        quantity: 1;
+        inventoryItemId?: number;
+        addedToInventory?: boolean;
+        inventoryFull?: boolean;
+      }
+    >;
+  };
 };
 @Injectable()
 export class MonstersService {
@@ -200,6 +226,10 @@ export class MonstersService {
             },
           });
         }
+        const currentBackpackCount = await tx.inventoryItem.count({
+          where: { gameProfileId: profile.id, isEquiped: false },
+        });
+        let availableSlots = Math.max(0, 24 - currentBackpackCount);
         const drops = [lootRarity, ...finished.map(() => rollQuestLootRarity())];
         for (const [index, rarity] of drops.entries()) {
           if (!rarity) continue;
@@ -207,16 +237,32 @@ export class MonstersService {
             { level: battle.monster.level, rarity, ...(index > 0 ? { minimumRarity: ItemRarity.MAGIC } : {}) },
             tx,
           );
-          await tx.inventoryItem.create({
-            data: {
-              gameProfileId: profile.id,
-              itemId: item.id,
+          if (availableSlots > 0) {
+            const created = await tx.inventoryItem.create({
+              data: {
+                gameProfileId: profile.id,
+                itemId: item.id,
+                quantity: 1,
+                slot: null,
+                isEquiped: false,
+              },
+            });
+            availableSlots--;
+            rewards.items.push({
+              ...ItemView.render(item),
               quantity: 1,
-              slot: null,
-              isEquiped: false,
-            },
-          });
-          rewards.items.push({ ...ItemView.render(item), quantity: 1 });
+              inventoryItemId: created?.id,
+              addedToInventory: true,
+              inventoryFull: false,
+            });
+          } else {
+            rewards.items.push({
+              ...ItemView.render(item),
+              quantity: 1,
+              addedToInventory: false,
+              inventoryFull: true,
+            });
+          }
         }
       });
     }
@@ -228,6 +274,17 @@ export class MonstersService {
           data: { mapPositionX: 1470, mapPositionY: 1040 },
         });
         await tx.gameProfileBuff.deleteMany({ where: { gameProfileId: profile.id } });
+        const curse = rollDeathCurse(profile.level);
+        if (curse) {
+          await tx.gameProfileBuff.create({
+            data: {
+              gameProfileId: profile.id,
+              type: curse.type,
+              value: curse.value,
+              expiresAt: new Date(Date.now() + 4 * 60 * 60 * 1000),
+            },
+          });
+        }
       });
       for (const [id, other] of this.battles) if (other.userId === userId) this.battles.delete(id);
     }

@@ -19,6 +19,29 @@ describe('equipment slot selection', () => {
     expect(getCompatibleEquipmentSlots(item(['SHIELD']))).toEqual(['right-hand']);
   });
 
+  it('restricts two-handed weapons to the left hand', () => {
+    expect(
+      getCompatibleEquipmentSlots({
+        ...item(['WEAPON']),
+        name: 'Two-handed Sword',
+      })
+    ).toEqual(['left-hand']);
+
+    expect(
+      getCompatibleEquipmentSlots({
+        ...item(['WEAPON']),
+        name: 'Deadly Two-handed Sword of Strength',
+      })
+    ).toEqual(['left-hand']);
+
+    expect(
+      getCompatibleEquipmentSlots({
+        ...item(['WEAPON']),
+        name: 'Iron Sword',
+      })
+    ).toEqual(['left-hand', 'right-hand']);
+  });
+
   it('returns the matching armor slot', () => {
     expect(getCompatibleEquipmentSlots(item(['HELMET']))).toEqual(['head']);
   });

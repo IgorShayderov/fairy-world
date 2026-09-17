@@ -59,6 +59,12 @@
       >
         {{ displayRarity }}
       </div>
+      <div
+        v-if="isTwoHanded(item)"
+        class="mt-1 ml-1 inline-flex rounded border border-purple-500/40 bg-purple-900/60 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-purple-200 uppercase"
+      >
+        {{ $t('profile.twoHanded') }}
+      </div>
       <div v-if="tooltipDescription" class="mt-1 text-xs text-gray-200">{{ tooltipDescription }}</div>
       <div v-if="item.requiredPlayerLevel" class="mt-1 text-xs text-amber-200">
         {{ $t('profile.requiredLevel', { level: item.requiredPlayerLevel }) }}
@@ -126,6 +132,7 @@ import { computed } from 'vue';
 import type { Component } from 'vue';
 import type { InventoryItemType } from '@/modules/Inventory/types';
 
+import { isTwoHanded } from '@/modules/Inventory/utils/equipment';
 import { getRarityBadgeClass, removeRarityPrefix } from '@/modules/Inventory/utils/rarity';
 
 const CONFIGURED_ITEM_IMAGES: Record<string, string> = {

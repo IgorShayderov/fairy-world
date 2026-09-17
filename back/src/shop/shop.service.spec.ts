@@ -1,4 +1,4 @@
-import { ShopService } from './shop.service';
+import { ShopService, SHOP_DEFAULT_GOLD } from './shop.service';
 import { PrismaService } from '../prisma.service';
 import { ItemGeneratorService } from '../items/item-generator.service';
 
@@ -21,6 +21,7 @@ describe('ShopService trades', () => {
       update: jest.fn(),
       delete: jest.fn(),
       create: jest.fn(),
+      count: jest.fn().mockResolvedValue(0),
     },
   };
   const prisma = { $transaction: jest.fn() };
@@ -82,7 +83,7 @@ describe('ShopService trades', () => {
     await service.buy(1, 2, { itemId: 3, quantity: 1 });
     expect(tx.shop.upsert).toHaveBeenCalledWith({
       where: { ownerId_townId: { ownerId: 5, townId: 2 } },
-      create: { ownerId: 5, townId: 2, name: 'AURELIA Market', gold: 10000 },
+      create: { ownerId: 5, townId: 2, name: 'AURELIA Market', gold: SHOP_DEFAULT_GOLD },
       update: {},
     });
   });
@@ -229,6 +230,12 @@ describe('ShopService trades', () => {
     expect(tx.inventoryItem.create).not.toHaveBeenCalled();
   });
 
+  it('rejects buying when backpack is full at 24 slots and item is not stackable', async () => {
+    tx.inventoryItem.findFirst.mockResolvedValue(null);
+    tx.inventoryItem.count.mockResolvedValue(24);
+    await expect(service.buy(1, 2, { itemId: 3, quantity: 1 })).rejects.toThrow('Inventory is full');
+  });
+
   it('returns stock and balances from the database in one extensible response', async () => {
     const nextRestockAt = new Date('2099-01-01');
     tx.shop.findUnique.mockResolvedValue({
@@ -245,7 +252,18 @@ describe('ShopService trades', () => {
       gold: 500,
       nextRestockAt,
       refreshCost: 10,
-      items: [{ id: 3, level: 4, requiredPlayerLevel: 1, name: 'Shield', quantity: 9, attributes: [], properties: [] }],
+      items: [
+        {
+          id: 3,
+          level: 4,
+          requiredPlayerLevel: 1,
+          isTwoHanded: false,
+          name: 'Shield',
+          quantity: 9,
+          attributes: [],
+          properties: [],
+        },
+      ],
     });
     expect(tx.shopStock.deleteMany).toHaveBeenCalledWith({ where: { shopId: 2, quantity: { lte: 0 } } });
     expect(itemGenerator.generate).not.toHaveBeenCalled();
@@ -284,7 +302,7 @@ describe('ShopService trades', () => {
     });
     expect(tx.shop.update).toHaveBeenCalledWith({
       where: { id: 2 },
-      data: { nextRestockAt, stockLevel: 4 },
+      data: { nextRestockAt, stockLevel: 4, gold: SHOP_DEFAULT_GOLD },
     });
   });
 
@@ -303,7 +321,10 @@ describe('ShopService trades', () => {
     expect(tx.shopStock.deleteMany).toHaveBeenCalledWith({ where: { shopId: 2 } });
     expect(itemGenerator.generate).toHaveBeenCalledTimes(10);
     expect(tx.shopStock.upsert).toHaveBeenCalledTimes(12);
-    expect(tx.shop.update).toHaveBeenCalledWith({ where: { id: 2 }, data: { nextRestockAt, stockLevel: 4 } });
+    expect(tx.shop.update).toHaveBeenCalledWith({
+      where: { id: 2 },
+      data: { nextRestockAt, stockLevel: 4, gold: SHOP_DEFAULT_GOLD },
+    });
   });
 
   it('does not refresh stock when the player has fewer than ten gems', async () => {
@@ -321,5 +342,23 @@ describe('ShopService trades', () => {
     expect(tx.gameProfile.update).not.toHaveBeenCalled();
     expect(tx.shopStock.deleteMany).not.toHaveBeenCalled();
     expect(itemGenerator.generate).not.toHaveBeenCalled();
+  });
+
+  it('resets shop gold to 1 million when stock is restocked', async () => {
+    const now = new Date('2026-09-11T09:00:00Z');
+    const nextRestockAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    jest.useFakeTimers().setSystemTime(now);
+    tx.shop.findUnique
+      .mockResolvedValueOnce({ id: 2, name: 'Armory', gold: 500, nextRestockAt: null })
+      .mockResolvedValueOnce({ id: 2, name: 'Armory', gold: SHOP_DEFAULT_GOLD, nextRestockAt, stock: [] });
+    itemGenerator.generate.mockResolvedValue({ id: 42 });
+
+    const result = await service.getShop(1, 2);
+
+    expect(tx.shop.update).toHaveBeenCalledWith({
+      where: { id: 2 },
+      data: { nextRestockAt, stockLevel: 4, gold: SHOP_DEFAULT_GOLD },
+    });
+    expect(result.gold).toBe(SHOP_DEFAULT_GOLD);
   });
 });

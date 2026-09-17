@@ -3,7 +3,12 @@
     <div v-if="accessError" class="p-6 text-center text-gray-600">{{ t('shop.townRequired') }}</div>
     <div v-else class="shop-panels min-h-0 flex-1 overflow-hidden">
       <main class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <div class="shrink-0 bg-white px-6 pt-2 font-semibold">{{ shopName }}</div>
+        <div class="shrink-0 flex items-center justify-between bg-white px-6 pt-2">
+          <span class="font-semibold text-gray-800">{{ shopName }}</span>
+          <span class="text-xs font-medium text-gray-500">
+            {{ t('shop.shopGold') }}: <span class="font-bold text-yellow-600">💰 {{ shopGold.toLocaleString() }} gold</span>
+          </span>
+        </div>
         <ShopHeader
           :gold="gold"
           :gems="gems"
@@ -79,6 +84,7 @@ const { t } = useTranslation();
 const {
   accessError,
   shopName,
+  shopGold,
   shopItems,
   inventory,
   equippedItems,

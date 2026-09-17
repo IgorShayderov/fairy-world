@@ -5,8 +5,8 @@ describe('monster loot rarity', () => {
   it.each([
     [0.19, null],
     [0.2, ItemRarity.COMMON],
-    [0.6, ItemRarity.MAGIC],
-    [0.85, ItemRarity.RARE],
+    [0.32, ItemRarity.MAGIC],
+    [0.58, ItemRarity.RARE],
     [0.97, ItemRarity.UNIQUE],
   ])('uses improved dungeon loot odds at %s', (roll, expected) => {
     expect(rollDungeonLootRarity(() => roll)).toBe(expected);

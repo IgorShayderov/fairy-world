@@ -39,6 +39,36 @@ export const BASE_ITEMS: BaseItem[] = [
     },
   },
   {
+    name: 'Dagger',
+    equipmentType: EquipmentType.WEAPON,
+    basePrice: 45,
+    icon: 'icon_sword.png',
+    baseStats: {
+      [StatType.DAMAGE]: 2,
+      [StatType.CRIT]: 2,
+    },
+  },
+  {
+    name: 'Axe',
+    equipmentType: EquipmentType.WEAPON,
+    basePrice: 60,
+    icon: 'icon_sword.png',
+    iconVariants: ['icon_sword_2.png'],
+    baseStats: {
+      [StatType.DAMAGE]: 4,
+    },
+  },
+  {
+    name: 'Two-handed Sword',
+    equipmentType: EquipmentType.WEAPON,
+    basePrice: 100,
+    icon: 'icon_sword.png',
+    iconVariants: ['icon_sword_2.png'],
+    baseStats: {
+      [StatType.DAMAGE]: 7,
+    },
+  },
+  {
     name: 'Shield',
     equipmentType: EquipmentType.SHIELD,
     basePrice: 50,

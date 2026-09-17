@@ -1,6 +1,7 @@
 import { EquipmentType, ItemRarity, StatType } from '../../generated/client';
 import { PrismaService } from '../prisma.service';
 import { ItemGeneratorService } from './item-generator.service';
+import { BASE_ITEMS } from './item-generator.config';
 
 interface GeneratedItemCreateArgs {
   data: {
@@ -104,7 +105,9 @@ describe('ItemGeneratorService', () => {
     [EquipmentType.RING, StatType.CRIT, 1],
     [EquipmentType.AMULET, StatType.MANA, 3],
   ])('gives a level-one common %s an inherent %s property', async (equipmentType, stat, value) => {
+    const random = jest.spyOn(Math, 'random').mockReturnValue(0);
     await service.generate({ level: 1, equipmentType, rarity: ItemRarity.COMMON });
+    random.mockRestore();
 
     const args = create.mock.calls[0]?.[0] as GeneratedItemCreateArgs;
     expect(args.data.stats.create).toEqual([{ stat: { connect: { name: stat } }, value }]);
@@ -136,5 +139,27 @@ describe('ItemGeneratorService', () => {
 
     const args = create.mock.calls[0]?.[0] as GeneratedItemCreateArgs;
     expect(args.data.stats.create.length + args.data.attributes.create.length).toBeGreaterThan(1);
+  });
+
+  it('scales stat modifiers more aggressively than attributes at higher levels', async () => {
+    const random = jest.spyOn(Math, 'random');
+    random.mockReturnValue(0.999);
+    await service.generate({ level: 1, equipmentType: EquipmentType.WEAPON, rarity: ItemRarity.MAGIC });
+    const lvl1Args = create.mock.calls[0]?.[0] as GeneratedItemCreateArgs;
+
+    findMany.mockResolvedValue([]);
+    await service.generate({ level: 20, equipmentType: EquipmentType.WEAPON, rarity: ItemRarity.MAGIC });
+    const lvl20Args = create.mock.calls[1]?.[0] as GeneratedItemCreateArgs;
+    random.mockRestore();
+
+    const lvl1StatTotal = lvl1Args.data.stats.create.reduce((sum, s) => sum + s.value, 0);
+    const lvl20StatTotal = lvl20Args.data.stats.create.reduce((sum, s) => sum + s.value, 0);
+    expect(lvl20StatTotal).toBeGreaterThan(lvl1StatTotal * 2);
+  });
+
+  it('generates a two-handed sword with higher base damage than a regular sword', () => {
+    const sword = BASE_ITEMS.find((item) => item.name === 'Sword')!;
+    const twoHanded = BASE_ITEMS.find((item) => item.name === 'Two-handed Sword')!;
+    expect(twoHanded.baseStats![StatType.DAMAGE]!).toBeGreaterThan(sword.baseStats![StatType.DAMAGE]! * 2);
   });
 });

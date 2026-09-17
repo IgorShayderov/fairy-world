@@ -47,6 +47,7 @@ export interface InventoryItemType {
   rarityKey?: string;
   equipmentType?: EquipmentType[];
   equipmentTypes?: EquipmentType[];
+  isTwoHanded?: boolean;
   quantity?: number;
   attributes?: ItemModifier[];
   properties?: ItemModifier[];
@@ -65,6 +66,7 @@ export interface InventoryEntry {
     icon: string;
     rarity: ItemRarity;
     equipmentType: EquipmentType[];
+    isTwoHanded?: boolean;
     attributes: ItemModifier[];
     properties: ItemModifier[];
   };

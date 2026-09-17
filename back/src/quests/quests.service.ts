@@ -4,9 +4,7 @@ import { TOWNS, townAt } from '../locations/towns';
 import { generateTownOffers } from './quest-board';
 import { habitatForMonster } from '../monsters/monster-habitats';
 import type { Quest, Prisma } from '../../generated/client';
-import { ItemRarity } from '../../generated/client';
 import { ItemGeneratorService } from '../items/item-generator.service';
-import { rollQuestLootRarity } from '../monsters/monster-loot';
 import { progressionAfterExperience } from '../users/level-progression';
 
 const renderQuest = (quest: Quest) => ({
@@ -43,16 +41,6 @@ export class QuestsService {
           freeAttributes: { increment: progression.freeAttributes },
         },
       });
-      const rarity = rollQuestLootRarity();
-      if (rarity) {
-        const item = await this.itemGenerator.generate(
-          { level: profile.level, rarity, minimumRarity: ItemRarity.MAGIC },
-          tx,
-        );
-        await tx.inventoryItem.create({
-          data: { gameProfileId: profile.id, itemId: item.id, quantity: 1, isEquiped: false, slot: null },
-        });
-      }
       return { success: true };
     });
   }
