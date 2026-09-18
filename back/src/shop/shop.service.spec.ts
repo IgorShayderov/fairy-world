@@ -305,7 +305,10 @@ describe('ShopService trades', () => {
       nextRestockAt,
       stock: [
         { quantity: 1, item: { id: 3, level: 4, isConsumable: false, name: 'Shield', attributes: [], stats: [] } },
-        { quantity: 1, item: { id: 10, level: 10, isConsumable: true, name: 'Lesser Attack Potion', attributes: [], stats: [] } },
+        {
+          quantity: 1,
+          item: { id: 10, level: 10, isConsumable: true, name: 'Lesser Attack Potion', attributes: [], stats: [] },
+        },
       ],
     });
     const result = await service.getShop(1, 2);

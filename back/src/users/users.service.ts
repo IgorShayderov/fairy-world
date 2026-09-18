@@ -8,7 +8,12 @@ import type { UpdateMapPositionDto } from './dto/update-map-position.dto';
 import type { ReplaceInventoryItemDto } from './dto/replace-inventory-item.dto';
 import { STARTING_ATTRIBUTE_VALUE } from './player-defaults';
 import { requiredPlayerLevel } from './level-progression';
-import { getPotionEffect, getPotionRequiredLevel, isHealthPotion, POTION_BUFF_DURATION_MS } from '../items/potion-effects';
+import {
+  getPotionEffect,
+  getPotionRequiredLevel,
+  isHealthPotion,
+  POTION_BUFF_DURATION_MS,
+} from '../items/potion-effects';
 import { isTwoHandedWeapon } from '../items/weapon-types';
 
 const SLOT_TYPES: Record<EquipmentSlotId, EquipmentType[]> = {

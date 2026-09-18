@@ -447,11 +447,7 @@ describe('MonstersService', () => {
     it('marks drop as inventoryFull and does not insert into inventory when backpack is at 24 slots', async () => {
       mockPrismaService.inventoryItem.count.mockResolvedValue(24);
       const random = jest.spyOn(Math, 'random');
-      random
-        .mockReturnValueOnce(0.01)
-        .mockReturnValueOnce(0.99)
-        .mockReturnValueOnce(0.99)
-        .mockReturnValue(0.95);
+      random.mockReturnValueOnce(0.01).mockReturnValueOnce(0.99).mockReturnValueOnce(0.99).mockReturnValue(0.95);
       const droppedItem = {
         id: 44,
         name: 'Lucky Ring',

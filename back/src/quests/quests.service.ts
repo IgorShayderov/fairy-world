@@ -119,12 +119,14 @@ export class QuestsService {
       update: { revision: { increment: 1 }, nextRefreshAt },
     });
     await tx.quest.createMany({
-      data: generateTownOffers(town, now, `${board.id}_${board.revision}_lvl${playerLevel}`, playerLevel).map((quest) => ({
-        ...quest,
-        boardId: board.id,
-        boardRevision: board.revision,
-        expiresAt: nextRefreshAt,
-      })),
+      data: generateTownOffers(town, now, `${board.id}_${board.revision}_lvl${playerLevel}`, playerLevel).map(
+        (quest) => ({
+          ...quest,
+          boardId: board.id,
+          boardRevision: board.revision,
+          expiresAt: nextRefreshAt,
+        }),
+      ),
     });
     return board;
   }

@@ -79,10 +79,7 @@ export class UsersController {
   @Delete('me/inventory/:inventoryItemId')
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
-  dropInventoryItem(
-    @Request() req: RequestWithUser,
-    @Param('inventoryItemId', ParseIntPipe) inventoryItemId: number,
-  ) {
+  dropInventoryItem(@Request() req: RequestWithUser, @Param('inventoryItemId', ParseIntPipe) inventoryItemId: number) {
     if (inventoryItemId <= 0) throw new BadRequestException('Inventory item id must be positive');
     return this.usersService.dropInventoryItem(req.user.sub, inventoryItemId);
   }

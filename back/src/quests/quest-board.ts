@@ -25,7 +25,9 @@ export function generateTownOffers(
   return Array.from({ length: townQuestCount(town.shopId) }, (_, slot) => {
     const levelModifier =
       playerLevel > 1
-        ? Number((MIN_QUEST_LEVEL_MODIFIER + random() * (MAX_QUEST_LEVEL_MODIFIER - MIN_QUEST_LEVEL_MODIFIER)).toFixed(2))
+        ? Number(
+            (MIN_QUEST_LEVEL_MODIFIER + random() * (MAX_QUEST_LEVEL_MODIFIER - MIN_QUEST_LEVEL_MODIFIER)).toFixed(2),
+          )
         : 0;
     const levelMultiplier = 1 + (Math.max(1, playerLevel) - 1) * levelModifier;
 

@@ -556,9 +556,10 @@ describe('UsersService', () => {
       mockPrismaService.item.findUnique.mockResolvedValue({ id: 42 });
       mockPrismaService.inventoryItem.create.mockResolvedValue({ id: 99 });
 
-      await expect(
-        service.replaceInventoryItem(7, { replaceInventoryItemId: 15, newItemId: 42 }),
-      ).resolves.toEqual({ success: true, inventoryItemId: 99 });
+      await expect(service.replaceInventoryItem(7, { replaceInventoryItemId: 15, newItemId: 42 })).resolves.toEqual({
+        success: true,
+        inventoryItemId: 99,
+      });
 
       expect(mockPrismaService.inventoryItem.delete).toHaveBeenCalledWith({ where: { id: 15 } });
       expect(mockPrismaService.inventoryItem.create).toHaveBeenCalledWith({

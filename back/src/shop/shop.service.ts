@@ -121,10 +121,7 @@ export class ShopService {
       if (requiredPlayerLevel(itemLevel) > playerLevel) {
         itemLevel = playerLevel;
       }
-      const item = await this.itemGenerator.generate(
-        { level: itemLevel, equipmentType },
-        tx,
-      );
+      const item = await this.itemGenerator.generate({ level: itemLevel, equipmentType }, tx);
       if (!item.isConsumable && requiredPlayerLevel(item.level) > playerLevel) continue;
       await tx.shopStock.upsert({
         where: { shopId_itemId: { shopId, itemId: item.id } },
