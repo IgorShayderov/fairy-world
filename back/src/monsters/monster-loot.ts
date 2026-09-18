@@ -1,11 +1,11 @@
 import { ItemRarity } from '../../generated/client';
 
 export const MONSTER_LOOT_TABLE: Array<{ rarity: ItemRarity | null; chance: number }> = [
-  { rarity: null, chance: 80 },
-  { rarity: ItemRarity.COMMON, chance: 13.5 },
-  { rarity: ItemRarity.MAGIC, chance: 4.5 },
-  { rarity: ItemRarity.RARE, chance: 1.5 },
-  { rarity: ItemRarity.UNIQUE, chance: 0.5 },
+  { rarity: null, chance: 90 },
+  { rarity: ItemRarity.COMMON, chance: 6.75 },
+  { rarity: ItemRarity.MAGIC, chance: 2.25 },
+  { rarity: ItemRarity.RARE, chance: 0.75 },
+  { rarity: ItemRarity.UNIQUE, chance: 0.25 },
 ];
 
 export const rollMonsterLootRarity = (random: () => number = Math.random): ItemRarity | null => {

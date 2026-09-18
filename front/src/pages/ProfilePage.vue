@@ -55,7 +55,7 @@ import type { EquipmentSlotId, InventoryItemType } from '@/modules/Inventory/typ
 import { usersApi } from '@/modules/Auth/api/users';
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 import { useInventoryStore } from '@/modules/Inventory/store/inventory';
-import { getCompatibleEquipmentSlots } from '@/modules/Inventory/utils/equipment';
+import { getCompatibleEquipmentSlots, isTwoHanded } from '@/modules/Inventory/utils/equipment';
 import { isHealthPotion, isPotion } from '@/modules/Inventory/utils/potions';
 
 import ActiveBuffs from '@/modules/Game/components/ActiveBuffs.vue';
@@ -166,6 +166,7 @@ const equipFromInventory = async (inventoryIndex: number) => {
   if (!item?.inventoryItemId) return;
 
   if (isPotion(item) && !isHealthPotion(item)) {
+    if (!canEquip(item)) return;
     await usersApi.consumeInventoryItem(item.inventoryItemId);
     await refreshInventory();
     return;
@@ -173,8 +174,17 @@ const equipFromInventory = async (inventoryIndex: number) => {
 
   const compatibleSlots = getCompatibleEquipmentSlots(item);
   if (!canEquip(item)) return;
+  const isSlotOccupied = (slotId: EquipmentSlotId) => {
+    const slot = equipmentSlots.value.find((s) => s.id === slotId);
+    if (slot?.item) return true;
+    if (slotId === 'right-hand') {
+      const leftHand = equipmentSlots.value.find((s) => s.id === 'left-hand')?.item;
+      if (leftHand && isTwoHanded(leftHand)) return true;
+    }
+    return false;
+  };
   const targetSlot =
-    compatibleSlots.find((slotId) => !equipmentSlots.value.find((slot) => slot.id === slotId)?.item) ??
+    compatibleSlots.find((slotId) => !isSlotOccupied(slotId)) ??
     compatibleSlots[0];
   if (!targetSlot) return;
 

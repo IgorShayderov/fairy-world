@@ -55,7 +55,7 @@ describe('ShopService trades', () => {
     ]);
     tx.item.findMany.mockResolvedValue([
       { id: 101, equipmentType: ['POTION'] },
-      { id: 102, equipmentType: ['SCROLL'] },
+      { id: 102, equipmentType: ['POTION'] },
     ]);
   });
 
@@ -267,6 +267,58 @@ describe('ShopService trades', () => {
     });
     expect(tx.shopStock.deleteMany).toHaveBeenCalledWith({ where: { shopId: 2, quantity: { lte: 0 } } });
     expect(itemGenerator.generate).not.toHaveBeenCalled();
+  });
+
+  it('filters out items that require a player level higher than the current player level', async () => {
+    const nextRestockAt = new Date('2099-01-01');
+    tx.shop.findUnique.mockResolvedValue({
+      id: 2,
+      name: 'Armory',
+      stockLevel: 4,
+      gold: 500,
+      nextRestockAt,
+      stock: [
+        { quantity: 1, item: { id: 3, level: 4, name: 'Shield', attributes: [], stats: [] } },
+        { quantity: 1, item: { id: 4, level: 19, name: 'High Shield', attributes: [], stats: [] } },
+      ],
+    });
+    const result = await service.getShop(1, 2);
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].id).toBe(3);
+  });
+
+  it('rejects buying an item that requires a higher player level than current player level', async () => {
+    tx.shopStock.findUnique.mockResolvedValue({
+      quantity: 1,
+      item: { id: 4, level: 19, price: 50, isConsumable: false },
+    });
+    await expect(service.buy(1, 2, { itemId: 4, quantity: 1 })).rejects.toThrow('This item requires player level 16');
+  });
+
+  it('filters out potions that require a player level higher than the current player level', async () => {
+    const nextRestockAt = new Date('2099-01-01');
+    tx.shop.findUnique.mockResolvedValue({
+      id: 2,
+      name: 'Armory',
+      stockLevel: 4,
+      gold: 500,
+      nextRestockAt,
+      stock: [
+        { quantity: 1, item: { id: 3, level: 4, isConsumable: false, name: 'Shield', attributes: [], stats: [] } },
+        { quantity: 1, item: { id: 10, level: 10, isConsumable: true, name: 'Lesser Attack Potion', attributes: [], stats: [] } },
+      ],
+    });
+    const result = await service.getShop(1, 2);
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].id).toBe(3);
+  });
+
+  it('rejects buying a potion that requires a higher player level than current player level', async () => {
+    tx.shopStock.findUnique.mockResolvedValue({
+      quantity: 1,
+      item: { id: 10, level: 10, price: 40, isConsumable: true },
+    });
+    await expect(service.buy(1, 2, { itemId: 10, quantity: 1 })).rejects.toThrow('This item requires player level 10');
   });
 
   it('generates twelve items with levels around the player level when the shop restock is due', async () => {

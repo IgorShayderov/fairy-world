@@ -15,7 +15,7 @@ export class ItemView {
 
     return {
       ...details,
-      requiredPlayerLevel: requiredPlayerLevel(item.level),
+      requiredPlayerLevel: item.isConsumable ? item.level : requiredPlayerLevel(item.level),
       isTwoHanded: isTwoHandedWeapon(item.name),
       attributes: attributes.map(({ attribute, value }) => ({
         name: attribute.name,

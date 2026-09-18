@@ -8,6 +8,7 @@ import { ItemView } from '../common/views/item.view';
 import { ItemGeneratorService } from '../items/item-generator.service';
 import { SEEDED_CONSUMABLES } from '../items/seeded-consumables';
 import { townAt } from '../locations/towns';
+import { requiredPlayerLevel } from '../users/level-progression';
 
 const SHOP_RESTOCK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const SHOP_RESTOCK_ITEM_COUNT = 12;
@@ -65,7 +66,12 @@ export class ShopService {
         gold: details.gold,
         nextRestockAt: details.nextRestockAt,
         refreshCost: SHOP_REFRESH_GEM_COST,
-        items: stock.map(({ item, quantity }) => ({ ...ItemView.render(item), quantity })),
+        items: stock
+          .filter(({ item }) => {
+            const req = item.isConsumable ? item.level : requiredPlayerLevel(item.level);
+            return req <= profile.level;
+          })
+          .map(({ item, quantity }) => ({ ...ItemView.render(item), quantity })),
       };
     });
   }
@@ -95,8 +101,12 @@ export class ShopService {
     let stockCount = 0;
     for (let index = 0; index < SHOP_RANDOM_EQUIPMENT_COUNT; index++) {
       const levelOffset = SHOP_ITEM_LEVEL_OFFSETS[index % SHOP_ITEM_LEVEL_OFFSETS.length];
-      const itemLevel = Math.max(1, playerLevel + levelOffset);
+      let itemLevel = Math.max(1, playerLevel + levelOffset);
+      if (requiredPlayerLevel(itemLevel) > playerLevel) {
+        itemLevel = playerLevel;
+      }
       const item = await this.itemGenerator.generate({ level: itemLevel }, tx);
+      if (!item.isConsumable && requiredPlayerLevel(item.level) > playerLevel) continue;
       await tx.shopStock.upsert({
         where: { shopId_itemId: { shopId, itemId: item.id } },
         create: { shopId, itemId: item.id, quantity: 1 },
@@ -107,10 +117,15 @@ export class ShopService {
 
     for (const equipmentType of SHOP_GUARANTEED_EQUIPMENT_TYPES) {
       const levelOffset = SHOP_ITEM_LEVEL_OFFSETS[stockCount % SHOP_ITEM_LEVEL_OFFSETS.length];
+      let itemLevel = Math.max(1, playerLevel + levelOffset);
+      if (requiredPlayerLevel(itemLevel) > playerLevel) {
+        itemLevel = playerLevel;
+      }
       const item = await this.itemGenerator.generate(
-        { level: Math.max(1, playerLevel + levelOffset), equipmentType },
+        { level: itemLevel, equipmentType },
         tx,
       );
+      if (!item.isConsumable && requiredPlayerLevel(item.level) > playerLevel) continue;
       await tx.shopStock.upsert({
         where: { shopId_itemId: { shopId, itemId: item.id } },
         create: { shopId, itemId: item.id, quantity: 1 },
@@ -123,15 +138,16 @@ export class ShopService {
       where: {
         isConsumable: true,
         name: { in: SEEDED_CONSUMABLES.map((item) => item.name) },
-        equipmentType: { hasSome: [EquipmentType.POTION, EquipmentType.SCROLL] },
+        equipmentType: { hasSome: [EquipmentType.POTION] },
+        level: { lte: playerLevel },
       },
       select: { id: true, equipmentType: true },
     });
-    for (const equipmentType of [EquipmentType.POTION, EquipmentType.SCROLL]) {
-      const matchingItems = consumables.filter((item) => item.equipmentType.includes(equipmentType));
-      if (matchingItems.length === 0) continue;
-
-      const item = matchingItems[Math.floor(Math.random() * matchingItems.length)];
+    const availablePotions = [...consumables];
+    const potionCount = Math.min(2, SHOP_RESTOCK_ITEM_COUNT - stockCount, availablePotions.length);
+    for (let i = 0; i < potionCount; i++) {
+      const index = Math.floor(Math.random() * availablePotions.length);
+      const [item] = availablePotions.splice(index, 1);
       await tx.shopStock.upsert({
         where: { shopId_itemId: { shopId, itemId: item.id } },
         create: { shopId, itemId: item.id, quantity: 1 },
@@ -142,7 +158,12 @@ export class ShopService {
 
     while (stockCount < SHOP_RESTOCK_ITEM_COUNT) {
       const levelOffset = SHOP_ITEM_LEVEL_OFFSETS[stockCount % SHOP_ITEM_LEVEL_OFFSETS.length];
-      const item = await this.itemGenerator.generate({ level: Math.max(1, playerLevel + levelOffset) }, tx);
+      let itemLevel = Math.max(1, playerLevel + levelOffset);
+      if (requiredPlayerLevel(itemLevel) > playerLevel) {
+        itemLevel = playerLevel;
+      }
+      const item = await this.itemGenerator.generate({ level: itemLevel }, tx);
+      if (!item.isConsumable && requiredPlayerLevel(item.level) > playerLevel) continue;
       await tx.shopStock.upsert({
         where: { shopId_itemId: { shopId, itemId: item.id } },
         create: { shopId, itemId: item.id, quantity: 1 },
@@ -213,6 +234,10 @@ export class ShopService {
         include: { item: true },
       });
       if (!stock) throw new NotFoundException('Item not found in shop');
+      const req = stock.item.isConsumable ? stock.item.level : requiredPlayerLevel(stock.item.level);
+      if (profile.level < req) {
+        throw new BadRequestException(`This item requires player level ${req}`);
+      }
       if (stock.quantity < dto.quantity) throw new BadRequestException('Not enough items in stock');
       const totalCost = stock.item.price * dto.quantity;
       if (profile.gold < totalCost) throw new BadRequestException('Not enough gold');

@@ -138,22 +138,22 @@
       v-if="replacingItemIndex !== null && replacingLootItem"
       class="absolute inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
     >
-      <div class="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-amber-400/50 bg-[#0d222d] text-white shadow-2xl">
-        <header class="border-b border-[#ddbd6b]/20 bg-[#081a23] px-6 py-4">
-          <h3 class="font-serif text-xl font-bold text-amber-300">
+      <div class="flex w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-amber-400/50 bg-[#0d222d] text-white shadow-2xl">
+        <header class="border-b border-[#ddbd6b]/20 bg-[#081a23] px-6 py-3">
+          <h3 class="font-serif text-lg font-bold text-amber-300">
             {{ t('fantasy.encounter.selectItemToReplace') }}
           </h3>
-          <p class="mt-1 text-xs text-amber-200/80">
+          <p class="text-xs text-amber-200/80">
             {{ t('fantasy.encounter.inventoryFullLootNotice') }}
           </p>
         </header>
 
-        <div class="flex-1 space-y-5 overflow-y-auto p-6">
+        <div class="space-y-3 p-4">
           <!-- Comparison Panel: New Loot Item vs Selected Item to Replace -->
-          <div class="grid grid-cols-2 gap-4 rounded-xl border border-amber-500/25 bg-[#06141d]/80 p-4">
+          <div class="grid grid-cols-2 gap-4 rounded-xl border border-amber-500/25 bg-[#06141d]/80 p-3">
             <!-- Left: New loot item -->
             <div class="flex items-center gap-3">
-              <InventoryItem :item="lootInventoryItem(replacingLootItem)" class="h-20 w-20 shrink-0 bg-white" />
+              <InventoryItem :item="lootInventoryItem(replacingLootItem)" class="h-16 w-16 shrink-0 bg-white" />
               <div class="min-w-0 flex-1">
                 <div class="text-[10px] font-bold tracking-wider text-amber-400 uppercase">
                   {{ t('fantasy.encounter.newItemToReceive') }}
@@ -168,7 +168,7 @@
             <!-- Right: Selected item to discard -->
             <div class="flex items-center gap-3 border-l border-white/10 pl-4">
               <template v-if="selectedBackpackItem">
-                <InventoryItem :item="selectedBackpackItem" class="h-20 w-20 shrink-0 bg-white" />
+                <InventoryItem :item="selectedBackpackItem" class="h-16 w-16 shrink-0 bg-white" />
                 <div class="min-w-0 flex-1">
                   <div class="text-[10px] font-bold tracking-wider text-red-400 uppercase">
                     {{ t('fantasy.encounter.itemToDiscard') }}
@@ -180,7 +180,7 @@
                 </div>
               </template>
               <template v-else>
-                <div class="flex h-20 w-20 shrink-0 items-center justify-center rounded-lg border-2 border-dashed border-gray-600 text-xs text-gray-400">
+                <div class="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg border-2 border-dashed border-gray-600 text-xs text-gray-400">
                   ?
                 </div>
                 <div class="text-xs text-gray-400 italic">
@@ -192,7 +192,7 @@
 
           <!-- Backpack Items Grid -->
           <div>
-            <div class="mb-2 flex items-center justify-between">
+            <div class="mb-1.5 flex items-center justify-between">
               <span class="text-xs font-bold tracking-wider text-gray-300 uppercase">
                 {{ t('profile.inventory') }} ({{ playerBackpackItems.length }}/24)
               </span>
@@ -201,36 +201,27 @@
               </span>
             </div>
 
-            <div v-if="playerBackpackItems.length === 0" class="rounded-lg border border-dashed border-gray-700 py-8 text-center text-sm text-gray-400">
+            <div v-if="playerBackpackItems.length === 0" class="rounded-lg border border-dashed border-gray-700 py-6 text-center text-sm text-gray-400">
               {{ t('shop.inventoryEmpty') }}
             </div>
 
-            <div v-else class="grid grid-cols-4 gap-3 sm:grid-cols-6">
+            <div v-else class="grid grid-cols-6 gap-2 sm:grid-cols-8">
               <div
                 v-for="invItem in playerBackpackItems"
                 :key="invItem.inventoryItemId"
-                class="group relative flex cursor-pointer flex-col items-center rounded-xl p-1.5 transition"
+                class="group relative flex cursor-pointer flex-col items-center rounded-xl p-1 transition"
                 :class="selectedBackpackItem?.inventoryItemId === invItem.inventoryItemId
                   ? 'scale-105 bg-amber-950/60 shadow-lg ring-2 ring-amber-400'
                   : 'bg-white/5 hover:bg-white/10 hover:ring-1 hover:ring-white/30'"
                 @click="selectedBackpackItem = invItem"
               >
-                <InventoryItem :item="invItem" class="h-20 w-20 shrink-0 bg-white" />
-                <span class="mt-1 w-20 truncate text-center text-[10px] font-medium text-gray-200">
-                  {{ invItem.name }}
-                </span>
-                <span
-                  v-if="selectedBackpackItem?.inventoryItemId === invItem.inventoryItemId"
-                  class="mt-0.5 rounded bg-red-800 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white"
-                >
-                  {{ t('fantasy.encounter.replaceItem') }}
-                </span>
+                <InventoryItem :item="invItem" class="h-14 w-14 shrink-0 bg-white" />
               </div>
             </div>
           </div>
         </div>
 
-        <footer class="flex items-center justify-end gap-3 border-t border-[#ddbd6b]/20 bg-[#081a23] px-6 py-4">
+        <footer class="flex items-center justify-end gap-3 border-t border-[#ddbd6b]/20 bg-[#081a23] px-6 py-3">
           <button
             type="button"
             class="rounded-lg border border-gray-600 px-4 py-2 text-xs font-semibold text-gray-300 transition hover:bg-gray-800"
@@ -255,7 +246,7 @@
 <script setup lang="ts">
 import { useTranslation } from 'i18next-vue';
 import { Notify, QIcon } from 'quasar';
-import { computed, defineComponent, h, onMounted, ref } from 'vue';
+import { computed, defineComponent, h, ref } from 'vue';
 
 import type { InventoryItemType } from '@/modules/Inventory/types';
 

@@ -24,7 +24,7 @@ describe('QuestsService', () => {
     $transaction: jest.fn(),
     questBoard: { findUnique: jest.fn(), upsert: jest.fn() },
     gameProfile: { findUnique: jest.fn(), update: jest.fn() },
-    quest: { findMany: jest.fn(), findUnique: jest.fn(), createMany: jest.fn() },
+    quest: { findMany: jest.fn(), findUnique: jest.fn(), createMany: jest.fn(), findFirst: jest.fn().mockResolvedValue(null) },
     playerQuest: { findMany: jest.fn(), findUnique: jest.fn(), upsert: jest.fn(), update: jest.fn(), count: jest.fn() },
   };
   const items = { generate: jest.fn() };
@@ -209,5 +209,29 @@ describe('QuestsService', () => {
         update: { canceledAt: null, progress: 0, acceptedAt: expect.any(Date) as Date },
       }),
     );
+  });
+
+  it('generates town offers scaled with player level', async () => {
+    prisma.questBoard.findUnique.mockResolvedValue(null);
+    prisma.gameProfile.update.mockResolvedValue({ ...profile, level: 5 });
+    await service.list(7);
+    expect(prisma.quest.createMany).toHaveBeenCalledWith({
+      data: expect.arrayContaining([
+        expect.objectContaining({
+          townId: 1,
+          rewardGold: expect.any(Number),
+          rewardExperience: expect.any(Number),
+        }),
+      ]),
+    });
+  });
+
+  it('refreshes unaccepted quests when player level has changed', async () => {
+    prisma.questBoard.findUnique.mockResolvedValue({ ...board, nextRefreshAt: new Date('2099-01-01') });
+    prisma.gameProfile.update.mockResolvedValue({ ...profile, level: 3 });
+    prisma.quest.findFirst.mockResolvedValue({ code: 'town_1_board-1_0_lvl1_0', destinationTownId: 2, rewardGold: 50, target: 1 });
+    await service.list(7);
+    expect(prisma.questBoard.upsert).toHaveBeenCalled();
+    expect(prisma.quest.createMany).toHaveBeenCalled();
   });
 });

@@ -402,7 +402,7 @@ describe('MonstersService', () => {
 
     it('adds a generated rarity-weighted item drop to inventory on victory', async () => {
       const random = jest.spyOn(Math, 'random');
-      random.mockReturnValueOnce(0.01).mockReturnValueOnce(0.99).mockReturnValueOnce(0.99).mockReturnValueOnce(0.95);
+      random.mockReturnValueOnce(0.01).mockReturnValueOnce(0.99).mockReturnValueOnce(0.99).mockReturnValueOnce(0.97);
       mockUsersService.findCurrentUser.mockResolvedValue(currentUser(5));
       mockMonsterGenerator.generate.mockReturnValue({
         id: 2,

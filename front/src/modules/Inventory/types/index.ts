@@ -52,6 +52,7 @@ export interface InventoryItemType {
   attributes?: ItemModifier[];
   properties?: ItemModifier[];
   slot?: EquipmentSlotId | null;
+  comparisonItems?: InventoryItemType[];
 }
 
 export interface InventoryEntry {

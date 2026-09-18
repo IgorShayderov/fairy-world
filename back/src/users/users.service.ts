@@ -8,7 +8,7 @@ import type { UpdateMapPositionDto } from './dto/update-map-position.dto';
 import type { ReplaceInventoryItemDto } from './dto/replace-inventory-item.dto';
 import { STARTING_ATTRIBUTE_VALUE } from './player-defaults';
 import { requiredPlayerLevel } from './level-progression';
-import { getPotionEffect, isHealthPotion, POTION_BUFF_DURATION_MS } from '../items/potion-effects';
+import { getPotionEffect, getPotionRequiredLevel, isHealthPotion, POTION_BUFF_DURATION_MS } from '../items/potion-effects';
 import { isTwoHandedWeapon } from '../items/weapon-types';
 
 const SLOT_TYPES: Record<EquipmentSlotId, EquipmentType[]> = {
@@ -317,7 +317,7 @@ export class UsersService {
   consumeInventoryItem(userId: number, inventoryItemId: number) {
     return this.prisma.$transaction(
       async (tx) => {
-        const profile = await tx.gameProfile.findUnique({ where: { userId }, select: { id: true } });
+        const profile = await tx.gameProfile.findUnique({ where: { userId }, select: { id: true, level: true } });
         if (!profile) throw new NotFoundException('Game profile not found');
 
         const inventoryEntry = await tx.inventoryItem.findFirst({
@@ -332,6 +332,10 @@ export class UsersService {
         }
         if (effect.kind === 'HEALTH') {
           throw new BadRequestException('Health potions must be equipped');
+        }
+        const requiredLevel = getPotionRequiredLevel(inventoryEntry.item.name) ?? inventoryEntry.item.level ?? 1;
+        if ((profile.level ?? 1) < requiredLevel) {
+          throw new BadRequestException(`This potion requires player level ${requiredLevel}`);
         }
 
         if (inventoryEntry.quantity > 1) {

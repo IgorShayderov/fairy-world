@@ -149,7 +149,7 @@ async function main() {
       isConsumable: true,
       rarity: consumable.rarity,
       equipmentType: [consumable.equipmentType],
-      level: 1,
+      level: consumable.level ?? 1,
     };
     const existingItem = await prisma.item.findFirst({ where: { name: consumable.name } });
     const item = existingItem
@@ -161,7 +161,7 @@ async function main() {
 
   // Добавление предметов пользователю
   const sword = await prisma.item.findFirst({ where: { name: 'Wooden Sword' } });
-  const potion = await prisma.item.findFirst({ where: { name: 'Lesser Health Potion' } });
+  const potion = await prisma.item.findFirst({ where: { name: 'Lesser Attack Potion' } });
 
   if (adminUser?.gameProfile && sword && potion) {
     const inventoryItems = [

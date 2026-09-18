@@ -376,7 +376,7 @@ describe('UsersService', () => {
   describe('potion consumption', () => {
     it('consumes one potion and persists its four-hour buff', async () => {
       jest.useFakeTimers().setSystemTime(new Date('2026-09-12T08:00:00Z'));
-      mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4 });
+      mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4, level: 30 });
       mockPrismaService.inventoryItem.findFirst.mockResolvedValue({
         id: 14,
         gameProfileId: 4,
@@ -386,7 +386,7 @@ describe('UsersService', () => {
       });
       mockPrismaService.gameProfileBuff.upsert.mockResolvedValue({
         type: 'DAMAGE',
-        value: 15,
+        value: 20,
         expiresAt: new Date('2026-09-12T12:00:00Z'),
       });
 
@@ -401,15 +401,29 @@ describe('UsersService', () => {
         create: {
           gameProfileId: 4,
           type: 'DAMAGE',
-          value: 15,
+          value: 20,
           expiresAt: new Date('2026-09-12T12:00:00Z'),
         },
-        update: { value: 15, expiresAt: new Date('2026-09-12T12:00:00Z') },
+        update: { value: 20, expiresAt: new Date('2026-09-12T12:00:00Z') },
       });
     });
 
+    it('rejects consuming a potion when player level is below required level', async () => {
+      mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4, level: 5 });
+      mockPrismaService.inventoryItem.findFirst.mockResolvedValue({
+        id: 14,
+        gameProfileId: 4,
+        quantity: 1,
+        isEquiped: false,
+        item: { name: 'Lesser Attack Potion', isConsumable: true },
+      });
+
+      await expect(service.consumeInventoryItem(7, 14)).rejects.toThrow('This potion requires player level 10');
+      expect(mockPrismaService.inventoryItem.update).not.toHaveBeenCalled();
+    });
+
     it('does not consume health potions from the backpack', async () => {
-      mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4 });
+      mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4, level: 10 });
       mockPrismaService.inventoryItem.findFirst.mockResolvedValue({
         id: 16,
         gameProfileId: 4,

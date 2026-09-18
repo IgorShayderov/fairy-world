@@ -39,7 +39,10 @@ export function useShopActions() {
       shopId.value = player.currentShopId;
       const shop = await getShop(shopId.value);
       shopName.value = shop.name;
-      shopItems.value = shop.items;
+      const playerLevel = player.level ?? 1;
+      shopItems.value = shop.items.filter(
+        (item) => !item.requiredPlayerLevel || playerLevel >= item.requiredPlayerLevel
+      );
       const stacks = new Map<number, InventoryEntry>();
       for (const entry of player.inventory) {
         const existing = stacks.get(entry.item.id);
@@ -72,6 +75,11 @@ export function useShopActions() {
     const item = shopItems.value.find((item) => item.id === itemId);
 
     if (!item) return;
+
+    if (item.requiredPlayerLevel && (currentUserStore.user?.level ?? 1) < item.requiredPlayerLevel) {
+      $q.notify({ type: 'negative', message: t('profile.requiredLevel', { level: item.requiredPlayerLevel }) });
+      return;
+    }
 
     const currentQuantity = cart.value[itemId] || 0;
 

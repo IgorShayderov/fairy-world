@@ -36,7 +36,7 @@
               :key="item.id"
               :item="item"
               :cart-quantity="cart[item.id] || 0"
-              :equipped-item="findEquippedItem(item.equipmentType)"
+              :equipped-item="findEquippedItem(item)"
               @add="addToCart"
               @remove="removeFromCart"
             />
@@ -70,8 +70,9 @@ import { useTranslation } from 'i18next-vue';
 import { onMounted } from 'vue';
 
 import type { EquipmentType, InventoryItemType } from '@/modules/Inventory/types';
+import type { ShopItem } from '@/modules/Shop/types';
 
-import { findEquippedEntryForTypes } from '@/modules/Inventory/utils/equipment';
+import { findEquippedItemForEntries } from '@/modules/Inventory/utils/equipment';
 import { useShopActions } from '@/modules/Shop/composables/useShopActions';
 import { getItemTypeLocaleKey } from '@/modules/Shop/utils/itemPresentation';
 
@@ -115,23 +116,15 @@ onMounted(async () => {
   await loadData(true);
 });
 
-const findEquippedItem = (equipmentTypes: EquipmentType[]): InventoryItemType | null => {
-  const equipped = findEquippedEntryForTypes(equippedItems.value, equipmentTypes);
-  if (!equipped) return null;
-
-  return {
-    nameKey: equipped.item.name,
-    name: t(getItemTypeLocaleKey(equipped.item.equipmentType)),
-    tooltipName: equipped.item.name,
-    icon: equipped.item.icon,
-    description: equipped.item.description,
-    price: equipped.item.price,
-    rarity: t(`profile.rarity.${equipped.item.rarity.toLowerCase()}`),
-    rarityKey: equipped.item.rarity,
-    equipmentType: equipped.item.equipmentType,
-    attributes: equipped.item.attributes,
-    properties: equipped.item.properties,
-  };
+const findEquippedItem = (
+  targetItem: ShopItem | { equipmentType?: EquipmentType[]; name?: string; isTwoHanded?: boolean }
+): InventoryItemType | null => {
+  return findEquippedItemForEntries(
+    equippedItems.value,
+    targetItem,
+    (entry) => t(getItemTypeLocaleKey(entry.item.equipmentType)),
+    (rarity) => t(`profile.rarity.${rarity.toLowerCase()}`)
+  );
 };
 </script>
 

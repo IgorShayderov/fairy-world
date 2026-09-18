@@ -13,9 +13,10 @@ describe('monster loot rarity', () => {
   });
   it.each([
     [0.1, null],
-    [0.8, ItemRarity.COMMON],
-    [0.935, ItemRarity.MAGIC],
-    [0.98, ItemRarity.RARE],
+    [0.899, null],
+    [0.9, ItemRarity.COMMON],
+    [0.9675, ItemRarity.MAGIC],
+    [0.99, ItemRarity.RARE],
     [0.999, ItemRarity.UNIQUE],
   ])('maps roll %s to %s', (roll, expected) => {
     expect(rollMonsterLootRarity(() => roll)).toBe(expected);
