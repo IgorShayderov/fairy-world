@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, OnModuleInit } from '@nestjs/common';
 import { EquipmentType, Prisma } from '../../generated/client';
 import { PrismaService } from '../prisma.service';
 import { BuyDto } from './dto/buy.dto';
@@ -8,6 +8,8 @@ import { ItemView } from '../common/views/item.view';
 import { ItemGeneratorService } from '../items/item-generator.service';
 import { SEEDED_CONSUMABLES } from '../items/seeded-consumables';
 import { townAt } from '../locations/towns';
+import { requiredPlayerLevel } from '../users/level-progression';
+import { getPotionRequiredLevel } from '../items/potion-effects';
 
 const SHOP_RESTOCK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const SHOP_RESTOCK_ITEM_COUNT = 12;
@@ -15,13 +17,46 @@ const SHOP_RANDOM_EQUIPMENT_COUNT = 8;
 const SHOP_GUARANTEED_EQUIPMENT_TYPES = [EquipmentType.GLOVES, EquipmentType.LEGS] as const;
 const SHOP_ITEM_LEVEL_OFFSETS = [-2, -1, 0, 1, 2] as const;
 export const SHOP_REFRESH_GEM_COST = 10;
+export const SHOP_DEFAULT_GOLD = 1_000_000;
+export const SHOP_FREE_ATTRIBUTE_POTION_CHANCE = 0.03;
+
+export const potionWeightForLevel = (level: number): number => {
+  return Math.max(1, 6 - Math.floor(level / 10));
+};
+
+const pickWeightedIndex = (items: Array<{ level: number; name: string }>): number => {
+  const weights = items.map((item) => {
+    const lvl = Math.max(getPotionRequiredLevel(item.name), item.level ?? 1);
+    return potionWeightForLevel(lvl);
+  });
+  const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+  let roll = Math.random() * totalWeight;
+  for (let i = 0; i < items.length; i++) {
+    roll -= weights[i];
+    if (roll <= 0) return i;
+  }
+  return items.length - 1;
+};
 
 @Injectable()
-export class ShopService {
+export class ShopService implements OnModuleInit {
   constructor(
     private prisma: PrismaService,
     private itemGenerator: ItemGeneratorService,
   ) {}
+
+  async onModuleInit() {
+    for (const consumable of SEEDED_CONSUMABLES) {
+      await this.prisma.item.updateMany({
+        where: { name: consumable.name },
+        data: {
+          level: consumable.level,
+          price: consumable.price,
+          description: consumable.description,
+        },
+      });
+    }
+  }
 
   async getShop(userId: number, shopId: number) {
     return this.trade(userId, shopId, async (tx, shopId) => {
@@ -64,7 +99,14 @@ export class ShopService {
         gold: details.gold,
         nextRestockAt: details.nextRestockAt,
         refreshCost: SHOP_REFRESH_GEM_COST,
-        items: stock.map(({ item, quantity }) => ({ ...ItemView.render(item), quantity })),
+        items: stock
+          .filter(({ item }) => {
+            const req = item.isConsumable
+              ? Math.max(getPotionRequiredLevel(item.name), item.level ?? 1)
+              : requiredPlayerLevel(item.level);
+            return req <= profile.level;
+          })
+          .map(({ item, quantity }) => ({ ...ItemView.render(item), quantity })),
       };
     });
   }
@@ -94,8 +136,12 @@ export class ShopService {
     let stockCount = 0;
     for (let index = 0; index < SHOP_RANDOM_EQUIPMENT_COUNT; index++) {
       const levelOffset = SHOP_ITEM_LEVEL_OFFSETS[index % SHOP_ITEM_LEVEL_OFFSETS.length];
-      const itemLevel = Math.max(1, playerLevel + levelOffset);
+      let itemLevel = Math.max(1, playerLevel + levelOffset);
+      if (requiredPlayerLevel(itemLevel) > playerLevel) {
+        itemLevel = playerLevel;
+      }
       const item = await this.itemGenerator.generate({ level: itemLevel }, tx);
+      if (!item.isConsumable && requiredPlayerLevel(item.level) > playerLevel) continue;
       await tx.shopStock.upsert({
         where: { shopId_itemId: { shopId, itemId: item.id } },
         create: { shopId, itemId: item.id, quantity: 1 },
@@ -106,10 +152,12 @@ export class ShopService {
 
     for (const equipmentType of SHOP_GUARANTEED_EQUIPMENT_TYPES) {
       const levelOffset = SHOP_ITEM_LEVEL_OFFSETS[stockCount % SHOP_ITEM_LEVEL_OFFSETS.length];
-      const item = await this.itemGenerator.generate(
-        { level: Math.max(1, playerLevel + levelOffset), equipmentType },
-        tx,
-      );
+      let itemLevel = Math.max(1, playerLevel + levelOffset);
+      if (requiredPlayerLevel(itemLevel) > playerLevel) {
+        itemLevel = playerLevel;
+      }
+      const item = await this.itemGenerator.generate({ level: itemLevel, equipmentType }, tx);
+      if (!item.isConsumable && requiredPlayerLevel(item.level) > playerLevel) continue;
       await tx.shopStock.upsert({
         where: { shopId_itemId: { shopId, itemId: item.id } },
         create: { shopId, itemId: item.id, quantity: 1 },
@@ -122,15 +170,33 @@ export class ShopService {
       where: {
         isConsumable: true,
         name: { in: SEEDED_CONSUMABLES.map((item) => item.name) },
-        equipmentType: { hasSome: [EquipmentType.POTION, EquipmentType.SCROLL] },
+        equipmentType: { hasSome: [EquipmentType.POTION] },
       },
-      select: { id: true, equipmentType: true },
+      select: { id: true, name: true, level: true, equipmentType: true },
     });
-    for (const equipmentType of [EquipmentType.POTION, EquipmentType.SCROLL]) {
-      const matchingItems = consumables.filter((item) => item.equipmentType.includes(equipmentType));
-      if (matchingItems.length === 0) continue;
+    const eligibleConsumables = consumables.filter((item) => {
+      const req = Math.max(getPotionRequiredLevel(item.name), item.level ?? 1);
+      return req <= playerLevel;
+    });
 
-      const item = matchingItems[Math.floor(Math.random() * matchingItems.length)];
+    const freeAttributeItem =
+      playerLevel >= 30 ? eligibleConsumables.find((item) => item.name === 'Free Attribute Potion') : undefined;
+    const regularPotions = eligibleConsumables.filter((item) => item.name !== 'Free Attribute Potion');
+
+    const selectedPotions: typeof consumables = [];
+    if (freeAttributeItem && Math.random() < SHOP_FREE_ATTRIBUTE_POTION_CHANCE) {
+      selectedPotions.push(freeAttributeItem);
+    }
+
+    const availableRegular = [...regularPotions];
+    const maxPotions = Math.min(2, SHOP_RESTOCK_ITEM_COUNT - stockCount);
+    while (selectedPotions.length < maxPotions && availableRegular.length > 0) {
+      const index = pickWeightedIndex(availableRegular);
+      const [item] = availableRegular.splice(index, 1);
+      selectedPotions.push(item);
+    }
+
+    for (const item of selectedPotions) {
       await tx.shopStock.upsert({
         where: { shopId_itemId: { shopId, itemId: item.id } },
         create: { shopId, itemId: item.id, quantity: 1 },
@@ -141,7 +207,12 @@ export class ShopService {
 
     while (stockCount < SHOP_RESTOCK_ITEM_COUNT) {
       const levelOffset = SHOP_ITEM_LEVEL_OFFSETS[stockCount % SHOP_ITEM_LEVEL_OFFSETS.length];
-      const item = await this.itemGenerator.generate({ level: Math.max(1, playerLevel + levelOffset) }, tx);
+      let itemLevel = Math.max(1, playerLevel + levelOffset);
+      if (requiredPlayerLevel(itemLevel) > playerLevel) {
+        itemLevel = playerLevel;
+      }
+      const item = await this.itemGenerator.generate({ level: itemLevel }, tx);
+      if (!item.isConsumable && requiredPlayerLevel(item.level) > playerLevel) continue;
       await tx.shopStock.upsert({
         where: { shopId_itemId: { shopId, itemId: item.id } },
         create: { shopId, itemId: item.id, quantity: 1 },
@@ -151,7 +222,14 @@ export class ShopService {
     }
 
     const nextRestockAt = new Date(now.getTime() + SHOP_RESTOCK_INTERVAL_MS);
-    await tx.shop.update({ where: { id: shopId }, data: { nextRestockAt, stockLevel: playerLevel } });
+    await tx.shop.update({
+      where: { id: shopId },
+      data: {
+        nextRestockAt,
+        stockLevel: playerLevel,
+        gold: SHOP_DEFAULT_GOLD,
+      },
+    });
     return nextRestockAt;
   }
 
@@ -177,7 +255,7 @@ export class ShopService {
             if (!town || town.shopId !== shopId) throw new BadRequestException('Travel to this town to use its shop');
             const shop = await tx.shop.upsert({
               where: { ownerId_townId: { ownerId: profile.id, townId: shopId } },
-              create: { ownerId: profile.id, townId: shopId, name: `${town.name} Market`, gold: 10000 },
+              create: { ownerId: profile.id, townId: shopId, name: `${town.name} Market`, gold: SHOP_DEFAULT_GOLD },
               update: {},
             });
             return operation(tx, shop.id);
@@ -205,6 +283,12 @@ export class ShopService {
         include: { item: true },
       });
       if (!stock) throw new NotFoundException('Item not found in shop');
+      const req = stock.item.isConsumable
+        ? Math.max(getPotionRequiredLevel(stock.item.name), stock.item.level ?? 1)
+        : requiredPlayerLevel(stock.item.level);
+      if (profile.level < req) {
+        throw new BadRequestException(`This item requires player level ${req}`);
+      }
       if (stock.quantity < dto.quantity) throw new BadRequestException('Not enough items in stock');
       const totalCost = stock.item.price * dto.quantity;
       if (profile.gold < totalCost) throw new BadRequestException('Not enough gold');
@@ -228,6 +312,10 @@ export class ShopService {
           data: { quantity: { increment: dto.quantity } },
         });
       } else {
+        const backpackCount = await tx.inventoryItem.count({
+          where: { gameProfileId: profile.id, isEquiped: false },
+        });
+        if (backpackCount >= 24) throw new BadRequestException('Inventory is full (maximum 24 slots)');
         await tx.inventoryItem.create({
           data: {
             gameProfileId: profile.id,

@@ -2,14 +2,14 @@
   <div
     class="relative flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 p-2 transition-all"
     :class="{
-      'cursor-grab active:cursor-grabbing': !!item,
-      'cursor-default': !item,
-      'border-solid border-gray-200 bg-white shadow-sm': !!item && !isHovered && !isDragging,
-      'bg-gray-100/50': !item && !isHovered,
+      'cursor-grab active:cursor-grabbing': !!item || !!occupiedItem,
+      'cursor-default': !item && !occupiedItem,
+      'border-solid border-gray-200 bg-white shadow-sm': (!!item || !!occupiedItem) && !isHovered && !isDragging,
+      'bg-gray-100/50': !item && !occupiedItem && !isHovered,
       'border-red-400 bg-red-50': isHovered,
       'z-10 scale-105 cursor-grabbing border-blue-500 bg-blue-100 shadow-md': isDragging,
     }"
-    :draggable="!!item"
+    :draggable="!!item || !!occupiedItem"
     @dragstart="onDragStart"
     @dragend="onDragEnd"
     @dragover="onDragOver"
@@ -18,13 +18,32 @@
     @dblclick="onDoubleClick"
   >
     <template v-if="item">
-      <div class="flex h-full w-full flex-col items-center justify-center text-xs">
-        <img v-if="itemImage" :src="itemImage" alt="" class="mb-1 h-12 w-12 object-contain" />
-        <QIcon v-else :name="itemIcon" size="32px" class="mb-1 text-gray-700" />
-        <span class="w-full truncate text-center font-medium text-gray-800">{{ item.name ?? item.nameKey }}</span>
-        <span v-if="item.quantity && item.quantity > 1" class="text-[10px] font-semibold text-gray-500">
+      <div class="relative flex h-full w-full items-center justify-center">
+        <img v-if="itemImage" :src="itemImage" alt="" class="h-12 w-12 object-contain" />
+        <QIcon v-else :name="itemIcon" size="36px" class="text-gray-700" />
+        <span
+          v-if="item.quantity && item.quantity > 1"
+          class="absolute -right-1 -bottom-1 rounded bg-black/60 px-1 py-0.2 text-[10px] font-bold text-white shadow-sm"
+        >
           ×{{ item.quantity }}
         </span>
+      </div>
+    </template>
+
+    <template v-else-if="occupiedItem">
+      <div class="relative flex h-full w-full items-center justify-center">
+        <img
+          v-if="occupiedItemImage"
+          :src="occupiedItemImage"
+          alt=""
+          class="h-12 w-12 object-contain opacity-50"
+        />
+        <QIcon v-else :name="occupiedItemIcon" size="36px" class="text-gray-700 opacity-50" />
+        <div class="absolute inset-0 flex items-center justify-center">
+          <div class="flex h-7 w-7 items-center justify-center rounded-full bg-black/60 shadow-sm">
+            <QIcon name="lock" size="16px" class="text-gray-300" />
+          </div>
+        </div>
       </div>
     </template>
 
@@ -40,7 +59,7 @@
     </template>
 
     <QMenu
-      v-if="item"
+      v-if="displayItem"
       class="max-w-lg overflow-y-auto bg-gray-900 p-3 text-white"
       anchor="top middle"
       self="bottom middle"
@@ -51,7 +70,7 @@
       no-focus
       no-refocus
     >
-      <div class="font-semibold">{{ item.tooltipName ?? item.name ?? item.nameKey }}</div>
+      <div class="font-semibold">{{ displayItem.tooltipName ?? displayItem.name ?? displayItem.nameKey }}</div>
       <div
         v-if="displayRarity"
         class="mt-1 inline-flex rounded px-1.5 py-0.5 text-[10px] font-bold tracking-wide uppercase"
@@ -59,22 +78,28 @@
       >
         {{ displayRarity }}
       </div>
+      <div
+        v-if="isTwoHanded(displayItem)"
+        class="mt-1 ml-1 inline-flex rounded border border-purple-500/40 bg-purple-900/60 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-purple-200 uppercase"
+      >
+        {{ $t('profile.twoHanded') }}
+      </div>
       <div v-if="tooltipDescription" class="mt-1 text-xs text-gray-200">{{ tooltipDescription }}</div>
-      <div v-if="item.requiredPlayerLevel" class="mt-1 text-xs text-amber-200">
-        {{ $t('profile.requiredLevel', { level: item.requiredPlayerLevel }) }}
+      <div v-if="effectiveRequiredPlayerLevel" class="mt-1 text-xs text-amber-200">
+        {{ $t('profile.requiredLevel', { level: effectiveRequiredPlayerLevel }) }}
       </div>
-      <div v-if="item.price !== undefined" class="mt-2 text-xs">
-        {{ $t('profile.tooltip.price') }}: {{ item.price }}g
+      <div v-if="displayItem.price !== undefined" class="mt-2 text-xs">
+        {{ $t('profile.tooltip.price') }}: {{ displayItem.price }}g
       </div>
-      <div v-if="item.attributes?.length" class="mt-2 text-xs">
+      <div v-if="displayItem.attributes?.length" class="mt-2 text-xs">
         <div class="font-semibold">{{ $t('profile.tooltip.attributes') }}</div>
-        <div v-for="attribute in item.attributes" :key="attribute.name">
+        <div v-for="attribute in displayItem.attributes" :key="attribute.name">
           <div>{{ modifierName(attribute.name, 'attribute') }}: {{ signedValue(attribute.value) }}</div>
         </div>
       </div>
-      <div v-if="item.properties?.length" class="mt-2 text-xs">
+      <div v-if="displayItem.properties?.length" class="mt-2 text-xs">
         <div class="font-semibold">{{ $t('profile.tooltip.properties') }}</div>
-        <div v-for="property in item.properties" :key="property.name">
+        <div v-for="property in displayItem.properties" :key="property.name">
           <div>{{ modifierName(property.name, 'property') }}: {{ signedValue(property.value) }}</div>
         </div>
       </div>
@@ -82,8 +107,17 @@
       <div v-if="comparisonItem" class="mt-3 border-t border-gray-600 pt-3">
         <div class="mb-2 text-xs font-semibold text-gray-200">{{ $t('shop.comparedWithEquipped') }}</div>
         <div class="flex items-center gap-2">
-          <img v-if="comparisonItemImage" :src="comparisonItemImage" alt="" class="h-10 w-10 object-contain" />
-          <QIcon v-else :name="comparisonItemIcon" size="28px" class="text-gray-200" />
+          <div v-if="comparisonItems.length > 1" class="flex shrink-0 items-center gap-1">
+            <template v-for="(comp, i) in comparisonItems" :key="i">
+              <span v-if="i > 0" class="text-xs font-bold text-gray-400">+</span>
+              <img v-if="resolveItemImage(comp)" :src="resolveItemImage(comp)" alt="" class="h-8 w-8 object-contain" />
+              <QIcon v-else :name="resolveItemIcon(comp)" size="24px" class="text-gray-200" />
+            </template>
+          </div>
+          <template v-else>
+            <img v-if="comparisonItemImage" :src="comparisonItemImage" alt="" class="h-10 w-10 object-contain" />
+            <QIcon v-else :name="comparisonItemIcon" size="28px" class="text-gray-200" />
+          </template>
           <div class="min-w-0">
             <div class="truncate text-sm font-semibold">
               {{ comparisonItem.tooltipName ?? comparisonItem.name ?? comparisonItem.nameKey }}
@@ -126,6 +160,8 @@ import { computed } from 'vue';
 import type { Component } from 'vue';
 import type { InventoryItemType } from '@/modules/Inventory/types';
 
+import { isTwoHanded } from '@/modules/Inventory/utils/equipment';
+import { getPotionRequiredLevel, isPotion } from '@/modules/Inventory/utils/potions';
 import { getRarityBadgeClass, removeRarityPrefix } from '@/modules/Inventory/utils/rarity';
 
 const CONFIGURED_ITEM_IMAGES: Record<string, string> = {
@@ -170,6 +206,7 @@ const props = withDefaults(
     emptyIcon?: string | Component;
     emptyLabel?: string;
     comparisonItem?: InventoryItemType | null;
+    occupiedItem?: InventoryItemType | null;
   }>(),
   {
     slotId: '',
@@ -178,6 +215,7 @@ const props = withDefaults(
     emptyIcon: '',
     emptyLabel: '',
     comparisonItem: null,
+    occupiedItem: null,
   }
 );
 
@@ -237,16 +275,29 @@ const resolveItemIcon = (item: InventoryItemType | null | undefined) => {
   return icons[type ?? 'UNKNOWN'] ?? 'help_outline';
 };
 
+const displayItem = computed(() => props.item ?? props.occupiedItem);
 const itemImage = computed(() => resolveItemImage(props.item));
+const occupiedItemImage = computed(() => resolveItemImage(props.occupiedItem));
+const occupiedItemIcon = computed(() => resolveItemIcon(props.occupiedItem));
 const comparisonItemImage = computed(() => resolveItemImage(props.comparisonItem));
 const comparisonItemIcon = computed(() => resolveItemIcon(props.comparisonItem));
 
 const displayRarity = computed(() => {
-  if (props.item?.rarityKey) return t(`profile.rarity.${props.item.rarityKey.toLowerCase()}`);
-  return props.item?.rarity;
+  const current = displayItem.value;
+  if (current?.rarityKey) return t(`profile.rarity.${current.rarityKey.toLowerCase()}`);
+  return current?.rarity;
 });
 
-const rarityBadgeClass = computed(() => getRarityBadgeClass(props.item?.rarityKey ?? props.item?.rarity));
+const effectiveRequiredPlayerLevel = computed(() => {
+  const current = displayItem.value;
+  if (!current) return 0;
+  if (isPotion(current)) {
+    return Math.max(current.requiredPlayerLevel ?? 1, getPotionRequiredLevel(current.name ?? current.nameKey));
+  }
+  return current.requiredPlayerLevel ?? 1;
+});
+
+const rarityBadgeClass = computed(() => getRarityBadgeClass(displayItem.value?.rarityKey ?? displayItem.value?.rarity));
 const comparisonItemRarity = computed(() => {
   if (props.comparisonItem?.rarityKey) {
     return t(`profile.rarity.${props.comparisonItem.rarityKey.toLowerCase()}`);
@@ -256,8 +307,11 @@ const comparisonItemRarity = computed(() => {
 const comparisonItemRarityClass = computed(() =>
   getRarityBadgeClass(props.comparisonItem?.rarityKey ?? props.comparisonItem?.rarity)
 );
+const comparisonItems = computed(() => {
+  return props.comparisonItem?.comparisonItems ?? (props.comparisonItem ? [props.comparisonItem] : []);
+});
 const tooltipDescription = computed(() =>
-  removeRarityPrefix(props.item?.description ?? '', props.item?.rarityKey ?? '')
+  removeRarityPrefix(displayItem.value?.description ?? '', displayItem.value?.rarityKey ?? '')
 );
 
 type ModifierKind = 'attribute' | 'property';
@@ -309,12 +363,13 @@ const differenceClass = (difference: number) => ({
 });
 
 const onDragStart = (e: DragEvent) => {
-  if (!props.item) return;
-  e.dataTransfer?.setData('text/plain', props.item.name ?? props.item.nameKey);
+  const active = displayItem.value;
+  if (!active) return;
+  e.dataTransfer?.setData('text/plain', active.name ?? active.nameKey);
   if (e.dataTransfer) {
     e.dataTransfer.effectAllowed = 'move';
   }
-  emit('drag-start', props.item);
+  emit('drag-start', active);
 };
 
 const onDragEnd = () => {
@@ -322,7 +377,8 @@ const onDragEnd = () => {
 };
 
 const onDoubleClick = () => {
-  if (props.item) emit('double-click', props.item);
+  const active = displayItem.value;
+  if (active) emit('double-click', active);
 };
 
 const onDragOver = (e: DragEvent) => {
@@ -342,8 +398,8 @@ const onDragLeave = () => {
 const onDrop = (e: DragEvent) => {
   e.preventDefault();
 
-  if (props.item) {
-    emit('drop', props.item);
+  if (displayItem.value) {
+    emit('drop', displayItem.value);
   } else {
     emit('drop', { name: '', nameKey: '', icon: '', rarity: '' });
   }

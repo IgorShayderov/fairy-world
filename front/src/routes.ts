@@ -33,6 +33,10 @@ const routes = {
       attributesPath: () => [BASE_API_PATH, 'users', 'me', 'attributes'].join('/'),
       consumeInventoryItemPath: (inventoryItemId: number) =>
         [BASE_API_PATH, 'users', 'me', 'inventory', String(inventoryItemId), 'consume'].join('/'),
+      dropInventoryItemPath: (inventoryItemId: number) =>
+        [BASE_API_PATH, 'users', 'me', 'inventory', String(inventoryItemId)].join('/'),
+      replaceInventoryItemPath: () =>
+        [BASE_API_PATH, 'users', 'me', 'inventory', 'replace'].join('/'),
       mapPositionPath: () => [BASE_API_PATH, 'users', 'me', 'map-position'].join('/'),
       equipmentPath: () => [BASE_API_PATH, 'users', 'me', 'equipment'].join('/'),
       equipmentSlotPath: (slot: string) => [BASE_API_PATH, 'users', 'me', 'equipment', slot].join('/'),

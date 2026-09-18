@@ -1,6 +1,7 @@
 export default {
   levelUp: 'Level {{level}} reached!',
   maxLevel: 'Maximum level',
+  twoHanded: 'Two-handed',
   requiredLevel: 'Requires player level {{level}}',
   inventory: 'Inventory',
   equipment: 'Equipment',
@@ -17,12 +18,22 @@ export default {
     DEFENSE: 'Increases defense rating by {{value}}.',
     EXPERIENCE: 'Increases experience gained by {{value}}%.',
   },
+  curseDescriptions: {
+    DAMAGE: 'Decreases damage by {{value}}.',
+    DEFENSE: 'Decreases defense rating by {{value}}.',
+    EXPERIENCE: 'Decreases experience gained by {{value}}%.',
+  },
   rating: 'rating',
   buffTimeRemaining: '{{hours}}h {{minutes}}m remaining',
   buffNames: {
     DAMAGE: 'Damage',
     DEFENSE: 'Defense',
     EXPERIENCE: 'Experience gained',
+  },
+  curseNames: {
+    DAMAGE: 'Weakness Curse',
+    DEFENSE: 'Vulnerability Curse',
+    EXPERIENCE: 'Exhaustion Curse',
   },
   ratingPoints: 'Rating: {{value}}',
   summary: {
@@ -102,6 +113,9 @@ export default {
   },
   items: {
     sword: 'Sword',
+    twoHandedSword: 'Two-handed Sword',
+    dagger: 'Dagger',
+    axe: 'Axe',
     shield: 'Shield',
     potion: 'Potion',
     medicine: 'Medicine',

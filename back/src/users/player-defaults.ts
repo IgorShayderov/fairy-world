@@ -2,6 +2,7 @@ import { AttributeType, StatType } from '../../generated/client';
 
 export const STARTING_ATTRIBUTE_VALUE = 5;
 export const STARTING_FREE_ATTRIBUTES = 0;
+export const MAX_INVENTORY_SLOTS = 24;
 export const MAX_CHANCE_PERCENT = 50;
 export const BASE_CRITICAL_DAMAGE_PERCENT = 150;
 export const MAX_CRITICAL_DAMAGE_PERCENT = 300;
@@ -24,7 +25,8 @@ export const convertRatingToPercentage = (stat: StatType, rating: number, level:
   }
   if (stat === StatType.DEFENSE) {
     const levelPressure = Math.max(7, level) * 10;
-    return roundPercentage((nonNegativeRating / (nonNegativeRating + levelPressure)) * 100);
+    const percentage = (nonNegativeRating / (nonNegativeRating + levelPressure)) * 100;
+    return roundPercentage(Math.min(50, percentage));
   }
 
   return rating;

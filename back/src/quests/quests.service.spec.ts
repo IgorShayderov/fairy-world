@@ -24,7 +24,12 @@ describe('QuestsService', () => {
     $transaction: jest.fn(),
     questBoard: { findUnique: jest.fn(), upsert: jest.fn() },
     gameProfile: { findUnique: jest.fn(), update: jest.fn() },
-    quest: { findMany: jest.fn(), findUnique: jest.fn(), createMany: jest.fn() },
+    quest: {
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      createMany: jest.fn(),
+      findFirst: jest.fn().mockResolvedValue(null),
+    },
     playerQuest: { findMany: jest.fn(), findUnique: jest.fn(), upsert: jest.fn(), update: jest.fn(), count: jest.fn() },
   };
   const items = { generate: jest.fn() };
@@ -76,7 +81,7 @@ describe('QuestsService', () => {
     expect(items.generate).not.toHaveBeenCalled();
   });
 
-  it('delivers at the destination once, grants XP and gold, and can grant Magic loot', async () => {
+  it('delivers at the destination once, grants XP and gold, and does not grant items', async () => {
     jest.spyOn(Math, 'random').mockReturnValue(0.95);
     prisma.gameProfile.update.mockResolvedValue({ ...profile, level: 1, experience: 0 });
     prisma.playerQuest.findUnique.mockResolvedValue({
@@ -96,12 +101,12 @@ describe('QuestsService', () => {
         freeAttributes: { increment: 5 },
       },
     });
-    expect(items.generate).toHaveBeenCalledWith({ level: 1, rarity: 'MAGIC', minimumRarity: 'MAGIC' }, prisma);
-    expect(prisma.inventoryItem.create).toHaveBeenCalledTimes(1);
+    expect(items.generate).not.toHaveBeenCalled();
+    expect(prisma.inventoryItem.create).not.toHaveBeenCalled();
     prisma.playerQuest.findUnique.mockResolvedValue({ completedAt: new Date() });
     await service.deliver(7, 1);
     expect(prisma.playerQuest.update).toHaveBeenCalledTimes(1);
-    expect(prisma.inventoryItem.create).toHaveBeenCalledTimes(1);
+    expect(prisma.inventoryItem.create).not.toHaveBeenCalled();
   });
 
   it('rejects canceled and unaccepted deliveries', async () => {
@@ -209,5 +214,36 @@ describe('QuestsService', () => {
         update: { canceledAt: null, progress: 0, acceptedAt: expect.any(Date) as Date },
       }),
     );
+  });
+
+  it('generates town offers scaled with player level', async () => {
+    prisma.questBoard.findUnique.mockResolvedValue(null);
+    prisma.gameProfile.update.mockResolvedValue({ ...profile, level: 5 });
+    await service.list(7);
+    expect(prisma.quest.createMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.arrayContaining([
+          expect.objectContaining({
+            townId: 1,
+            rewardGold: expect.any(Number) as number,
+            rewardExperience: expect.any(Number) as number,
+          }),
+        ]) as unknown[],
+      }),
+    );
+  });
+
+  it('refreshes unaccepted quests when player level has changed', async () => {
+    prisma.questBoard.findUnique.mockResolvedValue({ ...board, nextRefreshAt: new Date('2099-01-01') });
+    prisma.gameProfile.update.mockResolvedValue({ ...profile, level: 3 });
+    prisma.quest.findFirst.mockResolvedValue({
+      code: 'town_1_board-1_0_lvl1_0',
+      destinationTownId: 2,
+      rewardGold: 50,
+      target: 1,
+    });
+    await service.list(7);
+    expect(prisma.questBoard.upsert).toHaveBeenCalled();
+    expect(prisma.quest.createMany).toHaveBeenCalled();
   });
 });

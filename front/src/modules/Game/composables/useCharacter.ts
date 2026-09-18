@@ -5,7 +5,8 @@ export function useCharacter(
   initialY = 600,
   mapWidth = 2400,
   mapHeight = 1600,
-  canMoveTo: (x: number, y: number) => boolean = () => true
+  canMoveTo: (x: number, y: number) => boolean = () => true,
+  movementSpeedAt: (x: number, y: number) => number = () => 1
 ) {
   const pos = reactive({ x: initialX, y: initialY });
   const target = reactive({ x: initialX, y: initialY });
@@ -13,7 +14,6 @@ export function useCharacter(
   const completedTravelSteps = ref(0);
   let distanceSinceTravelStep = 0;
 
-  const speed = 1;
   const travelStepDistance = 80;
 
   const walkTo = (x: number, y: number) => {
@@ -35,6 +35,7 @@ export function useCharacter(
     const dx = target.x - pos.x;
     const dy = target.y - pos.y;
     const dist = Math.hypot(dx, dy);
+    const speed = Math.max(0.01, movementSpeedAt(pos.x, pos.y));
 
     // Если персонаж почти дошел — примагничиваем его к цели
     if (dist <= speed) {

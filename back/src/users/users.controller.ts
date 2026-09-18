@@ -21,11 +21,20 @@ import { UserView } from './user.view';
 import { EquipItemDto, EQUIPMENT_SLOTS, type EquipmentSlotId } from './dto/equip-item.dto';
 import { AllocateAttributeDto } from './dto/allocate-attribute.dto';
 import { UpdateMapPositionDto } from './dto/update-map-position.dto';
+import { ReplaceInventoryItemDto } from './dto/replace-inventory-item.dto';
 
 @ApiTags('users')
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
+
+  @Get('leaderboard')
+  @ApiOkResponse({
+    description: 'Returns top players ranked by level and achievements',
+  })
+  getLeaderboard() {
+    return this.usersService.getLeaderboard();
+  }
 
   @Post('me/dev-gems')
   @UseGuards(AuthGuard)
@@ -65,6 +74,21 @@ export class UsersController {
   ) {
     if (inventoryItemId <= 0) throw new BadRequestException('Inventory item id must be positive');
     return this.usersService.consumeInventoryItem(req.user.sub, inventoryItemId);
+  }
+
+  @Delete('me/inventory/:inventoryItemId')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
+  dropInventoryItem(@Request() req: RequestWithUser, @Param('inventoryItemId', ParseIntPipe) inventoryItemId: number) {
+    if (inventoryItemId <= 0) throw new BadRequestException('Inventory item id must be positive');
+    return this.usersService.dropInventoryItem(req.user.sub, inventoryItemId);
+  }
+
+  @Post('me/inventory/replace')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
+  replaceInventoryItem(@Request() req: RequestWithUser, @Body() dto: ReplaceInventoryItemDto) {
+    return this.usersService.replaceInventoryItem(req.user.sub, dto);
   }
 
   @Put('me/map-position')

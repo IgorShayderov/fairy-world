@@ -3,7 +3,12 @@
     <div v-if="accessError" class="p-6 text-center text-gray-600">{{ t('shop.townRequired') }}</div>
     <div v-else class="shop-panels min-h-0 flex-1 overflow-hidden">
       <main class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <div class="shrink-0 bg-white px-6 pt-2 font-semibold">{{ shopName }}</div>
+        <div class="shrink-0 flex items-center justify-between bg-white px-6 pt-2">
+          <span class="font-semibold text-gray-800">{{ shopName }}</span>
+          <span class="text-xs font-medium text-gray-500">
+            {{ t('shop.shopGold') }}: <span class="font-bold text-yellow-600">💰 {{ shopGold.toLocaleString() }} gold</span>
+          </span>
+        </div>
         <ShopHeader
           :gold="gold"
           :gems="gems"
@@ -31,7 +36,7 @@
               :key="item.id"
               :item="item"
               :cart-quantity="cart[item.id] || 0"
-              :equipped-item="findEquippedItem(item.equipmentType)"
+              :equipped-item="findEquippedItem(item)"
               @add="addToCart"
               @remove="removeFromCart"
             />
@@ -65,8 +70,9 @@ import { useTranslation } from 'i18next-vue';
 import { onMounted } from 'vue';
 
 import type { EquipmentType, InventoryItemType } from '@/modules/Inventory/types';
+import type { ShopItem } from '@/modules/Shop/types';
 
-import { findEquippedEntryForTypes } from '@/modules/Inventory/utils/equipment';
+import { findEquippedItemForEntries } from '@/modules/Inventory/utils/equipment';
 import { useShopActions } from '@/modules/Shop/composables/useShopActions';
 import { getItemTypeLocaleKey } from '@/modules/Shop/utils/itemPresentation';
 
@@ -79,6 +85,7 @@ const { t } = useTranslation();
 const {
   accessError,
   shopName,
+  shopGold,
   shopItems,
   inventory,
   equippedItems,
@@ -109,23 +116,15 @@ onMounted(async () => {
   await loadData(true);
 });
 
-const findEquippedItem = (equipmentTypes: EquipmentType[]): InventoryItemType | null => {
-  const equipped = findEquippedEntryForTypes(equippedItems.value, equipmentTypes);
-  if (!equipped) return null;
-
-  return {
-    nameKey: equipped.item.name,
-    name: t(getItemTypeLocaleKey(equipped.item.equipmentType)),
-    tooltipName: equipped.item.name,
-    icon: equipped.item.icon,
-    description: equipped.item.description,
-    price: equipped.item.price,
-    rarity: t(`profile.rarity.${equipped.item.rarity.toLowerCase()}`),
-    rarityKey: equipped.item.rarity,
-    equipmentType: equipped.item.equipmentType,
-    attributes: equipped.item.attributes,
-    properties: equipped.item.properties,
-  };
+const findEquippedItem = (
+  targetItem: ShopItem | { equipmentType?: EquipmentType[]; name?: string; isTwoHanded?: boolean }
+): InventoryItemType | null => {
+  return findEquippedItemForEntries(
+    equippedItems.value,
+    targetItem,
+    (entry) => t(getItemTypeLocaleKey(entry.item.equipmentType)),
+    (rarity) => t(`profile.rarity.${rarity.toLowerCase()}`)
+  );
 };
 </script>
 

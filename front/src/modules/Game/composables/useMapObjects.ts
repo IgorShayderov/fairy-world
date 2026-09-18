@@ -52,6 +52,17 @@ export const roads: Point[][] = [
   road('DAWNSHRINE', 'EMBERDEEP'),
 ];
 
+const distanceToSegment = (point: Point, start: Point, end: Point) => {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const lengthSquared = dx * dx + dy * dy;
+  const ratio = lengthSquared === 0 ? 0 : Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared));
+  return Math.hypot(point.x - (start.x + ratio * dx), point.y - (start.y + ratio * dy));
+};
+
+export const isPointOnRoute = (x: number, y: number, tolerance = 18) =>
+  roads.some((points) => points.slice(1).some((end, index) => distanceToSegment({ x, y }, points[index]!, end) <= tolerance));
+
 const seededRandom = (seed: number) => {
   let value = seed >>> 0;
   return () => {

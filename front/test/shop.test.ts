@@ -109,4 +109,42 @@ describe('shop quantity requests', () => {
     expect(mocks.post).toHaveBeenCalledWith(expect.stringMatching(/\/shop\/1\/refresh$/));
     expect(mocks.notify).toHaveBeenCalledWith({ type: 'positive', message: 'shop.refreshSuccess' });
   });
+
+  it('filters out shop items that require higher level than player can equip', async () => {
+    mocks.get.mockImplementation((url: string) => ({
+      data: url.endsWith('/users/me')
+        ? {
+            id: 5,
+            level: 2,
+            currentShopId: 1,
+            inventory: [],
+            equippedItems: [],
+          }
+        : {
+            id: 2,
+            name: 'Armory',
+            gold: 800,
+            refreshCost: 10,
+            items: [
+              { id: 1, price: 20, quantity: 1, requiredPlayerLevel: 1 },
+              { id: 2, price: 50, quantity: 1, requiredPlayerLevel: 10 },
+            ],
+          },
+    }));
+
+    const shop = useShopActions();
+    await shop.loadData();
+
+    expect(shop.shopItems.value).toHaveLength(1);
+    expect(shop.shopItems.value[0]?.id).toBe(1);
+  });
+
+  it('blocks adding to cart when player level is lower than required player level', async () => {
+    const shop = useShopActions();
+    shop.shopItems.value = [{ id: 10, price: 40, quantity: 1, requiredPlayerLevel: 10 } as any];
+    shop.addToCart(10);
+
+    expect(shop.cart.value[10]).toBeUndefined();
+    expect(mocks.notify).toHaveBeenCalledWith(expect.objectContaining({ type: 'negative' }));
+  });
 });

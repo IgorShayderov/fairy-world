@@ -20,7 +20,7 @@ describe('current user loading', () => {
     await store.fetchCurrentUser(true);
     expect(mocks.notify).toHaveBeenCalledTimes(1);
     expect(mocks.notify).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'Quests completed: 1! Your rewards have been added.' })
+      expect.objectContaining({ message: 'Quests completed.' })
     );
   });
   it('notifies once when refreshed data confirms a level-up', async () => {

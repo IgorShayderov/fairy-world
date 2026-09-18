@@ -5,6 +5,7 @@ import { ref } from 'vue';
 import type { ShopItem, InventoryEntry } from '@/modules/Shop/types';
 
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
+import { getPotionRequiredLevel } from '@/modules/Inventory/utils/potions';
 import { getShop, buyItem, refreshShop, sellItems } from '@/modules/Shop/api';
 
 export function useShopActions() {
@@ -39,7 +40,11 @@ export function useShopActions() {
       shopId.value = player.currentShopId;
       const shop = await getShop(shopId.value);
       shopName.value = shop.name;
-      shopItems.value = shop.items;
+      const playerLevel = player.level ?? 1;
+      shopItems.value = shop.items.filter((item) => {
+        const req = Math.max(item.requiredPlayerLevel ?? 1, getPotionRequiredLevel(item.name));
+        return playerLevel >= req;
+      });
       const stacks = new Map<number, InventoryEntry>();
       for (const entry of player.inventory) {
         const existing = stacks.get(entry.item.id);
@@ -72,6 +77,12 @@ export function useShopActions() {
     const item = shopItems.value.find((item) => item.id === itemId);
 
     if (!item) return;
+
+    const req = Math.max(item.requiredPlayerLevel ?? 1, getPotionRequiredLevel(item.name));
+    if ((currentUserStore.user?.level ?? 1) < req) {
+      $q.notify({ type: 'negative', message: t('profile.requiredLevel', { level: req }) });
+      return;
+    }
 
     const currentQuantity = cart.value[itemId] || 0;
 

@@ -11,6 +11,9 @@ describe('UsersController', () => {
     allocateAttribute: jest.fn(),
     consumeInventoryItem: jest.fn(),
     updateMapPosition: jest.fn(),
+    getLeaderboard: jest.fn(),
+    dropInventoryItem: jest.fn(),
+    replaceInventoryItem: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -102,5 +105,33 @@ describe('UsersController', () => {
 
     await expect(controller.updateMapPosition({ user: { sub: 7 } } as never, position)).resolves.toEqual(position);
     expect(mockUsersService.updateMapPosition).toHaveBeenCalledWith(7, position);
+  });
+
+  it('returns the player leaderboard', async () => {
+    const leaderboard = [{ rank: 1, name: 'Alice', level: 10, killedMonsters: 15, questsCompleted: 3 }];
+    mockUsersService.getLeaderboard.mockResolvedValue(leaderboard);
+
+    await expect(controller.getLeaderboard()).resolves.toEqual(leaderboard);
+    expect(mockUsersService.getLeaderboard).toHaveBeenCalled();
+  });
+
+  it('drops an inventory item for the authenticated player', async () => {
+    mockUsersService.dropInventoryItem.mockResolvedValue({ success: true });
+
+    await expect(controller.dropInventoryItem({ user: { sub: 7 } } as never, 14)).resolves.toEqual({
+      success: true,
+    });
+    expect(mockUsersService.dropInventoryItem).toHaveBeenCalledWith(7, 14);
+  });
+
+  it('replaces an inventory item for the authenticated player', async () => {
+    const dto = { replaceInventoryItemId: 10, newItemId: 42 };
+    mockUsersService.replaceInventoryItem.mockResolvedValue({ success: true, inventoryItemId: 99 });
+
+    await expect(controller.replaceInventoryItem({ user: { sub: 7 } } as never, dto)).resolves.toEqual({
+      success: true,
+      inventoryItemId: 99,
+    });
+    expect(mockUsersService.replaceInventoryItem).toHaveBeenCalledWith(7, dto);
   });
 });

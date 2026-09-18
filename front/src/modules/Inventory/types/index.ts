@@ -44,13 +44,15 @@ export interface InventoryItemType {
   description?: string;
   price?: number;
   rarity?: string | undefined;
-  rarityKey?: string;
+  rarityKey?: string | undefined;
   equipmentType?: EquipmentType[];
   equipmentTypes?: EquipmentType[];
+  isTwoHanded?: boolean;
   quantity?: number;
   attributes?: ItemModifier[];
   properties?: ItemModifier[];
   slot?: EquipmentSlotId | null;
+  comparisonItems?: InventoryItemType[];
 }
 
 export interface InventoryEntry {
@@ -65,6 +67,7 @@ export interface InventoryEntry {
     icon: string;
     rarity: ItemRarity;
     equipmentType: EquipmentType[];
+    isTwoHanded?: boolean;
     attributes: ItemModifier[];
     properties: ItemModifier[];
   };

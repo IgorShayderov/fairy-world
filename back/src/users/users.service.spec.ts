@@ -11,6 +11,7 @@ describe('UsersService', () => {
     $transaction: jest.fn(),
     gameProfile: {
       findUnique: jest.fn(),
+      findMany: jest.fn(),
       updateMany: jest.fn(),
       update: jest.fn(),
     },
@@ -28,6 +29,10 @@ describe('UsersService', () => {
       update: jest.fn(),
       create: jest.fn(),
       delete: jest.fn(),
+      count: jest.fn().mockResolvedValue(0),
+    },
+    item: {
+      findUnique: jest.fn(),
     },
     user: {
       findUnique: jest.fn(),
@@ -284,12 +289,94 @@ describe('UsersService', () => {
         'Only health potions can be equipped',
       );
     });
+
+    it('rejects equipping a two-handed sword in the right hand', async () => {
+      mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4, level: 1 });
+      mockPrismaService.inventoryItem.findFirst.mockResolvedValueOnce({
+        id: 20,
+        gameProfileId: 4,
+        itemId: 10,
+        quantity: 1,
+        isEquiped: false,
+        slot: null,
+        item: { name: 'Two-handed Sword', level: 1, equipmentType: ['WEAPON'] },
+      });
+
+      await expect(service.equipItem(7, { inventoryItemId: 20, slot: 'right-hand' })).rejects.toThrow(
+        'Two-handed weapons must be equipped in the left hand',
+      );
+    });
+
+    it('unequips the right-hand item when a two-handed sword is equipped in the left hand', async () => {
+      mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4, level: 1 });
+      mockPrismaService.inventoryItem.findFirst
+        .mockResolvedValueOnce({
+          id: 20,
+          gameProfileId: 4,
+          itemId: 10,
+          quantity: 1,
+          isEquiped: false,
+          slot: null,
+          item: { name: 'Two-handed Sword', level: 1, equipmentType: ['WEAPON'] },
+        })
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: 25, itemId: 3, quantity: 1 })
+        .mockResolvedValueOnce(null);
+
+      await expect(service.equipItem(7, { inventoryItemId: 20, slot: 'left-hand' })).resolves.toEqual({
+        success: true,
+      });
+
+      expect(mockPrismaService.inventoryItem.update).toHaveBeenCalledWith({
+        where: { id: 25 },
+        data: { isEquiped: false, slot: null },
+      });
+      expect(mockPrismaService.inventoryItem.update).toHaveBeenCalledWith({
+        where: { id: 20 },
+        data: { quantity: 1, isEquiped: true, slot: 'left-hand' },
+      });
+    });
+
+    it('unequips a two-handed sword in the left hand when an item is equipped in the right hand', async () => {
+      mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4, level: 1 });
+      mockPrismaService.inventoryItem.findFirst
+        .mockResolvedValueOnce({
+          id: 30,
+          gameProfileId: 4,
+          itemId: 5,
+          quantity: 1,
+          isEquiped: false,
+          slot: null,
+          item: { name: 'Iron Shield', level: 1, equipmentType: ['SHIELD'] },
+        })
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({
+          id: 20,
+          itemId: 10,
+          quantity: 1,
+          item: { name: 'Two-handed Sword' },
+        })
+        .mockResolvedValueOnce(null);
+
+      await expect(service.equipItem(7, { inventoryItemId: 30, slot: 'right-hand' })).resolves.toEqual({
+        success: true,
+      });
+
+      expect(mockPrismaService.inventoryItem.update).toHaveBeenCalledWith({
+        where: { id: 20 },
+        data: { isEquiped: false, slot: null },
+      });
+      expect(mockPrismaService.inventoryItem.update).toHaveBeenCalledWith({
+        where: { id: 30 },
+        data: { quantity: 1, isEquiped: true, slot: 'right-hand' },
+      });
+    });
   });
 
   describe('potion consumption', () => {
     it('consumes one potion and persists its four-hour buff', async () => {
       jest.useFakeTimers().setSystemTime(new Date('2026-09-12T08:00:00Z'));
-      mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4 });
+      mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4, level: 30 });
       mockPrismaService.inventoryItem.findFirst.mockResolvedValue({
         id: 14,
         gameProfileId: 4,
@@ -299,7 +386,7 @@ describe('UsersService', () => {
       });
       mockPrismaService.gameProfileBuff.upsert.mockResolvedValue({
         type: 'DAMAGE',
-        value: 15,
+        value: 20,
         expiresAt: new Date('2026-09-12T12:00:00Z'),
       });
 
@@ -314,15 +401,29 @@ describe('UsersService', () => {
         create: {
           gameProfileId: 4,
           type: 'DAMAGE',
-          value: 15,
+          value: 20,
           expiresAt: new Date('2026-09-12T12:00:00Z'),
         },
-        update: { value: 15, expiresAt: new Date('2026-09-12T12:00:00Z') },
+        update: { value: 20, expiresAt: new Date('2026-09-12T12:00:00Z') },
       });
     });
 
+    it('rejects consuming a potion when player level is below required level', async () => {
+      mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4, level: 5 });
+      mockPrismaService.inventoryItem.findFirst.mockResolvedValue({
+        id: 14,
+        gameProfileId: 4,
+        quantity: 1,
+        isEquiped: false,
+        item: { name: 'Lesser Attack Potion', isConsumable: true },
+      });
+
+      await expect(service.consumeInventoryItem(7, 14)).rejects.toThrow('This potion requires player level 10');
+      expect(mockPrismaService.inventoryItem.update).not.toHaveBeenCalled();
+    });
+
     it('does not consume health potions from the backpack', async () => {
-      mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4 });
+      mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4, level: 10 });
       mockPrismaService.inventoryItem.findFirst.mockResolvedValue({
         id: 16,
         gameProfileId: 4,
@@ -391,6 +492,85 @@ describe('UsersService', () => {
         BadRequestException,
       );
       expect(mockPrismaService.profileAttribute.upsert).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getLeaderboard', () => {
+    it('returns ranked players ordered by level, monsters killed, and quests completed', async () => {
+      const profiles = [
+        {
+          id: 1,
+          level: 25,
+          killedMonsters: 100,
+          user: { name: 'DragonSlayer' },
+          _count: { quests: 12 },
+        },
+        {
+          id: 2,
+          level: 20,
+          killedMonsters: 80,
+          user: { name: 'Mage' },
+          _count: { quests: 8 },
+        },
+      ];
+      mockPrismaService.gameProfile.findMany.mockResolvedValue(profiles);
+
+      const result = await service.getLeaderboard(10);
+      expect(result).toEqual([
+        { rank: 1, name: 'DragonSlayer', level: 25, killedMonsters: 100, questsCompleted: 12 },
+        { rank: 2, name: 'Mage', level: 20, killedMonsters: 80, questsCompleted: 8 },
+      ]);
+      expect(mockPrismaService.gameProfile.findMany).toHaveBeenCalledWith({
+        take: 10,
+        orderBy: [{ level: 'desc' }, { killedMonsters: 'desc' }, { experience: 'desc' }],
+        include: {
+          user: { select: { name: true } },
+          _count: { select: { quests: { where: { completedAt: { not: null } } } } },
+        },
+      });
+    });
+  });
+
+  describe('inventory slots limit and management', () => {
+    it('rejects unequipping when backpack is full at 24 items', async () => {
+      mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4 });
+      mockPrismaService.inventoryItem.findFirst
+        .mockResolvedValueOnce({ id: 10, itemId: 2, quantity: 1, isEquiped: true, slot: 'head' })
+        .mockResolvedValueOnce(null);
+      mockPrismaService.inventoryItem.count.mockResolvedValue(24);
+
+      await expect(service.unequipItem(7, 'head')).rejects.toThrow('Inventory is full');
+    });
+
+    it('drops an inventory item by deleting it', async () => {
+      mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4 });
+      mockPrismaService.inventoryItem.findFirst.mockResolvedValue({ id: 15, gameProfileId: 4 });
+
+      await expect(service.dropInventoryItem(7, 15)).resolves.toEqual({ success: true });
+      expect(mockPrismaService.inventoryItem.delete).toHaveBeenCalledWith({ where: { id: 15 } });
+    });
+
+    it('replaces an inventory item with a new item', async () => {
+      mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4 });
+      mockPrismaService.inventoryItem.findFirst.mockResolvedValue({ id: 15, gameProfileId: 4 });
+      mockPrismaService.item.findUnique.mockResolvedValue({ id: 42 });
+      mockPrismaService.inventoryItem.create.mockResolvedValue({ id: 99 });
+
+      await expect(service.replaceInventoryItem(7, { replaceInventoryItemId: 15, newItemId: 42 })).resolves.toEqual({
+        success: true,
+        inventoryItemId: 99,
+      });
+
+      expect(mockPrismaService.inventoryItem.delete).toHaveBeenCalledWith({ where: { id: 15 } });
+      expect(mockPrismaService.inventoryItem.create).toHaveBeenCalledWith({
+        data: {
+          gameProfileId: 4,
+          itemId: 42,
+          quantity: 1,
+          slot: null,
+          isEquiped: false,
+        },
+      });
     });
   });
 });

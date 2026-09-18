@@ -32,7 +32,7 @@
               attributes: inv.item.attributes,
               properties: inv.item.properties,
             }"
-            :comparison-item="findEquippedItem(inv.item.equipmentType)"
+            :comparison-item="findEquippedItem(inv.item)"
             :slot-id="''"
             @double-click="$emit('add-one-to-sell', inv.item.id, inv.item.name, inv.quantity)"
           />
@@ -89,7 +89,7 @@ import { useTranslation } from 'i18next-vue';
 import type { EquipmentType, InventoryItemType } from '@/modules/Inventory/types';
 import type { InventoryEntry } from '@/modules/Shop/types';
 
-import { findEquippedEntryForTypes } from '@/modules/Inventory/utils/equipment';
+import { findEquippedItemForEntries } from '@/modules/Inventory/utils/equipment';
 import { getItemTypeLocaleKey } from '@/modules/Shop/utils/itemPresentation';
 
 import InventoryItem from '@/modules/Inventory/components/InventoryItem.vue';
@@ -111,23 +111,15 @@ const { t } = useTranslation();
 const saleLineTotal = (price: number, quantity: number) =>
   quantity > 0 ? Math.max(1, Math.floor(price * 0.5 * quantity)) : 0;
 const itemTypeName = (equipmentTypes: EquipmentType[]) => t(getItemTypeLocaleKey(equipmentTypes));
-const findEquippedItem = (equipmentTypes: EquipmentType[]): InventoryItemType | null => {
-  const equipped = findEquippedEntryForTypes(props.equippedItems, equipmentTypes);
-  if (!equipped) return null;
-
-  return {
-    nameKey: equipped.item.name,
-    name: itemTypeName(equipped.item.equipmentType),
-    tooltipName: equipped.item.name,
-    icon: equipped.item.icon,
-    description: equipped.item.description,
-    price: equipped.item.price,
-    rarity: t(`profile.rarity.${equipped.item.rarity.toLowerCase()}`),
-    rarityKey: equipped.item.rarity,
-    equipmentType: equipped.item.equipmentType,
-    attributes: equipped.item.attributes,
-    properties: equipped.item.properties,
-  };
+const findEquippedItem = (
+  targetItem: { equipmentType?: EquipmentType[]; name?: string; isTwoHanded?: boolean }
+): InventoryItemType | null => {
+  return findEquippedItemForEntries(
+    props.equippedItems,
+    targetItem,
+    (entry) => itemTypeName(entry.item.equipmentType),
+    (rarity) => t(`profile.rarity.${rarity.toLowerCase()}`)
+  );
 };
 </script>
 

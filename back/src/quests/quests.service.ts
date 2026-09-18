@@ -4,9 +4,7 @@ import { TOWNS, townAt } from '../locations/towns';
 import { generateTownOffers } from './quest-board';
 import { habitatForMonster } from '../monsters/monster-habitats';
 import type { Quest, Prisma } from '../../generated/client';
-import { ItemRarity } from '../../generated/client';
 import { ItemGeneratorService } from '../items/item-generator.service';
-import { rollQuestLootRarity } from '../monsters/monster-loot';
 import { progressionAfterExperience } from '../users/level-progression';
 
 const renderQuest = (quest: Quest) => ({
@@ -43,16 +41,6 @@ export class QuestsService {
           freeAttributes: { increment: progression.freeAttributes },
         },
       });
-      const rarity = rollQuestLootRarity();
-      if (rarity) {
-        const item = await this.itemGenerator.generate(
-          { level: profile.level, rarity, minimumRarity: ItemRarity.MAGIC },
-          tx,
-        );
-        await tx.inventoryItem.create({
-          data: { gameProfileId: profile.id, itemId: item.id, quantity: 1, isEquiped: false, slot: null },
-        });
-      }
       return { success: true };
     });
   }
@@ -68,7 +56,7 @@ export class QuestsService {
       });
       const town = townAt(profile);
       const now = new Date();
-      const board = town ? await this.ensureBoard(tx, profile.id, town) : null;
+      const board = town ? await this.ensureBoard(tx, profile.id, town, false, profile.level) : null;
       const available = town
         ? await tx.quest.findMany({
             where: {
@@ -100,11 +88,30 @@ export class QuestsService {
     profileId: number,
     town: NonNullable<ReturnType<typeof townAt>>,
     force = false,
+    playerLevel = 1,
   ) {
     const key = { gameProfileId_townId: { gameProfileId: profileId, townId: town.shopId } };
     const now = new Date();
     let board = await tx.questBoard.findUnique({ where: key });
-    if (board && !force && board.nextRefreshAt > now) return board;
+    let levelMismatch = false;
+    if (board && !force && board.nextRefreshAt > now) {
+      const sampleQuest = await tx.quest.findFirst({
+        where: { boardId: board.id, boardRevision: board.revision },
+        select: { code: true, destinationTownId: true, rewardGold: true, target: true },
+      });
+      if (sampleQuest) {
+        const match = sampleQuest.code.match(/_lvl(\d+)_/);
+        const questLevel = match
+          ? Number(match[1])
+          : sampleQuest.destinationTownId
+            ? Math.round(sampleQuest.rewardGold / 50)
+            : Math.round(sampleQuest.rewardGold / (sampleQuest.target * 10));
+        if (questLevel !== Math.max(1, playerLevel)) {
+          levelMismatch = true;
+        }
+      }
+    }
+    if (board && !force && !levelMismatch && board.nextRefreshAt > now) return board;
     const nextRefreshAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
     board = await tx.questBoard.upsert({
       where: key,
@@ -112,12 +119,14 @@ export class QuestsService {
       update: { revision: { increment: 1 }, nextRefreshAt },
     });
     await tx.quest.createMany({
-      data: generateTownOffers(town, now, `${board.id}_${board.revision}`).map((quest) => ({
-        ...quest,
-        boardId: board.id,
-        boardRevision: board.revision,
-        expiresAt: nextRefreshAt,
-      })),
+      data: generateTownOffers(town, now, `${board.id}_${board.revision}_lvl${playerLevel}`, playerLevel).map(
+        (quest) => ({
+          ...quest,
+          boardId: board.id,
+          boardRevision: board.revision,
+          expiresAt: nextRefreshAt,
+        }),
+      ),
     });
     return board;
   }
@@ -129,7 +138,7 @@ export class QuestsService {
       if (!town) throw new BadRequestException('Visit a town to refresh quests');
       if (profile.gems < 30) throw new BadRequestException('Not enough gems');
       await tx.gameProfile.update({ where: { id: profile.id }, data: { gems: { decrement: 30 } } });
-      const board = await this.ensureBoard(tx, profile.id, town, true);
+      const board = await this.ensureBoard(tx, profile.id, town, true, profile.level);
       return { nextRefreshAt: board.nextRefreshAt, cost: 30 };
     });
   }
@@ -149,7 +158,7 @@ export class QuestsService {
         where: { gameProfileId: profile.id, completedAt: null, canceledAt: null },
       });
       if (activeCount >= 5) throw new BadRequestException('You can have at most five active quests');
-      const board = await this.ensureBoard(tx, profile.id, town);
+      const board = await this.ensureBoard(tx, profile.id, town, false, profile.level);
       if (
         quest.townId !== town.shopId ||
         quest.boardId !== board.id ||

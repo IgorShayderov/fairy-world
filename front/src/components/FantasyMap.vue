@@ -101,7 +101,7 @@ import { useRouter } from 'vue-router';
 
 import { usersApi } from '@/modules/Auth/api/users';
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
-import { landmarks, type Landmark } from '@/modules/Game/composables/useMapObjects';
+import { isPointOnRoute, landmarks, type Landmark } from '@/modules/Game/composables/useMapObjects';
 import { enterDungeon, receiveBlessing, resetDungeon } from '@/modules/Locations/api';
 import type { BattleState } from '@/modules/Monsters/api';
 import { attackMonster, retreatFromBattle, rollMonsterEncounter } from '@/modules/Monsters/api';
@@ -150,7 +150,7 @@ const showQuestOffers = ref(false);
 let visitedLandmark: string | null = null;
 let disposed = false;
 const nearbyLandmark = (x: number, y: number) =>
-  landmarks.find((landmark) => Math.hypot(x - landmark.x, y - landmark.y) <= 70);
+  landmarks.find((landmark) => Math.hypot(x - landmark.x, y - landmark.y) <= 55);
 
 const openLandmark = (landmark: Landmark) => {
   stop();
@@ -224,7 +224,7 @@ const {
   consumeTravelStep,
   stop,
   setPosition,
-} = useCharacter(initialX, initialY, mapWidth, mapHeight, canMoveTo);
+} = useCharacter(initialX, initialY, mapWidth, mapHeight, canMoveTo, (x, y) => isPointOnRoute(x, y) ? 1.3 : 1);
 let lastSavedPosition = `${initialX}:${initialY}`;
 
 const persistPosition = async () => {

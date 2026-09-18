@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { landmarks, mountains, roads } from '@/modules/Game/composables/useMapObjects';
+import { isPointOnRoute, landmarks, mountains, roads } from '@/modules/Game/composables/useMapObjects';
 
 describe('map roads', () => {
+  it('recognizes positions on and away from a route', () => {
+    expect(isPointOnRoute(730, 735)).toBe(true);
+    expect(isPointOnRoute(730, 760)).toBe(false);
+  });
   it('connects every landmark using named endpoints', () => {
     for (const landmark of landmarks) {
       expect(roads.some((road) => road[0] === landmark || road.at(-1) === landmark)).toBe(true);

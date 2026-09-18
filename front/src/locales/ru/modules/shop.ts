@@ -23,4 +23,5 @@ export default {
   thisItem: 'Этот',
   equipped: 'Надет',
   difference: 'Разн.',
+  shopGold: 'Золото магазина',
 };

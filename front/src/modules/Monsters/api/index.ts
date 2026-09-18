@@ -55,7 +55,19 @@ export interface BattleState {
     rewardExperience: number;
   };
   events: Array<{ actor: 'PLAYER' | 'MONSTER'; damage: number; critical: boolean; dodged: boolean }>;
-  rewards?: { gold: number; experience: number; items: Array<InventoryEntry['item'] & { level: number; quantity: 1 }> };
+  rewards?: {
+    gold: number;
+    experience: number;
+    items: Array<
+      InventoryEntry['item'] & {
+        level: number;
+        quantity: 1;
+        inventoryItemId?: number;
+        addedToInventory?: boolean;
+        inventoryFull?: boolean;
+      }
+    >;
+  };
 }
 
 export type EncounterRoll =

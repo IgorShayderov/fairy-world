@@ -1,7 +1,7 @@
 <template>
   <section class="flex min-w-[400px] flex-col rounded-xl bg-gray-200 p-5 shadow-inner">
     <SectionNavigation
-      :title="t('profile.inventory')"
+      :title="`${t('profile.inventory')} (${occupiedSlots}/${MAX_SLOTS})`"
       :total-pages="totalPages"
       :current-index="currentPage"
       :disable-prev="currentPage === 0"
@@ -61,24 +61,24 @@ defineEmits<{
 
 const { t } = useTranslation();
 
+const MAX_SLOTS = 24;
 const ITEMS_PER_PAGE = 12;
 const currentPage = ref(0);
 
+const occupiedSlots = computed(() => props.inventory.filter((item) => item !== null).length);
+
 const totalPages = computed(() => {
-  return Math.max(1, Math.ceil(props.inventory.length / ITEMS_PER_PAGE));
+  return Math.ceil(MAX_SLOTS / ITEMS_PER_PAGE);
 });
 
 const displayedInventory = computed(() => {
   const start = currentPage.value * ITEMS_PER_PAGE;
   const end = start + ITEMS_PER_PAGE;
-  const sliced = props.inventory.slice(start, end);
-
-  if (sliced.length < ITEMS_PER_PAGE) {
-    const padding = Array(ITEMS_PER_PAGE - sliced.length).fill(null);
-    return [...sliced, ...padding];
+  const fullInventory = [...props.inventory];
+  while (fullInventory.length < MAX_SLOTS) {
+    fullInventory.push(null);
   }
-
-  return sliced;
+  return fullInventory.slice(start, end);
 });
 
 const nextPage = () => {

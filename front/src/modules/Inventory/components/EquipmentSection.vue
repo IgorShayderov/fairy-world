@@ -43,25 +43,26 @@
                     }
                   : null
               "
+              :occupied-item="getOccupiedItem(slot.id)"
               :slot-id="slot.id"
               :is-hovered="hoveredSlot === slot.id"
               :empty-icon="emptyIcons[slot.id] ?? ''"
               :empty-label="t(slot.labelKey)"
               class="h-full w-full"
-              @drag-start="$emit('equipment-drag-start', slot.id)"
+              @drag-start="onItemDragStart(slot.id)"
               @drag-end="$emit('drag-end')"
-              @double-click="$emit('unequip', slot.id)"
+              @double-click="onItemDoubleClick(slot.id)"
             />
 
             <QBtn
-              v-if="slot.item"
+              v-if="slot.item || getOccupiedItem(slot.id)"
               flat
               dense
               round
               icon="close"
               size="xs"
               class="absolute -top-2 -right-2 z-20 bg-white text-gray-400 shadow-md hover:text-red-500"
-              @click="$emit('unequip', slot.id)"
+              @click="onUnequipClick(slot.id)"
             />
           </div>
         </div>
@@ -176,7 +177,9 @@ import { QCard, QBtn, QTooltip } from 'quasar';
 import { computed, ref } from 'vue';
 
 import type { Component } from 'vue';
-import type { EffectiveModifier, EquipmentSlotId, EquipmentSlot } from '@/modules/Inventory/types';
+import type { EffectiveModifier, EquipmentSlotId, EquipmentSlot, InventoryItemType } from '@/modules/Inventory/types';
+
+import { isTwoHanded } from '@/modules/Inventory/utils/equipment';
 
 
 import BodyArmorIcon from './icons/BodyArmorIcon.vue';
@@ -209,7 +212,7 @@ const props = defineProps<{
   allocatingAttribute: string | null;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   (e: 'slot-enter', id: EquipmentSlotId): void;
   (e: 'slot-leave'): void;
   (e: 'slot-drop', id: EquipmentSlotId): void;
@@ -220,6 +223,36 @@ defineEmits<{
 }>();
 
 const { t } = useTranslation();
+
+const leftHandItem = computed(() => props.equipmentSlots.find((s) => s.id === 'left-hand')?.item ?? null);
+
+const getOccupiedItem = (slotId: EquipmentSlotId): InventoryItemType | null => {
+  if (slotId === 'right-hand' && !props.equipmentSlots.find((s) => s.id === 'right-hand')?.item) {
+    if (leftHandItem.value && isTwoHanded(leftHandItem.value)) {
+      return {
+        ...leftHandItem.value,
+        name: t(leftHandItem.value.nameKey),
+        rarity: leftHandItem.value.rarityKey ? t(leftHandItem.value.rarityKey) : undefined,
+      };
+    }
+  }
+  return null;
+};
+
+const onUnequipClick = (slotId: EquipmentSlotId) => {
+  const targetSlotId = getOccupiedItem(slotId) ? 'left-hand' : slotId;
+  emit('unequip', targetSlotId);
+};
+
+const onItemDoubleClick = (slotId: EquipmentSlotId) => {
+  const targetSlotId = getOccupiedItem(slotId) ? 'left-hand' : slotId;
+  emit('unequip', targetSlotId);
+};
+
+const onItemDragStart = (slotId: EquipmentSlotId) => {
+  const targetSlotId = getOccupiedItem(slotId) ? 'left-hand' : slotId;
+  emit('equipment-drag-start', targetSlotId);
+};
 
 const playerSummary = computed(() => [
   { key: 'level', value: props.playerLevel },

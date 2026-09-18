@@ -35,4 +35,20 @@ describe('daily town boards', () => {
       }
     }
   });
+
+  it('scales gold and experience rewards with player level using up to 40% modifier', () => {
+    const level1Offers = generateTownOffers(TOWNS[0], now, 'test-seed', 1);
+    const level17Offers = generateTownOffers(TOWNS[0], now, 'test-seed', 17);
+
+    expect(level1Offers[0].rewardGold).toBe(50);
+    expect(level1Offers[0].rewardExperience).toBe(100);
+
+    expect(level17Offers[0].rewardGold).toBeGreaterThanOrEqual(50 * 5);
+    expect(level17Offers[0].rewardGold).toBeLessThanOrEqual(Math.round(50 * 7.4));
+    expect(level17Offers[0].rewardGold).toBeLessThan(50 * 17);
+
+    expect(level17Offers[1].rewardGold).toBeGreaterThanOrEqual(level17Offers[1].target * 10 * 5);
+    expect(level17Offers[1].rewardGold).toBeLessThanOrEqual(Math.round(level17Offers[1].target * 10 * 7.4));
+    expect(level17Offers[1].rewardGold).toBeLessThan(level17Offers[1].target * 10 * 17);
+  });
 });

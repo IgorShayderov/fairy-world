@@ -2,6 +2,7 @@ export default {
   profile: {
     levelUp: 'Достигнут уровень {{level}}!',
     maxLevel: 'Максимальный уровень',
+    twoHanded: 'Двуручное',
     requiredLevel: 'Требуется уровень игрока {{level}}',
     inventory: 'Инвентарь',
     equipment: 'Экипировка',
@@ -18,6 +19,11 @@ export default {
       DEFENSE: 'Увеличивает рейтинг защиты на {{value}}.',
       EXPERIENCE: 'Увеличивает получаемый опыт на {{value}}%.',
     },
+    curseDescriptions: {
+      DAMAGE: 'Уменьшает урон на {{value}}.',
+      DEFENSE: 'Уменьшает рейтинг защиты на {{value}}.',
+      EXPERIENCE: 'Уменьшает получаемый опыт на {{value}}%.',
+    },
     rating: 'рейтинга',
     buffTimeRemaining: 'осталось {{hours}} ч {{minutes}} мин',
     buffNames: {
@@ -25,10 +31,15 @@ export default {
       DEFENSE: 'Защита',
       EXPERIENCE: 'Получаемый опыт',
     },
+    curseNames: {
+      DAMAGE: 'Проклятие слабости',
+      DEFENSE: 'Проклятие уязвимости',
+      EXPERIENCE: 'Проклятие истощения',
+    },
     ratingPoints: 'Рейтинг: {{value}}',
     summary: {
       killedMonsters: 'Убито монстров',
-      accomplishedQuests: 'Завершено заданий',
+      accomplishedQuests: 'Завершено задание',
       level: 'Уровень',
       experience: 'Опыт',
       gold: 'Золото',
@@ -104,6 +115,9 @@ export default {
     },
     items: {
       sword: 'Меч',
+      twoHandedSword: 'Двуручный меч',
+      dagger: 'Кинжал',
+      axe: 'Топор',
       shield: 'Щит',
       potion: 'Зелье',
       medicine: 'Лекарство',
