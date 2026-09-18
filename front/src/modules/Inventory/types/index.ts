@@ -44,7 +44,7 @@ export interface InventoryItemType {
   description?: string;
   price?: number;
   rarity?: string | undefined;
-  rarityKey?: string;
+  rarityKey?: string | undefined;
   equipmentType?: EquipmentType[];
   equipmentTypes?: EquipmentType[];
   isTwoHanded?: boolean;

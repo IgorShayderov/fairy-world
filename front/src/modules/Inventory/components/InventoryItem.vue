@@ -85,8 +85,8 @@
         {{ $t('profile.twoHanded') }}
       </div>
       <div v-if="tooltipDescription" class="mt-1 text-xs text-gray-200">{{ tooltipDescription }}</div>
-      <div v-if="displayItem.requiredPlayerLevel" class="mt-1 text-xs text-amber-200">
-        {{ $t('profile.requiredLevel', { level: displayItem.requiredPlayerLevel }) }}
+      <div v-if="effectiveRequiredPlayerLevel" class="mt-1 text-xs text-amber-200">
+        {{ $t('profile.requiredLevel', { level: effectiveRequiredPlayerLevel }) }}
       </div>
       <div v-if="displayItem.price !== undefined" class="mt-2 text-xs">
         {{ $t('profile.tooltip.price') }}: {{ displayItem.price }}g
@@ -161,6 +161,7 @@ import type { Component } from 'vue';
 import type { InventoryItemType } from '@/modules/Inventory/types';
 
 import { isTwoHanded } from '@/modules/Inventory/utils/equipment';
+import { getPotionRequiredLevel, isPotion } from '@/modules/Inventory/utils/potions';
 import { getRarityBadgeClass, removeRarityPrefix } from '@/modules/Inventory/utils/rarity';
 
 const CONFIGURED_ITEM_IMAGES: Record<string, string> = {
@@ -285,6 +286,15 @@ const displayRarity = computed(() => {
   const current = displayItem.value;
   if (current?.rarityKey) return t(`profile.rarity.${current.rarityKey.toLowerCase()}`);
   return current?.rarity;
+});
+
+const effectiveRequiredPlayerLevel = computed(() => {
+  const current = displayItem.value;
+  if (!current) return 0;
+  if (isPotion(current)) {
+    return Math.max(current.requiredPlayerLevel ?? 1, getPotionRequiredLevel(current.name ?? current.nameKey));
+  }
+  return current.requiredPlayerLevel ?? 1;
 });
 
 const rarityBadgeClass = computed(() => getRarityBadgeClass(displayItem.value?.rarityKey ?? displayItem.value?.rarity));

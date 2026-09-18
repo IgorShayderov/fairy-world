@@ -136,7 +136,7 @@ describe('shop quantity requests', () => {
     await shop.loadData();
 
     expect(shop.shopItems.value).toHaveLength(1);
-    expect(shop.shopItems.value[0].id).toBe(1);
+    expect(shop.shopItems.value[0]?.id).toBe(1);
   });
 
   it('blocks adding to cart when player level is lower than required player level', async () => {

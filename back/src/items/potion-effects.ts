@@ -14,9 +14,6 @@ export const POTION_EFFECTS: Record<string, PotionEffect> = {
   'Lesser Defense Potion': { kind: 'BUFF', type: PlayerBuffType.DEFENSE, value: 5 },
 
   // 20+ Level Potions
-  'Medium Experience Potion': { kind: 'BUFF', type: PlayerBuffType.EXPERIENCE, value: 20 },
-  'Medium Attack Potion': { kind: 'BUFF', type: PlayerBuffType.DAMAGE, value: 10 },
-  'Medium Defense Potion': { kind: 'BUFF', type: PlayerBuffType.DEFENSE, value: 10 },
   'Moderate Experience Potion': { kind: 'BUFF', type: PlayerBuffType.EXPERIENCE, value: 20 },
   'Moderate Attack Potion': { kind: 'BUFF', type: PlayerBuffType.DAMAGE, value: 10 },
   'Moderate Defense Potion': { kind: 'BUFF', type: PlayerBuffType.DEFENSE, value: 10 },
@@ -48,9 +45,6 @@ export const POTION_LEVEL_REQUIREMENTS: Record<string, number> = {
   'Lesser Attack Potion': 10,
   'Lesser Defense Potion': 10,
 
-  'Medium Experience Potion': 20,
-  'Medium Attack Potion': 20,
-  'Medium Defense Potion': 20,
   'Moderate Experience Potion': 20,
   'Moderate Attack Potion': 20,
   'Moderate Defense Potion': 20,

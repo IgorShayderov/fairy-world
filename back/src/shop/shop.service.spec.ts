@@ -1,4 +1,5 @@
-import { ShopService, SHOP_DEFAULT_GOLD } from './shop.service';
+import { ShopService, SHOP_DEFAULT_GOLD, potionWeightForLevel } from './shop.service';
+import { ItemView } from '../common/views/item.view';
 import { PrismaService } from '../prisma.service';
 import { ItemGeneratorService } from '../items/item-generator.service';
 
@@ -324,6 +325,35 @@ describe('ShopService trades', () => {
     await expect(service.buy(1, 2, { itemId: 10, quantity: 1 })).rejects.toThrow('This item requires player level 10');
   });
 
+  it('renders requiredPlayerLevel 50 for Higher Attack Potion even if item.level in database is 1', () => {
+    const item = {
+      id: 99,
+      name: 'Higher Attack Potion',
+      description: 'Increases Damage by 50 for 4 hours.',
+      price: 500,
+      icon: 'icon_potion.png',
+      isConsumable: true,
+      rarity: 'RARE' as const,
+      equipmentType: ['POTION' as const],
+      level: 1,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      attributes: [],
+      stats: [],
+    };
+    const rendered = ItemView.render(item);
+    expect(rendered.requiredPlayerLevel).toBe(50);
+  });
+
+  it('assigns lower weights to higher level potions', () => {
+    expect(potionWeightForLevel(10)).toBe(5);
+    expect(potionWeightForLevel(20)).toBe(4);
+    expect(potionWeightForLevel(30)).toBe(3);
+    expect(potionWeightForLevel(40)).toBe(2);
+    expect(potionWeightForLevel(50)).toBe(1);
+    expect(potionWeightForLevel(50)).toBeLessThan(potionWeightForLevel(10));
+  });
+
   it('generates twelve items with levels around the player level when the shop restock is due', async () => {
     const now = new Date('2026-09-11T09:00:00Z');
     const nextRestockAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
@@ -415,5 +445,68 @@ describe('ShopService trades', () => {
       data: { nextRestockAt, stockLevel: 4, gold: SHOP_DEFAULT_GOLD },
     });
     expect(result.gold).toBe(SHOP_DEFAULT_GOLD);
+  });
+
+  it('stocks Free Attribute Potion when player level is 30+ and 3% chance succeeds', async () => {
+    const now = new Date('2026-09-11T09:00:00Z');
+    const nextRestockAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    jest.useFakeTimers().setSystemTime(now);
+    jest.spyOn(Math, 'random').mockReturnValue(0.01);
+    tx.shop.findUnique
+      .mockResolvedValueOnce({ id: 2, name: 'Armory', gold: 500, nextRestockAt: null })
+      .mockResolvedValueOnce({ id: 2, name: 'Armory', gold: 500, nextRestockAt, stock: [] });
+    tx.gameProfile.findUnique.mockResolvedValue({
+      id: 5,
+      gold: 200,
+      gems: 20,
+      level: 30,
+      mapPositionX: 940,
+      mapPositionY: 620,
+    });
+    tx.item.findMany.mockResolvedValue([
+      { id: 200, name: 'Free Attribute Potion', equipmentType: ['POTION'] },
+      { id: 101, name: 'Mild Attack Potion', equipmentType: ['POTION'] },
+    ]);
+    itemGenerator.generate.mockResolvedValue({ id: 42 });
+
+    await service.getShop(1, 2);
+
+    expect(tx.shopStock.upsert).toHaveBeenCalledWith({
+      where: { shopId_itemId: { shopId: 2, itemId: 200 } },
+      create: { shopId: 2, itemId: 200, quantity: 1 },
+      update: { quantity: { increment: 1 } },
+    });
+  });
+
+  it('does not stock Free Attribute Potion when 3% chance does not roll', async () => {
+    const now = new Date('2026-09-11T09:00:00Z');
+    const nextRestockAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    jest.useFakeTimers().setSystemTime(now);
+    jest.spyOn(Math, 'random').mockReturnValue(0.05);
+    tx.shop.findUnique
+      .mockResolvedValueOnce({ id: 2, name: 'Armory', gold: 500, nextRestockAt: null })
+      .mockResolvedValueOnce({ id: 2, name: 'Armory', gold: 500, nextRestockAt, stock: [] });
+    tx.gameProfile.findUnique.mockResolvedValue({
+      id: 5,
+      gold: 200,
+      gems: 20,
+      level: 30,
+      mapPositionX: 940,
+      mapPositionY: 620,
+    });
+    tx.item.findMany.mockResolvedValue([
+      { id: 200, name: 'Free Attribute Potion', equipmentType: ['POTION'] },
+      { id: 101, name: 'Mild Attack Potion', equipmentType: ['POTION'] },
+      { id: 102, name: 'Mild Defense Potion', equipmentType: ['POTION'] },
+    ]);
+    itemGenerator.generate.mockResolvedValue({ id: 42 });
+
+    await service.getShop(1, 2);
+
+    expect(tx.shopStock.upsert).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { shopId_itemId: { shopId: 2, itemId: 200 } },
+      }),
+    );
   });
 });

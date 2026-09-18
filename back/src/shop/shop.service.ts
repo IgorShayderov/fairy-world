@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, OnModuleInit } from '@nestjs/common';
 import { EquipmentType, Prisma } from '../../generated/client';
 import { PrismaService } from '../prisma.service';
 import { BuyDto } from './dto/buy.dto';
@@ -9,6 +9,7 @@ import { ItemGeneratorService } from '../items/item-generator.service';
 import { SEEDED_CONSUMABLES } from '../items/seeded-consumables';
 import { townAt } from '../locations/towns';
 import { requiredPlayerLevel } from '../users/level-progression';
+import { getPotionRequiredLevel } from '../items/potion-effects';
 
 const SHOP_RESTOCK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const SHOP_RESTOCK_ITEM_COUNT = 12;
@@ -17,13 +18,45 @@ const SHOP_GUARANTEED_EQUIPMENT_TYPES = [EquipmentType.GLOVES, EquipmentType.LEG
 const SHOP_ITEM_LEVEL_OFFSETS = [-2, -1, 0, 1, 2] as const;
 export const SHOP_REFRESH_GEM_COST = 10;
 export const SHOP_DEFAULT_GOLD = 1_000_000;
+export const SHOP_FREE_ATTRIBUTE_POTION_CHANCE = 0.03;
+
+export const potionWeightForLevel = (level: number): number => {
+  return Math.max(1, 6 - Math.floor(level / 10));
+};
+
+const pickWeightedIndex = (items: Array<{ level: number; name: string }>): number => {
+  const weights = items.map((item) => {
+    const lvl = Math.max(getPotionRequiredLevel(item.name), item.level ?? 1);
+    return potionWeightForLevel(lvl);
+  });
+  const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+  let roll = Math.random() * totalWeight;
+  for (let i = 0; i < items.length; i++) {
+    roll -= weights[i];
+    if (roll <= 0) return i;
+  }
+  return items.length - 1;
+};
 
 @Injectable()
-export class ShopService {
+export class ShopService implements OnModuleInit {
   constructor(
     private prisma: PrismaService,
     private itemGenerator: ItemGeneratorService,
   ) {}
+
+  async onModuleInit() {
+    for (const consumable of SEEDED_CONSUMABLES) {
+      await this.prisma.item.updateMany({
+        where: { name: consumable.name },
+        data: {
+          level: consumable.level,
+          price: consumable.price,
+          description: consumable.description,
+        },
+      });
+    }
+  }
 
   async getShop(userId: number, shopId: number) {
     return this.trade(userId, shopId, async (tx, shopId) => {
@@ -68,7 +101,9 @@ export class ShopService {
         refreshCost: SHOP_REFRESH_GEM_COST,
         items: stock
           .filter(({ item }) => {
-            const req = item.isConsumable ? item.level : requiredPlayerLevel(item.level);
+            const req = item.isConsumable
+              ? Math.max(getPotionRequiredLevel(item.name), item.level ?? 1)
+              : requiredPlayerLevel(item.level);
             return req <= profile.level;
           })
           .map(({ item, quantity }) => ({ ...ItemView.render(item), quantity })),
@@ -136,15 +171,32 @@ export class ShopService {
         isConsumable: true,
         name: { in: SEEDED_CONSUMABLES.map((item) => item.name) },
         equipmentType: { hasSome: [EquipmentType.POTION] },
-        level: { lte: playerLevel },
       },
-      select: { id: true, equipmentType: true },
+      select: { id: true, name: true, level: true, equipmentType: true },
     });
-    const availablePotions = [...consumables];
-    const potionCount = Math.min(2, SHOP_RESTOCK_ITEM_COUNT - stockCount, availablePotions.length);
-    for (let i = 0; i < potionCount; i++) {
-      const index = Math.floor(Math.random() * availablePotions.length);
-      const [item] = availablePotions.splice(index, 1);
+    const eligibleConsumables = consumables.filter((item) => {
+      const req = Math.max(getPotionRequiredLevel(item.name), item.level ?? 1);
+      return req <= playerLevel;
+    });
+
+    const freeAttributeItem =
+      playerLevel >= 30 ? eligibleConsumables.find((item) => item.name === 'Free Attribute Potion') : undefined;
+    const regularPotions = eligibleConsumables.filter((item) => item.name !== 'Free Attribute Potion');
+
+    const selectedPotions: typeof consumables = [];
+    if (freeAttributeItem && Math.random() < SHOP_FREE_ATTRIBUTE_POTION_CHANCE) {
+      selectedPotions.push(freeAttributeItem);
+    }
+
+    const availableRegular = [...regularPotions];
+    const maxPotions = Math.min(2, SHOP_RESTOCK_ITEM_COUNT - stockCount);
+    while (selectedPotions.length < maxPotions && availableRegular.length > 0) {
+      const index = pickWeightedIndex(availableRegular);
+      const [item] = availableRegular.splice(index, 1);
+      selectedPotions.push(item);
+    }
+
+    for (const item of selectedPotions) {
       await tx.shopStock.upsert({
         where: { shopId_itemId: { shopId, itemId: item.id } },
         create: { shopId, itemId: item.id, quantity: 1 },
@@ -231,7 +283,9 @@ export class ShopService {
         include: { item: true },
       });
       if (!stock) throw new NotFoundException('Item not found in shop');
-      const req = stock.item.isConsumable ? stock.item.level : requiredPlayerLevel(stock.item.level);
+      const req = stock.item.isConsumable
+        ? Math.max(getPotionRequiredLevel(stock.item.name), stock.item.level ?? 1)
+        : requiredPlayerLevel(stock.item.level);
       if (profile.level < req) {
         throw new BadRequestException(`This item requires player level ${req}`);
       }
