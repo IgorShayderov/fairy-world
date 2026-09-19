@@ -29,11 +29,13 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get('leaderboard')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
   @ApiOkResponse({
     description: 'Returns top players ranked by level and achievements',
   })
-  getLeaderboard() {
-    return this.usersService.getLeaderboard();
+  getLeaderboard(@Request() req: RequestWithUser) {
+    return this.usersService.getLeaderboard(req.user.sub);
   }
 
   @Post('me/dev-gems')

@@ -4,9 +4,9 @@ import { rollMonsterLootRarity, rollDungeonLootRarity, rollQuestLootRarity } fro
 describe('monster loot rarity', () => {
   it.each([
     [0.19, null],
-    [0.2, ItemRarity.COMMON],
-    [0.32, ItemRarity.MAGIC],
-    [0.58, ItemRarity.RARE],
+    [0.2, ItemRarity.MAGIC],
+    [0.64, ItemRarity.MAGIC],
+    [0.65, ItemRarity.RARE],
     [0.97, ItemRarity.UNIQUE],
   ])('uses improved dungeon loot odds at %s', (roll, expected) => {
     expect(rollDungeonLootRarity(() => roll)).toBe(expected);

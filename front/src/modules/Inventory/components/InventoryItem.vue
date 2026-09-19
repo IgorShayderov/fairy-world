@@ -19,7 +19,8 @@
   >
     <template v-if="item">
       <div class="relative flex h-full w-full items-center justify-center">
-        <img v-if="itemImage" :src="itemImage" alt="" class="h-12 w-12 object-contain" />
+        <PotionIcon v-if="isPotion(item)" :item="item" class="h-9 w-9 text-gray-700" />
+        <img v-else-if="itemImage" :src="itemImage" alt="" class="h-12 w-12 object-contain" />
         <QIcon v-else :name="itemIcon" size="36px" class="text-gray-700" />
         <span
           v-if="item.quantity && item.quantity > 1"
@@ -32,8 +33,13 @@
 
     <template v-else-if="occupiedItem">
       <div class="relative flex h-full w-full items-center justify-center">
+        <PotionIcon
+          v-if="isPotion(occupiedItem)"
+          :item="occupiedItem"
+          class="h-9 w-9 text-gray-700 opacity-50"
+        />
         <img
-          v-if="occupiedItemImage"
+          v-else-if="occupiedItemImage"
           :src="occupiedItemImage"
           alt=""
           class="h-12 w-12 object-contain opacity-50"
@@ -164,9 +170,13 @@ import { isTwoHanded } from '@/modules/Inventory/utils/equipment';
 import { getPotionRequiredLevel, isPotion } from '@/modules/Inventory/utils/potions';
 import { getRarityBadgeClass, removeRarityPrefix } from '@/modules/Inventory/utils/rarity';
 
+import PotionIcon from './icons/PotionIcon.vue';
+
 const CONFIGURED_ITEM_IMAGES: Record<string, string> = {
   'icon_sword.png': '/icons/items/icon_sword.png',
   'icon_sword_2.png': '/icons/items/icon_sword_2.png',
+  'icon_axe.png': '/icons/items/icon_axe.png',
+  'icon_axe_2.png': '/icons/items/icon_axe_2.png',
   'icon_shield.png': '/icons/items/icon_shield.png',
   'icon_shield_2.png': '/icons/items/icon_shield_2.png',
   'icon_armor.png': '/icons/items/icon_armor.png',
@@ -251,7 +261,27 @@ const itemIcon = computed(() => {
   return icons[type ?? 'UNKNOWN'] ?? 'help_outline';
 });
 
+const isAxe = (item: InventoryItemType | null | undefined) => {
+  const allText = [
+    item?.name,
+    item?.nameKey,
+    item?.tooltipName,
+    item?.description,
+    item?.icon,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  return allText.includes('axe');
+};
+
 const resolveItemImage = (item: InventoryItemType | null | undefined) => {
+  if (isAxe(item)) {
+    if (item?.icon === 'icon_axe_2.png' || item?.icon === 'icon_sword_2.png' || (item?.icon ?? '').includes('_2')) {
+      return '/icons/items/icon_axe_2.png';
+    }
+    return '/icons/items/icon_axe.png';
+  }
   const type = item?.equipmentType?.[0];
   return CONFIGURED_ITEM_IMAGES[item?.icon ?? ''] ?? ITEM_TYPE_IMAGES[type ?? ''];
 };

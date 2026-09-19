@@ -52,8 +52,8 @@ export const BASE_ITEMS: BaseItem[] = [
     name: 'Axe',
     equipmentType: EquipmentType.WEAPON,
     basePrice: 60,
-    icon: 'icon_sword.png',
-    iconVariants: ['icon_sword_2.png'],
+    icon: 'icon_axe.png',
+    iconVariants: ['icon_axe_2.png'],
     baseStats: {
       [StatType.DAMAGE]: 4,
     },

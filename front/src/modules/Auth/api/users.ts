@@ -39,7 +39,20 @@ export type ActiveBuff = {
   expiresAt: string;
 };
 
+export type LeaderboardEntry = {
+  rank: number;
+  userId: number;
+  name: string;
+  level: number;
+  killedMonsters: number;
+  questsCompleted: number;
+};
+
 export const usersApi = {
+  async getLeaderboard(): Promise<LeaderboardEntry[]> {
+    const { data } = await api.get<LeaderboardEntry[]>(routes.api.users.leaderboardPath());
+    return data;
+  },
   async claimDevGems(): Promise<void> {
     await api.post(routes.api.users.devGemsPath());
   },

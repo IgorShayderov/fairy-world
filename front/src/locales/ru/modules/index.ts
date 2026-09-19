@@ -4,6 +4,7 @@ import quests from './quests';
 import shop from './shop';
 
 const modules = {
+  leaderboard: { title: 'Лучшие игроки', description: 'Сильнейшие герои волшебного мира.', rank: '№', name: 'Имя', level: 'Уровень', monsters: 'Убито монстров', quests: 'Выполнено заданий', empty: 'Игроков пока нет.', error: 'Не удалось загрузить рейтинг.' },
   settings: { title: 'Настройки', language: 'Язык', languageHint: 'Выберите язык интерфейса. Изменения автоматически сохраняются на этом устройстве.' },
   quests,
   ...auth,
@@ -36,6 +37,7 @@ const modules = {
     unavailable: 'Скоро',
   },
   menu: {
+    leaderboard: 'Лучшие игроки',
     settings: 'Настройки',
     quests: 'Задания',
     gems: 'Магазин самоцветов',

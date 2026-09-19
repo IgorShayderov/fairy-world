@@ -83,7 +83,7 @@ describe('ItemGeneratorService', () => {
       name: 'Old ring',
       equipmentType: ['RING'],
       isConsumable: false,
-      stats: [{ stat: { name: 'CRIT' }, value: 9 }],
+      stats: [{ stat: { name: 'CRIT' }, value: 21 }],
       attributes: [],
     };
     findMany.mockResolvedValue([existing]);
@@ -117,7 +117,7 @@ describe('ItemGeneratorService', () => {
     await service.generate({ level: 100, equipmentType: EquipmentType.RING, rarity: ItemRarity.COMMON });
 
     const args = create.mock.calls[0]?.[0] as GeneratedItemCreateArgs;
-    expect(args.data.stats.create).toEqual([{ stat: { connect: { name: StatType.CRIT } }, value: 9 }]);
+    expect(args.data.stats.create).toEqual([{ stat: { connect: { name: StatType.CRIT } }, value: 21 }]);
   });
 
   it('keeps the original icon and can select the new variant', async () => {
@@ -155,6 +155,18 @@ describe('ItemGeneratorService', () => {
     const lvl1StatTotal = lvl1Args.data.stats.create.reduce((sum, s) => sum + s.value, 0);
     const lvl20StatTotal = lvl20Args.data.stats.create.reduce((sum, s) => sum + s.value, 0);
     expect(lvl20StatTotal).toBeGreaterThan(lvl1StatTotal * 2);
+  });
+
+  it('makes a level-twenty common weapon stronger in its base stat than a level-four unique weapon', async () => {
+    jest.spyOn(Math, 'random').mockReturnValue(0);
+    await service.generate({ level: 4, equipmentType: EquipmentType.WEAPON, rarity: ItemRarity.UNIQUE });
+    const low = create.mock.calls[0]?.[0] as GeneratedItemCreateArgs;
+    findMany.mockResolvedValue([]);
+    await service.generate({ level: 20, equipmentType: EquipmentType.WEAPON, rarity: ItemRarity.COMMON });
+    const high = create.mock.calls[1]?.[0] as GeneratedItemCreateArgs;
+    const total = (args: GeneratedItemCreateArgs) =>
+      args.data.stats.create.reduce((sum, entry) => sum + entry.value, 0);
+    expect(total(high)).toBeGreaterThan(total(low));
   });
 
   it('generates a two-handed sword with higher base damage than a regular sword', () => {

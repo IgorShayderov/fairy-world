@@ -8,6 +8,10 @@ import { getItemTypeLocaleKey } from '@/modules/Shop/utils/itemPresentation';
 describe('shop item presentation', () => {
   it('maps generated equipment types to short localized item names', () => {
     expect(getItemTypeLocaleKey(['WEAPON'])).toBe('profile.items.sword');
+    expect(getItemTypeLocaleKey(['WEAPON'], 'Deadly Axe of Wisdom')).toBe('profile.items.axe');
+    expect(getItemTypeLocaleKey(['WEAPON'], 'Iron Dagger')).toBe('profile.items.dagger');
+    expect(getItemTypeLocaleKey(['WEAPON'], 'Deadly Two-handed Sword')).toBe('profile.items.twoHandedSword');
+    expect(getItemTypeLocaleKey(['WEAPON'], 'Iron Sword')).toBe('profile.items.sword');
     expect(getItemTypeLocaleKey(['RING'])).toBe('profile.items.ring');
     expect(getItemTypeLocaleKey(['AMULET'])).toBe('profile.items.amulet');
     expect(getItemTypeLocaleKey([])).toBe('profile.items.unknown');

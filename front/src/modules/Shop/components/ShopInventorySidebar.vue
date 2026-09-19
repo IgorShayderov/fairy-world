@@ -18,8 +18,8 @@
         <div class="flex items-center gap-3 border-b border-gray-200 pb-2">
           <InventoryItem
             :item="{
-              name: itemTypeName(inv.item.equipmentType),
-              nameKey: itemTypeName(inv.item.equipmentType),
+              name: itemTypeName(inv.item.equipmentType, inv.item.name),
+              nameKey: itemTypeName(inv.item.equipmentType, inv.item.name),
               tooltipName: inv.item.name,
               level: inv.item.level ?? 1,
               requiredPlayerLevel: inv.item.requiredPlayerLevel ?? 1,
@@ -38,7 +38,7 @@
           />
           <div class="flex flex-col">
             <span class="max-w-[140px] truncate text-sm font-semibold text-gray-800">
-              {{ itemTypeName(inv.item.equipmentType) }}
+              {{ itemTypeName(inv.item.equipmentType, inv.item.name) }}
             </span>
             <span class="text-xs font-medium text-gray-500">×{{ inv.quantity }} шт.</span>
           </div>
@@ -110,14 +110,15 @@ defineEmits<{
 const { t } = useTranslation();
 const saleLineTotal = (price: number, quantity: number) =>
   quantity > 0 ? Math.max(1, Math.floor(price * 0.5 * quantity)) : 0;
-const itemTypeName = (equipmentTypes: EquipmentType[]) => t(getItemTypeLocaleKey(equipmentTypes));
+const itemTypeName = (equipmentTypes: EquipmentType[], name?: string) =>
+  t(getItemTypeLocaleKey(equipmentTypes, name));
 const findEquippedItem = (
   targetItem: { equipmentType?: EquipmentType[]; name?: string; isTwoHanded?: boolean }
 ): InventoryItemType | null => {
   return findEquippedItemForEntries(
     props.equippedItems,
     targetItem,
-    (entry) => itemTypeName(entry.item.equipmentType),
+    (entry) => itemTypeName(entry.item.equipmentType, entry.item.name),
     (rarity) => t(`profile.rarity.${rarity.toLowerCase()}`)
   );
 };

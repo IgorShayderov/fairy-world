@@ -97,7 +97,7 @@ defineEmits<{
 }>();
 
 const { t } = useTranslation();
-const itemTypeName = computed(() => t(getItemTypeLocaleKey(props.item.equipmentType)));
+const itemTypeName = computed(() => t(getItemTypeLocaleKey(props.item.equipmentType, props.item.name)));
 const rarityName = computed(() => t(`profile.rarity.${props.item.rarity.toLowerCase()}`));
 const rarityTextClass = computed(() => getRarityTextClass(props.item.rarity));
 const description = computed(() => removeRarityPrefix(props.item.description, props.item.rarity) || '—');
