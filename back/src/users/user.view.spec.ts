@@ -242,4 +242,29 @@ describe('UserView.renderCurrent', () => {
     expect(result.properties).toContainEqual(expect.objectContaining({ name: 'DAMAGE', value: 21, buffBonus: 15 }));
     expect(result.properties.find(({ name }) => name === 'DEFENSE')).not.toHaveProperty('buffBonus');
   });
+
+  it('caps defense at fifty percent even with an active defense blessing', () => {
+    const user = {
+      id: 1,
+      name: 'Tank',
+      email: 'tank@example.com',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      gameProfile: {
+        gold: 0,
+        gems: 0,
+        experience: 0,
+        level: 20,
+        freeAttributes: 0,
+        mapPositionX: 1470,
+        mapPositionY: 1040,
+        inventory: [],
+        profileAttributes: [],
+        profileStats: [{ value: 1000, stat: { name: 'DEFENSE', description: 'Defense' } }],
+        buffs: [{ type: 'DEFENSE', value: 1000, expiresAt: new Date(Date.now() + 60_000) }],
+      },
+    } as unknown as Parameters<typeof UserView.renderCurrent>[0];
+    const defense = UserView.renderCurrent(user).properties.find(({ name }) => name === 'DEFENSE');
+    expect(defense?.value).toBe(50);
+  });
 });

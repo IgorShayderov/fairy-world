@@ -461,22 +461,34 @@ export class UsersService {
     });
   }
 
-  async getLeaderboard(limit = 50) {
+  async getLeaderboard(currentUserId: number, topLimit = 10) {
     const profiles = await this.prisma.gameProfile.findMany({
-      take: limit,
-      orderBy: [{ level: 'desc' }, { killedMonsters: 'desc' }, { experience: 'desc' }],
+      orderBy: [{ level: 'desc' }, { killedMonsters: 'desc' }, { experience: 'desc' }, { id: 'asc' }],
       include: {
-        user: { select: { name: true } },
+        user: { select: { id: true, name: true } },
         _count: { select: { quests: { where: { completedAt: { not: null } } } } },
       },
     });
 
-    return profiles.map((profile, index) => ({
+    const ranked = profiles.map((profile, index) => ({
       rank: index + 1,
+      userId: profile.user.id,
       name: profile.user.name,
       level: profile.level,
       killedMonsters: profile.killedMonsters,
       questsCompleted: profile._count.quests,
     }));
+
+    const includedIndexes = new Set<number>();
+    for (let index = 0; index < Math.min(topLimit, ranked.length); index += 1) includedIndexes.add(index);
+
+    const currentIndex = ranked.findIndex(({ userId }) => userId === currentUserId);
+    if (currentIndex >= topLimit) {
+      for (const index of [currentIndex - 1, currentIndex, currentIndex + 1]) {
+        if (index >= 0 && index < ranked.length) includedIndexes.add(index);
+      }
+    }
+
+    return [...includedIndexes].sort((a, b) => a - b).map((index) => ranked[index]);
   }
 }

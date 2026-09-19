@@ -4,7 +4,6 @@ import { TOWNS, townAt } from '../locations/towns';
 import { generateTownOffers } from './quest-board';
 import { habitatForMonster } from '../monsters/monster-habitats';
 import type { Quest, Prisma } from '../../generated/client';
-import { ItemGeneratorService } from '../items/item-generator.service';
 import { progressionAfterExperience } from '../users/level-progression';
 
 const renderQuest = (quest: Quest) => ({
@@ -15,10 +14,7 @@ const renderQuest = (quest: Quest) => ({
 
 @Injectable()
 export class QuestsService {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly itemGenerator: ItemGeneratorService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async deliver(userId: number, questId: number) {
     return this.prisma.$transaction(async (tx) => {

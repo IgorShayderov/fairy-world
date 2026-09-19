@@ -2,7 +2,6 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { QuestsService } from './quests.service';
 import { habitatForMonster } from '../monsters/monster-habitats';
-import { ItemGeneratorService } from '../items/item-generator.service';
 
 describe('QuestsService', () => {
   const profile = { id: 5, gems: 60, mapPositionX: 1470, mapPositionY: 1040 };
@@ -32,8 +31,7 @@ describe('QuestsService', () => {
     },
     playerQuest: { findMany: jest.fn(), findUnique: jest.fn(), upsert: jest.fn(), update: jest.fn(), count: jest.fn() },
   };
-  const items = { generate: jest.fn() };
-  const service = new QuestsService(prisma as unknown as PrismaService, items as unknown as ItemGeneratorService);
+  const service = new QuestsService(prisma as unknown as PrismaService);
   beforeEach(() => {
     jest.restoreAllMocks();
     jest.resetAllMocks();
@@ -78,7 +76,6 @@ describe('QuestsService', () => {
     prisma.playerQuest.findUnique.mockResolvedValue({ quest: { ...quest, destinationTownId: 2 } });
     await expect(service.deliver(7, 1)).rejects.toThrow(BadRequestException);
     expect(prisma.playerQuest.update).not.toHaveBeenCalled();
-    expect(items.generate).not.toHaveBeenCalled();
   });
 
   it('delivers at the destination once, grants XP and gold, and does not grant items', async () => {
@@ -87,7 +84,6 @@ describe('QuestsService', () => {
     prisma.playerQuest.findUnique.mockResolvedValue({
       quest: { ...quest, destinationTownId: 1, rewardGold: 50, rewardExperience: 100 },
     });
-    items.generate.mockResolvedValue({ id: 42 });
     await service.deliver(7, 1);
     expect(prisma.playerQuest.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: { progress: 1, completedAt: expect.any(Date) as Date } }),
@@ -101,7 +97,6 @@ describe('QuestsService', () => {
         freeAttributes: { increment: 5 },
       },
     });
-    expect(items.generate).not.toHaveBeenCalled();
     expect(prisma.inventoryItem.create).not.toHaveBeenCalled();
     prisma.playerQuest.findUnique.mockResolvedValue({ completedAt: new Date() });
     await service.deliver(7, 1);

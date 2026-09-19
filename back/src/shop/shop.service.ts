@@ -56,6 +56,10 @@ export class ShopService implements OnModuleInit {
         },
       });
     }
+    await this.prisma.item.updateMany({
+      where: { name: { contains: 'Axe' } },
+      data: { icon: 'icon_axe.png' },
+    });
   }
 
   async getShop(userId: number, shopId: number) {

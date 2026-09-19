@@ -502,32 +502,47 @@ describe('UsersService', () => {
           id: 1,
           level: 25,
           killedMonsters: 100,
-          user: { name: 'DragonSlayer' },
+          user: { id: 11, name: 'DragonSlayer' },
           _count: { quests: 12 },
         },
         {
           id: 2,
           level: 20,
           killedMonsters: 80,
-          user: { name: 'Mage' },
+          user: { id: 12, name: 'Mage' },
           _count: { quests: 8 },
         },
       ];
       mockPrismaService.gameProfile.findMany.mockResolvedValue(profiles);
 
-      const result = await service.getLeaderboard(10);
+      const result = await service.getLeaderboard(12);
       expect(result).toEqual([
-        { rank: 1, name: 'DragonSlayer', level: 25, killedMonsters: 100, questsCompleted: 12 },
-        { rank: 2, name: 'Mage', level: 20, killedMonsters: 80, questsCompleted: 8 },
+        { rank: 1, userId: 11, name: 'DragonSlayer', level: 25, killedMonsters: 100, questsCompleted: 12 },
+        { rank: 2, userId: 12, name: 'Mage', level: 20, killedMonsters: 80, questsCompleted: 8 },
       ]);
       expect(mockPrismaService.gameProfile.findMany).toHaveBeenCalledWith({
-        take: 10,
-        orderBy: [{ level: 'desc' }, { killedMonsters: 'desc' }, { experience: 'desc' }],
+        orderBy: [{ level: 'desc' }, { killedMonsters: 'desc' }, { experience: 'desc' }, { id: 'asc' }],
         include: {
-          user: { select: { name: true } },
+          user: { select: { id: true, name: true } },
           _count: { select: { quests: { where: { completedAt: { not: null } } } } },
         },
       });
+    });
+
+    it('returns the top ten plus the current player and adjacent ranks when outside the top ten', async () => {
+      const profiles = Array.from({ length: 15 }, (_, index) => ({
+        id: index + 1,
+        level: 100 - index,
+        killedMonsters: 1000 - index,
+        user: { id: index + 1, name: `Player ${index + 1}` },
+        _count: { quests: index },
+      }));
+      mockPrismaService.gameProfile.findMany.mockResolvedValue(profiles);
+
+      const result = await service.getLeaderboard(13);
+
+      expect(result.map(({ rank }) => rank)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14]);
+      expect(result.find(({ userId }) => userId === 13)).toMatchObject({ rank: 13, name: 'Player 13' });
     });
   });
 

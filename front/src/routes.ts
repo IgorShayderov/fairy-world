@@ -28,6 +28,7 @@ const routes = {
       messagePath: () => [BASE_API_PATH, 'chat', 'messages'].join('/'),
     },
     users: {
+      leaderboardPath: () => [BASE_API_PATH, 'users', 'leaderboard'].join('/'),
       devGemsPath: () => [BASE_API_PATH, 'users', 'me', 'dev-gems'].join('/'),
       mePath: () => [BASE_API_PATH, 'users', 'me'].join('/'),
       attributesPath: () => [BASE_API_PATH, 'users', 'me', 'attributes'].join('/'),
@@ -66,6 +67,7 @@ const routes = {
   },
   rootPath: () => '/',
   settingsPath: () => '/settings',
+  leaderboardPath: () => '/leaderboard',
   questsPath: () => '/quests',
   loginPath: () => '/login',
   profilePath: () => '/profile',

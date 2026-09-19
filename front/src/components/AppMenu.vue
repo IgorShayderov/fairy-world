@@ -74,6 +74,12 @@ const menuItems = computed(() => [
     route: routes.questsPath(),
     icon: 'M9 5H5v16h14V5h-4M9 3h6v4H9V3Zm-1 9h8m-8 4h6',
   },
+  {
+    id: 'leaderboard',
+    nameKey: 'menu.leaderboard',
+    route: routes.leaderboardPath(),
+    icon: 'M8 21h8m-4-4v4M7 4h10v4a5 5 0 01-10 0V4Zm0 2H4v2a4 4 0 004 4m9-6h3v2a4 4 0 01-4 4',
+  },
 
   ...(currentUser.user?.currentShopId && inTown.value
     ? [

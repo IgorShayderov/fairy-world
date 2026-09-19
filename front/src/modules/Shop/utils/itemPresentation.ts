@@ -15,7 +15,12 @@ const ITEM_TYPE_LOCALE_KEYS: Record<EquipmentType, string> = {
   UNKNOWN: 'unknown',
 };
 
-export const getItemTypeLocaleKey = (equipmentTypes: EquipmentType[]): string => {
+export const getItemTypeLocaleKey = (equipmentTypes: EquipmentType[], itemName?: string): string => {
+  const name = (itemName ?? '').toLowerCase();
+  if (name.includes('axe')) return 'profile.items.axe';
+  if (name.includes('two-handed') || name.includes('two handed')) return 'profile.items.twoHandedSword';
+  if (name.includes('dagger')) return 'profile.items.dagger';
+
   const type = equipmentTypes[0] ?? 'UNKNOWN';
   return `profile.items.${ITEM_TYPE_LOCALE_KEYS[type]}`;
 };

@@ -122,7 +122,7 @@ const findEquippedItem = (
   return findEquippedItemForEntries(
     equippedItems.value,
     targetItem,
-    (entry) => t(getItemTypeLocaleKey(entry.item.equipmentType)),
+    (entry) => t(getItemTypeLocaleKey(entry.item.equipmentType, entry.item.name)),
     (rarity) => t(`profile.rarity.${rarity.toLowerCase()}`)
   );
 };

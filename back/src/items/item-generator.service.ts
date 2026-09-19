@@ -255,7 +255,7 @@ export class ItemGeneratorService {
   }
 
   private scaleBaseValue(value: number, level: number): number {
-    return Math.max(1, Math.round(value * (1 + (level - 1) * 0.08)));
+    return Math.max(1, Math.round(value * (1 + (level - 1) * 0.2)));
   }
 
   private generateDescription(rarity: ItemRarity, baseItem: BaseItem, level: number): string {

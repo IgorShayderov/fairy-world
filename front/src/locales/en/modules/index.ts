@@ -4,6 +4,7 @@ import quests from './quests';
 import shop from './shop';
 
 const modules = {
+  leaderboard: { title: 'Top players', description: 'The strongest adventurers in the realm.', rank: '#', name: 'Name', level: 'Level', monsters: 'Monsters killed', quests: 'Quests completed', empty: 'No players yet.', error: 'Could not load the leaderboard.' },
   settings: { title: 'Settings', language: 'Language', languageHint: 'Choose your interface language. Changes are saved automatically on this device.' },
   quests,
   auth,
@@ -36,6 +37,7 @@ const modules = {
     unavailable: 'Coming soon',
   },
   menu: {
+    leaderboard: 'Top players',
     settings: 'Settings',
     quests: 'Quests',
     gems: 'Gem store',

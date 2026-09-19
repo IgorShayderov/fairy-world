@@ -111,8 +111,8 @@ describe('UsersController', () => {
     const leaderboard = [{ rank: 1, name: 'Alice', level: 10, killedMonsters: 15, questsCompleted: 3 }];
     mockUsersService.getLeaderboard.mockResolvedValue(leaderboard);
 
-    await expect(controller.getLeaderboard()).resolves.toEqual(leaderboard);
-    expect(mockUsersService.getLeaderboard).toHaveBeenCalled();
+    await expect(controller.getLeaderboard({ user: { sub: 7 } } as never)).resolves.toEqual(leaderboard);
+    expect(mockUsersService.getLeaderboard).toHaveBeenCalledWith(7);
   });
 
   it('drops an inventory item for the authenticated player', async () => {
