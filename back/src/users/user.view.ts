@@ -223,13 +223,7 @@ export class UserView {
 
     const renderedProperties = [...properties.values()].map((property) => {
       const stat = property.name as StatType;
-      if (
-        stat !== StatType.CRIT &&
-        stat !== StatType.DODGE &&
-        stat !== StatType.CRIT_DAMAGE &&
-        stat !== StatType.DEFENSE
-      )
-        return property;
+      if (stat !== StatType.CRIT && stat !== StatType.DODGE && stat !== StatType.CRIT_DAMAGE) return property;
 
       const rating = property.value;
       const ratingWithoutEquipment = rating - property.equipmentBonus;

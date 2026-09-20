@@ -225,81 +225,27 @@ describe('UsersService', () => {
       expect(mockPrismaService.inventoryItem.delete).toHaveBeenCalledWith({ where: { id: 10 } });
     });
 
-    it('equips at most five health potions from a backpack stack', async () => {
-      mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4 });
+    it('equips an amulet in its dedicated slot', async () => {
+      mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4, level: 1 });
       mockPrismaService.inventoryItem.findFirst
         .mockResolvedValueOnce({
           id: 12,
           gameProfileId: 4,
           itemId: 5,
-          quantity: 8,
+          quantity: 1,
           isEquiped: false,
           slot: null,
-          item: { name: 'Lesser Health Potion', equipmentType: ['POTION'] },
+          item: { name: 'Silver Amulet', level: 1, equipmentType: ['AMULET'] },
         })
         .mockResolvedValueOnce(null);
 
-      await expect(service.equipItem(7, { inventoryItemId: 12, slot: 'potion' })).resolves.toEqual({
+      await expect(service.equipItem(7, { inventoryItemId: 12, slot: 'amulet' })).resolves.toEqual({
         success: true,
       });
       expect(mockPrismaService.inventoryItem.update).toHaveBeenCalledWith({
         where: { id: 12 },
-        data: { quantity: { decrement: 5 } },
+        data: { quantity: 1, isEquiped: true, slot: 'amulet' },
       });
-      expect(mockPrismaService.inventoryItem.create).toHaveBeenCalledWith({
-        data: { gameProfileId: 4, itemId: 5, quantity: 5, isEquiped: true, slot: 'potion' },
-      });
-    });
-
-    it('fills an equipped health-potion stack only to five', async () => {
-      mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4 });
-      mockPrismaService.inventoryItem.findFirst
-        .mockResolvedValueOnce({
-          id: 12,
-          gameProfileId: 4,
-          itemId: 5,
-          quantity: 4,
-          isEquiped: false,
-          slot: null,
-          item: { name: 'Lesser Health Potion', equipmentType: ['POTION'] },
-        })
-        .mockResolvedValueOnce({
-          id: 15,
-          gameProfileId: 4,
-          itemId: 5,
-          quantity: 3,
-          isEquiped: true,
-          slot: 'potion',
-          item: { name: 'Lesser Health Potion', equipmentType: ['POTION'] },
-        });
-
-      await service.equipItem(7, { inventoryItemId: 12, slot: 'potion' });
-
-      expect(mockPrismaService.inventoryItem.update).toHaveBeenNthCalledWith(1, {
-        where: { id: 15 },
-        data: { quantity: { increment: 2 } },
-      });
-      expect(mockPrismaService.inventoryItem.update).toHaveBeenNthCalledWith(2, {
-        where: { id: 12 },
-        data: { quantity: { decrement: 2 } },
-      });
-    });
-
-    it('rejects equipping a non-health potion', async () => {
-      mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4 });
-      mockPrismaService.inventoryItem.findFirst.mockResolvedValue({
-        id: 13,
-        gameProfileId: 4,
-        itemId: 6,
-        quantity: 1,
-        isEquiped: false,
-        slot: null,
-        item: { name: 'Mild Attack Potion', equipmentType: ['POTION'] },
-      });
-
-      await expect(service.equipItem(7, { inventoryItemId: 13, slot: 'potion' })).rejects.toThrow(
-        'Only health potions can be equipped',
-      );
     });
 
     it('rejects equipping a two-handed sword in the right hand', async () => {

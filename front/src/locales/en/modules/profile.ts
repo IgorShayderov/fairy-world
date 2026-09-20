@@ -15,12 +15,12 @@ export default {
   noActiveBuffs: 'No active buffs',
   buffDescriptions: {
     DAMAGE: 'Increases damage by {{value}}.',
-    DEFENSE: 'Increases defense rating by {{value}}.',
+    DEFENSE: 'Increases Defense by {{value}}, blocking that much additional damage.',
     EXPERIENCE: 'Increases experience gained by {{value}}%.',
   },
   curseDescriptions: {
     DAMAGE: 'Decreases damage by {{value}}.',
-    DEFENSE: 'Decreases defense rating by {{value}}.',
+    DEFENSE: 'Decreases Defense by {{value}}, allowing that much additional damage through.',
     EXPERIENCE: 'Decreases experience gained by {{value}}%.',
   },
   rating: 'rating',
@@ -58,10 +58,11 @@ export default {
   },
   attributeDescriptions: {
     STRENGTH: 'Each point increases Damage by 1.',
-    AGILITY: 'Each point adds 0.5 Dodge and Critical Chance rating. Final percentages scale with your level.',
+    AGILITY: 'Each point adds 1 Dodge and 1 Critical Chance rating. Final percentages scale with your level.',
     ENDURANCE: 'Each point increases Health by 10 and Defense by 1.',
     WISDOM: 'Each point increases Mana by 5.',
-    CHARISMA: 'Each point adds 1 Critical Damage rating. Its final benefit scales with level and diminishing returns.',
+    CHARISMA:
+      'Each point increases Health by 5 and adds 1 Critical Damage rating. Its critical benefit scales with level and diminishing returns.',
   },
   propertyNames: {
     HEALTH: 'Health',
@@ -76,14 +77,14 @@ export default {
     HEALTH: 'The maximum amount of damage you can survive before being defeated.',
     MANA: 'The maximum resource available for casting spells and using magical abilities.',
     DAMAGE: 'The base damage dealt by your attacks.',
-    DEFENSE: 'Your final damage reduction. More Defense is required to retain the same reduction at higher levels.',
+    DEFENSE: 'Blocks this many points of incoming damage. A successful hit always deals at least 1 damage.',
     CRIT: 'Your final chance to land a critical hit. It cannot exceed 50%.',
     DODGE: 'Your final chance to avoid an enemy attack. It cannot exceed 50%.',
     CRIT_DAMAGE: 'Damage dealt by a critical hit. It starts at 150%, has diminishing returns, and cannot exceed 300%.',
   },
   propertyFormulas: {
-    defense: 'damage reduction % = defense ÷ (defense + max(level, 7) × 10) × 100',
-    chance: 'final % = min(50%, max(0, rating) × 65 ÷ max(level, 35))',
+    defense: 'damage taken = max(1, incoming damage - defense)',
+    chance: 'final % = min(50%, max(0, rating) × 30 ÷ max(level, 35))',
     criticalDamage:
       'effective rating = rating × 15 ÷ max(level, 70); final % = min(300%, 150% + 150% × effective rating ÷ (effective rating + 6))',
   },
@@ -94,6 +95,9 @@ export default {
     legs: 'Legs',
     feet: 'Feet',
     accessory: 'Accessory',
+    ring: 'Ring',
+    amulet: 'Amulet',
+    banner: 'Banner',
     leftHand: 'Left Hand',
     rightHand: 'Right Hand',
     empty: 'Empty',

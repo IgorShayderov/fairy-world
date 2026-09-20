@@ -54,17 +54,17 @@ export const useInventoryStore = defineStore('inventory', () => {
     },
     {
       id: 'accessory',
-      labelKey: 'profile.slots.accessory',
+      labelKey: 'profile.slots.ring',
       item: null,
     },
     {
-      id: 'scroll',
-      labelKey: 'profile.slots.empty',
+      id: 'amulet',
+      labelKey: 'profile.slots.amulet',
       item: null,
     },
     {
-      id: 'potion',
-      labelKey: 'profile.slots.empty',
+      id: 'banner',
+      labelKey: 'profile.slots.banner',
       item: null,
     },
   ]);

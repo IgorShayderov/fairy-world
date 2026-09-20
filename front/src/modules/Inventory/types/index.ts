@@ -30,7 +30,7 @@ export interface CraftInventoryItem {
 }
 
 export type EquipmentSlotId =
-  'head' | 'body' | 'left-hand' | 'right-hand' | 'hands' | 'legs' | 'feet' | 'accessory' | 'scroll' | 'potion';
+  'head' | 'body' | 'left-hand' | 'right-hand' | 'hands' | 'legs' | 'feet' | 'accessory' | 'amulet' | 'banner';
 
 export interface ItemModifier {
   name: string;

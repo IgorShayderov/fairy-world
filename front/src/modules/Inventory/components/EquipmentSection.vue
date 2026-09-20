@@ -20,7 +20,7 @@
               '. head .'
               'left-hand body right-hand'
               'hands legs feet'
-              'accessory scroll potion';
+              'accessory amulet banner';
           "
         >
           <div
@@ -201,14 +201,14 @@ import type { EffectiveModifier, EquipmentSlotId, EquipmentSlot, InventoryItemTy
 
 import { isTwoHanded } from '@/modules/Inventory/utils/equipment';
 
+import AmuletIcon from './icons/AmuletIcon.vue';
+import BannerIcon from './icons/BannerIcon.vue';
 import BodyArmorIcon from './icons/BodyArmorIcon.vue';
 import BootsIcon from './icons/BootsIcon.vue';
 import GlovesIcon from './icons/GlovesIcon.vue';
 import HelmetIcon from './icons/HelmetIcon.vue';
 import LegsArmorIcon from './icons/LegsArmorIcon.vue';
-import PotionIcon from './icons/PotionIcon.vue';
 import RingIcon from './icons/RingIcon.vue';
-import ScrollIcon from './icons/ScrollIcon.vue';
 import ShieldIcon from './icons/ShieldIcon.vue';
 import WeaponIcon from './icons/WeaponIcon.vue';
 import InventoryItem from './InventoryItem.vue';
@@ -294,14 +294,13 @@ const experienceProgress = computed(() => {
   return Math.min(100, Math.max(0, Math.round((props.playerExperience / props.experienceToNextLevel) * 100)));
 });
 
-const percentageProperties = new Set(['DEFENSE', 'CRIT', 'DODGE', 'CRIT_DAMAGE']);
+const percentageProperties = new Set(['CRIT', 'DODGE', 'CRIT_DAMAGE']);
 const formatPropertyValue = (name: string, value: number) =>
   percentageProperties.has(name) ? `${value}%` : String(value);
 
 const propertyFormula = (property: EffectiveModifier) => {
-  if (!percentageProperties.has(property.name)) return null;
-
   if (property.name === 'DEFENSE') return t('profile.propertyFormulas.defense');
+  if (!percentageProperties.has(property.name)) return null;
 
   return property.name === 'CRIT_DAMAGE'
     ? t('profile.propertyFormulas.criticalDamage')
@@ -333,8 +332,8 @@ const emptyIcons: Record<string, Component | string> = {
   legs: LegsArmorIcon,
   feet: BootsIcon,
   accessory: RingIcon,
-  scroll: ScrollIcon,
-  potion: PotionIcon,
+  amulet: AmuletIcon,
+  banner: BannerIcon,
 };
 
 const nextBlock = () => {

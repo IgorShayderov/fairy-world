@@ -182,6 +182,7 @@ export const rollCraftMaterialCode = (random: () => number = Math.random): strin
 export const upgradeValueForLevel = (type: CraftUpgradeType, level: number): number => {
   const tier = 1 + Math.floor(Math.max(0, level - 5) / 3);
   if (type === CraftUpgradeType.GOLD || type === CraftUpgradeType.EXPERIENCE) return tier * 2;
+  if (type === CraftUpgradeType.DEFENSE) return tier * 2;
   if (type === CraftUpgradeType.HEALTH) return tier * 10;
   return tier;
 };

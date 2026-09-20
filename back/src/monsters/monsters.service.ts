@@ -29,6 +29,9 @@ export const rollDeathCurse = (
   return DEATH_CURSES[Math.floor(random() * DEATH_CURSES.length)];
 };
 
+export const damageAfterDefense = (incomingDamage: number, defense: number): number =>
+  Math.max(1, Math.round(incomingDamage - defense));
+
 type BattleStatus = 'ACTIVE' | 'VICTORY' | 'DEFEAT';
 type Combatant = {
   name: string;
@@ -146,7 +149,7 @@ export class MonstersService {
     battle.monster.health *= 2;
     battle.monster.maxHealth *= 2;
     battle.monster.damage = Math.ceil(battle.monster.damage * 1.5);
-    battle.monster.defense = Math.min(60, battle.monster.defense + 5);
+    battle.monster.defense += 5;
     battle.monster.rewardGold *= 3;
     battle.monster.rewardExperience *= 3;
     this.battles.set(battle.id, battle);
@@ -370,7 +373,7 @@ export class MonstersService {
         health: monsterHealth,
         maxHealth: monsterHealth,
         damage: 3 + monster.level * 2 + attribute('STRENGTH'),
-        defense: Math.min(45, monster.level * 0.8 + attribute('ENDURANCE')),
+        defense: Math.max(0, Math.round(monster.level * 0.8 + attribute('ENDURANCE'))),
         dodge: Math.min(30, monster.level * 0.3 + attribute('AGILITY')),
         criticalChance: Math.min(25, 3 + monster.level * 0.2),
         criticalDamage: 140,
@@ -387,7 +390,7 @@ export class MonstersService {
     }
     const critical = Math.random() * 100 < attacker.criticalChance;
     const attackDamage = attacker.damage * (critical ? attacker.criticalDamage / 100 : 1);
-    const damage = Math.max(1, Math.round(attackDamage * (1 - defender.defense / 100)));
+    const damage = damageAfterDefense(attackDamage, defender.defense);
     defender.health = Math.max(0, defender.health - damage);
     events.push({ actor, damage, critical, dodged: false });
   }

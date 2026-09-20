@@ -163,35 +163,28 @@ api.interceptors.response.use(
     const isExcluded = config?.url ? EXCLUDED_ROUTES.some((route) => config.url.includes(route)) : false;
 
     if (error instanceof HttpError && error.status === 401 && config && !options._retry && !isExcluded) {
-      // Если рефреш УЖЕ идет, ставим текущий запрос в очередь ожидания
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         })
           .then(() => {
-            // ВАЖНО: передаем options с флагом, чтобы запросы из очереди тоже не зациклились
             return makeRequest(config.url, { ...options, _retry: true } as RequestInit);
           })
           .catch((queueError: unknown) => {
-            // Оборачиваем ошибку очереди для линтера (Строка ~171)
             const queueErrInstance = queueError instanceof Error ? queueError : new Error(String(queueError));
             return Promise.reject(queueErrInstance);
           });
       }
 
-      // Это первый упавший запрос. Помечаем его, чтобы не уйти в бесконечный цикл
       options._retry = true;
       isRefreshing = true;
 
       try {
-        // ТУТ ВЫЗЫВАЕШЬ СВОЙ АПИ РЕФРЕША
         await refresh();
         processQueue(null);
 
-        // Повторяем наш изначальный запрос
         return await makeRequest(config.url, config.options);
       } catch (refreshError: unknown) {
-        // Если рефреш не удался (например, рефреш-токен тоже протух)
         const refreshErrInstance = refreshError instanceof Error ? refreshError : new Error(String(refreshError));
 
         processQueue(refreshErrInstance);
