@@ -294,13 +294,14 @@ const experienceProgress = computed(() => {
   return Math.min(100, Math.max(0, Math.round((props.playerExperience / props.experienceToNextLevel) * 100)));
 });
 
-const percentageProperties = new Set(['CRIT', 'DODGE', 'CRIT_DAMAGE']);
+const percentageProperties = new Set(['DEFENSE', 'CRIT', 'DODGE', 'CRIT_DAMAGE']);
 const formatPropertyValue = (name: string, value: number) =>
   percentageProperties.has(name) ? `${value}%` : String(value);
 
 const propertyFormula = (property: EffectiveModifier) => {
-  if (property.name === 'DEFENSE') return t('profile.propertyFormulas.defense');
   if (!percentageProperties.has(property.name)) return null;
+
+  if (property.name === 'DEFENSE') return t('profile.propertyFormulas.defense');
 
   return property.name === 'CRIT_DAMAGE'
     ? t('profile.propertyFormulas.criticalDamage')

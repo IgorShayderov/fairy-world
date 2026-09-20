@@ -23,6 +23,12 @@ export const convertRatingToPercentage = (stat: StatType, rating: number, level:
     const diminishingBonus = (availableBonus * effectiveRating) / (effectiveRating + CRITICAL_DAMAGE_RATING_PIVOT);
     return roundPercentage(Math.min(MAX_CRITICAL_DAMAGE_PERCENT, BASE_CRITICAL_DAMAGE_PERCENT + diminishingBonus));
   }
+  if (stat === StatType.DEFENSE) {
+    const levelPressure = Math.max(7, level) * 10;
+    const percentage = (nonNegativeRating / (nonNegativeRating + levelPressure)) * 100;
+    return roundPercentage(Math.min(50, percentage));
+  }
+
   return rating;
 };
 
@@ -67,7 +73,7 @@ export const PROPERTY_DESCRIPTIONS: Record<StatType, string> = {
   [StatType.HEALTH]: 'Maximum health points.',
   [StatType.MANA]: 'Maximum mana points.',
   [StatType.DAMAGE]: 'Base damage dealt by attacks.',
-  [StatType.DEFENSE]: 'Blocks this many points of incoming damage. A successful hit always deals at least 1 damage.',
+  [StatType.DEFENSE]: 'Final damage reduction percentage, scaled against the player level.',
   [StatType.CRIT]: 'Final critical-hit chance, capped at 50%.',
   [StatType.DODGE]: 'Final chance to avoid an attack, capped at 50%.',
   [StatType.CRIT_DAMAGE]: 'Final critical-hit damage multiplier, from a 150% base up to a 300% maximum.',

@@ -203,18 +203,20 @@ describe('UserView.renderCurrent', () => {
     expect(result.properties).toContainEqual({
       name: 'DEFENSE',
       description: 'Damage reduction',
-      baseValue: 5,
-      attributeBonus: 5,
-      equipmentBonus: 3,
-      value: 13,
+      baseValue: 6.7,
+      attributeBonus: 5.8,
+      equipmentBonus: 3.2,
+      value: 15.7,
+      rating: 13,
+      equipmentRatingBonus: 3,
     });
     expect(result.properties).toContainEqual({
       name: 'CRIT',
       description: 'Final critical-hit chance, capped at 50%.',
       baseValue: 0,
-      attributeBonus: 4.3,
-      equipmentBonus: 3.4,
-      value: 7.7,
+      attributeBonus: 2.9,
+      equipmentBonus: 2.2,
+      value: 5.1,
       rating: 9,
       equipmentRatingBonus: 4,
     });
@@ -252,7 +254,7 @@ describe('UserView.renderCurrent', () => {
     expect(result.properties.find(({ name }) => name === 'DEFENSE')).not.toHaveProperty('buffBonus');
   });
 
-  it('adds active defense as flat blocking points', () => {
+  it('caps defense at fifty percent even with an active defense blessing', () => {
     const user = {
       id: 1,
       name: 'Tank',
@@ -274,8 +276,6 @@ describe('UserView.renderCurrent', () => {
       },
     } as unknown as Parameters<typeof UserView.renderCurrent>[0];
     const defense = UserView.renderCurrent(user).properties.find(({ name }) => name === 'DEFENSE');
-    expect(defense).toEqual(
-      expect.objectContaining({ value: 2005, baseValue: 1000, attributeBonus: 5, buffBonus: 1000 }),
-    );
+    expect(defense?.value).toBe(50);
   });
 });

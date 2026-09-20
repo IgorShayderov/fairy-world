@@ -20,7 +20,7 @@ export const SEEDED_CONSUMABLES = [
   },
   {
     name: 'Lesser Defense Potion',
-    description: 'Increases Defense by 5 for 4 hours, blocking 5 additional damage per hit.',
+    description: 'Increases Defense rating by 5 for 4 hours.',
     price: 40,
     rarity: ItemRarity.COMMON,
     equipmentType: EquipmentType.POTION,
@@ -46,7 +46,7 @@ export const SEEDED_CONSUMABLES = [
   },
   {
     name: 'Medium Defense Potion',
-    description: 'Increases Defense by 10 for 4 hours, blocking 10 additional damage per hit.',
+    description: 'Increases Defense rating by 10 for 4 hours.',
     price: 90,
     rarity: ItemRarity.MAGIC,
     equipmentType: EquipmentType.POTION,
@@ -72,7 +72,7 @@ export const SEEDED_CONSUMABLES = [
   },
   {
     name: 'Mild Defense Potion',
-    description: 'Increases Defense by 20 for 4 hours, blocking 20 additional damage per hit.',
+    description: 'Increases Defense rating by 20 for 4 hours.',
     price: 180,
     rarity: ItemRarity.MAGIC,
     equipmentType: EquipmentType.POTION,
@@ -106,7 +106,7 @@ export const SEEDED_CONSUMABLES = [
   },
   {
     name: 'Greater Defense Potion',
-    description: 'Increases Defense by 30 for 4 hours, blocking 30 additional damage per hit.',
+    description: 'Increases Defense rating by 30 for 4 hours.',
     price: 300,
     rarity: ItemRarity.RARE,
     equipmentType: EquipmentType.POTION,
@@ -132,7 +132,7 @@ export const SEEDED_CONSUMABLES = [
   },
   {
     name: 'Higher Defense Potion',
-    description: 'Increases Defense by 50 for 4 hours, blocking 50 additional damage per hit.',
+    description: 'Increases Defense rating by 50 for 4 hours.',
     price: 500,
     rarity: ItemRarity.RARE,
     equipmentType: EquipmentType.POTION,

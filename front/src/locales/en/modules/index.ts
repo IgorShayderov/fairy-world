@@ -92,7 +92,7 @@ const modules = {
       resetDungeon: 'Reset cooldown (10 💎)',
       resetDone: 'The dungeon is ready to enter again.',
       blessings: {
-        STARGLEN: '+10 Defense for 4 hours. Preserves an active defense effect.',
+        STARGLEN: '+10 Defense rating for 4 hours. Preserves an active defense effect.',
         DAWNSHRINE: '+20% experience gained for 4 hours. Preserves an active experience effect.',
         SUNSPIRE: '+5 Attack for 4 hours. Preserves an active attack effect.',
       },
@@ -115,7 +115,7 @@ const modules = {
         story:
           'The noise of the road fades. A keeper invites you to kneel beneath the glowing runes and receive the sanctuary’s protection.',
         effect:
-          'Receive +10 Defense for 4 hours. This shares the defense-buff slot and does not replace an active potion or blessing.',
+          'Receive +10 Defense rating for 4 hours. This shares the defense-buff slot and does not replace an active potion or blessing.',
         action: 'Receive blessing',
       },
       cooldown: 'You can enter again in {{minutes}} minutes.',
@@ -125,7 +125,7 @@ const modules = {
         story:
           'Cold air rises from the stairwell. Behind the sealed doors, a guardian stirs. Once you enter, you must fight or retreat.',
         effect:
-          'One entry per hour, including defeats and retreats. Guardians have 2× health, 1.5× damage and +5 Defense. Rewards: 3× gold and XP, 80% loot chance with better rarity odds.',
+          'One entry per hour, including defeats and retreats. Guardians have 2× health, 1.5× damage and +5 defense percentage points. Rewards: 3× gold and XP, 80% loot chance with better rarity odds.',
         action: 'Enter dungeon',
       },
     },

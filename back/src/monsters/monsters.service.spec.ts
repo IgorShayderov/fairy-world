@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { MonstersService, damageAfterDefense, rollDeathCurse, DEATH_CURSES } from './monsters.service';
+import { MonstersService, rollDeathCurse, DEATH_CURSES } from './monsters.service';
 import { PrismaService } from '../prisma.service';
 import { NotFoundException } from '@nestjs/common';
 import { MonsterGeneratorService } from './monster-generator.service';
@@ -352,9 +352,9 @@ describe('MonstersService', () => {
         health: 3_065,
         maxHealth: 3_065,
         damage: 6,
-        defense: 5,
-        dodge: 1.5,
-        criticalChance: 1.5,
+        defense: 0.5,
+        dodge: 1,
+        criticalChance: 1,
         criticalDamage: 166.7,
       });
       expect(result.battle.monster.id).toBe(2);
@@ -487,15 +487,5 @@ describe('MonstersService', () => {
       expect(battle.rewards?.items[0].inventoryFull).toBe(true);
       expect(mockPrismaService.inventoryItem.create).not.toHaveBeenCalled();
     });
-  });
-});
-
-describe('damageAfterDefense', () => {
-  it('subtracts defense as flat damage-blocking points', () => {
-    expect(damageAfterDefense(25, 7)).toBe(18);
-  });
-
-  it('always leaves at least one point of damage', () => {
-    expect(damageAfterDefense(10, 50)).toBe(1);
   });
 });
