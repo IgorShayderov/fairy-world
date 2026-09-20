@@ -1,17 +1,21 @@
 <template>
-  <footer class="flex items-center gap-2 border-t border-gray-200 bg-gray-50 px-4 py-2">
+  <footer class="flex items-center gap-2 border-t border-[#35515b] bg-[#0a202b] px-4 py-2">
     <QInput
       ref="inputRef"
       v-model="inputText"
       :placeholder="t('chat.inputs.messagePlaceholder')"
-      class="flex-1 bg-white"
+      class="chat-input flex-1"
       outlined
       dense
+      dark
+      color="amber-4"
       :disable="!chatStore.activeChannelId || isSending"
       @keyup.enter.prevent="handleSend"
     />
     <QBtn
-      color="primary"
+      unelevated
+      color="amber-7"
+      text-color="blue-grey-10"
       :label="t('chat.buttons.send')"
       :disable="!inputText.trim() || !chatStore.activeChannelId || isSending"
       :loading="isSending"
@@ -49,3 +53,20 @@ const handleSend = async () => {
   }
 };
 </script>
+
+<style scoped>
+.chat-input :deep(.q-field__control) {
+  background: #102b36;
+  color: #e6eff1;
+}
+
+.chat-input :deep(.q-field__native),
+.chat-input :deep(.q-field__input) {
+  color: #e6eff1;
+}
+
+.chat-input :deep(.q-field__native::placeholder) {
+  color: #89a4ad;
+  opacity: 1;
+}
+</style>

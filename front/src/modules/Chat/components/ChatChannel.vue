@@ -2,11 +2,11 @@
   <div
     :key="$props.channel.id"
     @click="chatStore.selectChannel($props.channel.id)"
-    class="cursor-pointer border-b border-gray-100 p-3 text-sm transition-colors"
+    class="cursor-pointer border-b border-[#29434d] p-3 text-sm transition-colors"
     :class="
       chatStore.activeChannelId === channel.id
-        ? 'border-l-4 border-l-blue-500 bg-blue-100 text-blue-800'
-        : 'text-gray-700 hover:bg-gray-200 hover:text-gray-900'
+        ? 'border-l-4 border-l-[#e4c879] bg-[#173a45] font-semibold text-[#f2dc9a]'
+        : 'text-[#a9bec8] hover:bg-[#102e39] hover:text-[#e5eef0]'
     "
   >
     # {{ channel.name }}

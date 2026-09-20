@@ -1,22 +1,22 @@
 <template>
   <aside
-    class="relative flex min-h-0 min-w-0 shrink-0 flex-col border-l border-gray-200 bg-gray-200 duration-300 ease-in-out *:transition-all"
+    class="relative flex min-h-0 min-w-0 shrink-0 flex-col border-l border-[#35515b] bg-[linear-gradient(180deg,#0d2934_0%,#081b26_100%)] text-slate-200 shadow-[-12px_0_30px_rgba(0,0,0,0.28)] duration-300 ease-in-out *:transition-all"
     :class="isSidebarExpanded ? 'w-[25%] min-w-[200px]' : 'w-[50px]'"
   >
     <ToggleExpandButton
       v-model="isSidebarExpanded"
-      class="absolute top-1/2 -left-4 z-20 flex h-8 w-8 -translate-y-1/2 -rotate-90"
+      class="absolute top-1/2 -left-4 z-20 flex h-8 w-8 -translate-y-1/2 -rotate-90 border-[#806f43]! bg-[#0b2530]! text-[#f0d68a]! shadow-[0_4px_14px_rgba(0,0,0,0.35)]"
     />
 
     <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden py-4">
       <h2
-        class="mb-3 text-lg font-semibold whitespace-nowrap text-gray-700 transition-all duration-300"
+        class="mb-3 text-lg font-semibold whitespace-nowrap text-[#f0d68a] transition-all duration-300"
         :class="isSidebarExpanded ? 'max-w-[200px] px-4 opacity-100' : 'max-w-0 px-0 opacity-0'"
       >
         {{ t('menu.title') }}
       </h2>
 
-      <div class="flex-1 space-y-3 overflow-x-hidden overflow-y-auto px-[7px]">
+      <div class="realm-menu-scroll flex-1 space-y-3 overflow-x-hidden overflow-y-auto px-[7px]">
         <SidebarItem v-for="item in menuItems" :key="item.id" :item="item" :is-expanded="isSidebarExpanded" />
       </div>
     </div>
@@ -111,3 +111,9 @@ const menuItems = computed(() => [
   },
 ]);
 </script>
+
+<style scoped>
+.realm-menu-scroll {
+  scrollbar-color: #52717b #081b26;
+}
+</style>
