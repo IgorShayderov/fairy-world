@@ -16,6 +16,8 @@ describe('ShopService trades', () => {
     },
     gameProfile: { findUnique: jest.fn(), update: jest.fn() },
     item: { findMany: jest.fn() },
+    craftRecipe: { findUnique: jest.fn(), findMany: jest.fn() },
+    learnedCraftRecipe: { findUnique: jest.fn(), create: jest.fn() },
     inventoryItem: {
       findFirst: jest.fn(),
       findMany: jest.fn(),
@@ -58,6 +60,9 @@ describe('ShopService trades', () => {
       { id: 101, equipmentType: ['POTION'] },
       { id: 102, equipmentType: ['POTION'] },
     ]);
+    tx.craftRecipe.findUnique.mockResolvedValue(null);
+    tx.craftRecipe.findMany.mockResolvedValue([]);
+    tx.learnedCraftRecipe.findUnique.mockResolvedValue(null);
   });
 
   afterEach(() => jest.useRealTimers());
@@ -87,6 +92,33 @@ describe('ShopService trades', () => {
       create: { ownerId: 5, townId: 2, name: 'AURELIA Market', gold: SHOP_DEFAULT_GOLD },
       update: {},
     });
+  });
+
+  it('puts a purchased recipe scroll into inventory without learning it immediately', async () => {
+    tx.shopStock.findUnique.mockResolvedValue({
+      itemId: 77,
+      quantity: 1,
+      item: {
+        id: 77,
+        name: 'Recipe: Runed Millstone',
+        price: 50,
+        level: 1,
+        isConsumable: true,
+      },
+    });
+    tx.craftRecipe.findUnique.mockResolvedValue({ id: 9 });
+    tx.inventoryItem.findFirst.mockResolvedValue(null);
+
+    await expect(service.buy(1, 2, { itemId: 77, quantity: 1 })).resolves.toEqual({
+      success: true,
+      itemId: 77,
+      quantity: 1,
+      totalCost: 50,
+    });
+    expect(tx.inventoryItem.create).toHaveBeenCalledWith({
+      data: { gameProfileId: 5, itemId: 77, quantity: 1, slot: null, isEquiped: false },
+    });
+    expect(tx.learnedCraftRecipe.create).not.toHaveBeenCalled();
   });
 
   it('rejects every shop operation outside a town before mutations', async () => {

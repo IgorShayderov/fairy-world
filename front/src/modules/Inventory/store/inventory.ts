@@ -69,7 +69,16 @@ export const useInventoryStore = defineStore('inventory', () => {
     },
   ]);
 
-  const mapEntry = ({ id, item, quantity, slot }: InventoryEntry): InventoryItemType => ({
+  const mapEntry = ({
+    id,
+    item,
+    quantity,
+    slot,
+    upgradeType,
+    upgradeValue,
+    craftUpgradeType,
+    craftUpgradeValue,
+  }: InventoryEntry): InventoryItemType => ({
     inventoryItemId: id,
     id: item.id,
     level: item.level ?? 1,
@@ -86,6 +95,10 @@ export const useInventoryStore = defineStore('inventory', () => {
     properties: item.properties,
     quantity,
     slot,
+    ...(upgradeType !== undefined ? { upgradeType } : {}),
+    ...(upgradeValue !== undefined ? { upgradeValue } : {}),
+    ...(craftUpgradeType !== undefined ? { craftUpgradeType } : {}),
+    ...(craftUpgradeValue !== undefined ? { craftUpgradeValue } : {}),
   });
 
   const hydrateInventory = (entries: InventoryEntry[], equippedEntries: InventoryEntry[] = []) => {

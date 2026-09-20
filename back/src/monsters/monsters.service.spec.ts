@@ -29,6 +29,8 @@ describe('MonstersService', () => {
       create: jest.fn().mockResolvedValue({ id: 99 }),
       count: jest.fn().mockResolvedValue(0),
     },
+    craftItem: { findUnique: jest.fn() },
+    playerCraftItem: { upsert: jest.fn() },
   };
   const mockMonsterGenerator = {
     generate: jest.fn(),
@@ -76,6 +78,7 @@ describe('MonstersService', () => {
       operation(mockPrismaService),
     );
     mockPrismaService.gameProfile.update.mockResolvedValue({ id: 5, level: 1, experience: 14 });
+    mockPrismaService.craftItem.findUnique.mockResolvedValue(null);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [

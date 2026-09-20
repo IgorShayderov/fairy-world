@@ -12,6 +12,7 @@ const ITEM_TYPE_LOCALE_KEYS: Record<EquipmentType, string> = {
   AMULET: 'amulet',
   SCROLL: 'scroll',
   POTION: 'potion',
+  RECIPE: 'recipe',
   UNKNOWN: 'unknown',
 };
 

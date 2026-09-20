@@ -14,6 +14,7 @@ const EQUIPMENT_TYPE_SLOTS: Record<EquipmentType, EquipmentSlotId[]> = {
   AMULET: ['accessory'],
   SCROLL: ['scroll'],
   POTION: ['potion'],
+  RECIPE: [],
   UNKNOWN: [],
 };
 

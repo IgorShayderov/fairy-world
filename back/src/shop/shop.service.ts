@@ -19,6 +19,7 @@ const SHOP_ITEM_LEVEL_OFFSETS = [-2, -1, 0, 1, 2] as const;
 export const SHOP_REFRESH_GEM_COST = 10;
 export const SHOP_DEFAULT_GOLD = 1_000_000;
 export const SHOP_FREE_ATTRIBUTE_POTION_CHANCE = 0.03;
+export const SHOP_RECIPE_CHANCE = 0.25;
 
 export const potionWeightForLevel = (level: number): number => {
   return Math.max(1, 6 - Math.floor(level / 10));
@@ -66,7 +67,7 @@ export class ShopService implements OnModuleInit {
     return this.trade(userId, shopId, async (tx, shopId) => {
       const [shop, profile] = await Promise.all([
         tx.shop.findUnique({ where: { id: shopId } }),
-        tx.gameProfile.findUnique({ where: { userId }, select: { level: true } }),
+        tx.gameProfile.findUnique({ where: { userId }, select: { id: true, level: true } }),
       ]);
       if (!shop) throw new NotFoundException('Shop not found');
       if (!profile) throw new NotFoundException('Game profile not found');
@@ -75,7 +76,7 @@ export class ShopService implements OnModuleInit {
 
       const now = new Date();
       if (!shop.nextRestockAt || shop.nextRestockAt <= now || shop.stockLevel !== profile.level) {
-        await this.restock(tx, shopId, profile.level, now);
+        await this.restock(tx, shopId, profile.id, profile.level, now);
       }
 
       const currentShop = await tx.shop.findUnique({
@@ -129,13 +130,19 @@ export class ShopService implements OnModuleInit {
         where: { id: profile.id },
         data: { gems: { decrement: SHOP_REFRESH_GEM_COST } },
       });
-      const nextRestockAt = await this.restock(tx, shopId, profile.level, new Date());
+      const nextRestockAt = await this.restock(tx, shopId, profile.id, profile.level, new Date());
 
       return { success: true, cost: SHOP_REFRESH_GEM_COST, nextRestockAt };
     });
   }
 
-  private async restock(tx: Prisma.TransactionClient, shopId: number, playerLevel: number, now: Date) {
+  private async restock(
+    tx: Prisma.TransactionClient,
+    shopId: number,
+    gameProfileId: number,
+    playerLevel: number,
+    now: Date,
+  ) {
     await tx.shopStock.deleteMany({ where: { shopId } });
     let stockCount = 0;
     for (let index = 0; index < SHOP_RANDOM_EQUIPMENT_COUNT; index++) {
@@ -207,6 +214,22 @@ export class ShopService implements OnModuleInit {
         update: { quantity: { increment: 1 } },
       });
       stockCount++;
+    }
+
+    if (Math.random() < SHOP_RECIPE_CHANCE) {
+      const recipes = await tx.craftRecipe.findMany({
+        where: {
+          learners: { none: { gameProfileId } },
+          shopItem: { inventoryItem: { none: { gameProfileId } } },
+        },
+        select: { shopItemId: true },
+        orderBy: { id: 'asc' },
+      });
+      if (recipes.length) {
+        const recipe = recipes[Math.floor(Math.random() * recipes.length)];
+        await tx.shopStock.create({ data: { shopId, itemId: recipe.shopItemId, quantity: 1 } });
+        stockCount++;
+      }
     }
 
     while (stockCount < SHOP_RESTOCK_ITEM_COUNT) {
@@ -287,6 +310,14 @@ export class ShopService implements OnModuleInit {
         include: { item: true },
       });
       if (!stock) throw new NotFoundException('Item not found in shop');
+      const craftRecipe = await tx.craftRecipe.findUnique({ where: { shopItemId: stock.itemId } });
+      if (craftRecipe && dto.quantity !== 1) throw new BadRequestException('Recipes can only be purchased once');
+      if (craftRecipe) {
+        const learned = await tx.learnedCraftRecipe.findUnique({
+          where: { gameProfileId_recipeId: { gameProfileId: profile.id, recipeId: craftRecipe.id } },
+        });
+        if (learned) throw new BadRequestException('Recipe has already been learned');
+      }
       const req = stock.item.isConsumable
         ? Math.max(getPotionRequiredLevel(stock.item.name), stock.item.level ?? 1)
         : requiredPlayerLevel(stock.item.level);

@@ -24,7 +24,7 @@
         <QIcon v-else :name="itemIcon" size="36px" class="text-gray-700" />
         <span
           v-if="item.quantity && item.quantity > 1"
-          class="absolute -right-1 -bottom-1 rounded bg-black/60 px-1 py-0.2 text-[10px] font-bold text-white shadow-sm"
+          class="py-0.2 absolute -right-1 -bottom-1 rounded bg-black/60 px-1 text-[10px] font-bold text-white shadow-sm"
         >
           ×{{ item.quantity }}
         </span>
@@ -33,11 +33,7 @@
 
     <template v-else-if="occupiedItem">
       <div class="relative flex h-full w-full items-center justify-center">
-        <PotionIcon
-          v-if="isPotion(occupiedItem)"
-          :item="occupiedItem"
-          class="h-9 w-9 text-gray-700 opacity-50"
-        />
+        <PotionIcon v-if="isPotion(occupiedItem)" :item="occupiedItem" class="h-9 w-9 text-gray-700 opacity-50" />
         <img
           v-else-if="occupiedItemImage"
           :src="occupiedItemImage"
@@ -65,7 +61,7 @@
     </template>
 
     <QMenu
-      v-if="displayItem"
+      v-if="displayItem && !disableTooltip"
       class="max-w-lg overflow-y-auto bg-gray-900 p-3 text-white"
       anchor="top middle"
       self="bottom middle"
@@ -108,6 +104,29 @@
         <div v-for="property in displayItem.properties" :key="property.name">
           <div>{{ modifierName(property.name, 'property') }}: {{ signedValue(property.value) }}</div>
         </div>
+      </div>
+      <div
+        v-if="displayItem.craftUpgradeType && displayItem.craftUpgradeValue"
+        class="mt-2 rounded border border-sky-400/30 bg-sky-950/40 p-2 text-xs text-sky-200"
+      >
+        {{
+          $t('crafting.previewBonus', {
+            value: displayItem.craftUpgradeValue,
+            type: $t(`crafting.types.${displayItem.craftUpgradeType}`),
+          })
+        }}
+      </div>
+      <div
+        v-if="displayItem.upgradeType && displayItem.upgradeValue"
+        class="mt-2 rounded border border-amber-400/30 bg-amber-950/40 p-2 text-xs text-amber-200"
+      >
+        <span class="font-semibold">{{ $t('crafting.upgrade') }}:</span>
+        {{
+          $t('crafting.bonus', {
+            value: displayItem.upgradeValue,
+            type: $t(`crafting.types.${displayItem.upgradeType}`),
+          })
+        }}
       </div>
 
       <div v-if="comparisonItem" class="mt-3 border-t border-gray-600 pt-3">
@@ -193,6 +212,12 @@ const CONFIGURED_ITEM_IMAGES: Record<string, string> = {
   'icon_ring_2.png': '/icons/items/icon_ring_2.png',
   'icon_amulet.png': '/icons/items/icon_amulet.png',
   'icon_amulet_2.png': '/icons/items/icon_amulet_2.png',
+  'craft_recipe.png': '/icons/items/craft_recipe.png',
+  'craft_damage_millstone.png': '/icons/items/craft_damage_millstone.png',
+  'craft_defense_plate.png': '/icons/items/craft_defense_plate.png',
+  'craft_gold_sigil.png': '/icons/items/craft_gold_sigil.png',
+  'craft_experience_rune.png': '/icons/items/craft_experience_rune.png',
+  'craft_health_crystal.png': '/icons/items/craft_health_crystal.png',
 };
 
 const ITEM_TYPE_IMAGES: Partial<Record<string, string>> = {
@@ -217,6 +242,7 @@ const props = withDefaults(
     emptyLabel?: string;
     comparisonItem?: InventoryItemType | null;
     occupiedItem?: InventoryItemType | null;
+    disableTooltip?: boolean;
   }>(),
   {
     slotId: '',
@@ -226,6 +252,7 @@ const props = withDefaults(
     emptyLabel: '',
     comparisonItem: null,
     occupiedItem: null,
+    disableTooltip: false,
   }
 );
 
@@ -255,6 +282,7 @@ const itemIcon = computed(() => {
     AMULET: 'diamond',
     SCROLL: 'description',
     POTION: 'science',
+    RECIPE: 'menu_book',
     UNKNOWN: 'help_outline',
   };
 
@@ -262,13 +290,7 @@ const itemIcon = computed(() => {
 });
 
 const isAxe = (item: InventoryItemType | null | undefined) => {
-  const allText = [
-    item?.name,
-    item?.nameKey,
-    item?.tooltipName,
-    item?.description,
-    item?.icon,
-  ]
+  const allText = [item?.name, item?.nameKey, item?.tooltipName, item?.description, item?.icon]
     .filter(Boolean)
     .join(' ')
     .toLowerCase();
@@ -300,6 +322,7 @@ const resolveItemIcon = (item: InventoryItemType | null | undefined) => {
     AMULET: 'diamond',
     SCROLL: 'description',
     POTION: 'science',
+    RECIPE: 'menu_book',
     UNKNOWN: 'help_outline',
   };
   return icons[type ?? 'UNKNOWN'] ?? 'help_outline';

@@ -34,6 +34,13 @@ describe('UsersService', () => {
     item: {
       findUnique: jest.fn(),
     },
+    craftRecipe: {
+      findUnique: jest.fn(),
+    },
+    learnedCraftRecipe: {
+      findUnique: jest.fn(),
+      create: jest.fn(),
+    },
     user: {
       findUnique: jest.fn(),
       findFirst: jest.fn(),
@@ -119,6 +126,11 @@ describe('UsersService', () => {
               buffs: true,
               dungeonVisits: true,
               sanctuaryVisits: true,
+              craftItems: {
+                where: { quantity: { gt: 0 }, craftItem: { kind: 'MATERIAL' } },
+                include: { craftItem: true },
+                orderBy: { craftItemId: 'asc' },
+              },
               _count: { select: { quests: { where: { completedAt: { not: null } } } } },
             },
           },
@@ -374,6 +386,31 @@ describe('UsersService', () => {
   });
 
   describe('potion consumption', () => {
+    it('consumes a recipe scroll and adds the recipe to the craft book', async () => {
+      mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4, level: 5 });
+      mockPrismaService.inventoryItem.findFirst.mockResolvedValue({
+        id: 21,
+        gameProfileId: 4,
+        itemId: 77,
+        quantity: 1,
+        isEquiped: false,
+        item: { id: 77, name: 'Recipe: Runed Millstone', isConsumable: true, equipmentType: ['RECIPE'] },
+      });
+      mockPrismaService.craftRecipe.findUnique.mockResolvedValue({ id: 9, name: 'Recipe: Runed Millstone' });
+      mockPrismaService.learnedCraftRecipe.findUnique.mockResolvedValue(null);
+
+      await expect(service.consumeInventoryItem(7, 21)).resolves.toEqual({
+        success: true,
+        effect: 'RECIPE',
+        recipeId: 9,
+        recipeName: 'Recipe: Runed Millstone',
+      });
+      expect(mockPrismaService.inventoryItem.delete).toHaveBeenCalledWith({ where: { id: 21 } });
+      expect(mockPrismaService.learnedCraftRecipe.create).toHaveBeenCalledWith({
+        data: { gameProfileId: 4, recipeId: 9 },
+      });
+    });
+
     it('consumes one potion and persists its four-hour buff', async () => {
       jest.useFakeTimers().setSystemTime(new Date('2026-09-12T08:00:00Z'));
       mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4, level: 30 });

@@ -20,7 +20,15 @@ const dispatchRequest = async (config: RequestConfig) => {
     const response = await fetch(config.url, finalOptions);
 
     if (!response.ok) {
-      const error = new HttpError(`Response status: ${response.status}`, response.status);
+      let message = `Response status: ${response.status}`;
+      try {
+        const payload = (await response.json()) as { message?: string | string[] };
+        if (Array.isArray(payload.message)) message = payload.message.join(', ');
+        else if (payload.message) message = payload.message;
+      } catch {
+        // Some endpoints return an empty or non-JSON error body.
+      }
+      const error = new HttpError(message, response.status);
       error.config = config;
       throw error;
     }
@@ -146,7 +154,12 @@ api.interceptors.response.use(
     const config = httpError.config;
     const options = (config?.options || {}) as RequestInit & { _retry?: boolean };
 
-    const EXCLUDED_ROUTES = [routes.api.auth.refreshPath(), routes.api.auth.logoutPath(), routes.api.auth.signInPath(), routes.api.auth.signUpPath()];
+    const EXCLUDED_ROUTES = [
+      routes.api.auth.refreshPath(),
+      routes.api.auth.logoutPath(),
+      routes.api.auth.signInPath(),
+      routes.api.auth.signUpPath(),
+    ];
     const isExcluded = config?.url ? EXCLUDED_ROUTES.some((route) => config.url.includes(route)) : false;
 
     if (error instanceof HttpError && error.status === 401 && config && !options._retry && !isExcluded) {

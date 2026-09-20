@@ -1,4 +1,4 @@
-import type { EffectiveModifier, EquipmentSlotId, InventoryEntry } from '@/modules/Inventory/types';
+import type { CraftInventoryItem, EffectiveModifier, EquipmentSlotId, InventoryEntry } from '@/modules/Inventory/types';
 
 import routes from '@/routes';
 import { api } from '@shared/api';
@@ -26,6 +26,8 @@ export type CurrentUser = {
   equippedItems: InventoryEntry[];
   attributes: EffectiveModifier[];
   properties: EffectiveModifier[];
+  craftInventory: CraftInventoryItem[];
+  rewardBonuses?: { goldPercent: number; experiencePercent: number };
 };
 
 export type MapPosition = {

@@ -17,6 +17,7 @@
           :accomplished-quests="currentUserStore.user?.accomplishedQuests ?? 0"
           :player-free-attributes="currentUserStore.user?.freeAttributes ?? 0"
           :allocating-attribute="allocatingAttribute"
+          :disable-item-tooltips="dragUpgradeItem !== null"
           @slot-enter="(id) => (isHoveredSlot = id)"
           @slot-leave="isHoveredSlot = null"
           @slot-drop="onSlotDrop"
@@ -32,6 +33,7 @@
           :equipment-slots="equipmentSlots"
           :drag-index="dragItemIndex"
           :is-hovered="isHoveredSlot"
+          :craft-inventory="currentUserStore.user?.craftInventory ?? []"
           @drag-start="onInventoryDragStart"
           @drag-end="onDragEnd"
           @inventory-drop="onInventoryDrop"
@@ -54,6 +56,7 @@ import type { EquipmentSlotId, InventoryItemType } from '@/modules/Inventory/typ
 
 import { usersApi } from '@/modules/Auth/api/users';
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
+import { craftingApi } from '@/modules/Crafting/api';
 import { useInventoryStore } from '@/modules/Inventory/store/inventory';
 import { getCompatibleEquipmentSlots, isTwoHanded } from '@/modules/Inventory/utils/equipment';
 import { getPotionRequiredLevel, isHealthPotion, isPotion } from '@/modules/Inventory/utils/potions';
@@ -79,11 +82,22 @@ const { inventory, equipmentSlots } = storeToRefs(inventoryStore);
 const dragItem = ref<InventoryItemType | null>(null);
 const dragItemIndex = ref<number | null>(null);
 const dragEquipmentSlotId = ref<EquipmentSlotId | null>(null);
+const dragUpgradeItem = ref<InventoryItemType | null>(null);
 const isHoveredSlot = ref<string | null>(null);
 const allocatingAttribute = ref<string | null>(null);
+const CRAFT_UPGRADE_ICONS = new Set([
+  'craft_damage_millstone.png',
+  'craft_defense_plate.png',
+  'craft_gold_sigil.png',
+  'craft_experience_rune.png',
+  'craft_health_crystal.png',
+]);
+const isCraftUpgradeItem = (item: InventoryItemType) =>
+  Boolean(item.craftUpgradeType) || CRAFT_UPGRADE_ICONS.has(item.icon);
 
 onMounted(async () => {
-  await currentUserStore.fetchCurrentUser();
+  const hasLegacyCraftUpgrade = (currentUserStore.user?.craftInventory ?? []).some(({ kind }) => kind !== 'MATERIAL');
+  await currentUserStore.fetchCurrentUser(hasLegacyCraftUpgrade);
   inventoryStore.hydrateInventory(currentUserStore.user?.inventory ?? [], currentUserStore.user?.equippedItems ?? []);
 });
 
@@ -109,6 +123,7 @@ const onInventoryDragStart = (idx: number) => {
     dragItem.value = item;
     dragItemIndex.value = idx;
     dragEquipmentSlotId.value = null;
+    dragUpgradeItem.value = isCraftUpgradeItem(item) ? item : null;
   }
 };
 
@@ -118,6 +133,7 @@ const onEquipmentDragStart = (slotId: EquipmentSlotId) => {
     dragItem.value = slot.item;
     dragEquipmentSlotId.value = slotId;
     dragItemIndex.value = null;
+    dragUpgradeItem.value = null;
   }
 };
 
@@ -125,16 +141,33 @@ const onDragEnd = () => {
   dragItem.value = null;
   dragItemIndex.value = null;
   dragEquipmentSlotId.value = null;
+  dragUpgradeItem.value = null;
   isHoveredSlot.value = null;
 };
 
 const onInventoryDrop = async (targetIndex: number) => {
+  const craftUpgrade = dragUpgradeItem.value;
   try {
-    if (dragItemIndex.value !== null && dragItemIndex.value !== targetIndex) {
+    if (craftUpgrade) {
+      const target = inventory.value[targetIndex];
+      if (!target?.inventoryItemId) return;
+      if (!craftUpgrade.inventoryItemId) return;
+      await applyCraftUpgrade(craftUpgrade, target);
+    } else if (dragItemIndex.value !== null && dragItemIndex.value !== targetIndex) {
       inventoryStore.swapInventoryItems(dragItemIndex.value, targetIndex);
     } else if (dragEquipmentSlotId.value !== null) {
       await usersApi.unequipItem(dragEquipmentSlotId.value);
       await refreshInventory();
+    }
+  } catch (error: unknown) {
+    if (craftUpgrade) {
+      const responseMessage = error instanceof Error ? error.message : null;
+      const message = responseMessage?.includes('already been upgraded')
+        ? t('crafting.alreadyUpgraded')
+        : (responseMessage ?? t('crafting.error'));
+      $q.notify({ type: 'negative', message });
+    } else {
+      throw error;
     }
   } finally {
     onDragEnd();
@@ -142,8 +175,17 @@ const onInventoryDrop = async (targetIndex: number) => {
 };
 
 const onSlotDrop = async (slotId: EquipmentSlotId) => {
+  const craftUpgrade = dragUpgradeItem.value;
   try {
-    if (dragItemIndex.value !== null) {
+    if (craftUpgrade) {
+      const targetSlotId =
+        slotId === 'right-hand' && !equipmentSlots.value.find((slot) => slot.id === slotId)?.item
+          ? 'left-hand'
+          : slotId;
+      const target = equipmentSlots.value.find((slot) => slot.id === targetSlotId)?.item;
+      if (!target?.inventoryItemId || !craftUpgrade.inventoryItemId) return;
+      await applyCraftUpgrade(craftUpgrade, target);
+    } else if (dragItemIndex.value !== null) {
       const item = inventory.value[dragItemIndex.value];
       if (item?.inventoryItemId && getCompatibleEquipmentSlots(item).includes(slotId) && canEquip(item)) {
         await usersApi.equipItem(item.inventoryItemId, slotId);
@@ -152,10 +194,28 @@ const onSlotDrop = async (slotId: EquipmentSlotId) => {
       const source = equipmentSlots.value.find((slot) => slot.id === dragEquipmentSlotId.value)?.item;
       if (source?.inventoryItemId && canEquip(source)) await usersApi.equipItem(source.inventoryItemId, slotId);
     }
-    await refreshInventory();
+    if (!craftUpgrade) await refreshInventory();
+  } catch (error: unknown) {
+    if (craftUpgrade) notifyCraftUpgradeError(error);
+    else throw error;
   } finally {
     onDragEnd();
   }
+};
+
+const applyCraftUpgrade = async (craftUpgrade: InventoryItemType, target: InventoryItemType) => {
+  if (!craftUpgrade.inventoryItemId || !target.inventoryItemId) return;
+  await craftingApi.applyUpgrade(craftUpgrade.inventoryItemId, target.inventoryItemId);
+  $q.notify({ type: 'positive', message: t('crafting.applied', { name: craftUpgrade.name }) });
+  await refreshInventory();
+};
+
+const notifyCraftUpgradeError = (error: unknown) => {
+  const responseMessage = error instanceof Error ? error.message : null;
+  const message = responseMessage?.includes('already been upgraded')
+    ? t('crafting.alreadyUpgraded')
+    : (responseMessage ?? t('crafting.error'));
+  $q.notify({ type: 'negative', message });
 };
 
 const unequip = async (slotId: EquipmentSlotId) => {
@@ -166,6 +226,17 @@ const unequip = async (slotId: EquipmentSlotId) => {
 const equipFromInventory = async (inventoryIndex: number) => {
   const item = inventory.value[inventoryIndex];
   if (!item?.inventoryItemId) return;
+
+  if (item.equipmentType?.includes('RECIPE')) {
+    try {
+      await usersApi.consumeInventoryItem(item.inventoryItemId);
+      $q.notify({ type: 'positive', message: t('crafting.recipeLearned') });
+      await refreshInventory();
+    } catch (error: unknown) {
+      $q.notify({ type: 'negative', message: error instanceof Error ? error.message : t('crafting.error') });
+    }
+    return;
+  }
 
   if (isPotion(item) && !isHealthPotion(item)) {
     if (!canEquip(item)) return;
@@ -185,9 +256,7 @@ const equipFromInventory = async (inventoryIndex: number) => {
     }
     return false;
   };
-  const targetSlot =
-    compatibleSlots.find((slotId) => !isSlotOccupied(slotId)) ??
-    compatibleSlots[0];
+  const targetSlot = compatibleSlots.find((slotId) => !isSlotOccupied(slotId)) ?? compatibleSlots[0];
   if (!targetSlot) return;
 
   await usersApi.equipItem(item.inventoryItemId, targetSlot);

@@ -46,6 +46,7 @@
               :occupied-item="getOccupiedItem(slot.id)"
               :slot-id="slot.id"
               :is-hovered="hoveredSlot === slot.id"
+              :disable-tooltip="disableItemTooltips"
               :empty-icon="emptyIcons[slot.id] ?? ''"
               :empty-label="t(slot.labelKey)"
               class="h-full w-full"
@@ -102,7 +103,9 @@
                   size="xs"
                   :loading="allocatingAttribute === attribute.name"
                   :disable="playerFreeAttributes < 1 || allocatingAttribute !== null"
-                  :aria-label="t('profile.increaseAttribute', { attribute: t(`profile.attributeNames.${attribute.name}`) })"
+                  :aria-label="
+                    t('profile.increaseAttribute', { attribute: t(`profile.attributeNames.${attribute.name}`) })
+                  "
                   @click.stop="$emit('allocate-attribute', attribute.name)"
                 />
               </div>
@@ -111,7 +114,6 @@
               </QTooltip>
             </div>
           </div>
-
 
           <h3 class="mt-5 mb-3 text-xs font-bold tracking-wider text-gray-500 uppercase">
             {{ t('profile.tooltip.properties') }}
@@ -157,9 +159,27 @@
             <div
               v-for="summaryItem in playerSummary"
               :key="summaryItem.key"
-              class="flex flex-col items-center justify-center rounded-lg bg-gray-50 p-3"
+              class="flex min-w-0 flex-col items-center justify-center overflow-hidden rounded-lg bg-gray-50 p-3"
             >
-              <span class="mb-1 text-xl font-bold text-blue-600">{{ summaryItem.value }}</span>
+              <span
+                class="mb-1 max-w-full font-bold text-blue-600 tabular-nums"
+                :class="summaryItem.key === 'experience' ? 'text-base tracking-tight whitespace-nowrap' : 'text-xl'"
+              >
+                {{ summaryItem.value }}
+              </span>
+              <div
+                v-if="summaryItem.key === 'experience' && experienceToNextLevel !== null"
+                class="mb-2 h-1.5 w-full overflow-hidden rounded-full bg-blue-100"
+                role="progressbar"
+                :aria-valuenow="experienceProgress"
+                aria-valuemin="0"
+                aria-valuemax="100"
+              >
+                <div
+                  class="h-full rounded-full bg-blue-500 transition-[width]"
+                  :style="{ width: `${experienceProgress}%` }"
+                />
+              </div>
               <span class="text-center text-[10px] font-medium tracking-wider text-gray-500 uppercase">
                 {{ t(`profile.summary.${summaryItem.key}`) }}
               </span>
@@ -180,7 +200,6 @@ import type { Component } from 'vue';
 import type { EffectiveModifier, EquipmentSlotId, EquipmentSlot, InventoryItemType } from '@/modules/Inventory/types';
 
 import { isTwoHanded } from '@/modules/Inventory/utils/equipment';
-
 
 import BodyArmorIcon from './icons/BodyArmorIcon.vue';
 import BootsIcon from './icons/BootsIcon.vue';
@@ -210,6 +229,7 @@ const props = defineProps<{
   accomplishedQuests: number;
   playerFreeAttributes: number;
   allocatingAttribute: string | null;
+  disableItemTooltips?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -256,12 +276,23 @@ const onItemDragStart = (slotId: EquipmentSlotId) => {
 
 const playerSummary = computed(() => [
   { key: 'level', value: props.playerLevel },
-  { key: 'experience', value: props.experienceToNextLevel === null ? t('profile.maxLevel') : `${props.playerExperience} / ${props.experienceToNextLevel}` },
+  {
+    key: 'experience',
+    value:
+      props.experienceToNextLevel === null
+        ? t('profile.maxLevel')
+        : `${props.playerExperience} / ${props.experienceToNextLevel}`,
+  },
   { key: 'gold', value: props.playerGold },
   { key: 'gems', value: props.playerGems },
   { key: 'killedMonsters', value: props.killedMonsters },
   { key: 'accomplishedQuests', value: props.accomplishedQuests },
 ]);
+
+const experienceProgress = computed(() => {
+  if (!props.experienceToNextLevel || props.experienceToNextLevel <= 0) return 100;
+  return Math.min(100, Math.max(0, Math.round((props.playerExperience / props.experienceToNextLevel) * 100)));
+});
 
 const percentageProperties = new Set(['DEFENSE', 'CRIT', 'DODGE', 'CRIT_DAMAGE']);
 const formatPropertyValue = (name: string, value: number) =>
@@ -276,7 +307,6 @@ const propertyFormula = (property: EffectiveModifier) => {
     ? t('profile.propertyFormulas.criticalDamage')
     : t('profile.propertyFormulas.chance');
 };
-
 
 const blocks = [
   { key: 'equipment', titleKey: 'profile.equipment' },

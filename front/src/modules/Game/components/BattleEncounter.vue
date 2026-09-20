@@ -102,6 +102,12 @@
           <div v-else class="mt-2 text-xs font-medium text-[#92aaa5]">
             {{ t('fantasy.encounter.noLoot') }}
           </div>
+          <div v-if="battle.rewards.craftItems?.length" class="mt-3 flex flex-wrap gap-3">
+            <div v-for="material in battle.rewards.craftItems" :key="material.id" class="flex items-center gap-2 rounded-lg border border-[#ddbd6b]/25 bg-[#071a23] px-3 py-2">
+              <img :src="`/icons/items/${material.icon}`" alt="" class="h-10 w-10 object-contain" />
+              <div><div class="text-[10px] font-bold tracking-wider text-[#efca72] uppercase">{{ t('crafting.materialDrop') }}</div><div class="text-sm font-semibold text-white">{{ material.name }} ×{{ material.quantity }}</div></div>
+            </div>
+          </div>
         </div>
         <p v-if="battle.status === 'DEFEAT'" class="mt-3 text-sm text-amber-200">{{ t('fantasy.encounter.respawn') }}</p>
       </div>

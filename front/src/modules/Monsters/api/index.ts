@@ -67,6 +67,14 @@ export interface BattleState {
         inventoryFull?: boolean;
       }
     >;
+    craftItems: Array<{
+      id: number;
+      name: string;
+      description: string;
+      icon: string;
+      rarity: 'QUEST' | 'COMMON' | 'MAGIC' | 'RARE' | 'UNIQUE';
+      quantity: number;
+    }>;
   };
 }
 

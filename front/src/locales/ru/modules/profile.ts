@@ -120,6 +120,7 @@ export default {
       axe: 'Топор',
       shield: 'Щит',
       potion: 'Зелье',
+      recipe: 'Рецепт',
       medicine: 'Лекарство',
       ring: 'Кольцо',
       scroll: 'Свиток',
