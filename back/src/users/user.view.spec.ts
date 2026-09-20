@@ -214,10 +214,10 @@ describe('UserView.renderCurrent', () => {
       name: 'CRIT',
       description: 'Final critical-hit chance, capped at 50%.',
       baseValue: 0,
-      attributeBonus: 4.6,
-      equipmentBonus: 7.5,
-      value: 12.1,
-      rating: 6.5,
+      attributeBonus: 2.9,
+      equipmentBonus: 2.2,
+      value: 5.1,
+      rating: 9,
       equipmentRatingBonus: 4,
     });
   });

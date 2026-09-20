@@ -349,12 +349,12 @@ describe('MonstersService', () => {
       expect(result.battle.status).toBe('ACTIVE');
       expect(result.battle.player).toMatchObject({
         name: 'Hero',
-        health: 3_040,
-        maxHealth: 3_040,
+        health: 3_065,
+        maxHealth: 3_065,
         damage: 6,
         defense: 0.5,
-        dodge: 1.6,
-        criticalChance: 1.6,
+        dodge: 1,
+        criticalChance: 1,
         criticalDamage: 166.7,
       });
       expect(result.battle.monster.id).toBe(2);

@@ -12,7 +12,7 @@ const roundPercentage = (value: number) => Math.round(value * 10) / 10;
 
 export const convertRatingToPercentage = (stat: StatType, rating: number, level: number): number => {
   const nonNegativeRating = Math.max(0, rating);
-  const scaledRating = (nonNegativeRating * 65) / Math.max(35, level);
+  const scaledRating = (nonNegativeRating * 20) / Math.max(35, level);
 
   if (stat === StatType.CRIT || stat === StatType.DODGE) {
     return roundPercentage(Math.min(MAX_CHANCE_PERCENT, scaledRating));
@@ -51,8 +51,8 @@ export const ATTRIBUTE_EFFECTS: Record<
     properties: { [StatType.DAMAGE]: 1 },
   },
   [AttributeType.AGILITY]: {
-    description: 'Adds 0.5 Dodge and Critical Chance rating per point. Final percentages scale with level.',
-    properties: { [StatType.DODGE]: 0.5, [StatType.CRIT]: 0.5 },
+    description: 'Adds 1 Dodge and 1 Critical Chance rating per point. Final percentages scale with level.',
+    properties: { [StatType.DODGE]: 1, [StatType.CRIT]: 1 },
   },
   [AttributeType.ENDURANCE]: {
     description: 'Increases Health by 10 and Defense by 1 per point.',
@@ -64,8 +64,8 @@ export const ATTRIBUTE_EFFECTS: Record<
   },
   [AttributeType.CHARISMA]: {
     description:
-      'Adds 1 Critical Damage rating per point. Its final benefit scales with level and diminishing returns.',
-    properties: { [StatType.CRIT_DAMAGE]: 1 },
+      'Increases Health by 5 and adds 1 Critical Damage rating per point. Its critical benefit scales with level and diminishing returns.',
+    properties: { [StatType.HEALTH]: 5, [StatType.CRIT_DAMAGE]: 1 },
   },
 };
 

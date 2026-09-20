@@ -70,7 +70,7 @@ describe('UsersController', () => {
       expect(result.attributes.every(({ baseValue, value }) => baseValue === 5 && value === 5)).toBe(true);
       expect(result.properties).toEqual(
         expect.arrayContaining([
-          expect.objectContaining({ name: 'HEALTH', baseValue: 60, attributeBonus: 50, value: 110 }),
+          expect.objectContaining({ name: 'HEALTH', baseValue: 60, attributeBonus: 75, value: 135 }),
           expect.objectContaining({ name: 'MANA', baseValue: 15, attributeBonus: 25, value: 40 }),
           expect.objectContaining({ name: 'DAMAGE', baseValue: 1, attributeBonus: 5, value: 6 }),
         ]),

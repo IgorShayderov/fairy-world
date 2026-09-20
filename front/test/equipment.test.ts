@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import type { InventoryItemType } from '@/modules/Inventory/types';
 
 import {
-  findEquippedEntryForTypes,
   findEquippedItemForEntries,
   findEquippedItemForInventoryItem,
   getCompatibleEquipmentSlots,
@@ -47,38 +46,35 @@ describe('equipment slot selection', () => {
     expect(getCompatibleEquipmentSlots(item(['HELMET']))).toEqual(['head']);
   });
 
-  it('matches rings and amulets through their shared accessory slot', () => {
-    const equippedAmulet = { id: 7, slot: 'accessory' as const };
-
-    expect(findEquippedEntryForTypes([equippedAmulet], ['RING'])).toBe(equippedAmulet);
+  it('uses separate slots for rings and amulets', () => {
+    expect(getCompatibleEquipmentSlots(item(['RING']))).toEqual(['accessory']);
+    expect(getCompatibleEquipmentSlots(item(['AMULET']))).toEqual(['amulet']);
   });
 
-  it('allows health potions in the potion slot', () => {
-    expect(getCompatibleEquipmentSlots({ ...item(['POTION']), name: 'Mild Health Potion' })).toEqual(['potion']);
-  });
-
-  it('does not allow buff potions in an equipment slot', () => {
+  it('does not allow potions in an equipment slot', () => {
+    expect(getCompatibleEquipmentSlots({ ...item(['POTION']), name: 'Mild Health Potion' })).toEqual([]);
     expect(getCompatibleEquipmentSlots({ ...item(['POTION']), name: 'Mild Attack Potion' })).toEqual([]);
     expect(getCompatibleEquipmentSlots({ ...item(['POTION']), name: 'Higher Experience Potion' })).toEqual([]);
   });
 
   it('finds comparison equipment for an unequipped profile item', () => {
     const equippedAmulet = { ...item(['AMULET']), name: 'Equipped Amulet' };
-    const equipmentSlots = [{ id: 'accessory' as const, item: equippedAmulet }];
+    const equipmentSlots = [{ id: 'amulet' as const, item: equippedAmulet }];
 
-    expect(findEquippedItemForInventoryItem(equipmentSlots, item(['RING']))).toBe(equippedAmulet);
+    expect(findEquippedItemForInventoryItem(equipmentSlots, item(['AMULET']))).toBe(equippedAmulet);
+    expect(findEquippedItemForInventoryItem(equipmentSlots, item(['RING']))).toBeNull();
     expect(findEquippedItemForInventoryItem(equipmentSlots, item(['HELMET']))).toBeNull();
   });
 
   it('never compares potions, including health potions', () => {
     const equippedPotion = { ...item(['POTION']), name: 'Mild Health Potion' };
-    const equipmentSlots = [{ id: 'potion' as const, item: equippedPotion }];
+    const equipmentSlots = [{ id: 'banner' as const, item: equippedPotion }];
 
     expect(
       findEquippedItemForInventoryItem(equipmentSlots, {
         ...item(['POTION']),
         name: 'Higher Health Potion',
-      }),
+      })
     ).toBeNull();
   });
 

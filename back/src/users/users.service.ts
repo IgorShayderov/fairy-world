@@ -8,12 +8,7 @@ import type { UpdateMapPositionDto } from './dto/update-map-position.dto';
 import type { ReplaceInventoryItemDto } from './dto/replace-inventory-item.dto';
 import { STARTING_ATTRIBUTE_VALUE } from './player-defaults';
 import { requiredPlayerLevel } from './level-progression';
-import {
-  getPotionEffect,
-  getPotionRequiredLevel,
-  isHealthPotion,
-  POTION_BUFF_DURATION_MS,
-} from '../items/potion-effects';
+import { getPotionEffect, getPotionRequiredLevel, POTION_BUFF_DURATION_MS } from '../items/potion-effects';
 import { isTwoHandedWeapon } from '../items/weapon-types';
 
 const SLOT_TYPES: Record<EquipmentSlotId, EquipmentType[]> = {
@@ -24,9 +19,9 @@ const SLOT_TYPES: Record<EquipmentSlotId, EquipmentType[]> = {
   hands: [EquipmentType.GLOVES],
   legs: [EquipmentType.LEGS],
   feet: [EquipmentType.BOOTS],
-  accessory: [EquipmentType.RING, EquipmentType.AMULET],
-  scroll: [EquipmentType.SCROLL],
-  potion: [EquipmentType.POTION],
+  accessory: [EquipmentType.RING],
+  amulet: [EquipmentType.AMULET],
+  banner: [],
 };
 
 @Injectable()
@@ -147,9 +142,6 @@ export class UsersService {
         if (!source.item.equipmentType.some((type) => SLOT_TYPES[dto.slot].includes(type))) {
           throw new BadRequestException('Item cannot be equipped in this slot');
         }
-        if (source.item.equipmentType.includes(EquipmentType.POTION) && !isHealthPotion(source.item.name)) {
-          throw new BadRequestException('Only health potions can be equipped');
-        }
         if (isTwoHandedWeapon(source.item.name) && dto.slot !== 'left-hand') {
           throw new BadRequestException('Two-handed weapons must be equipped in the left hand');
         }
@@ -207,67 +199,6 @@ export class UsersService {
               });
             }
           }
-        }
-
-        if (dto.slot === 'potion') {
-          if (source.isEquiped) return { success: true };
-
-          if (target?.itemId === source.itemId) {
-            const transferQuantity = Math.min(5 - target.quantity, source.quantity);
-            if (transferQuantity <= 0) throw new BadRequestException('Health potion slot is full');
-            await tx.inventoryItem.update({
-              where: { id: target.id },
-              data: { quantity: { increment: transferQuantity } },
-            });
-            if (source.quantity === transferQuantity) {
-              await tx.inventoryItem.delete({ where: { id: source.id } });
-            } else {
-              await tx.inventoryItem.update({
-                where: { id: source.id },
-                data: { quantity: { decrement: transferQuantity } },
-              });
-            }
-            return { success: true };
-          }
-
-          if (target) {
-            const backpackEntry = await tx.inventoryItem.findFirst({
-              where: { gameProfileId: profile.id, itemId: target.itemId, isEquiped: false },
-              select: { id: true },
-            });
-            if (backpackEntry) {
-              await tx.inventoryItem.update({
-                where: { id: backpackEntry.id },
-                data: { quantity: { increment: target.quantity } },
-              });
-              await tx.inventoryItem.delete({ where: { id: target.id } });
-            } else {
-              await tx.inventoryItem.update({ where: { id: target.id }, data: { isEquiped: false, slot: null } });
-            }
-          }
-
-          const equipQuantity = Math.min(5, source.quantity);
-          if (source.quantity > equipQuantity) {
-            await tx.inventoryItem.update({
-              where: { id: source.id },
-              data: { quantity: { decrement: equipQuantity } },
-            });
-            await tx.inventoryItem.create({
-              data: {
-                gameProfileId: profile.id,
-                itemId: source.itemId,
-                quantity: equipQuantity,
-                isEquiped: true,
-                slot: dto.slot,
-              },
-            });
-          } else {
-            await tx.inventoryItem.update({
-              where: { id: source.id },
-              data: { quantity: equipQuantity, isEquiped: true, slot: dto.slot },
-            });
-          }
-          return { success: true };
         }
 
         if (source.isEquiped) {

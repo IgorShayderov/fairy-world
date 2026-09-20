@@ -58,10 +58,11 @@ export default {
   },
   attributeDescriptions: {
     STRENGTH: 'Each point increases Damage by 1.',
-    AGILITY: 'Each point adds 0.5 Dodge and Critical Chance rating. Final percentages scale with your level.',
+    AGILITY: 'Each point adds 1 Dodge and 1 Critical Chance rating. Final percentages scale with your level.',
     ENDURANCE: 'Each point increases Health by 10 and Defense by 1.',
     WISDOM: 'Each point increases Mana by 5.',
-    CHARISMA: 'Each point adds 1 Critical Damage rating. Its final benefit scales with level and diminishing returns.',
+    CHARISMA:
+      'Each point increases Health by 5 and adds 1 Critical Damage rating. Its critical benefit scales with level and diminishing returns.',
   },
   propertyNames: {
     HEALTH: 'Health',
@@ -83,7 +84,7 @@ export default {
   },
   propertyFormulas: {
     defense: 'damage reduction % = defense ÷ (defense + max(level, 7) × 10) × 100',
-    chance: 'final % = min(50%, max(0, rating) × 65 ÷ max(level, 35))',
+    chance: 'final % = min(50%, max(0, rating) × 20 ÷ max(level, 35))',
     criticalDamage:
       'effective rating = rating × 15 ÷ max(level, 70); final % = min(300%, 150% + 150% × effective rating ÷ (effective rating + 6))',
   },
@@ -94,6 +95,9 @@ export default {
     legs: 'Legs',
     feet: 'Feet',
     accessory: 'Accessory',
+    ring: 'Ring',
+    amulet: 'Amulet',
+    banner: 'Banner',
     leftHand: 'Left Hand',
     rightHand: 'Right Hand',
     empty: 'Empty',

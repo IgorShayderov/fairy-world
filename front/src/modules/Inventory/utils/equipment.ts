@@ -1,4 +1,10 @@
-import type { EquipmentSlot, EquipmentSlotId, EquipmentType, InventoryItemType, InventoryEntry } from '@/modules/Inventory/types';
+import type {
+  EquipmentSlot,
+  EquipmentSlotId,
+  EquipmentType,
+  InventoryItemType,
+  InventoryEntry,
+} from '@/modules/Inventory/types';
 
 import { isHealthPotion, isPotion } from './potions';
 
@@ -11,9 +17,9 @@ const EQUIPMENT_TYPE_SLOTS: Record<EquipmentType, EquipmentSlotId[]> = {
   GLOVES: ['hands'],
   LEGS: ['legs'],
   RING: ['accessory'],
-  AMULET: ['accessory'],
-  SCROLL: ['scroll'],
-  POTION: ['potion'],
+  AMULET: ['amulet'],
+  SCROLL: [],
+  POTION: [],
   RECIPE: [],
   UNKNOWN: [],
 };
@@ -29,10 +35,7 @@ export const getCompatibleEquipmentSlotsForTypes = (equipmentTypes: EquipmentTyp
 export const isTwoHanded = (item?: { name?: string; nameKey?: string; isTwoHanded?: boolean } | null): boolean => {
   if (!item) return false;
   if (typeof item.isTwoHanded === 'boolean') return item.isTwoHanded;
-  return Boolean(
-    item.name?.toLowerCase().includes('two-handed') ||
-    item.nameKey?.toLowerCase().includes('two-handed')
-  );
+  return Boolean(item.name?.toLowerCase().includes('two-handed') || item.nameKey?.toLowerCase().includes('two-handed'));
 };
 
 export const getCompatibleEquipmentSlots = (item: InventoryItemType): EquipmentSlotId[] => {
@@ -43,7 +46,7 @@ export const getCompatibleEquipmentSlots = (item: InventoryItemType): EquipmentS
 
 export const combineEquippedHandItems = (
   leftItem: InventoryItemType | null | undefined,
-  rightItem: InventoryItemType | null | undefined,
+  rightItem: InventoryItemType | null | undefined
 ): InventoryItemType | null => {
   if (!leftItem && !rightItem) return null;
   if (leftItem && !rightItem) return leftItem;
@@ -93,7 +96,7 @@ export const combineEquippedHandItems = (
 
 export const findEquippedItemForInventoryItem = (
   equipmentSlots: readonly Pick<EquipmentSlot, 'id' | 'item'>[],
-  inventoryItem: InventoryItemType,
+  inventoryItem: InventoryItemType
 ): InventoryItemType | null => {
   if (isPotion(inventoryItem)) return null;
   if (isTwoHanded(inventoryItem)) {
@@ -118,7 +121,7 @@ export const findEquippedItemForInventoryItem = (
 export const mapInventoryEntryToInventoryItem = (
   entry: InventoryEntry,
   nameFormatter?: (entry: InventoryEntry) => string,
-  rarityFormatter?: (rarity: string) => string,
+  rarityFormatter?: (rarity: string) => string
 ): InventoryItemType => ({
   inventoryItemId: entry.id,
   id: entry.item.id,
@@ -142,9 +145,14 @@ export const mapInventoryEntryToInventoryItem = (
 
 export const findEquippedItemForEntries = (
   equippedEntries: readonly InventoryEntry[],
-  targetItem: { equipmentType?: EquipmentType[]; equipmentTypes?: EquipmentType[]; name?: string; isTwoHanded?: boolean },
+  targetItem: {
+    equipmentType?: EquipmentType[];
+    equipmentTypes?: EquipmentType[];
+    name?: string;
+    isTwoHanded?: boolean;
+  },
   nameFormatter?: (entry: InventoryEntry) => string,
-  rarityFormatter?: (rarity: string) => string,
+  rarityFormatter?: (rarity: string) => string
 ): InventoryItemType | null => {
   const mapEntry = (entry: InventoryEntry): InventoryItemType =>
     mapInventoryEntryToInventoryItem(entry, nameFormatter, rarityFormatter);

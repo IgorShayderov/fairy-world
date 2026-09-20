@@ -72,10 +72,12 @@ import { useTranslation } from 'i18next-vue';
 import { useQuasar } from 'quasar';
 import { onMounted, ref } from 'vue';
 
+import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 import { craftingApi, type CraftingData, type CraftRecipe } from '@/modules/Crafting/api';
 
 const { t } = useTranslation();
 const $q = useQuasar();
+const currentUserStore = useCurrentUserStore();
 const data = ref<CraftingData | null>(null);
 const loading = ref(true);
 const busy = ref(false);
@@ -93,7 +95,7 @@ const craftRecipe = async (recipe: CraftRecipe) => {
   try {
     await craftingApi.craft(recipe.id);
     $q.notify({ type: 'positive', message: t('crafting.crafted', { name: recipe.result.name }) });
-    await load();
+    await Promise.all([load(), currentUserStore.fetchCurrentUser(true)]);
   } catch {
     $q.notify({ type: 'negative', message: t('crafting.error') });
   } finally {
