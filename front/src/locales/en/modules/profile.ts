@@ -84,7 +84,7 @@ export default {
   },
   propertyFormulas: {
     defense: 'damage taken = max(1, incoming damage - defense)',
-    chance: 'final % = min(50%, max(0, rating) × 30 ÷ max(level, 35))',
+    chance: 'final % = min(50%, max(0, rating) × 20 ÷ max(level, 35))',
     criticalDamage:
       'effective rating = rating × 15 ÷ max(level, 70); final % = min(300%, 150% + 150% × effective rating ÷ (effective rating + 6))',
   },

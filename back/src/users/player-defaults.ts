@@ -12,7 +12,7 @@ const roundPercentage = (value: number) => Math.round(value * 10) / 10;
 
 export const convertRatingToPercentage = (stat: StatType, rating: number, level: number): number => {
   const nonNegativeRating = Math.max(0, rating);
-  const scaledRating = (nonNegativeRating * 30) / Math.max(35, level);
+  const scaledRating = (nonNegativeRating * 20) / Math.max(35, level);
 
   if (stat === StatType.CRIT || stat === StatType.DODGE) {
     return roundPercentage(Math.min(MAX_CHANCE_PERCENT, scaledRating));
