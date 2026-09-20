@@ -19,6 +19,11 @@ export class ChatService {
   async getMessages(channelId: string) {
     return this.prisma.message.findMany({
       where: { channelId },
+      include: {
+        author: {
+          select: { id: true, name: true },
+        },
+      },
       orderBy: { createdAt: 'asc' },
     });
   }
@@ -29,6 +34,11 @@ export class ChatService {
         authorId,
         channelId,
         text,
+      },
+      include: {
+        author: {
+          select: { id: true, name: true },
+        },
       },
     });
 

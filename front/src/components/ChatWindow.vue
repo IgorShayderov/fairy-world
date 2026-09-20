@@ -32,7 +32,19 @@
             {{ t('chat.statuses.loadingMessages') }}
           </div>
           <template v-else>
-            <ChatMessage v-for="message in chatStore.messages" :key="message.id" :message="message" />
+            <section v-for="group in messageGroups" :key="group.key" class="space-y-3">
+              <div class="flex items-center gap-3 py-1" role="separator" :aria-label="dateLabel(group)">
+                <span class="h-px flex-1 bg-gray-200" />
+                <time
+                  class="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-[11px] font-semibold text-gray-500 shadow-sm"
+                  :datetime="group.key"
+                >
+                  {{ dateLabel(group) }}
+                </time>
+                <span class="h-px flex-1 bg-gray-200" />
+              </div>
+              <ChatMessage v-for="message in group.messages" :key="message.id" :message="message" />
+            </section>
           </template>
         </div>
 
@@ -48,6 +60,9 @@ import { reactive, ref, computed, onMounted, nextTick, watch } from 'vue';
 
 import type { ChatPosition } from '@/shared/types/settings';
 
+import { socket } from '@/boot/socket';
+import { groupMessagesByDate } from '@/modules/Chat/dateGroups';
+import type { MessageDateGroup } from '@/modules/Chat/dateGroups';
 import { useChatStore } from '@modules/Chat/store';
 import { StorageService } from '@services/storage.service';
 
@@ -81,8 +96,16 @@ watch(
   }
 );
 
-const { t } = useTranslation();
+const { t, i18next } = useTranslation();
 const chatStore = useChatStore();
+const messageGroups = computed(() => groupMessagesByDate(chatStore.messages));
+const dateLabel = (group: MessageDateGroup) => group.isToday
+  ? t('chat.labels.today')
+  : new Intl.DateTimeFormat(i18next.language, {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    }).format(group.date);
 
 const messagesContainer = ref<HTMLElement | null>(null);
 
@@ -96,6 +119,10 @@ const scrollToBottom = async () => {
 watch(() => chatStore.messages, scrollToBottom, { deep: true });
 
 onMounted(async () => {
+  // Authenticated tabs can be opened without passing through the login page,
+  // so each mounted chat must ensure its own realtime connection is active.
+  if (!socket.connected) socket.connect();
+
   await chatStore.loadChannels();
 
   const [firstChannel] = chatStore.channels;

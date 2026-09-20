@@ -69,6 +69,11 @@ describe('ChatService', () => {
 
       expect(mockPrismaService.message.findMany).toHaveBeenCalledWith({
         where: { channelId },
+        include: {
+          author: {
+            select: { id: true, name: true },
+          },
+        },
         orderBy: { createdAt: 'asc' },
       });
       expect(result).toEqual(messages);
@@ -101,6 +106,11 @@ describe('ChatService', () => {
 
       expect(mockPrismaService.message.create).toHaveBeenCalledWith({
         data: { authorId, channelId, text },
+        include: {
+          author: {
+            select: { id: true, name: true },
+          },
+        },
       });
       expect(mockChatGateway.server.emit).toHaveBeenCalledWith('new_message', savedMessage);
       expect(result).toEqual(savedMessage);

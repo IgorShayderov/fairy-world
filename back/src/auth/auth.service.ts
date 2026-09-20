@@ -92,11 +92,21 @@ export class AuthService {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = await this.prisma.$transaction(async (tx) => {
-      const starterItems: Array<{ id: number }> = [];
-      for (const equipmentType of [EquipmentType.WEAPON, EquipmentType.SHIELD]) {
-        starterItems.push(
-          await this.itemGenerator.generate({ level: 1, rarity: ItemRarity.COMMON, equipmentType }, tx),
+      const starterItems: Array<{ id: number; slot: string }> = [];
+      for (const starter of [
+        { baseItemName: 'Sword', equipmentType: EquipmentType.WEAPON, slot: 'left-hand' },
+        { baseItemName: 'Shield', equipmentType: EquipmentType.SHIELD, slot: 'right-hand' },
+      ] as const) {
+        const item = await this.itemGenerator.generate(
+          {
+            baseItemName: starter.baseItemName,
+            level: 1,
+            rarity: ItemRarity.COMMON,
+            equipmentType: starter.equipmentType,
+          },
+          tx,
         );
+        starterItems.push({ id: item.id, slot: starter.slot });
       }
       return tx.user.create({
         data: {
@@ -111,8 +121,8 @@ export class AuthService {
                 create: starterItems.map((item) => ({
                   item: { connect: { id: item.id } },
                   quantity: 1,
-                  isEquiped: false,
-                  slot: null,
+                  isEquiped: true,
+                  slot: item.slot,
                 })),
               },
               freeAttributes: STARTING_FREE_ATTRIBUTES,

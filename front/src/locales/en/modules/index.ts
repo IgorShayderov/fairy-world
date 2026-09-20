@@ -51,6 +51,10 @@ const modules = {
   profile,
   shop,
   chat: {
+    labels: {
+      today: 'Today',
+      you: 'You',
+    },
     titles: {
       channels: 'Channels',
     },

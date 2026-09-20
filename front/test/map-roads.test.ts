@@ -3,11 +3,13 @@ import { describe, expect, it } from 'vitest';
 import {
   bridgeCrossings,
   isPointInBog,
+  isPointInForest,
   isPointInMountain,
   isPointInRiver,
   isPointOnBridge,
   isPointOnRoute,
   landmarks,
+  movementSpeedAt,
   mountains,
   roads,
 } from '@/modules/Game/composables/useMapObjects';
@@ -51,6 +53,14 @@ describe('map roads', () => {
   it('recognizes bog terrain for movement penalties', () => {
     expect(isPointInBog(420, 1510)).toBe(true);
     expect(isPointInBog(1470, 1040)).toBe(false);
+  });
+
+  it('applies road, open terrain, forest, and bog movement speeds', () => {
+    expect(movementSpeedAt(730, 735)).toBe(1);
+    expect(movementSpeedAt(3000, 900)).toBe(0.7);
+    expect(isPointInForest(790, 1220)).toBe(true);
+    expect(movementSpeedAt(790, 1220)).toBe(0.4);
+    expect(movementSpeedAt(420, 1510)).toBe(0.2);
   });
 
   it('never crosses a drawn mountain, including the road stroke', () => {

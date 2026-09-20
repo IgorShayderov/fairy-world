@@ -1,8 +1,8 @@
 <template>
-  <main class="h-screen flex-col">
+  <main class="flex h-dvh flex-col overflow-hidden">
     <AppHeader :auth="false" />
 
-    <RouterView />
+    <RouterView class="min-h-0 flex-1 overflow-hidden" />
   </main>
 </template>
 

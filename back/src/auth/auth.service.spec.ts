@@ -147,17 +147,17 @@ describe('AuthService', () => {
       expect(profile?.gems).toBe(0);
       expect(itemGenerator.generate).toHaveBeenNthCalledWith(
         1,
-        { level: 1, rarity: 'COMMON', equipmentType: 'WEAPON' },
+        { baseItemName: 'Sword', level: 1, rarity: 'COMMON', equipmentType: 'WEAPON' },
         mockPrismaService,
       );
       expect(itemGenerator.generate).toHaveBeenNthCalledWith(
         2,
-        { level: 1, rarity: 'COMMON', equipmentType: 'SHIELD' },
+        { baseItemName: 'Shield', level: 1, rarity: 'COMMON', equipmentType: 'SHIELD' },
         mockPrismaService,
       );
       expect(profile?.inventory?.create).toEqual([
-        { item: { connect: { id: 101 } }, quantity: 1, isEquiped: false, slot: null },
-        { item: { connect: { id: 102 } }, quantity: 1, isEquiped: false, slot: null },
+        { item: { connect: { id: 101 } }, quantity: 1, isEquiped: true, slot: 'left-hand' },
+        { item: { connect: { id: 102 } }, quantity: 1, isEquiped: true, slot: 'right-hand' },
       ]);
       expect(profile?.freeAttributes).toBe(0);
       expect(profile?.profileAttributes?.create).toHaveLength(5);

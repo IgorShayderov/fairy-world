@@ -5,6 +5,7 @@ import { BASE_ITEMS, BaseItem, Modifier, PREFIXES, RARITY_WEIGHTS, SUFFIXES } fr
 import { itemIdentity } from './item-identity';
 
 interface GenerateItemOptions {
+  baseItemName?: string;
   minimumRarity?: ItemRarity;
   level: number;
   equipmentType?: EquipmentType;
@@ -33,7 +34,7 @@ export class ItemGeneratorService {
     await client.$executeRaw`SELECT pg_advisory_xact_lock(7241901)`;
     const level = Math.max(1, options.level);
 
-    const baseItem = this.pickBaseItem(options.equipmentType);
+    const baseItem = this.pickBaseItem(options.equipmentType, options.baseItemName);
 
     const rarity = options.rarity ?? this.generateRarity();
 
@@ -142,10 +143,11 @@ export class ItemGeneratorService {
     });
   }
 
-  private pickBaseItem(equipmentType?: EquipmentType): BaseItem {
-    const availableItems = equipmentType
-      ? BASE_ITEMS.filter((item) => item.equipmentType === equipmentType)
-      : BASE_ITEMS;
+  private pickBaseItem(equipmentType?: EquipmentType, baseItemName?: string): BaseItem {
+    const availableItems = BASE_ITEMS.filter(
+      (item) =>
+        (!equipmentType || item.equipmentType === equipmentType) && (!baseItemName || item.name === baseItemName),
+    );
 
     if (!availableItems.length) {
       throw new Error(`No base items for equipment type ${equipmentType}`);

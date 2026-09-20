@@ -1,5 +1,5 @@
 <template>
-  <article class="flex min-h-full w-full items-center justify-center p-4">
+  <article class="flex h-full min-h-0 w-full items-center justify-center overflow-hidden p-4">
     <QCard class="w-full max-w-md rounded-lg p-6 shadow-lg">
       <QCardSection>
         <h1 class="mb-6 text-center text-xl font-bold text-gray-800">{{ t('auth.buttons.register') }}</h1>
