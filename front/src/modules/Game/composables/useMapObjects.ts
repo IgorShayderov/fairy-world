@@ -521,7 +521,7 @@ export function useMapObjects() {
     ctx.textAlign = 'center';
     ctx.font = 'italic 600 21px Georgia, serif';
     ctx.fillStyle = 'rgba(62, 59, 48, 0.75)';
-    ctx.fillText('The Moonward Stones', 0, 94);
+    ctx.fillText('The Moonward Stones', 0, -108);
     ctx.restore();
 
     // Moonfall's lower valley is scattered with luminous mineral outcrops.
