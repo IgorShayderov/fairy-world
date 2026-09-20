@@ -5,6 +5,7 @@ export function useMapGenerator() {
     drawBackground,
     drawSea,
     drawWetlands,
+    drawRegionalDecorations,
     drawRivers,
     drawRoads,
     drawMountainRanges,
@@ -19,6 +20,7 @@ export function useMapGenerator() {
     drawBackground(ctx, width, height);
     drawSea(ctx);
     drawWetlands(ctx);
+    drawRegionalDecorations(ctx);
     drawRivers(ctx);
     drawRoads(ctx);
     drawMountainRanges(ctx);

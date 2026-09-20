@@ -206,6 +206,10 @@ export const lakes: TerrainFeature[] = [
   { x: 1040, y: 1810, rx: 92, ry: 54, angle: -0.12, seed: 73 },
 ];
 
+export const frozenLakes: TerrainFeature[] = [
+  { x: 2835, y: 350, rx: 150, ry: 78, angle: -0.16, seed: 89 },
+];
+
 export const bogs: TerrainFeature[] = [
   { x: 420, y: 1510, rx: 150, ry: 88, angle: 0.15, seed: 101 },
   { x: 2900, y: 1450, rx: 175, ry: 105, angle: -0.32, seed: 133 },
@@ -381,6 +385,58 @@ export function useMapObjects() {
       ctx.restore();
     }
 
+    for (const lake of frozenLakes) {
+      ctx.save();
+      traceTerrainFeature(ctx, lake);
+      ctx.shadowColor = 'rgba(45, 83, 96, 0.3)';
+      ctx.shadowBlur = 18;
+      const ice = ctx.createLinearGradient(
+        lake.x - lake.rx,
+        lake.y - lake.ry,
+        lake.x + lake.rx,
+        lake.y + lake.ry,
+      );
+      ice.addColorStop(0, '#dce9e6');
+      ice.addColorStop(0.45, '#a9cfd0');
+      ice.addColorStop(1, '#719fac');
+      ctx.fillStyle = ice;
+      ctx.fill();
+      ctx.shadowColor = 'transparent';
+      ctx.lineWidth = 11;
+      ctx.strokeStyle = 'rgba(221, 226, 205, 0.7)';
+      ctx.stroke();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = 'rgba(60, 92, 101, 0.65)';
+      ctx.stroke();
+      ctx.clip();
+
+      const random = seededRandom(lake.seed + 500);
+      ctx.lineCap = 'round';
+      for (let crack = 0; crack < 13; crack++) {
+        let x = lake.x + (random() - 0.5) * lake.rx * 1.25;
+        let y = lake.y + (random() - 0.5) * lake.ry * 0.9;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        const segments = 2 + Math.floor(random() * 3);
+        for (let segment = 0; segment < segments; segment++) {
+          x += (random() - 0.5) * 42;
+          y += (random() - 0.5) * 24;
+          ctx.lineTo(x, y);
+        }
+        ctx.lineWidth = crack % 3 === 0 ? 2.3 : 1.2;
+        ctx.strokeStyle = crack % 3 === 0 ? 'rgba(45, 91, 107, 0.68)' : 'rgba(239, 251, 247, 0.78)';
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.font = 'italic 600 23px Georgia, serif';
+      ctx.fillStyle = 'rgba(54, 75, 76, 0.78)';
+      ctx.fillText('The Glassmere', lake.x, lake.y - lake.ry - 24);
+      ctx.restore();
+    }
+
     for (const bog of bogs) {
       ctx.save();
       traceTerrainFeature(ctx, bog);
@@ -418,6 +474,107 @@ export function useMapObjects() {
       }
       ctx.restore();
     }
+  };
+
+  const drawRegionalDecorations = (ctx: CanvasRenderingContext2D) => {
+    // A weathered ceremonial site fills the western approach to Moonfall
+    // without reading as another interactive map destination.
+    ctx.save();
+    ctx.translate(1325, 700);
+    ctx.fillStyle = 'rgba(91, 79, 56, 0.14)';
+    ctx.beginPath();
+    ctx.ellipse(0, 16, 145, 70, -0.12, 0, Math.PI * 2);
+    ctx.fill();
+    for (let index = 0; index < 11; index++) {
+      const angle = (index / 11) * Math.PI * 2;
+      const x = Math.cos(angle) * 112;
+      const y = Math.sin(angle) * 48;
+      const height = 25 + (index % 3) * 7;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate((index % 2 ? -1 : 1) * 0.08);
+      ctx.beginPath();
+      ctx.moveTo(-7, 5);
+      ctx.lineTo(-5, -height + 5);
+      ctx.lineTo(1, -height);
+      ctx.lineTo(8, -height + 8);
+      ctx.lineTo(7, 6);
+      ctx.closePath();
+      const stone = ctx.createLinearGradient(-8, 0, 8, 0);
+      stone.addColorStop(0, '#595d55');
+      stone.addColorStop(0.52, '#929384');
+      stone.addColorStop(1, '#454b48');
+      ctx.fillStyle = stone;
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(47, 52, 48, 0.7)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.restore();
+    }
+    ctx.beginPath();
+    ctx.ellipse(0, 10, 58, 24, -0.12, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(83, 73, 55, 0.55)';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([8, 7]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.textAlign = 'center';
+    ctx.font = 'italic 600 21px Georgia, serif';
+    ctx.fillStyle = 'rgba(62, 59, 48, 0.75)';
+    ctx.fillText('The Moonward Stones', 0, 94);
+    ctx.restore();
+
+    // Moonfall's lower valley is scattered with luminous mineral outcrops.
+    ctx.save();
+    ctx.translate(2135, 900);
+    const glow = ctx.createRadialGradient(0, 0, 4, 0, 0, 155);
+    glow.addColorStop(0, 'rgba(135, 210, 218, 0.2)');
+    glow.addColorStop(1, 'rgba(135, 210, 218, 0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(-170, -120, 340, 240);
+    const crystals = [
+      [-112, 22, 31, -0.14],
+      [-72, -28, 45, 0.08],
+      [-25, 30, 26, -0.06],
+      [24, -16, 54, 0.1],
+      [76, 25, 34, -0.12],
+      [119, -18, 42, 0.06],
+    ] as const;
+    for (const [x, y, height, lean] of crystals) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(lean);
+      ctx.shadowColor = 'rgba(113, 211, 226, 0.7)';
+      ctx.shadowBlur = 12;
+      ctx.beginPath();
+      ctx.moveTo(0, -height);
+      ctx.lineTo(10, -height * 0.28);
+      ctx.lineTo(7, 5);
+      ctx.lineTo(-8, 5);
+      ctx.lineTo(-11, -height * 0.3);
+      ctx.closePath();
+      const crystal = ctx.createLinearGradient(-10, 0, 10, 0);
+      crystal.addColorStop(0, '#477e8f');
+      crystal.addColorStop(0.48, '#bfe7e6');
+      crystal.addColorStop(1, '#5d9eae');
+      ctx.fillStyle = crystal;
+      ctx.fill();
+      ctx.shadowColor = 'transparent';
+      ctx.strokeStyle = 'rgba(50, 91, 103, 0.78)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(0, -height);
+      ctx.lineTo(1, 2);
+      ctx.strokeStyle = 'rgba(244, 255, 250, 0.55)';
+      ctx.stroke();
+      ctx.restore();
+    }
+    ctx.textAlign = 'center';
+    ctx.font = 'italic 600 22px Georgia, serif';
+    ctx.fillStyle = 'rgba(48, 75, 76, 0.78)';
+    ctx.fillText('Lunarglass Vale', 0, 92);
+    ctx.restore();
   };
 
   const drawRivers = (ctx: CanvasRenderingContext2D) => {
@@ -704,7 +861,9 @@ export function useMapObjects() {
       const size = 22 + random() * 24;
       const blocksRoad = isPointOnRoute(x, y, 30 + size * 0.5);
       const blocksLandmark = landmarks.some((landmark) => Math.hypot(x - landmark.x, y - landmark.y) < 64 + size);
-      const insideLake = lakes.some((lake) => Math.hypot((x - lake.x) / lake.rx, (y - lake.y) / lake.ry) < 1.15);
+      const insideLake = [...lakes, ...frozenLakes].some(
+        (lake) => Math.hypot((x - lake.x) / lake.rx, (y - lake.y) / lake.ry) < 1.15,
+      );
       if (blocksRoad || blocksLandmark || insideLake) continue;
       trees.push({ x, y, size, color: colors[Math.floor(random() * colors.length)]! });
     }
@@ -719,6 +878,7 @@ export function useMapObjects() {
     drawForestCluster(ctx, 470, 590, 250, 135, 70, 921, ['#294b3b', '#385b45', '#45664d']);
     drawForestCluster(ctx, 2780, 1520, 265, 180, 82, 1027, ['#354d3d', '#49614a', '#596f52']);
     drawForestCluster(ctx, 1330, 1450, 185, 125, 52, 1181, ['#264d3c', '#315d45', '#45684c']);
+    drawForestCluster(ctx, 2840, 510, 205, 105, 46, 1297, ['#36565a', '#46686a', '#5b7775']);
 
     ctx.save();
     ctx.textAlign = 'center';
@@ -728,6 +888,7 @@ export function useMapObjects() {
     ctx.fillText('The Elderwild', 1830, 1310);
     ctx.fillText('Blackpine Reach', 470, 435);
     ctx.fillText('The Mirewood', 2780, 1190);
+    ctx.fillText('Frostpine Tundra', 2830, 555);
     ctx.restore();
   };
 
@@ -922,7 +1083,7 @@ export function useMapObjects() {
     if (!ctx.isPointInPath(x, y)) return false;
     if (isPointInMountain(x, y)) return false;
     if (isPointInRiver(x, y) && !isPointOnBridge(x, y)) return false;
-    for (const lake of lakes) {
+    for (const lake of [...lakes, ...frozenLakes]) {
       traceTerrainFeature(ctx, lake);
       if (ctx.isPointInPath(x, y)) return false;
     }
@@ -933,6 +1094,7 @@ export function useMapObjects() {
     drawBackground,
     drawSea,
     drawWetlands,
+    drawRegionalDecorations,
     drawRivers,
     drawRoads,
     drawMountainRanges,
