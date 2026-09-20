@@ -20,6 +20,7 @@ type CurrentUserModel = Prisma.UserGetPayload<{
         buffs: true;
         dungeonVisits: true;
         sanctuaryVisits: true;
+        craftItems: { include: { craftItem: true } };
         _count: { select: { quests: { where: { completedAt: { not: null } } } } };
       };
     };
@@ -69,6 +70,7 @@ describe('UserView.renderCurrent', () => {
         killedMonsters: 42,
         _count: { quests: 3 },
         sanctuaryVisits: [{ gameProfileId: 7, sanctuaryId: 1, nextBlessingAt: new Date('2099-01-01T00:00:00Z') }],
+        craftItems: [],
         profileAttributes: [
           {
             gameProfileId: 7,
@@ -93,6 +95,8 @@ describe('UserView.renderCurrent', () => {
             quantity: 1,
             slot: 'right-hand',
             isEquiped: true,
+            upgradeType: null,
+            upgradeValue: null,
             createdAt: new Date('2026-09-10T00:00:00Z'),
             updatedAt: new Date('2026-09-10T00:00:00Z'),
             item: {
@@ -136,12 +140,15 @@ describe('UserView.renderCurrent', () => {
             quantity: 2,
             slot: null,
             isEquiped: false,
+            upgradeType: null,
+            upgradeValue: null,
             createdAt: new Date('2026-09-10T00:00:00Z'),
             updatedAt: new Date('2026-09-10T00:00:00Z'),
             item: {
               id: 3,
-              name: 'Spare Shield',
               ...commonItem,
+              name: 'Vitality Crystal',
+              icon: 'craft_health_crystal.png',
               attributes: [],
               stats: [],
             },
@@ -158,6 +165,10 @@ describe('UserView.renderCurrent', () => {
     expect(result.gems).toBe(25);
     expect(result.mapPosition).toEqual({ x: 1600, y: 900 });
     expect(result.inventory).toHaveLength(1);
+    expect(result.inventory[0]).toMatchObject({
+      craftUpgradeType: 'HEALTH',
+      craftUpgradeValue: 10,
+    });
     expect(result.equippedItems).toHaveLength(1);
     expect(result.equippedItems[0]).toMatchObject({
       id: 10,

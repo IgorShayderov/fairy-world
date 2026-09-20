@@ -19,7 +19,7 @@
           attributes: item.attributes,
           properties: item.properties,
         }"
-        :comparison-item="equippedItem"
+        :comparison-item="item.equipmentType.includes('RECIPE') ? null : equippedItem"
         :slot-id="''"
         class="h-24 w-24 shrink-0"
         @double-click="$emit('add', item.id)"

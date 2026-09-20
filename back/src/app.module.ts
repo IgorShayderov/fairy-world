@@ -13,6 +13,7 @@ import { PasswordsModule } from './passwords/passwords.module';
 import { LocationsModule } from './locations/locations.module';
 import { MonstersModule } from './monsters/monsters.module';
 import { QuestsModule } from './quests/quests.module';
+import { CraftingModule } from './crafting/crafting.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { QuestsModule } from './quests/quests.module';
     LocationsModule,
     MonstersModule,
     QuestsModule,
+    CraftingModule,
     MailerModule.forRoot({
       transport: {
         host: process.env.SMTP_HOST,

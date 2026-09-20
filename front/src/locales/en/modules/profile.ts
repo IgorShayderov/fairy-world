@@ -118,6 +118,7 @@ export default {
     axe: 'Axe',
     shield: 'Shield',
     potion: 'Potion',
+    recipe: 'Recipe',
     medicine: 'Medicine',
     ring: 'Ring',
     scroll: 'Scroll',

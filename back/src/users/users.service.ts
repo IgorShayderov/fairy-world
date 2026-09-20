@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
-import { EquipmentType, Prisma } from '../../generated/client';
+import { CraftItemKind, EquipmentType, Prisma } from '../../generated/client';
 import { PrismaService } from '../prisma.service';
 import { UserModel, UserWhereInput } from '../../generated/models';
 import type { EquipItemDto, EquipmentSlotId } from './dto/equip-item.dto';
@@ -79,6 +79,11 @@ export class UsersService {
             buffs: true,
             dungeonVisits: true,
             sanctuaryVisits: true,
+            craftItems: {
+              where: { quantity: { gt: 0 }, craftItem: { kind: CraftItemKind.MATERIAL } },
+              include: { craftItem: true },
+              orderBy: { craftItemId: 'asc' },
+            },
             _count: { select: { quests: { where: { completedAt: { not: null } } } } },
           },
         },
@@ -330,6 +335,28 @@ export class UsersService {
           include: { item: true },
         });
         if (!inventoryEntry) throw new NotFoundException('Inventory item not found');
+
+        if (inventoryEntry.item.equipmentType?.includes(EquipmentType.RECIPE)) {
+          const recipe = await tx.craftRecipe.findUnique({ where: { shopItemId: inventoryEntry.itemId } });
+          if (!recipe) throw new BadRequestException('Recipe is invalid');
+          const learned = await tx.learnedCraftRecipe.findUnique({
+            where: { gameProfileId_recipeId: { gameProfileId: profile.id, recipeId: recipe.id } },
+          });
+          if (learned) throw new BadRequestException('Recipe has already been learned');
+
+          if (inventoryEntry.quantity > 1) {
+            await tx.inventoryItem.update({
+              where: { id: inventoryEntry.id },
+              data: { quantity: { decrement: 1 } },
+            });
+          } else {
+            await tx.inventoryItem.delete({ where: { id: inventoryEntry.id } });
+          }
+          await tx.learnedCraftRecipe.create({
+            data: { gameProfileId: profile.id, recipeId: recipe.id },
+          });
+          return { success: true, effect: 'RECIPE', recipeId: recipe.id, recipeName: recipe.name };
+        }
 
         const effect = getPotionEffect(inventoryEntry.item.name);
         if (!inventoryEntry.item.isConsumable || !effect) {

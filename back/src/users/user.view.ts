@@ -1,5 +1,13 @@
 import { UserModel } from '../../generated/models';
-import { AttributeType, PlayerBuffType, StatType, type Prisma } from '../../generated/client';
+import {
+  AttributeType,
+  CraftItemKind,
+  CraftUpgradeType,
+  PlayerBuffType,
+  StatType,
+  type Prisma,
+} from '../../generated/client';
+import { CRAFT_ITEMS, upgradeValueForLevel } from '../crafting/crafting.catalog';
 import { ItemView } from '../common/views/item.view';
 import { townAt } from '../locations/towns';
 import { experienceToNextLevel, MAX_PLAYER_LEVEL } from './level-progression';
@@ -30,6 +38,7 @@ type CurrentUserModel = Prisma.UserGetPayload<{
         buffs: true;
         dungeonVisits: true;
         sanctuaryVisits: true;
+        craftItems: { include: { craftItem: true } };
         _count: { select: { quests: { where: { completedAt: { not: null } } } } };
       };
     };
@@ -59,10 +68,22 @@ export class UserView {
     const playerLevel = profile?.level ?? 1;
     const entries = profile?.inventory ?? [];
     const equippedEntries = entries.filter((entry) => entry.isEquiped);
-    const renderEntry = (entry: (typeof entries)[number]) => ({
-      ...entry,
-      item: ItemView.render(entry.item),
-    });
+    const renderEntry = (entry: (typeof entries)[number]) => {
+      const catalyst = CRAFT_ITEMS.find(
+        (definition) => definition.kind === CraftItemKind.UPGRADE && definition.name === entry.item.name,
+      );
+
+      return {
+        ...entry,
+        ...(catalyst?.upgradeType
+          ? {
+              craftUpgradeType: catalyst.upgradeType,
+              craftUpgradeValue: upgradeValueForLevel(catalyst.upgradeType, playerLevel),
+            }
+          : {}),
+        item: ItemView.render(entry.item),
+      };
+    };
 
     const attributes = new Map<AttributeType, EffectiveModifier>(
       Object.values(AttributeType).map((name) => [
@@ -134,6 +155,30 @@ export class UserView {
         current.value += value;
         attributes.set(attribute.name, current);
       }
+    }
+
+    let goldBonusPercent = 0;
+    let experienceBonusPercent = 0;
+    for (const entry of equippedEntries) {
+      if (!entry.upgradeType || !entry.upgradeValue) continue;
+      if (entry.upgradeType === CraftUpgradeType.GOLD) {
+        goldBonusPercent += entry.upgradeValue;
+        continue;
+      }
+      if (entry.upgradeType === CraftUpgradeType.EXPERIENCE) {
+        experienceBonusPercent += entry.upgradeValue;
+        continue;
+      }
+      const stat =
+        entry.upgradeType === CraftUpgradeType.DAMAGE
+          ? StatType.DAMAGE
+          : entry.upgradeType === CraftUpgradeType.DEFENSE
+            ? StatType.DEFENSE
+            : StatType.HEALTH;
+      const property = properties.get(stat);
+      if (!property) continue;
+      property.equipmentBonus += entry.upgradeValue;
+      property.value += entry.upgradeValue;
     }
 
     for (const attribute of attributes.values()) {
@@ -240,6 +285,8 @@ export class UserView {
         y: profile?.mapPositionY ?? 1040,
       },
       activeBuffs: activeBuffs.map(({ type, value, expiresAt }) => ({ type, value, expiresAt })),
+      rewardBonuses: { goldPercent: goldBonusPercent, experiencePercent: experienceBonusPercent },
+      craftInventory: (profile?.craftItems ?? []).map(({ craftItem, quantity }) => ({ ...craftItem, quantity })),
       attributes: [...attributes.values()],
       properties: renderedProperties,
       inventory: entries.filter((entry) => !entry.isEquiped).map(renderEntry),

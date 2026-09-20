@@ -14,6 +14,7 @@ const appRoutes: RouteRecordRaw[] = [
         component: () => import('@pages/RootPage.vue'),
         children: [
           { path: routes.leaderboardPath(), name: 'LeaderboardPage', component: () => import('@pages/LeaderboardPage.vue') },
+          { path: routes.craftPath(), name: 'CraftPage', component: () => import('@pages/CraftPage.vue') },
           { path: routes.settingsPath(), name: 'SettingsPage', component: () => import('@pages/SettingsPage.vue') },
           { path: routes.questsPath(), name: 'QuestsPage', component: () => import('@pages/QuestsPage.vue') },
           { path: routes.shopPath(), name: 'ShopPage', component: () => import('@pages/ShopPage.vue') },

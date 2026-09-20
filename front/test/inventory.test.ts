@@ -16,6 +16,8 @@ describe('profile inventory hydration', () => {
         quantity: 3,
         slot: null,
         isEquiped: false,
+        craftUpgradeType: 'HEALTH',
+        craftUpgradeValue: 10,
         item: {
           id: 2,
           name: 'Iron Shield',
@@ -50,6 +52,8 @@ describe('profile inventory hydration', () => {
         properties: [{ name: 'DEFENSE', description: null, value: 1 }],
         quantity: 3,
         slot: null,
+        craftUpgradeType: 'HEALTH',
+        craftUpgradeValue: 10,
       },
     ]);
   });

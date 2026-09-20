@@ -5,6 +5,11 @@ const BASE_AUTH_PATH = `${BASE_API_PATH}/auth`;
 
 const routes = {
   api: {
+    crafting: {
+      detailsPath: () => [BASE_API_PATH, 'crafting'].join('/'),
+      craftPath: (recipeId: number) => [BASE_API_PATH, 'crafting', 'recipes', String(recipeId), 'craft'].join('/'),
+      applyUpgradePath: () => [BASE_API_PATH, 'crafting', 'upgrades', 'apply'].join('/'),
+    },
     quests: {
       deliverPath: (id: number) => [BASE_API_PATH, 'quests', id, 'deliver'].join('/'),
       refreshPath: () => [BASE_API_PATH, 'quests', 'refresh'].join('/'),
@@ -68,6 +73,7 @@ const routes = {
   rootPath: () => '/',
   settingsPath: () => '/settings',
   leaderboardPath: () => '/leaderboard',
+  craftPath: () => '/craft',
   questsPath: () => '/quests',
   loginPath: () => '/login',
   profilePath: () => '/profile',

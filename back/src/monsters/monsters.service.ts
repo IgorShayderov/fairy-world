@@ -12,6 +12,7 @@ import { requireLandmark } from '../locations/landmarks';
 import { progressionAfterExperience } from '../users/level-progression';
 import { recordQuestVictory } from '../quests/quest-progress';
 import { isOnTravelRoute } from '../locations/travel-routes';
+import { rollCraftMaterialCode } from '../crafting/crafting.catalog';
 
 export const DEATH_CURSES: Array<{ type: PlayerBuffType; value: number }> = [
   { type: PlayerBuffType.DEFENSE, value: -4 },
@@ -51,6 +52,7 @@ type Battle = {
   monster: Combatant & { id: number; level: number; rewardGold: number; rewardExperience: number };
   events: Array<{ actor: 'PLAYER' | 'MONSTER'; damage: number; critical: boolean; dodged: boolean }>;
   experienceBonusPercent: number;
+  goldBonusPercent: number;
   rewards?: {
     gold: number;
     experience: number;
@@ -62,6 +64,14 @@ type Battle = {
         inventoryFull?: boolean;
       }
     >;
+    craftItems: Array<{
+      id: number;
+      name: string;
+      description: string;
+      icon: string;
+      rarity: ItemRarity;
+      quantity: number;
+    }>;
   };
 };
 @Injectable()
@@ -189,9 +199,10 @@ export class MonstersService {
     if (battle.status === 'VICTORY') {
       const lootRarity = battle.dungeon ? rollDungeonLootRarity() : rollMonsterLootRarity();
       battle.rewards = {
-        gold: battle.monster.rewardGold,
+        gold: Math.round(battle.monster.rewardGold * (1 + battle.goldBonusPercent / 100)),
         experience: Math.round(battle.monster.rewardExperience * (1 + battle.experienceBonusPercent / 100)),
         items: [],
+        craftItems: [],
       };
       const rewards = battle.rewards;
       await this.prisma.$transaction(async (tx) => {
@@ -264,6 +275,27 @@ export class MonstersService {
             });
           }
         }
+        if (!battle.dungeon) {
+          const materialCode = rollCraftMaterialCode();
+          if (materialCode) {
+            const material = await tx.craftItem.findUnique({ where: { code: materialCode } });
+            if (material) {
+              await tx.playerCraftItem.upsert({
+                where: { gameProfileId_craftItemId: { gameProfileId: profile.id, craftItemId: material.id } },
+                create: { gameProfileId: profile.id, craftItemId: material.id, quantity: 1 },
+                update: { quantity: { increment: 1 } },
+              });
+              rewards.craftItems.push({
+                id: material.id,
+                name: material.name,
+                description: material.description,
+                icon: material.icon,
+                rarity: material.rarity,
+                quantity: 1,
+              });
+            }
+          }
+        }
       });
     }
 
@@ -317,7 +349,10 @@ export class MonstersService {
       status: 'ACTIVE',
       turn: 1,
       events: [],
-      experienceBonusPercent: player.activeBuffs.find(({ type }) => type === PlayerBuffType.EXPERIENCE)?.value ?? 0,
+      experienceBonusPercent:
+        (player.activeBuffs.find(({ type }) => type === PlayerBuffType.EXPERIENCE)?.value ?? 0) +
+        player.rewardBonuses.experiencePercent,
+      goldBonusPercent: player.rewardBonuses.goldPercent,
       player: {
         name: player.name ?? 'Player',
         health: playerHealth,

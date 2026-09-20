@@ -78,7 +78,13 @@ const menuItems = computed(() => [
     id: 'leaderboard',
     nameKey: 'menu.leaderboard',
     route: routes.leaderboardPath(),
-    icon: 'M8 21h8m-4-4v4M7 4h10v4a5 5 0 01-10 0V4Zm0 2H4v2a4 4 0 004 4m9-6h3v2a4 4 0 01-4 4',
+    icon: 'M3 20h18M4 20v-6h5v6M9 20V8h6v12M15 20v-9h5v9M11 5h2M12 4v2',
+  },
+  {
+    id: 'craft',
+    nameKey: 'menu.craft',
+    route: routes.craftPath(),
+    icon: 'M14.7 6.3a4 4 0 0 0-5-5L12 3.6 9.6 6 7.3 3.7a4 4 0 0 0 5 5L4 17l3 3 7.7-8.3a4 4 0 0 0 5-5L17.4 9 15 6.6Z',
   },
 
   ...(currentUser.user?.currentShopId && inTown.value
