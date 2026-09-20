@@ -13,7 +13,7 @@ export default {
   itemChance: 'Шанс 10% получить предмет: магический или более редкий.',
   huntTitle: 'Охота: {{monster}}', huntDescription: 'Победите монстров типа «{{monster}}»: {{count}}. Учитываются все ранги.',
   huntingLocation: 'Место охоты: {{region}}, рядом с {{town}}. Путешествуйте по этой области, чтобы встретить местных монстров.',
-  regions: { whisperwood: 'Шепчущий лес', crossroads: 'Перекрёсток', southern_woods: 'Южные леса', moonfall_heights: 'Высоты Мунфолла', frostwatch_peaks: 'Пики Фроствотча', eastern_badlands: 'Восточные пустоши' },
+  regions: { whisperwood: 'Шепчущий лес', crossroads: 'Перекрёсток', southern_woods: 'Южные леса', moonfall_heights: 'Высоты Мунфолла', frostwatch_peaks: 'Пики Фроствотча', eastern_badlands: 'Восточные пустоши', lake_shores: 'берега озёр', mirelands: 'топи' },
   monsters: { 'Dire Wolf': 'Лютый волк', 'Forest Troll': 'Лесной тролль', 'Goblin Raider': 'Гоблин-налётчик', 'Stone Golem': 'Каменный голем', 'Shadow Stalker': 'Теневой охотник', 'Arcane Chimera': 'Магическая химера', 'Storm Harpy': 'Грозовая гарпия', 'Void Wraith': 'Призрак пустоты', 'Frost Giant': 'Ледяной великан', 'Dragon': 'Дракон', 'Bone Knight': 'Костяной рыцарь', 'Infernal Minotaur': 'Адский минотавр' },
   title: 'Журнал заданий', intro: 'Помогайте жителям городов и защищайте дороги.',
   active: 'Текущие задания', completed: 'Завершённые задания', board: 'Городская доска заданий',

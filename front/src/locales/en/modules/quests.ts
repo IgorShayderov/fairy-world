@@ -13,7 +13,7 @@ export default {
   itemChance: '10% chance of an item: Magic rarity or better.',
   huntTitle: 'Hunt: {{monster}}', huntDescription: 'Defeat {{count}} monsters of type {{monster}}. All ranks count.',
   huntingLocation: 'Hunt in {{region}}, near {{town}}. Travel around that area to encounter local monsters.',
-  regions: { whisperwood: 'Whisperwood', crossroads: 'the Crossroads', southern_woods: 'the Southern Woods', moonfall_heights: 'Moonfall Heights', frostwatch_peaks: 'Frostwatch Peaks', eastern_badlands: 'the Eastern Badlands' },
+  regions: { whisperwood: 'Whisperwood', crossroads: 'the Crossroads', southern_woods: 'the Southern Woods', moonfall_heights: 'Moonfall Heights', frostwatch_peaks: 'Frostwatch Peaks', eastern_badlands: 'the Eastern Badlands', lake_shores: 'the lake shores', mirelands: 'the mirelands' },
   monsters: { 'Dire Wolf': 'Dire Wolf', 'Forest Troll': 'Forest Troll', 'Goblin Raider': 'Goblin Raider', 'Stone Golem': 'Stone Golem', 'Shadow Stalker': 'Shadow Stalker', 'Arcane Chimera': 'Arcane Chimera', 'Storm Harpy': 'Storm Harpy', 'Void Wraith': 'Void Wraith', 'Frost Giant': 'Frost Giant', 'Dragon': 'Dragon', 'Bone Knight': 'Bone Knight', 'Infernal Minotaur': 'Infernal Minotaur' },
   title: 'Quest journal', intro: 'Help the townsfolk and make the roads safer.',
   active: 'Current quests', completed: 'Finished quests', board: 'Town quest board',

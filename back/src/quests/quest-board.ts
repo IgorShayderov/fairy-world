@@ -19,9 +19,7 @@ export function generateTownOffers(
   const random = () =>
     createHash('sha256').update(`quest-board-v2:${seed}:${town.shopId}:${day}:${roll++}`).digest().readUInt32BE(0) /
     0x100000000;
-  const pool = MONSTER_HABITATS.flatMap((habitat) =>
-    (habitat.monsters as readonly string[]).map((monsterType) => ({ habitat, monsterType })),
-  );
+  const pool = MONSTER_HABITATS.flatMap((habitat) => habitat.monsters.map((monsterType) => ({ habitat, monsterType })));
   return Array.from({ length: townQuestCount(town.shopId) }, (_, slot) => {
     const levelModifier =
       playerLevel > 1

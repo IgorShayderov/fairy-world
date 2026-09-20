@@ -14,7 +14,7 @@ export const landmarks: Landmark[] = [
   { x: 450, y: 350, name: 'RAVENCRYPT', subtitle: 'The Forgotten Barrows', type: 'dungeon', accent: '#bb91de' },
   { x: 940, y: 620, name: 'AURELIA', subtitle: 'The Sunlit Citadel', type: 'capital', accent: '#f6cf72' },
   { x: 2060, y: 570, name: 'MOONFALL', subtitle: 'City of Silver Spires', type: 'city', accent: '#b8d9ff' },
-  { x: 1470, y: 1040, name: 'EVERCROSS', subtitle: 'The Wandering Market', type: 'village', accent: '#efbd74' },
+  { x: 1470, y: 960, name: 'EVERCROSS', subtitle: 'The Wandering Market', type: 'village', accent: '#efbd74' },
   { x: 2470, y: 1370, name: 'EMBERDEEP', subtitle: 'Vault of the First Flame', type: 'dungeon', accent: '#ff8067' },
   { x: 720, y: 1480, name: 'STARGLEN', subtitle: 'Sanctuary of Whispers', type: 'sanctum', sanctuaryId: 1, accent: '#8ce5ca' },
   { x: 1720, y: 1640, name: 'MOSSKEEP', subtitle: 'Village beneath the Boughs', type: 'village', accent: '#a9d48c' },
@@ -41,16 +41,122 @@ export const roads: Point[][] = [
   road('AURELIA', 'SUNSPIRE'),
   road('SUNSPIRE', 'ICEVAULT'),
   road('AURELIA', 'EVERCROSS'),
-  road('EVERCROSS', 'MOONFALL'),
+  road(
+    'EVERCROSS',
+    'MOONFALL',
+    { x: 1700, y: 885 },
+    { x: 1880, y: 710 },
+    { x: 2025, y: 535 },
+  ),
   road('MOONFALL', 'FROSTWATCH', { x: 2250, y: 535 }, { x: 2580, y: 535 }),
   road('FROSTWATCH', 'HOLLOWGATE', { x: 2770, y: 600 }, { x: 2850, y: 950 }),
-  road('EVERCROSS', 'STARGLEN'),
-  road('STARGLEN', 'LARKHAVEN'),
-  road('EVERCROSS', 'LARKHAVEN'),
+  road('EVERCROSS', 'STARGLEN', { x: 1190, y: 1080 }, { x: 930, y: 1280 }),
+  road('STARGLEN', 'LARKHAVEN', { x: 800, y: 1470 }, { x: 880, y: 1550 }),
+  road('EVERCROSS', 'LARKHAVEN', { x: 1470, y: 1090 }, { x: 1350, y: 1240 }),
   road('LARKHAVEN', 'MOSSKEEP'),
   road('MOSSKEEP', 'DAWNSHRINE'),
   road('DAWNSHRINE', 'EMBERDEEP'),
 ];
+
+export const rivers: Point[][] = [
+  [
+    { x: 2200, y: 55 },
+    { x: 2170, y: 205 },
+    { x: 2130, y: 370 },
+    { x: 2010, y: 620 },
+    { x: 1840, y: 790 },
+    { x: 1680, y: 980 },
+    { x: 1470, y: 1040 },
+    { x: 1260, y: 1220 },
+    { x: 990, y: 1360 },
+    { x: 690, y: 1660 },
+    { x: 585, y: 1835 },
+    { x: 500, y: 1995 },
+    { x: 455, y: 2075 },
+  ],
+  [
+    { x: 1660, y: 980 },
+    { x: 1840, y: 1130 },
+    { x: 1900, y: 1380 },
+    { x: 2060, y: 1740 },
+    { x: 2140, y: 1900 },
+    { x: 2200, y: 2040 },
+    { x: 2225, y: 2115 },
+  ],
+];
+
+const segmentIntersection = (a: Point, b: Point, c: Point, d: Point) => {
+  const abX = b.x - a.x;
+  const abY = b.y - a.y;
+  const cdX = d.x - c.x;
+  const cdY = d.y - c.y;
+  const denominator = abX * cdY - abY * cdX;
+  if (Math.abs(denominator) < 0.001) return null;
+  const acX = c.x - a.x;
+  const acY = c.y - a.y;
+  const roadRatio = (acX * cdY - acY * cdX) / denominator;
+  const riverRatio = (acX * abY - acY * abX) / denominator;
+  if (roadRatio <= 0.03 || roadRatio >= 0.97 || riverRatio <= 0.03 || riverRatio >= 0.97) return null;
+  return {
+    x: a.x + abX * roadRatio,
+    y: a.y + abY * roadRatio,
+    // The routes themselves approach water close to its normal, allowing the
+    // bridge deck to stay precisely aligned with the road on both banks.
+    angle: Math.atan2(abY, abX),
+  };
+};
+
+const detectedBridgeCrossings = roads.flatMap((route) =>
+  route.slice(1).flatMap((roadEnd, roadIndex) =>
+    rivers.flatMap((river) =>
+      river.slice(1).flatMap((riverEnd, riverIndex) => {
+        const crossing = segmentIntersection(route[roadIndex]!, roadEnd, river[riverIndex]!, riverEnd);
+        return crossing ? [crossing] : [];
+      }),
+    ),
+  ),
+);
+
+export const bridgeCrossings = [
+  ...detectedBridgeCrossings,
+  // The river bends at Evercross, so its crossing lands on a river vertex and
+  // cannot be discovered as an ordinary segment intersection.
+  { x: 1470, y: 1040, angle: Math.PI / 2 },
+];
+
+const distanceToOrientedRectangle = (
+  point: Point,
+  center: Point,
+  angle: number,
+  halfLength: number,
+  halfWidth: number,
+) => {
+  const offsetX = point.x - center.x;
+  const offsetY = point.y - center.y;
+  const localX = offsetX * Math.cos(angle) + offsetY * Math.sin(angle);
+  const localY = -offsetX * Math.sin(angle) + offsetY * Math.cos(angle);
+  return Math.abs(localX) <= halfLength && Math.abs(localY) <= halfWidth;
+};
+
+export const isPointOnBridge = (x: number, y: number) =>
+  bridgeCrossings.some((bridge) => distanceToOrientedRectangle({ x, y }, bridge, bridge.angle, 36, 16));
+
+export const isPointInRiver = (x: number, y: number, tolerance = 14) =>
+  rivers.some((river) =>
+    river.slice(1).some((end, index) => distanceToSegment({ x, y }, river[index]!, end) <= tolerance),
+  );
+
+export const isPointInMountain = (x: number, y: number, padding = 8) =>
+  mountains.some((mountain) => {
+    const top = mountain.y - mountain.size;
+    const bottom = mountain.y + mountain.size * 0.34;
+    const verticalRatio = (y - top) / (bottom - top);
+    if (verticalRatio < 0 || verticalRatio > 1) return false;
+    const peakX = mountain.x + mountain.size * mountain.lean * mountain.widthScale;
+    const centerX = peakX + (mountain.x - peakX) * verticalRatio;
+    const halfWidth = mountain.size * mountain.widthScale * 0.78 * verticalRatio + padding;
+    return Math.abs(x - centerX) <= halfWidth;
+  });
 
 const distanceToSegment = (point: Point, start: Point, end: Point) => {
   const dx = end.x - start.x;
@@ -85,9 +191,64 @@ export const mountains = (() => {
       x: range.x + index * range.dx + (random() - 0.5) * 34,
       y: range.y + index * range.slope + (random() - 0.5) * 46,
       size,
+      widthScale: 0.78 + random() * 0.38,
+      lean: (random() - 0.5) * 0.22,
+      snowLine: 0.42 + random() * 0.14,
     };
   }));
 })();
+
+type TerrainFeature = Point & { rx: number; ry: number; angle: number; seed: number };
+
+export const lakes: TerrainFeature[] = [
+  { x: 360, y: 1120, rx: 105, ry: 68, angle: -0.22, seed: 31 },
+  { x: 2320, y: 1180, rx: 128, ry: 72, angle: 0.28, seed: 47 },
+  { x: 1040, y: 1810, rx: 92, ry: 54, angle: -0.12, seed: 73 },
+];
+
+export const bogs: TerrainFeature[] = [
+  { x: 420, y: 1510, rx: 150, ry: 88, angle: 0.15, seed: 101 },
+  { x: 2900, y: 1450, rx: 175, ry: 105, angle: -0.32, seed: 133 },
+  { x: 1250, y: 1900, rx: 125, ry: 72, angle: 0.08, seed: 171 },
+];
+
+const isInsideFeature = (feature: TerrainFeature, x: number, y: number, padding = 0) => {
+  const offsetX = x - feature.x;
+  const offsetY = y - feature.y;
+  const localX = offsetX * Math.cos(feature.angle) + offsetY * Math.sin(feature.angle);
+  const localY = -offsetX * Math.sin(feature.angle) + offsetY * Math.cos(feature.angle);
+  return (localX * localX) / (feature.rx + padding) ** 2 + (localY * localY) / (feature.ry + padding) ** 2 <= 1;
+};
+
+export const isPointInBog = (x: number, y: number) => bogs.some((bog) => isInsideFeature(bog, x, y));
+
+const terrainPoints = (feature: TerrainFeature) => {
+  const random = seededRandom(feature.seed);
+  return Array.from({ length: 14 }, (_, index) => {
+    const angle = (index / 14) * Math.PI * 2;
+    const wobble = 0.84 + random() * 0.24;
+    const localX = Math.cos(angle) * feature.rx * wobble;
+    const localY = Math.sin(angle) * feature.ry * wobble;
+    return {
+      x: feature.x + localX * Math.cos(feature.angle) - localY * Math.sin(feature.angle),
+      y: feature.y + localX * Math.sin(feature.angle) + localY * Math.cos(feature.angle),
+    };
+  });
+};
+
+const traceTerrainFeature = (ctx: CanvasRenderingContext2D, feature: TerrainFeature) => {
+  const points = terrainPoints(feature);
+  const first = points[0]!;
+  const last = points.at(-1)!;
+  ctx.beginPath();
+  ctx.moveTo((last.x + first.x) / 2, (last.y + first.y) / 2);
+  for (let index = 0; index < points.length; index++) {
+    const point = points[index]!;
+    const next = points[(index + 1) % points.length]!;
+    ctx.quadraticCurveTo(point.x, point.y, (point.x + next.x) / 2, (point.y + next.y) / 2);
+  }
+  ctx.closePath();
+};
 
 const traceMainland = (ctx: CanvasRenderingContext2D) => {
   ctx.beginPath();
@@ -172,28 +333,6 @@ export function useMapObjects() {
     ctx.strokeStyle = 'rgba(255, 244, 197, 0.75)';
     ctx.stroke();
 
-    const islands = [
-      { x: 285, y: 1230, rx: 72, ry: 118, angle: -0.35 },
-      { x: 2980, y: 760, rx: 92, ry: 58, angle: 0.2 },
-      { x: 2730, y: 1850, rx: 130, ry: 62, angle: -0.18 },
-    ];
-    for (const island of islands) {
-      ctx.save();
-      ctx.translate(island.x, island.y);
-      ctx.rotate(island.angle);
-      ctx.beginPath();
-      ctx.ellipse(0, 0, island.rx, island.ry, 0, 0, Math.PI * 2);
-      ctx.fillStyle = '#c1ad7b';
-      ctx.fill();
-      ctx.lineWidth = 8;
-      ctx.strokeStyle = 'rgba(227, 209, 155, 0.5)';
-      ctx.stroke();
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = '#675a42';
-      ctx.stroke();
-      ctx.restore();
-    }
-
     ctx.save();
     ctx.globalAlpha = 0.1;
     ctx.fillStyle = '#4c3e2c';
@@ -204,26 +343,87 @@ export function useMapObjects() {
     ctx.restore();
   };
 
-  const drawRivers = (ctx: CanvasRenderingContext2D) => {
-    const rivers: Point[][] = [
-      [
-        { x: 2130, y: 370 },
-        { x: 2010, y: 620 },
-        { x: 1840, y: 790 },
-        { x: 1680, y: 980 },
-        { x: 1470, y: 1040 },
-        { x: 1260, y: 1220 },
-        { x: 990, y: 1360 },
-        { x: 690, y: 1660 },
-      ],
-      [
-        { x: 1660, y: 980 },
-        { x: 1840, y: 1130 },
-        { x: 1900, y: 1380 },
-        { x: 2060, y: 1740 },
-      ],
-    ];
+  const drawWetlands = (ctx: CanvasRenderingContext2D) => {
+    for (const lake of lakes) {
+      ctx.save();
+      traceTerrainFeature(ctx, lake);
+      ctx.shadowColor = 'rgba(15, 55, 64, 0.28)';
+      ctx.shadowBlur = 16;
+      const water = ctx.createRadialGradient(
+        lake.x - lake.rx * 0.2,
+        lake.y - lake.ry * 0.25,
+        4,
+        lake.x,
+        lake.y,
+        lake.rx,
+      );
+      water.addColorStop(0, '#83c7be');
+      water.addColorStop(0.52, '#4d9998');
+      water.addColorStop(1, '#286b78');
+      ctx.fillStyle = water;
+      ctx.fill();
+      ctx.shadowColor = 'transparent';
+      ctx.lineWidth = 9;
+      ctx.strokeStyle = 'rgba(88, 91, 57, 0.42)';
+      ctx.stroke();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = 'rgba(213, 229, 200, 0.68)';
+      ctx.stroke();
+      ctx.clip();
+      ctx.lineCap = 'round';
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = 'rgba(211, 244, 229, 0.35)';
+      for (let line = -2; line <= 2; line++) {
+        ctx.beginPath();
+        ctx.ellipse(lake.x + line * 15, lake.y + line * 7, lake.rx * 0.58, lake.ry * 0.2, lake.angle, 0, Math.PI);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
 
+    for (const bog of bogs) {
+      ctx.save();
+      traceTerrainFeature(ctx, bog);
+      ctx.fillStyle = 'rgba(81, 100, 69, 0.42)';
+      ctx.fill();
+      ctx.lineWidth = 3;
+      ctx.setLineDash([10, 8]);
+      ctx.strokeStyle = 'rgba(63, 77, 52, 0.55)';
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      const random = seededRandom(bog.seed + 700);
+      for (let pool = 0; pool < 9; pool++) {
+        const px = bog.x + (random() - 0.5) * bog.rx * 1.25;
+        const py = bog.y + (random() - 0.5) * bog.ry * 1.1;
+        ctx.beginPath();
+        ctx.ellipse(px, py, 9 + random() * 16, 4 + random() * 7, random() * 0.5, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(49, 105, 99, 0.65)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(190, 189, 125, 0.45)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+
+      ctx.strokeStyle = '#596642';
+      ctx.lineWidth = 2;
+      for (let reed = 0; reed < 28; reed++) {
+        const rx = bog.x + (random() - 0.5) * bog.rx * 1.55;
+        const ry = bog.y + (random() - 0.5) * bog.ry * 1.25;
+        const height = 8 + random() * 12;
+        ctx.beginPath();
+        ctx.moveTo(rx, ry);
+        ctx.lineTo(rx + (random() - 0.5) * 4, ry - height);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+  };
+
+  const drawRivers = (ctx: CanvasRenderingContext2D) => {
+    ctx.save();
+    traceMainland(ctx);
+    ctx.clip();
     for (const river of rivers) {
       drawPath(ctx, river);
       ctx.lineCap = 'round';
@@ -240,6 +440,7 @@ export function useMapObjects() {
       ctx.strokeStyle = 'rgba(157, 231, 220, 0.75)';
       ctx.stroke();
     }
+    ctx.restore();
   };
 
   const drawRoads = (ctx: CanvasRenderingContext2D) => {
@@ -251,50 +452,207 @@ export function useMapObjects() {
       ctx.moveTo(road[0]!.x, road[0]!.y);
       for (const point of road.slice(1)) ctx.lineTo(point.x, point.y);
       ctx.setLineDash([]);
-      ctx.lineWidth = 10;
-      ctx.strokeStyle = 'rgba(77, 53, 31, 0.28)';
+      ctx.lineWidth = 20;
+      ctx.strokeStyle = 'rgba(91, 69, 38, 0.18)';
       ctx.stroke();
-      ctx.lineWidth = 4;
-      ctx.setLineDash([14, 12]);
-      ctx.strokeStyle = '#765633';
+      ctx.lineWidth = 13;
+      ctx.strokeStyle = '#a98a55';
       ctx.stroke();
+      ctx.lineWidth = 8;
+      ctx.strokeStyle = '#d0b477';
+      ctx.stroke();
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([11, 13]);
+      ctx.strokeStyle = '#755332';
+      ctx.stroke();
+
+      ctx.setLineDash([]);
+      ctx.lineWidth = 1.25;
+      ctx.strokeStyle = 'rgba(255, 235, 172, 0.7)';
+      ctx.translate(0, -3);
+      ctx.stroke();
+      ctx.translate(0, 3);
     }
     ctx.setLineDash([]);
+
+    for (const bridge of bridgeCrossings) {
+      ctx.save();
+      ctx.translate(bridge.x, bridge.y);
+      ctx.rotate(bridge.angle);
+      ctx.shadowColor = 'rgba(44, 31, 18, 0.4)';
+      ctx.shadowBlur = 7;
+      ctx.shadowOffsetY = 5;
+      ctx.fillStyle = '#5c4328';
+      ctx.fillRect(-31, -12, 62, 24);
+      ctx.shadowColor = 'transparent';
+      const deck = ctx.createLinearGradient(0, -10, 0, 10);
+      deck.addColorStop(0, '#d1ad68');
+      deck.addColorStop(0.5, '#b4864c');
+      deck.addColorStop(1, '#8c6239');
+      ctx.fillStyle = deck;
+      ctx.fillRect(-29, -9, 58, 18);
+      ctx.strokeStyle = '#674629';
+      ctx.lineWidth = 1.5;
+      for (let plank = -24; plank <= 24; plank += 8) {
+        ctx.beginPath();
+        ctx.moveTo(plank, -9);
+        ctx.lineTo(plank, 9);
+        ctx.stroke();
+      }
+      ctx.strokeStyle = '#ead39a';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(-29, -8);
+      ctx.lineTo(29, -8);
+      ctx.moveTo(-29, 8);
+      ctx.lineTo(29, 8);
+      ctx.stroke();
+      ctx.fillStyle = '#746044';
+      ctx.fillRect(-34, -13, 5, 26);
+      ctx.fillRect(29, -13, 5, 26);
+      ctx.restore();
+    }
     ctx.restore();
   };
 
-  const drawMountain = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
+  const drawMountain = (
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    size: number,
+    widthScale: number,
+    lean: number,
+    snowLine: number,
+  ) => {
     ctx.save();
     ctx.translate(x, y);
-    ctx.beginPath();
-    ctx.moveTo(-size * 0.7, size * 0.34);
-    ctx.lineTo(0, -size);
-    ctx.lineTo(size * 0.78, size * 0.34);
-    ctx.closePath();
-    const rock = ctx.createLinearGradient(-size * 0.5, 0, size * 0.5, 0);
-    rock.addColorStop(0, '#4b5352');
-    rock.addColorStop(0.5, '#899087');
-    rock.addColorStop(1, '#4d554f');
-    ctx.fillStyle = rock;
-    ctx.fill();
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = '#37423e';
-    ctx.stroke();
+    ctx.scale(widthScale, 1);
+
+    const peakX = size * lean;
+    const traceMountain = () => {
+      ctx.beginPath();
+      ctx.moveTo(-size * 0.76, size * 0.34);
+      ctx.quadraticCurveTo(-size * 0.58, size * 0.05, -size * 0.42, -size * 0.23);
+      ctx.lineTo(-size * 0.3, -size * 0.37);
+      ctx.lineTo(-size * 0.18 + peakX * 0.35, -size * 0.61);
+      ctx.lineTo(peakX, -size);
+      ctx.lineTo(size * 0.17 + peakX * 0.35, -size * 0.66);
+      ctx.lineTo(size * 0.29, -size * 0.48);
+      ctx.lineTo(size * 0.43, -size * 0.2);
+      ctx.quadraticCurveTo(size * 0.61, size * 0.06, size * 0.78, size * 0.34);
+      ctx.closePath();
+    };
 
     ctx.beginPath();
-    ctx.moveTo(-size * 0.24, -size * 0.55);
-    ctx.lineTo(0, -size);
-    ctx.lineTo(size * 0.28, -size * 0.52);
-    ctx.lineTo(size * 0.09, -size * 0.61);
-    ctx.lineTo(-size * 0.04, -size * 0.45);
-    ctx.closePath();
-    ctx.fillStyle = '#e8eee8';
+    ctx.ellipse(size * 0.03, size * 0.34, size * 0.73, size * 0.12, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(42, 48, 43, 0.2)';
     ctx.fill();
+
+    traceMountain();
+    const rock = ctx.createLinearGradient(-size * 0.65, -size * 0.2, size * 0.68, size * 0.1);
+    rock.addColorStop(0, '#3f4c4b');
+    rock.addColorStop(0.34, '#728078');
+    rock.addColorStop(0.58, '#596760');
+    rock.addColorStop(1, '#2f3e3e');
+    ctx.fillStyle = rock;
+    ctx.shadowColor = 'rgba(22, 34, 32, 0.32)';
+    ctx.shadowBlur = size * 0.1;
+    ctx.shadowOffsetY = size * 0.06;
+    ctx.fill();
+    ctx.shadowColor = 'transparent';
+
+    ctx.save();
+    traceMountain();
+    ctx.clip();
+
+    ctx.beginPath();
+    ctx.moveTo(-size * 0.76, size * 0.34);
+    ctx.lineTo(peakX, -size);
+    ctx.lineTo(size * 0.03, size * 0.34);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(165, 177, 164, 0.2)';
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(peakX, -size);
+    ctx.lineTo(size * 0.78, size * 0.34);
+    ctx.lineTo(size * 0.03, size * 0.34);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(19, 32, 32, 0.22)';
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(peakX, -size);
+    ctx.lineTo(-size * 0.08, size * 0.29);
+    ctx.lineTo(size * 0.17, size * 0.12);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(196, 199, 181, 0.1)';
+    ctx.fill();
+    ctx.restore();
+
+    traceMountain();
+    ctx.lineWidth = Math.max(2, size * 0.022);
+    ctx.strokeStyle = '#33413e';
+    ctx.stroke();
+
+    const snowY = -size * snowLine;
+    ctx.beginPath();
+    ctx.moveTo(-size * 0.3 + peakX * 0.45, snowY);
+    ctx.lineTo(peakX, -size);
+    ctx.lineTo(size * 0.31 + peakX * 0.32, snowY + size * 0.01);
+    ctx.lineTo(size * 0.19 + peakX * 0.3, snowY - size * 0.09);
+    ctx.lineTo(size * 0.09 + peakX * 0.4, snowY + size * 0.055);
+    ctx.lineTo(-size * 0.015 + peakX * 0.55, snowY - size * 0.04);
+    ctx.lineTo(-size * 0.11 + peakX * 0.5, snowY + size * 0.085);
+    ctx.lineTo(-size * 0.2 + peakX * 0.45, snowY - size * 0.035);
+    ctx.closePath();
+    const snow = ctx.createLinearGradient(peakX - size * 0.2, -size, peakX + size * 0.24, snowY);
+    snow.addColorStop(0, '#fbfaf0');
+    snow.addColorStop(0.55, '#e9eee7');
+    snow.addColorStop(1, '#c9d5d0');
+    ctx.fillStyle = snow;
+    ctx.fill();
+
+    ctx.lineCap = 'round';
+    ctx.lineWidth = Math.max(1, size * 0.012);
+    ctx.strokeStyle = 'rgba(33, 48, 46, 0.34)';
+    for (const [ridgeX, ridgeY] of [
+      [size * -0.37, size * 0.19] as const,
+      [size * 0.2, size * 0.12] as const,
+      [size * 0.48, size * 0.24] as const,
+    ]) {
+      ctx.beginPath();
+      ctx.moveTo(peakX, -size * 0.91);
+      ctx.quadraticCurveTo(ridgeX * 0.45, -size * 0.3, ridgeX, ridgeY);
+      ctx.stroke();
+    }
+
+    for (const [rockX, rockY, radius] of [
+      [-0.5, 0.29, 0.1] as const,
+      [-0.31, 0.32, 0.075] as const,
+      [0.42, 0.3, 0.09] as const,
+      [0.59, 0.32, 0.06] as const,
+    ]) {
+      ctx.beginPath();
+      ctx.ellipse(size * rockX, size * rockY, size * radius, size * radius * 0.48, -0.16, 0, Math.PI * 2);
+      ctx.fillStyle = rockX < 0 ? '#52605b' : '#394743';
+      ctx.fill();
+    }
     ctx.restore();
   };
 
   const drawMountainRanges = (ctx: CanvasRenderingContext2D) => {
-    for (const mountain of mountains) drawMountain(ctx, mountain.x, mountain.y, mountain.size);
+    for (const mountain of [...mountains].sort((a, b) => a.y - b.y)) {
+      drawMountain(
+        ctx,
+        mountain.x,
+        mountain.y,
+        mountain.size,
+        mountain.widthScale,
+        mountain.lean,
+        mountain.snowLine,
+      );
+    }
 
     ctx.save();
     ctx.font = '600 23px Georgia, serif';
@@ -335,23 +693,32 @@ export function useMapObjects() {
     colors: string[]
   ) => {
     const random = seededRandom(seed);
-    const trees = Array.from({ length: count }, () => {
+    const trees: Array<{ x: number; y: number; size: number; color: string }> = [];
+    let attempts = 0;
+    while (trees.length < count && attempts < count * 8) {
+      attempts++;
       const angle = random() * Math.PI * 2;
       const distance = Math.sqrt(random());
-      return {
-        x: centerX + Math.cos(angle) * radiusX * distance,
-        y: centerY + Math.sin(angle) * radiusY * distance,
-        size: 22 + random() * 24,
-        color: colors[Math.floor(random() * colors.length)]!,
-      };
-    }).sort((a, b) => a.y - b.y);
+      const x = centerX + Math.cos(angle) * radiusX * distance;
+      const y = centerY + Math.sin(angle) * radiusY * distance;
+      const size = 22 + random() * 24;
+      const blocksRoad = isPointOnRoute(x, y, 30 + size * 0.5);
+      const blocksLandmark = landmarks.some((landmark) => Math.hypot(x - landmark.x, y - landmark.y) < 64 + size);
+      const insideLake = lakes.some((lake) => Math.hypot((x - lake.x) / lake.rx, (y - lake.y) / lake.ry) < 1.15);
+      if (blocksRoad || blocksLandmark || insideLake) continue;
+      trees.push({ x, y, size, color: colors[Math.floor(random() * colors.length)]! });
+    }
+    trees.sort((a, b) => a.y - b.y);
     for (const tree of trees) drawTree(ctx, tree.x, tree.y, tree.size, tree.color);
   };
 
   const drawForests = (ctx: CanvasRenderingContext2D) => {
-    drawForestCluster(ctx, 790, 1220, 330, 290, 150, 426, ['#244b3a', '#315d45', '#3d694e']);
-    drawForestCluster(ctx, 1810, 1510, 390, 235, 175, 814, ['#2a4935', '#3d6244', '#496c49']);
-    drawForestCluster(ctx, 2560, 1010, 180, 270, 80, 732, ['#314f45', '#426359', '#526f60']);
+    drawForestCluster(ctx, 790, 1220, 360, 320, 180, 426, ['#244b3a', '#315d45', '#3d694e']);
+    drawForestCluster(ctx, 1810, 1510, 420, 260, 205, 814, ['#2a4935', '#3d6244', '#496c49']);
+    drawForestCluster(ctx, 2560, 1010, 210, 300, 105, 732, ['#314f45', '#426359', '#526f60']);
+    drawForestCluster(ctx, 470, 590, 250, 135, 70, 921, ['#294b3b', '#385b45', '#45664d']);
+    drawForestCluster(ctx, 2780, 1520, 265, 180, 82, 1027, ['#354d3d', '#49614a', '#596f52']);
+    drawForestCluster(ctx, 1330, 1450, 185, 125, 52, 1181, ['#264d3c', '#315d45', '#45684c']);
 
     ctx.save();
     ctx.textAlign = 'center';
@@ -359,76 +726,153 @@ export function useMapObjects() {
     ctx.fillStyle = 'rgba(42, 64, 48, 0.78)';
     ctx.fillText('Whisperwood', 760, 920);
     ctx.fillText('The Elderwild', 1830, 1310);
+    ctx.fillText('Blackpine Reach', 470, 435);
+    ctx.fillText('The Mirewood', 2780, 1190);
     ctx.restore();
   };
 
   const drawLandmarkIcon = (ctx: CanvasRenderingContext2D, landmark: Landmark) => {
     const { x, y, type, accent } = landmark;
+    const radius = type === 'capital' ? 39 : type === 'city' ? 36 : 33;
     ctx.save();
     ctx.translate(x, y);
-    ctx.shadowColor = accent;
-    ctx.shadowBlur = type === 'dungeon' || type === 'sanctum' ? 24 : 12;
 
     ctx.beginPath();
-    ctx.arc(0, 0, 30, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(27, 33, 35, 0.88)';
+    ctx.ellipse(0, radius * 0.72, radius * 1.25, radius * 0.37, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(45, 39, 27, 0.24)';
     ctx.fill();
-    ctx.lineWidth = 4;
+
+    ctx.shadowColor = accent;
+    ctx.shadowBlur = type === 'dungeon' || type === 'sanctum' ? 28 : 18;
+
+    ctx.beginPath();
+    ctx.arc(0, 0, radius, 0, Math.PI * 2);
+    const badge = ctx.createRadialGradient(-radius * 0.28, -radius * 0.35, 2, 0, 0, radius);
+    badge.addColorStop(0, '#28434a');
+    badge.addColorStop(0.68, '#182d34');
+    badge.addColorStop(1, '#0d2028');
+    ctx.fillStyle = badge;
+    ctx.fill();
+    ctx.lineWidth = 5;
     ctx.strokeStyle = accent;
     ctx.stroke();
 
     ctx.shadowBlur = 0;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius - 7, 0, Math.PI * 2);
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(244, 232, 189, 0.52)';
+    ctx.stroke();
+
     ctx.fillStyle = accent;
     ctx.strokeStyle = accent;
-    ctx.lineWidth = 4;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = 3.5;
     if (type === 'capital' || type === 'city') {
-      ctx.fillRect(-13, -7, 26, 21);
-      ctx.fillRect(-19, -15, 9, 28);
-      ctx.fillRect(10, -15, 9, 28);
+      ctx.fillRect(-15, -5, 30, 21);
+      ctx.fillRect(-22, -14, 11, 30);
+      ctx.fillRect(11, -14, 11, 30);
       ctx.beginPath();
-      ctx.moveTo(-20, -15);
-      ctx.lineTo(-14.5, -24);
-      ctx.lineTo(-9, -15);
-      ctx.moveTo(9, -15);
-      ctx.lineTo(14.5, -24);
-      ctx.lineTo(20, -15);
+      ctx.moveTo(-23, -14);
+      ctx.lineTo(-16.5, -24);
+      ctx.lineTo(-10, -14);
+      ctx.moveTo(10, -14);
+      ctx.lineTo(16.5, -24);
+      ctx.lineTo(23, -14);
       ctx.stroke();
+      ctx.fillStyle = '#10252d';
+      ctx.fillRect(-4, 5, 8, 11);
+      ctx.fillRect(-19, -8, 4, 5);
+      ctx.fillRect(15, -8, 4, 5);
+      if (type === 'capital') {
+        ctx.fillStyle = accent;
+        ctx.beginPath();
+        ctx.moveTo(-8, -5);
+        ctx.lineTo(0, -18);
+        ctx.lineTo(8, -5);
+        ctx.closePath();
+        ctx.fill();
+      }
     } else if (type === 'village') {
       ctx.beginPath();
-      ctx.moveTo(-18, -3);
-      ctx.lineTo(0, -19);
-      ctx.lineTo(18, -3);
-      ctx.lineTo(14, -3);
-      ctx.lineTo(14, 16);
-      ctx.lineTo(-14, 16);
-      ctx.lineTo(-14, -3);
+      ctx.moveTo(-19, -2);
+      ctx.lineTo(-5, -16);
+      ctx.lineTo(9, -2);
+      ctx.lineTo(6, -2);
+      ctx.lineTo(6, 15);
+      ctx.lineTo(-16, 15);
+      ctx.lineTo(-16, -2);
       ctx.closePath();
       ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(4, 5);
+      ctx.lineTo(14, -5);
+      ctx.lineTo(23, 5);
+      ctx.lineTo(20, 5);
+      ctx.lineTo(20, 16);
+      ctx.lineTo(7, 16);
+      ctx.lineTo(7, 5);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(226, 238, 218, 0.86)';
+      ctx.fill();
+      ctx.fillStyle = '#173039';
+      ctx.fillRect(-8, 6, 6, 9);
+      ctx.fillRect(12, 8, 4, 5);
+      ctx.strokeStyle = 'rgba(240, 218, 154, 0.72)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(-23, 21);
+      ctx.quadraticCurveTo(0, 14, 24, 21);
+      ctx.stroke();
     } else if (type === 'dungeon') {
       ctx.beginPath();
-      ctx.arc(0, 6, 15, Math.PI, Math.PI * 2);
-      ctx.lineTo(15, 17);
-      ctx.lineTo(-15, 17);
+      ctx.arc(0, 7, 18, Math.PI, Math.PI * 2);
+      ctx.lineTo(18, 19);
+      ctx.lineTo(-18, 19);
       ctx.closePath();
       ctx.fill();
-      ctx.fillStyle = '#201d24';
+      ctx.fillStyle = '#111b22';
       ctx.beginPath();
-      ctx.arc(0, 7, 6, Math.PI, Math.PI * 2);
-      ctx.lineTo(6, 17);
-      ctx.lineTo(-6, 17);
+      ctx.arc(0, 8, 8, Math.PI, Math.PI * 2);
+      ctx.lineTo(8, 19);
+      ctx.lineTo(-8, 19);
       ctx.closePath();
       ctx.fill();
+      ctx.strokeStyle = 'rgba(239, 226, 195, 0.5)';
+      ctx.lineWidth = 2;
+      for (const offset of [-12, -6, 6, 12]) {
+        ctx.beginPath();
+        ctx.moveTo(offset, 0);
+        ctx.lineTo(offset * 1.22, 8);
+        ctx.stroke();
+      }
+      for (let step = 0; step < 3; step++) {
+        ctx.beginPath();
+        ctx.moveTo(-22 + step * 3, 21 + step * 4);
+        ctx.lineTo(22 - step * 3, 21 + step * 4);
+        ctx.stroke();
+      }
     } else {
+      ctx.strokeStyle = 'rgba(237, 226, 188, 0.72)';
+      ctx.lineWidth = 2;
       ctx.beginPath();
-      for (let point = 0; point < 8; point++) {
-        const angle = (point * Math.PI) / 4 - Math.PI / 2;
-        const radius = point % 2 === 0 ? 21 : 8;
-        const px = Math.cos(angle) * radius;
-        const py = Math.sin(angle) * radius;
+      ctx.arc(0, 0, 24, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      for (let point = 0; point < 12; point++) {
+        const angle = (point * Math.PI) / 6 - Math.PI / 2;
+        const starRadius = point % 2 === 0 ? 22 : 7;
+        const px = Math.cos(angle) * starRadius;
+        const py = Math.sin(angle) * starRadius;
         if (point === 0) ctx.moveTo(px, py);
         else ctx.lineTo(px, py);
       }
       ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#193038';
+      ctx.beginPath();
+      ctx.arc(0, 0, 4, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.restore();
@@ -439,53 +883,31 @@ export function useMapObjects() {
       drawLandmarkIcon(ctx, landmark);
       ctx.save();
       ctx.textAlign = 'center';
-      ctx.shadowColor = 'rgba(224, 205, 154, 0.9)';
-      ctx.shadowBlur = 5;
-      ctx.fillStyle = '#29271f';
       ctx.font = '700 25px Georgia, serif';
+      const nameWidth = ctx.measureText(landmark.name).width + 24;
+      ctx.fillStyle = 'rgba(222, 205, 155, 0.76)';
+      ctx.beginPath();
+      ctx.roundRect(landmark.x - nameWidth / 2, landmark.y - 72, nameWidth, 32, 10);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(78, 65, 42, 0.38)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.fillStyle = '#29271f';
       ctx.fillText(landmark.name, landmark.x, landmark.y - 49);
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = 'rgba(55, 51, 39, 0.82)';
+
       ctx.font = 'italic 17px Georgia, serif';
-      ctx.fillText(landmark.subtitle, landmark.x, landmark.y + 55);
+      const subtitleWidth = ctx.measureText(landmark.subtitle).width + 20;
+      ctx.fillStyle = 'rgba(205, 188, 139, 0.62)';
+      ctx.beginPath();
+      ctx.roundRect(landmark.x - subtitleWidth / 2, landmark.y + 42, subtitleWidth, 27, 9);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(48, 45, 34, 0.9)';
+      ctx.fillText(landmark.subtitle, landmark.x, landmark.y + 61);
       ctx.restore();
     }
   };
 
-  const drawCompass = (ctx: CanvasRenderingContext2D) => {
-    ctx.save();
-    ctx.translate(2860, 300);
-    ctx.strokeStyle = 'rgba(229, 205, 147, 0.72)';
-    ctx.fillStyle = 'rgba(18, 45, 51, 0.82)';
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.arc(0, 0, 92, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(0, 0, 70, 0, Math.PI * 2);
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-
-    for (let index = 0; index < 8; index++) {
-      ctx.save();
-      ctx.rotate((index * Math.PI) / 4);
-      ctx.beginPath();
-      ctx.moveTo(0, index % 2 === 0 ? -64 : -48);
-      ctx.lineTo(-8, 0);
-      ctx.lineTo(8, 0);
-      ctx.closePath();
-      ctx.fillStyle = index === 0 ? '#f0c56d' : index % 2 === 0 ? '#e6d9b5' : '#81959a';
-      ctx.fill();
-      ctx.restore();
-    }
-
-    ctx.fillStyle = '#f4ddb0';
-    ctx.textAlign = 'center';
-    ctx.font = '700 21px Georgia, serif';
-    ctx.fillText('N', 0, -108);
-    ctx.restore();
-
+  const drawSeaLabels = (ctx: CanvasRenderingContext2D) => {
     ctx.save();
     ctx.textAlign = 'center';
     ctx.fillStyle = 'rgba(232, 216, 173, 0.48)';
@@ -497,18 +919,26 @@ export function useMapObjects() {
 
   const isPointOnLand = (ctx: CanvasRenderingContext2D, x: number, y: number) => {
     traceMainland(ctx);
-    return ctx.isPointInPath(x, y);
+    if (!ctx.isPointInPath(x, y)) return false;
+    if (isPointInMountain(x, y)) return false;
+    if (isPointInRiver(x, y) && !isPointOnBridge(x, y)) return false;
+    for (const lake of lakes) {
+      traceTerrainFeature(ctx, lake);
+      if (ctx.isPointInPath(x, y)) return false;
+    }
+    return true;
   };
 
   return {
     drawBackground,
     drawSea,
+    drawWetlands,
     drawRivers,
     drawRoads,
     drawMountainRanges,
     drawForests,
     drawCastlesAndCities,
-    drawCompass,
+    drawSeaLabels,
     isPointOnLand,
   };
 }

@@ -87,6 +87,30 @@ export const MONSTER_ARCHETYPES: MonsterArchetype[] = [
     primaryAttribute: AttributeType.STRENGTH,
     secondaryAttribute: AttributeType.WISDOM,
   },
+  {
+    name: 'Lake Serpent',
+    description: 'An amphibious hunter that coils beneath the surface of secluded lakes.',
+    primaryAttribute: AttributeType.AGILITY,
+    secondaryAttribute: AttributeType.ENDURANCE,
+  },
+  {
+    name: 'Drowned Siren',
+    description: 'A lake spirit whose mournful song draws travelers toward deep water.',
+    primaryAttribute: AttributeType.CHARISMA,
+    secondaryAttribute: AttributeType.WISDOM,
+  },
+  {
+    name: 'Bog Lurker',
+    description: 'A mud-caked ambusher that waits motionless among reeds and black pools.',
+    primaryAttribute: AttributeType.ENDURANCE,
+    secondaryAttribute: AttributeType.AGILITY,
+  },
+  {
+    name: 'Mire Hag',
+    description: 'A swamp witch sustained by poisonous vapors and old marsh magic.',
+    primaryAttribute: AttributeType.WISDOM,
+    secondaryAttribute: AttributeType.CHARISMA,
+  },
 ];
 
 export const MONSTER_RANKS: MonsterRank[] = [

@@ -32,4 +32,9 @@ describe('MonsterGeneratorService', () => {
   it('can generate every configured archetype instead of one closest seeded monster', () => {
     expect(MONSTER_ARCHETYPES.length).toBeGreaterThanOrEqual(10);
   });
+
+  it('does not generate exclusive lake or bog monsters without matching terrain coordinates', () => {
+    jest.spyOn(Math, 'random').mockReturnValue(0.99);
+    expect(['Lake Serpent', 'Drowned Siren', 'Bog Lurker', 'Mire Hag']).not.toContain(service.generate(10).monsterType);
+  });
 });
