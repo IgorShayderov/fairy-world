@@ -19,4 +19,9 @@ describe('regional encounters', () => {
       }
     }
   });
+  it('uses exclusive lake and bog species only inside their special habitats', () => {
+    expect(habitatAt({ x: 360, y: 1120 }).key).toBe('lake_shores');
+    expect(habitatAt({ x: 420, y: 1510 }).key).toBe('mirelands');
+    expect(habitatAt({ x: 1470, y: 1040 }).key).toBe('crossroads');
+  });
 });

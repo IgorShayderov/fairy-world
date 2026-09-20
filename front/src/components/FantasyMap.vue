@@ -101,7 +101,7 @@ import { useRouter } from 'vue-router';
 
 import { usersApi } from '@/modules/Auth/api/users';
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
-import { isPointOnRoute, landmarks, type Landmark } from '@/modules/Game/composables/useMapObjects';
+import { isPointInBog, isPointOnRoute, landmarks, type Landmark } from '@/modules/Game/composables/useMapObjects';
 import { enterDungeon, receiveBlessing, resetDungeon } from '@/modules/Locations/api';
 import type { BattleState } from '@/modules/Monsters/api';
 import { attackMonster, retreatFromBattle, rollMonsterEncounter } from '@/modules/Monsters/api';
@@ -224,7 +224,9 @@ const {
   consumeTravelStep,
   stop,
   setPosition,
-} = useCharacter(initialX, initialY, mapWidth, mapHeight, canMoveTo, (x, y) => isPointOnRoute(x, y) ? 1.3 : 1);
+} = useCharacter(initialX, initialY, mapWidth, mapHeight, canMoveTo, (x, y) =>
+  isPointInBog(x, y) ? 0.28 : isPointOnRoute(x, y) ? 1.3 : 1,
+);
 let lastSavedPosition = `${initialX}:${initialY}`;
 
 const persistPosition = async () => {

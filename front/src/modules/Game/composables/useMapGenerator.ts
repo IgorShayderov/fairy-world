@@ -4,12 +4,13 @@ export function useMapGenerator() {
   const {
     drawBackground,
     drawSea,
+    drawWetlands,
     drawRivers,
     drawRoads,
     drawMountainRanges,
     drawForests,
     drawCastlesAndCities,
-    drawCompass,
+    drawSeaLabels,
     isPointOnLand,
   } = useMapObjects();
 
@@ -17,12 +18,13 @@ export function useMapGenerator() {
   const renderProceduralMap = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
     drawBackground(ctx, width, height);
     drawSea(ctx);
+    drawWetlands(ctx);
     drawRivers(ctx);
     drawRoads(ctx);
     drawMountainRanges(ctx);
     drawForests(ctx);
     drawCastlesAndCities(ctx);
-    drawCompass(ctx);
+    drawSeaLabels(ctx);
   };
 
   return {
