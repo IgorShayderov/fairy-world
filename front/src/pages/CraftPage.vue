@@ -15,33 +15,33 @@
         >
           {{ t('crafting.noRecipes') }}
         </p>
-        <div class="grid gap-4 lg:grid-cols-2">
+        <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           <article
             v-for="recipe in data?.recipes ?? []"
             :key="recipe.id"
-            class="rounded-xl border border-[#d8bd75]/25 bg-[#0b2530] p-5 shadow-lg"
+            class="rounded-lg border border-[#d8bd75]/25 bg-[#0b2530] p-3.5 shadow-lg"
           >
-            <div class="flex gap-4">
+            <div class="flex gap-3">
               <img
                 :src="`/icons/items/${recipe.result.icon}`"
                 alt=""
-                class="h-20 w-20 rounded-xl bg-[#071a23] object-contain p-2"
+                class="h-14 w-14 shrink-0 rounded-lg bg-[#071a23] object-contain p-1.5"
               />
-              <div>
-                <h3 class="font-serif text-xl font-semibold text-[#fff0bd]">
+              <div class="min-w-0">
+                <h3 class="font-serif text-base leading-tight font-semibold text-[#fff0bd]">
                   {{ recipe.name.replace('Recipe: ', '') }}
                 </h3>
-                <p class="mt-1 text-sm text-[#a9bfba]">{{ recipe.result.description }}</p>
+                <p class="mt-1 text-xs leading-snug text-[#a9bfba]">{{ recipe.result.description }}</p>
               </div>
             </div>
-            <h4 class="mt-4 text-xs font-bold tracking-wider text-[#efca72] uppercase">
+            <h4 class="mt-3 text-[0.65rem] font-bold tracking-wider text-[#efca72] uppercase">
               {{ t('crafting.ingredients') }}
             </h4>
-            <div class="mt-2 flex flex-wrap gap-2">
+            <div class="mt-1.5 flex flex-wrap gap-1.5">
               <span
                 v-for="ingredient in recipe.ingredients"
                 :key="ingredient.id"
-                class="rounded-lg border px-2.5 py-1.5 text-xs"
+                class="rounded-md border px-2 py-1 text-[0.7rem] leading-none"
                 :class="
                   ingredient.owned >= ingredient.quantity
                     ? 'border-emerald-500/40 bg-emerald-950/50 text-emerald-200'
@@ -53,7 +53,7 @@
             </div>
             <button
               type="button"
-              class="mt-4 rounded-lg bg-[#c5963e] px-4 py-2 text-sm font-bold text-[#081820] transition hover:bg-[#e1bb65] disabled:cursor-not-allowed disabled:opacity-40"
+              class="mt-3 rounded-md bg-[#c5963e] px-3 py-1.5 text-xs font-bold text-[#081820] transition hover:bg-[#e1bb65] disabled:cursor-not-allowed disabled:opacity-40"
               :disabled="busy || !canCraft(recipe)"
               @click="craftRecipe(recipe)"
             >
