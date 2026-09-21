@@ -20,6 +20,14 @@ export const useChatStore = defineStore('chat', () => {
   // Getters
   const activeChannel = computed(() => channels.value.find((c) => c.id === activeChannelId.value));
 
+  const mergeMessages = (incoming: Message[]) => {
+    const uniqueMessages = new Map(messages.value.map((message) => [message.id, message]));
+    for (const message of incoming) uniqueMessages.set(message.id, message);
+    messages.value = [...uniqueMessages.values()].sort(
+      (left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime(),
+    );
+  };
+
   // Actions
   const loadChannels = async () => {
     isLoading.value = true;
@@ -38,7 +46,8 @@ export const useChatStore = defineStore('chat', () => {
     messages.value = [];
 
     try {
-      messages.value = await chatApi.getMessages(channelId);
+      const loadedMessages = await chatApi.getMessages(channelId);
+      if (activeChannelId.value === channelId) mergeMessages(loadedMessages);
     } finally {
       isMessagesLoading.value = false;
       // Запоминаем выбранный канал
@@ -55,7 +64,7 @@ export const useChatStore = defineStore('chat', () => {
 
     try {
       const newMessage = await chatApi.sendMessage(activeChannelId.value, text.trim());
-      messages.value.push(newMessage);
+      mergeMessages([newMessage]);
     } catch (error) {
       console.error('Ошибка при отправке сообщения', error);
     }
@@ -63,7 +72,7 @@ export const useChatStore = defineStore('chat', () => {
 
   const receiveMessage = (message: Message) => {
     if (message.channelId === activeChannelId.value) {
-      messages.value.push(message);
+      mergeMessages([message]);
     } else {
       // Здесь в будущем можно увеличивать счетчик непрочитанных сообщений
       // для других каналов в боковом меню

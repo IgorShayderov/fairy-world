@@ -1,7 +1,7 @@
 <template>
   <ToggleExpandButton
     v-model="isExpanded"
-    class="absolute left-1/2 z-30 -translate-x-1/2 transition-all duration-500 ease-in-out"
+    class="absolute left-1/2 z-30 -translate-x-1/2 border-[#806f43]! bg-[#0b2530]! text-[#f0d68a]! transition-all duration-500 ease-in-out"
     :class="{
       'pointer-events-none -top-16 -translate-y-2 opacity-0': isClosed,
       '-top-4 translate-y-0 opacity-100': !isClosed,
@@ -9,7 +9,7 @@
   />
   <ToggleExpandButton
     v-model="isClosed"
-    class="absolute z-30 -translate-x-1/2 transition-all duration-500 ease-in-out"
+    class="absolute z-30 -translate-x-1/2 border-[#806f43]! bg-[#0b2530]! text-[#f0d68a]! transition-all duration-500 ease-in-out"
     :class="{
       'pointer-events-none -translate-y-2 opacity-0': isExpanded,
       'translate-y-0 opacity-100': !isExpanded,

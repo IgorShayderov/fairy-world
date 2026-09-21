@@ -216,6 +216,24 @@ export const bogs: TerrainFeature[] = [
   { x: 1250, y: 1900, rx: 125, ry: 72, angle: 0.08, seed: 171 },
 ];
 
+interface ForestRegion extends Point {
+  colors: string[];
+  count: number;
+  radiusX: number;
+  radiusY: number;
+  seed: number;
+}
+
+export const forestRegions: ForestRegion[] = [
+  { x: 790, y: 1220, radiusX: 360, radiusY: 320, count: 180, seed: 426, colors: ['#244b3a', '#315d45', '#3d694e'] },
+  { x: 1810, y: 1510, radiusX: 420, radiusY: 260, count: 205, seed: 814, colors: ['#2a4935', '#3d6244', '#496c49'] },
+  { x: 2560, y: 1010, radiusX: 210, radiusY: 300, count: 105, seed: 732, colors: ['#314f45', '#426359', '#526f60'] },
+  { x: 470, y: 590, radiusX: 250, radiusY: 135, count: 70, seed: 921, colors: ['#294b3b', '#385b45', '#45664d'] },
+  { x: 2780, y: 1520, radiusX: 265, radiusY: 180, count: 82, seed: 1027, colors: ['#354d3d', '#49614a', '#596f52'] },
+  { x: 1330, y: 1450, radiusX: 185, radiusY: 125, count: 52, seed: 1181, colors: ['#264d3c', '#315d45', '#45684c'] },
+  { x: 2840, y: 510, radiusX: 205, radiusY: 105, count: 46, seed: 1297, colors: ['#36565a', '#46686a', '#5b7775'] },
+];
+
 const isInsideFeature = (feature: TerrainFeature, x: number, y: number, padding = 0) => {
   const offsetX = x - feature.x;
   const offsetY = y - feature.y;
@@ -225,6 +243,17 @@ const isInsideFeature = (feature: TerrainFeature, x: number, y: number, padding 
 };
 
 export const isPointInBog = (x: number, y: number) => bogs.some((bog) => isInsideFeature(bog, x, y));
+
+export const isPointInForest = (x: number, y: number) => forestRegions.some(
+  (forest) => ((x - forest.x) / forest.radiusX) ** 2 + ((y - forest.y) / forest.radiusY) ** 2 <= 1,
+);
+
+export const movementSpeedAt = (x: number, y: number) => {
+  if (isPointOnRoute(x, y)) return 1;
+  if (isPointInBog(x, y)) return 0.2;
+  if (isPointInForest(x, y)) return 0.4;
+  return 0.7;
+};
 
 const terrainPoints = (feature: TerrainFeature) => {
   const random = seededRandom(feature.seed);
@@ -872,13 +901,18 @@ export function useMapObjects() {
   };
 
   const drawForests = (ctx: CanvasRenderingContext2D) => {
-    drawForestCluster(ctx, 790, 1220, 360, 320, 180, 426, ['#244b3a', '#315d45', '#3d694e']);
-    drawForestCluster(ctx, 1810, 1510, 420, 260, 205, 814, ['#2a4935', '#3d6244', '#496c49']);
-    drawForestCluster(ctx, 2560, 1010, 210, 300, 105, 732, ['#314f45', '#426359', '#526f60']);
-    drawForestCluster(ctx, 470, 590, 250, 135, 70, 921, ['#294b3b', '#385b45', '#45664d']);
-    drawForestCluster(ctx, 2780, 1520, 265, 180, 82, 1027, ['#354d3d', '#49614a', '#596f52']);
-    drawForestCluster(ctx, 1330, 1450, 185, 125, 52, 1181, ['#264d3c', '#315d45', '#45684c']);
-    drawForestCluster(ctx, 2840, 510, 205, 105, 46, 1297, ['#36565a', '#46686a', '#5b7775']);
+    for (const forest of forestRegions) {
+      drawForestCluster(
+        ctx,
+        forest.x,
+        forest.y,
+        forest.radiusX,
+        forest.radiusY,
+        forest.count,
+        forest.seed,
+        forest.colors,
+      );
+    }
 
     ctx.save();
     ctx.textAlign = 'center';
