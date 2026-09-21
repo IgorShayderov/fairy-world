@@ -6,6 +6,7 @@ import { MonsterGeneratorService } from './monster-generator.service';
 import { UsersService } from '../users/users.service';
 import { PlayerBuffType, StatType } from '../../generated/client';
 import { ItemGeneratorService } from '../items/item-generator.service';
+import { DungeonRunsService } from './dungeon-runs.service';
 
 describe('MonstersService', () => {
   let service: MonstersService;
@@ -40,6 +41,12 @@ describe('MonstersService', () => {
   };
   const mockItemGenerator = {
     generate: jest.fn(),
+  };
+  const mockDungeonRuns = {
+    active: jest.fn(),
+    enter: jest.fn(),
+    attack: jest.fn(),
+    reset: jest.fn(),
   };
   const currentUser = (
     level: number,
@@ -87,6 +94,7 @@ describe('MonstersService', () => {
         { provide: MonsterGeneratorService, useValue: mockMonsterGenerator },
         { provide: UsersService, useValue: mockUsersService },
         { provide: ItemGeneratorService, useValue: mockItemGenerator },
+        { provide: DungeonRunsService, useValue: mockDungeonRuns },
       ],
     }).compile();
 
@@ -211,68 +219,21 @@ describe('MonstersService', () => {
     expect(mockPrismaService.inventoryItem.create).toHaveBeenCalledTimes(1);
   });
 
-  it('starts a guaranteed guardian battle at a dungeon and reuses it on repeated entry', async () => {
-    const user = currentUser(5);
-    mockUsersService.findCurrentUser.mockResolvedValue({
-      ...user,
-      gameProfile: { ...user.gameProfile, mapPositionX: 2470, mapPositionY: 1370 },
-    });
-    mockMonsterGenerator.generate.mockReturnValue({
-      id: 8,
-      name: 'Bandit',
-      level: 7,
-      rewardGold: 20,
-      rewardExperience: 30,
-      attributes: [],
-    });
-    const battle = await service.enterDungeon(7, 'EMBERDEEP');
-    expect(battle.status).toBe('ACTIVE');
-    expect(battle.monster.name).toContain('Flamebound Guardian');
-    expect(mockMonsterGenerator.generate).toHaveBeenCalledWith(7);
-    expect((await service.enterDungeon(7, 'EMBERDEEP')).id).toBe(battle.id);
-    expect(mockMonsterGenerator.generate).toHaveBeenCalledTimes(1);
-    expect(battle.monster.health).toBe(290);
-    expect(battle.monster.damage).toBe(26);
-    expect(battle.monster.rewardGold).toBe(60);
-    expect(battle.monster.rewardExperience).toBe(90);
-    expect(mockPrismaService.dungeonVisit.upsert).toHaveBeenCalledTimes(1);
-    service.retreat(7, battle.id);
-    mockPrismaService.dungeonVisit.findUnique.mockResolvedValue({ nextEntryAt: new Date(Date.now() + 3_600_000) });
-    await expect(service.enterDungeon(7, 'EMBERDEEP')).rejects.toThrow('once per hour');
-    expect(mockMonsterGenerator.generate).toHaveBeenCalledTimes(1);
-    mockPrismaService.dungeonVisit.findUnique.mockResolvedValue({ nextEntryAt: new Date(Date.now() - 1) });
-    await expect(service.enterDungeon(7, 'EMBERDEEP')).resolves.toMatchObject({ status: 'ACTIVE' });
-    expect(mockPrismaService.dungeonVisit.upsert).toHaveBeenCalledTimes(2);
-  });
+  it('delegates persistent dungeon operations to the dungeon run service', async () => {
+    const run = { id: 'run-1', dungeon: 'EMBERDEEP', status: 'ACTIVE' };
+    mockDungeonRuns.enter.mockResolvedValue(run);
+    mockDungeonRuns.active.mockResolvedValue(run);
+    mockDungeonRuns.attack.mockResolvedValue({ ...run, status: 'VICTORY' });
+    mockDungeonRuns.reset.mockResolvedValue({ success: true, cost: 10 });
 
-  it('rejects dungeon entry while the player is elsewhere', async () => {
-    const user = currentUser(5);
-    mockUsersService.findCurrentUser.mockResolvedValue({
-      ...user,
-      gameProfile: { ...user.gameProfile, mapPositionX: 1470, mapPositionY: 1040 },
+    await expect(service.enterDungeon(7, 'EMBERDEEP')).resolves.toBe(run);
+    await expect(service.activeDungeon(7)).resolves.toBe(run);
+    await expect(service.attackDungeonOpponent(7, 'run-1', 'enemy-1')).resolves.toMatchObject({
+      status: 'VICTORY',
     });
-    await expect(service.enterDungeon(7, 'EMBERDEEP')).rejects.toThrow('Travel to this landmark first');
-    expect(mockMonsterGenerator.generate).not.toHaveBeenCalled();
-  });
-
-  it('charges ten gems to reset an active dungeon cooldown', async () => {
-    mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 5, mapPositionX: 2470, mapPositionY: 1370 });
-    mockPrismaService.dungeonVisit.findUnique.mockResolvedValue({ nextEntryAt: new Date(Date.now() + 60000) });
-    mockPrismaService.gameProfile.updateMany.mockResolvedValue({ count: 1 });
     await expect(service.resetDungeon(7, 'EMBERDEEP')).resolves.toEqual({ success: true, cost: 10 });
-    expect(mockPrismaService.gameProfile.updateMany).toHaveBeenCalledWith({
-      where: { id: 5, gems: { gte: 10 } },
-      data: { gems: { decrement: 10 } },
-    });
-    expect(mockPrismaService.dungeonVisit.delete).toHaveBeenCalledTimes(1);
-  });
-
-  it('does not reset cooldown when gems are insufficient', async () => {
-    mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 5, mapPositionX: 2470, mapPositionY: 1370 });
-    mockPrismaService.dungeonVisit.findUnique.mockResolvedValue({ nextEntryAt: new Date(Date.now() + 60000) });
-    mockPrismaService.gameProfile.updateMany.mockResolvedValue({ count: 0 });
-    await expect(service.resetDungeon(7, 'EMBERDEEP')).rejects.toThrow('Not enough gems');
-    expect(mockPrismaService.dungeonVisit.delete).not.toHaveBeenCalled();
+    expect(mockDungeonRuns.enter).toHaveBeenCalledWith(7, 'EMBERDEEP');
+    expect(mockDungeonRuns.attack).toHaveBeenCalledWith(7, 'run-1', 'enemy-1');
   });
 
   describe('findAll', () => {

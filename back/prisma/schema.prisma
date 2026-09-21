@@ -100,6 +100,7 @@ model GameProfile {
   questBoards       QuestBoard[]
   craftItems        PlayerCraftItem[]
   learnedRecipes    LearnedCraftRecipe[]
+  dungeonRun        DungeonRun?
 }
 
 model Quest {
@@ -151,6 +152,16 @@ model DungeonVisit {
   nextEntryAt DateTime
   gameProfile GameProfile @relation(fields: [gameProfileId], references: [id], onDelete: Cascade)
   @@id([gameProfileId, dungeon])
+}
+
+model DungeonRun {
+  id            String      @id @default(uuid())
+  gameProfileId Int         @unique
+  dungeon       String
+  state         Json
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  gameProfile   GameProfile @relation(fields: [gameProfileId], references: [id], onDelete: Cascade)
 }
 
 model Sanctuary {

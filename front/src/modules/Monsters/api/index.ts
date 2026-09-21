@@ -78,6 +78,41 @@ export interface BattleState {
   };
 }
 
+export type DungeonOpponentStatus = 'AVAILABLE' | 'LOCKED' | 'DEFEATED';
+
+export interface DungeonOpponent {
+  id: string;
+  monsterType: string;
+  image: string;
+  isBoss: boolean;
+  status: DungeonOpponentStatus;
+  monster: BattleCombatant & {
+    level: number;
+    rewardGold: number;
+    rewardExperience: number;
+  };
+}
+
+export interface DungeonRunState {
+  id: string;
+  dungeon: string;
+  status: 'ACTIVE' | 'VICTORY' | 'DEFEAT';
+  startedAt: string;
+  player: BattleCombatant;
+  opponents: DungeonOpponent[];
+  latestEvents: BattleState['events'];
+  lastExperience: number;
+  rewards: null | {
+    gold: number;
+    item: InventoryEntry['item'] & {
+      quantity: 1;
+      inventoryItemId?: number;
+      addedToInventory: boolean;
+      inventoryFull: boolean;
+    };
+  };
+}
+
 export type EncounterRoll =
   | { encountered: false; chance: number }
   | { encountered: true; chance: number; monster: GeneratedMonster; battle: BattleState };
@@ -104,4 +139,14 @@ export const attackMonster = async (battleId: string): Promise<BattleState> => {
 
 export const retreatFromBattle = async (battleId: string): Promise<void> => {
   await api.post(routes.api.monsters.battleRetreatPath(battleId));
+};
+
+export const getActiveDungeon = async (): Promise<DungeonRunState | null> => {
+  const { data } = await api.get<DungeonRunState | null>(routes.api.monsters.activeDungeonPath());
+  return data;
+};
+
+export const attackDungeonOpponent = async (runId: string, opponentId: string): Promise<DungeonRunState> => {
+  const { data } = await api.post<DungeonRunState>(routes.api.monsters.dungeonOpponentAttackPath(runId, opponentId));
+  return data;
 };

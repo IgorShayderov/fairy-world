@@ -127,9 +127,9 @@ const modules = {
       dungeon: {
         label: 'Dungeon entrance',
         story:
-          'Cold air rises from the stairwell. Behind the sealed doors, a guardian stirs. Once you enter, you must fight or retreat.',
+          'Cold air rises from the stairwell. Three guardians wait beyond the sealed doors, and their warden watches from the deepest chamber.',
         effect:
-          'One entry per hour, including defeats and retreats. Guardians have 2× health, 1.5× damage and +5 defense percentage points. Rewards: 3× gold and XP, 80% loot chance with better rarity odds.',
+          'Defeat the three guardians in any order to unlock the boss. Each victory grants experience; clearing the dungeon grants gold and one guaranteed item: 70% Rare, 30% Unique.',
         action: 'Enter dungeon',
       },
     },
@@ -143,6 +143,20 @@ const modules = {
     zoomOut: 'Zoom out',
     resetView: 'Reset map view',
     controlsHint: 'Drag to explore · Click to travel · Scroll to zoom',
+    dungeonRun: {
+      eyebrow: 'Dungeon expedition',
+      progress: '{{defeated}} of {{total}} opponents defeated',
+      boss: 'Boss',
+      locked: 'Locked',
+      defeated: 'Defeated',
+      fight: 'Fight',
+      health: 'Health',
+      damage: 'Damage',
+      defense: 'Defense',
+      critical: 'Critical',
+      experienceEarned: '+{{experience}} experience. Gold and item rewards are held until the boss is defeated.',
+      completed: 'Dungeon cleared — final rewards',
+    },
     encounter: {
       eyebrow: 'Travel interrupted',
       title: 'A hostile presence emerges',

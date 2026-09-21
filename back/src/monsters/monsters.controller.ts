@@ -33,6 +33,20 @@ export class MonstersController {
     return this.monstersService.resetDungeon(req.user.sub, name);
   }
 
+  @Get('dungeon/active')
+  activeDungeon(@Request() req: RequestWithUser) {
+    return this.monstersService.activeDungeon(req.user.sub);
+  }
+
+  @Post('dungeon/run/:runId/opponents/:opponentId/attack')
+  attackDungeonOpponent(
+    @Param('runId') runId: string,
+    @Param('opponentId') opponentId: string,
+    @Request() req: RequestWithUser,
+  ) {
+    return this.monstersService.attackDungeonOpponent(req.user.sub, runId, opponentId);
+  }
+
   @Post('battle/:battleId/attack')
   attack(@Param('battleId') battleId: string, @Request() req: RequestWithUser) {
     return this.monstersService.attack(req.user.sub, battleId);

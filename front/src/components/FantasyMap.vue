@@ -63,7 +63,7 @@
     </div>
 
     <LandmarkEncounter
-      v-if="activeLandmark && !activeBattle && !showQuestOffers"
+      v-if="activeLandmark && !activeBattle && !activeDungeonRun && !showQuestOffers"
       :landmark="activeLandmark"
       :pending="landmarkPending"
       :message="landmarkMessage"
@@ -71,15 +71,31 @@
       @reset-dungeon="handleDungeonReset"
       :next-entry-at="
         activeLandmark.type === 'sanctum'
-          ? currentUserStore.user?.sanctuaryCooldowns?.find((entry) => entry.sanctuaryId === activeLandmark?.sanctuaryId)?.nextBlessingAt
-          : currentUserStore.user?.dungeonCooldowns?.find((entry) => entry.dungeon === activeLandmark?.name)?.nextEntryAt
+          ? currentUserStore.user?.sanctuaryCooldowns?.find(
+              (entry) => entry.sanctuaryId === activeLandmark?.sanctuaryId
+            )?.nextBlessingAt
+          : currentUserStore.user?.dungeonCooldowns?.find((entry) => entry.dungeon === activeLandmark?.name)
+              ?.nextEntryAt
       "
       @close="activeLandmark = null"
       @action="handleLandmarkAction"
       @quests="openQuests"
     />
 
-    <TownQuestDialog v-if="showQuestOffers && activeLandmark" :town-name="activeLandmark.name" @close="showQuestOffers = false" />
+    <TownQuestDialog
+      v-if="showQuestOffers && activeLandmark"
+      :town-name="activeLandmark.name"
+      @close="showQuestOffers = false"
+    />
+
+    <DungeonRunEncounter
+      v-if="activeDungeonRun"
+      :battle="activeDungeonRun"
+      :player-name="currentUserStore.user?.name ?? t('fantasy.encounter.traveler')"
+      :loading="battlePending"
+      @attack="handleDungeonAttack"
+      @close="activeDungeonRun = null"
+    />
 
     <BattleEncounter
       v-if="activeBattle"
@@ -103,8 +119,14 @@ import { usersApi } from '@/modules/Auth/api/users';
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 import { landmarks, movementSpeedAt, type Landmark } from '@/modules/Game/composables/useMapObjects';
 import { enterDungeon, receiveBlessing, resetDungeon } from '@/modules/Locations/api';
-import type { BattleState } from '@/modules/Monsters/api';
-import { attackMonster, retreatFromBattle, rollMonsterEncounter } from '@/modules/Monsters/api';
+import type { BattleState, DungeonRunState } from '@/modules/Monsters/api';
+import {
+  attackDungeonOpponent,
+  attackMonster,
+  getActiveDungeon,
+  retreatFromBattle,
+  rollMonsterEncounter,
+} from '@/modules/Monsters/api';
 import routes from '@/routes';
 import { useCharacter } from '@modules/Game/composables/useCharacter';
 import { useMapCamera } from '@modules/Game/composables/useMapCamera';
@@ -112,6 +134,7 @@ import { useMapGenerator } from '@modules/Game/composables/useMapGenerator';
 
 import ActiveBuffs from '@/modules/Game/components/ActiveBuffs.vue';
 import BattleEncounter from '@/modules/Game/components/BattleEncounter.vue';
+import DungeonRunEncounter from '@/modules/Game/components/DungeonRunEncounter.vue';
 import LandmarkEncounter from '@/modules/Game/components/LandmarkEncounter.vue';
 import TownQuestDialog from '@/modules/Quests/TownQuestDialog.vue';
 
@@ -168,7 +191,7 @@ const handleLandmarkAction = async () => {
     // Wait for the exact arrival coordinates before the server checks proximity.
     await usersApi.updateMapPosition({ x: Math.round(position.x), y: Math.round(position.y) });
     if (landmark.type === 'dungeon') {
-      activeBattle.value = await enterDungeon(landmark.name);
+      activeDungeonRun.value = await enterDungeon(landmark.name);
       await currentUserStore.fetchCurrentUser(true);
       activeLandmark.value = null;
     } else if (landmark.type === 'sanctum') {
@@ -192,6 +215,7 @@ const containerRef = ref<HTMLElement | null>(null);
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 const isDragging = ref(false);
 const activeBattle = ref<BattleState | null>(null);
+const activeDungeonRun = ref<DungeonRunState | null>(null);
 const encounterPending = ref(false);
 const battlePending = ref(false);
 let ctx: CanvasRenderingContext2D | null = null;
@@ -289,21 +313,53 @@ const handleAttack = async () => {
   try {
     activeBattle.value = await attackMonster(activeBattle.value.id);
     if (activeBattle.value.status === 'DEFEAT') {
-      Notify.create({ type: 'negative', color: 'negative', timeout: 6000, message: `${t('fantasy.encounter.defeat')}. ${t('fantasy.encounter.respawn')}` });
-      setPosition(1470, 1040);
-      lastSavedPosition = '1470:1040';
-      visitedLandmark = 'EVERCROSS';
-      activeLandmark.value = null;
-      if (currentUserStore.user) {
-        currentUserStore.user.mapPosition = { x: 1470, y: 1040 };
-        currentUserStore.user.activeBuffs = [];
-      }
-      if (containerRef.value) centerOn(1470, 1040, containerRef.value.clientWidth, containerRef.value.clientHeight);
-      draw();
+      handlePlayerDefeat();
     }
     if (activeBattle.value.status !== 'ACTIVE') await currentUserStore.fetchCurrentUser(true);
   } catch (error) {
     console.error('Battle attack failed:', error);
+  } finally {
+    battlePending.value = false;
+  }
+};
+
+const handlePlayerDefeat = () => {
+  Notify.create({
+    type: 'negative',
+    color: 'negative',
+    timeout: 6000,
+    message: `${t('fantasy.encounter.defeat')}. ${t('fantasy.encounter.respawn')}`,
+  });
+  setPosition(1470, 1040);
+  lastSavedPosition = '1470:1040';
+  visitedLandmark = 'EVERCROSS';
+  activeLandmark.value = null;
+  if (currentUserStore.user) {
+    currentUserStore.user.mapPosition = { x: 1470, y: 1040 };
+    currentUserStore.user.activeBuffs = [];
+  }
+  if (containerRef.value) centerOn(1470, 1040, containerRef.value.clientWidth, containerRef.value.clientHeight);
+  draw();
+};
+
+const handleDungeonAttack = async (opponentId: string) => {
+  if (!activeDungeonRun.value || battlePending.value) return;
+  battlePending.value = true;
+  try {
+    activeDungeonRun.value = await attackDungeonOpponent(activeDungeonRun.value.id, opponentId);
+    if (activeDungeonRun.value.status === 'DEFEAT') {
+      handlePlayerDefeat();
+      activeDungeonRun.value = null;
+    }
+    await currentUserStore.fetchCurrentUser(true);
+  } catch (error) {
+    console.error('Dungeon attack failed:', error);
+    Notify.create({
+      type: 'negative',
+      color: 'negative',
+      timeout: 5000,
+      message: error instanceof Error ? error.message : t('fantasy.landmark.error'),
+    });
   } finally {
     battlePending.value = false;
   }
@@ -323,7 +379,7 @@ const handleRetreat = async () => {
 };
 
 const tick = () => {
-  if (disposed || activeBattle.value || activeLandmark.value) return;
+  if (disposed || activeBattle.value || activeDungeonRun.value || activeLandmark.value) return;
   const stillMoving = update();
   draw();
   const landmark = nearbyLandmark(position.x, position.y);
@@ -375,7 +431,7 @@ const onPointerUp = (event: PointerEvent) => {
   isDragging.value = false;
   canvasRef.value?.releasePointerCapture(event.pointerId);
   if (!endDrag(event.clientX, event.clientY) || !canvasRef.value) return;
-  if (activeBattle.value || activeLandmark.value || encounterPending.value) return;
+  if (activeBattle.value || activeDungeonRun.value || activeLandmark.value || encounterPending.value) return;
 
   const pointer = relativePointer(event);
   const mapCoords = screenToMap(pointer.x, pointer.y);
@@ -426,6 +482,11 @@ onMounted(async () => {
     void persistPosition();
   }
   resizeCanvas();
+  try {
+    activeDungeonRun.value = await getActiveDungeon();
+  } catch (error) {
+    console.error('Failed to restore dungeon run:', error);
+  }
   const landmark = nearbyLandmark(position.x, position.y);
   // Restoring a saved position is not a new arrival. Explicit nearby clicks still open it.
   visitedLandmark = landmark?.name ?? null;

@@ -41,8 +41,7 @@ const routes = {
         [BASE_API_PATH, 'users', 'me', 'inventory', String(inventoryItemId), 'consume'].join('/'),
       dropInventoryItemPath: (inventoryItemId: number) =>
         [BASE_API_PATH, 'users', 'me', 'inventory', String(inventoryItemId)].join('/'),
-      replaceInventoryItemPath: () =>
-        [BASE_API_PATH, 'users', 'me', 'inventory', 'replace'].join('/'),
+      replaceInventoryItemPath: () => [BASE_API_PATH, 'users', 'me', 'inventory', 'replace'].join('/'),
       mapPositionPath: () => [BASE_API_PATH, 'users', 'me', 'map-position'].join('/'),
       equipmentPath: () => [BASE_API_PATH, 'users', 'me', 'equipment'].join('/'),
       equipmentSlotPath: (slot: string) => [BASE_API_PATH, 'users', 'me', 'equipment', slot].join('/'),
@@ -53,14 +52,16 @@ const routes = {
       mePath: () => [BASE_API_PATH, 'locations', 'me'].join('/'),
     },
     monsters: {
+      activeDungeonPath: () => [BASE_API_PATH, 'monsters', 'dungeon', 'active'].join('/'),
+      dungeonOpponentAttackPath: (runId: string, opponentId: string) =>
+        [BASE_API_PATH, 'monsters', 'dungeon', 'run', runId, 'opponents', opponentId, 'attack'].join('/'),
       dungeonResetPath: (name: string) => [BASE_API_PATH, 'monsters', 'dungeon', name, 'reset'].join('/'),
       dungeonPath: (name: string) => [BASE_API_PATH, 'monsters', 'dungeon', name].join('/'),
       listPath: () => [BASE_API_PATH, 'monsters'].join('/'),
       byIdPath: (id: number) => [BASE_API_PATH, 'monsters', String(id)].join('/'),
       encounterPath: () => [BASE_API_PATH, 'monsters', 'encounter'].join('/'),
       battleAttackPath: (battleId: string) => [BASE_API_PATH, 'monsters', 'battle', battleId, 'attack'].join('/'),
-      battleRetreatPath: (battleId: string) =>
-        [BASE_API_PATH, 'monsters', 'battle', battleId, 'retreat'].join('/'),
+      battleRetreatPath: (battleId: string) => [BASE_API_PATH, 'monsters', 'battle', battleId, 'retreat'].join('/'),
     },
     shop: {
       detailsPath: (shopId: number) => [BASE_API_PATH, 'shop', shopId].join('/'),
