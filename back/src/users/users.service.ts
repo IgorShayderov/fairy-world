@@ -9,6 +9,7 @@ import type { ReplaceInventoryItemDto } from './dto/replace-inventory-item.dto';
 import { STARTING_ATTRIBUTE_VALUE } from './player-defaults';
 import { requiredPlayerLevel } from './level-progression';
 import { getPotionEffect, getPotionRequiredLevel, POTION_BUFF_DURATION_MS } from '../items/potion-effects';
+import { CRAFTING_MIN_LEVEL } from '../crafting/crafting.catalog';
 import { isTwoHandedWeapon } from '../items/weapon-types';
 
 const SLOT_TYPES: Record<EquipmentSlotId, EquipmentType[]> = {
@@ -268,6 +269,9 @@ export class UsersService {
         if (!inventoryEntry) throw new NotFoundException('Inventory item not found');
 
         if (inventoryEntry.item.equipmentType?.includes(EquipmentType.RECIPE)) {
+          if (profile.level < CRAFTING_MIN_LEVEL) {
+            throw new BadRequestException(`Crafting is available from level ${CRAFTING_MIN_LEVEL}`);
+          }
           const recipe = await tx.craftRecipe.findUnique({ where: { shopItemId: inventoryEntry.itemId } });
           if (!recipe) throw new BadRequestException('Recipe is invalid');
           const learned = await tx.learnedCraftRecipe.findUnique({
@@ -294,7 +298,7 @@ export class UsersService {
           throw new BadRequestException('Item cannot be consumed');
         }
         if (effect.kind === 'HEALTH') {
-          throw new BadRequestException('Health potions must be equipped');
+          throw new BadRequestException('Health potions can only be used during an active dungeon run');
         }
         const requiredLevel = getPotionRequiredLevel(inventoryEntry.item.name) ?? inventoryEntry.item.level ?? 1;
         if ((profile.level ?? 1) < requiredLevel) {
@@ -434,6 +438,7 @@ export class UsersService {
       name: profile.user.name,
       level: profile.level,
       killedMonsters: profile.killedMonsters,
+      dungeonsCleared: profile.dungeonsCleared,
       questsCompleted: profile._count.quests,
     }));
 

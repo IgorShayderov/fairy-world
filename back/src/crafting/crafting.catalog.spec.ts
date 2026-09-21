@@ -1,5 +1,5 @@
 import { CraftUpgradeType } from '../../generated/client';
-import { rollCraftMaterialCode, upgradeValueForLevel } from './crafting.catalog';
+import { pickCraftMaterialCode, rollCraftMaterialCode, upgradeValueForLevel } from './crafting.catalog';
 
 describe('crafting catalog', () => {
   it('scales damage upgrades from level 5 every three levels', () => {
@@ -24,5 +24,10 @@ describe('crafting catalog', () => {
 
   it('returns no crafting material when the drop roll fails', () => {
     expect(rollCraftMaterialCode(() => 0.99)).toBeNull();
+  });
+
+  it('can pick a guaranteed material for dungeon rewards', () => {
+    expect(pickCraftMaterialCode(() => 0)).toBe('IRON_ORE');
+    expect(pickCraftMaterialCode(() => 0.99)).toBe('EMBER_CRYSTAL');
   });
 });

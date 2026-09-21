@@ -333,7 +333,7 @@ describe('UsersService', () => {
 
   describe('potion consumption', () => {
     it('consumes a recipe scroll and adds the recipe to the craft book', async () => {
-      mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4, level: 5 });
+      mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4, level: 10 });
       mockPrismaService.inventoryItem.findFirst.mockResolvedValue({
         id: 21,
         gameProfileId: 4,
@@ -355,6 +355,22 @@ describe('UsersService', () => {
       expect(mockPrismaService.learnedCraftRecipe.create).toHaveBeenCalledWith({
         data: { gameProfileId: 4, recipeId: 9 },
       });
+    });
+
+    it('does not allow learning a recipe before level 10', async () => {
+      mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4, level: 9 });
+      mockPrismaService.inventoryItem.findFirst.mockResolvedValue({
+        id: 21,
+        gameProfileId: 4,
+        itemId: 77,
+        quantity: 1,
+        isEquiped: false,
+        item: { id: 77, name: 'Recipe: Runed Millstone', isConsumable: true, equipmentType: ['RECIPE'] },
+      });
+
+      await expect(service.consumeInventoryItem(7, 21)).rejects.toThrow('available from level 10');
+      expect(mockPrismaService.inventoryItem.delete).not.toHaveBeenCalled();
+      expect(mockPrismaService.learnedCraftRecipe.create).not.toHaveBeenCalled();
     });
 
     it('consumes one potion and persists its four-hour buff', async () => {
@@ -415,7 +431,9 @@ describe('UsersService', () => {
         item: { name: 'Lesser Health Potion', isConsumable: true },
       });
 
-      await expect(service.consumeInventoryItem(7, 16)).rejects.toThrow('Health potions must be equipped');
+      await expect(service.consumeInventoryItem(7, 16)).rejects.toThrow(
+        'Health potions can only be used during an active dungeon run',
+      );
       expect(mockPrismaService.inventoryItem.update).not.toHaveBeenCalled();
       expect(mockPrismaService.inventoryItem.delete).not.toHaveBeenCalled();
     });
@@ -485,6 +503,7 @@ describe('UsersService', () => {
           id: 1,
           level: 25,
           killedMonsters: 100,
+          dungeonsCleared: 7,
           user: { id: 11, name: 'DragonSlayer' },
           _count: { quests: 12 },
         },
@@ -492,6 +511,7 @@ describe('UsersService', () => {
           id: 2,
           level: 20,
           killedMonsters: 80,
+          dungeonsCleared: 4,
           user: { id: 12, name: 'Mage' },
           _count: { quests: 8 },
         },
@@ -500,8 +520,16 @@ describe('UsersService', () => {
 
       const result = await service.getLeaderboard(12);
       expect(result).toEqual([
-        { rank: 1, userId: 11, name: 'DragonSlayer', level: 25, killedMonsters: 100, questsCompleted: 12 },
-        { rank: 2, userId: 12, name: 'Mage', level: 20, killedMonsters: 80, questsCompleted: 8 },
+        {
+          rank: 1,
+          userId: 11,
+          name: 'DragonSlayer',
+          level: 25,
+          killedMonsters: 100,
+          dungeonsCleared: 7,
+          questsCompleted: 12,
+        },
+        { rank: 2, userId: 12, name: 'Mage', level: 20, killedMonsters: 80, dungeonsCleared: 4, questsCompleted: 8 },
       ]);
       expect(mockPrismaService.gameProfile.findMany).toHaveBeenCalledWith({
         orderBy: [{ level: 'desc' }, { killedMonsters: 'desc' }, { experience: 'desc' }, { id: 'asc' }],
@@ -517,6 +545,7 @@ describe('UsersService', () => {
         id: index + 1,
         level: 100 - index,
         killedMonsters: 1000 - index,
+        dungeonsCleared: index,
         user: { id: index + 1, name: `Player ${index + 1}` },
         _count: { quests: index },
       }));

@@ -265,6 +265,7 @@ export class UserView {
       gold: profile?.gold ?? 0,
       gems: profile?.gems ?? 0,
       killedMonsters: profile?.killedMonsters ?? 0,
+      dungeonsCleared: profile?.dungeonsCleared ?? 0,
       accomplishedQuests: profile?._count?.quests ?? 0,
       sanctuaryCooldowns: (profile?.sanctuaryVisits ?? []).map(({ sanctuaryId, nextBlessingAt }) => ({
         sanctuaryId,
@@ -282,7 +283,7 @@ export class UserView {
       freeAttributes: profile?.freeAttributes ?? 0,
       mapPosition: {
         x: profile?.mapPositionX ?? 1470,
-        y: profile?.mapPositionY ?? 1040,
+        y: profile?.mapPositionY ?? 960,
       },
       activeBuffs: activeBuffs.map(({ type, value, expiresAt }) => ({ type, value, expiresAt })),
       rewardBonuses: { goldPercent: goldBonusPercent, experiencePercent: experienceBonusPercent },

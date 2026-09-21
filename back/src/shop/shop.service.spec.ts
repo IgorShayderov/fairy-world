@@ -95,6 +95,14 @@ describe('ShopService trades', () => {
   });
 
   it('puts a purchased recipe scroll into inventory without learning it immediately', async () => {
+    tx.gameProfile.findUnique.mockResolvedValue({
+      id: 5,
+      gold: 200,
+      gems: 20,
+      level: 10,
+      mapPositionX: 940,
+      mapPositionY: 620,
+    });
     tx.shopStock.findUnique.mockResolvedValue({
       itemId: 77,
       quantity: 1,
@@ -102,7 +110,7 @@ describe('ShopService trades', () => {
         id: 77,
         name: 'Recipe: Runed Millstone',
         price: 50,
-        level: 1,
+        level: 10,
         isConsumable: true,
       },
     });
@@ -119,6 +127,18 @@ describe('ShopService trades', () => {
       data: { gameProfileId: 5, itemId: 77, quantity: 1, slot: null, isEquiped: false },
     });
     expect(tx.learnedCraftRecipe.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects buying a recipe before level 10', async () => {
+    tx.shopStock.findUnique.mockResolvedValue({
+      itemId: 77,
+      quantity: 1,
+      item: { id: 77, name: 'Recipe: Runed Millstone', price: 50, level: 10, isConsumable: true },
+    });
+    tx.craftRecipe.findUnique.mockResolvedValue({ id: 9 });
+
+    await expect(service.buy(1, 2, { itemId: 77, quantity: 1 })).rejects.toThrow('available from level 10');
+    expect(tx.gameProfile.update).not.toHaveBeenCalled();
   });
 
   it('rejects every shop operation outside a town before mutations', async () => {
@@ -539,6 +559,43 @@ describe('ShopService trades', () => {
       expect.objectContaining({
         where: { shopId_itemId: { shopId: 2, itemId: 200 } },
       }),
+    );
+  });
+
+  it('always stocks the strongest health potion available for the player level', async () => {
+    const now = new Date('2026-09-11T09:00:00Z');
+    jest.useFakeTimers().setSystemTime(now);
+    jest.spyOn(Math, 'random').mockReturnValue(0.5);
+    tx.shop.findUnique
+      .mockResolvedValueOnce({ id: 2, name: 'Armory', gold: 500, nextRestockAt: null })
+      .mockResolvedValueOnce({ id: 2, name: 'Armory', gold: 500, nextRestockAt: new Date(), stock: [] });
+    tx.gameProfile.findUnique.mockResolvedValue({
+      id: 5,
+      gold: 200,
+      gems: 20,
+      level: 30,
+      mapPositionX: 940,
+      mapPositionY: 620,
+    });
+    tx.item.findMany.mockResolvedValue([
+      { id: 301, name: 'Minor Health Potion', level: 1, equipmentType: ['POTION'] },
+      { id: 302, name: 'Lesser Health Potion', level: 10, equipmentType: ['POTION'] },
+      { id: 303, name: 'Medium Health Potion', level: 20, equipmentType: ['POTION'] },
+      { id: 304, name: 'Mild Health Potion', level: 30, equipmentType: ['POTION'] },
+      { id: 305, name: 'Greater Health Potion', level: 40, equipmentType: ['POTION'] },
+      { id: 306, name: 'Mild Attack Potion', level: 30, equipmentType: ['POTION'] },
+    ]);
+    itemGenerator.generate.mockResolvedValue({ id: 42 });
+
+    await service.getShop(1, 2);
+
+    expect(tx.shopStock.upsert).toHaveBeenCalledWith({
+      where: { shopId_itemId: { shopId: 2, itemId: 304 } },
+      create: { shopId: 2, itemId: 304, quantity: 5 },
+      update: { quantity: { increment: 5 } },
+    });
+    expect(tx.shopStock.upsert).not.toHaveBeenCalledWith(
+      expect.objectContaining({ where: { shopId_itemId: { shopId: 2, itemId: 305 } } }),
     );
   });
 });

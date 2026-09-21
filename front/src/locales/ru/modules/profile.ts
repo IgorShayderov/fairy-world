@@ -14,6 +14,7 @@ export default {
     fromBuff: 'от эффекта',
     activeBuffs: 'Активные эффекты',
     noActiveBuffs: 'Нет активных эффектов',
+    healthPotionDungeonOnly: 'Зелья здоровья можно использовать на экране подземелья между боями.',
     buffDescriptions: {
       DAMAGE: 'Увеличивает урон на {{value}}.',
       DEFENSE: 'Увеличивает рейтинг защиты на {{value}}.',
@@ -39,6 +40,7 @@ export default {
     ratingPoints: 'Рейтинг: {{value}}',
     summary: {
       killedMonsters: 'Убито монстров',
+      dungeonsCleared: 'Пройдено подземелий',
       accomplishedQuests: 'Завершено задание',
       level: 'Уровень',
       experience: 'Опыт',
@@ -59,7 +61,8 @@ export default {
     },
     attributeDescriptions: {
       STRENGTH: 'Каждое очко увеличивает урон на 1.',
-      AGILITY: 'Каждое очко добавляет 1 к рейтингу уклонения и 1 к рейтингу критического удара. Итоговый процент зависит от уровня.',
+      AGILITY:
+        'Каждое очко добавляет 1 к рейтингу уклонения и 1 к рейтингу критического удара. Итоговый процент зависит от уровня.',
       ENDURANCE: 'Каждое очко увеличивает здоровье на 10 и защиту на 1.',
       WISDOM: 'Каждое очко увеличивает ману на 5.',
       CHARISMA:

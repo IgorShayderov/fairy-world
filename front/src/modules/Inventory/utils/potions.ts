@@ -11,6 +11,13 @@ export const isHealthPotion = (item: InventoryItemType): boolean =>
   isPotion(item) && (item.name ?? item.nameKey ?? '').includes('Health Potion');
 
 export const POTION_REQUIRED_LEVELS: Record<string, number> = {
+  'Minor Health Potion': 1,
+  'Lesser Health Potion': 10,
+  'Medium Health Potion': 20,
+  'Mild Health Potion': 30,
+  'Greater Health Potion': 40,
+  'Higher Health Potion': 50,
+
   'Lesser Experience Potion': 10,
   'Lesser Attack Potion': 10,
   'Lesser Defense Potion': 10,
@@ -36,8 +43,18 @@ export const POTION_REQUIRED_LEVELS: Record<string, number> = {
   'Higher Defense Potion': 50,
 };
 
-export const getPotionRequiredLevel = (name?: string): number =>
-  (name ? POTION_REQUIRED_LEVELS[name] ?? 1 : 1);
+export const getPotionRequiredLevel = (name?: string): number => (name ? (POTION_REQUIRED_LEVELS[name] ?? 1) : 1);
+
+export const HEALTH_POTION_RESTORE: Record<string, number> = {
+  'Minor Health Potion': 50,
+  'Lesser Health Potion': 120,
+  'Medium Health Potion': 250,
+  'Mild Health Potion': 450,
+  'Greater Health Potion': 700,
+  'Higher Health Potion': 1000,
+};
+
+export const getHealthPotionRestore = (name?: string): number => (name ? (HEALTH_POTION_RESTORE[name] ?? 0) : 0);
 
 export type PotionCategory = 'ATTACK' | 'DEFENSE' | 'EXPERIENCE' | 'FREE_ATTRIBUTE' | 'HEALTH' | 'UNKNOWN';
 

@@ -28,6 +28,7 @@ import { useTranslation } from 'i18next-vue';
 import { computed, ref, watch } from 'vue';
 
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
+import { CRAFTING_MIN_LEVEL } from '@/modules/Crafting/api';
 import { landmarks } from '@/modules/Game/composables/useMapObjects';
 import routes from '@/routes';
 import { StorageService } from '@services/storage.service';
@@ -80,12 +81,16 @@ const menuItems = computed(() => [
     route: routes.leaderboardPath(),
     icon: 'M3 20h18M4 20v-6h5v6M9 20V8h6v12M15 20v-9h5v9M11 5h2M12 4v2',
   },
-  {
-    id: 'craft',
-    nameKey: 'menu.craft',
-    route: routes.craftPath(),
-    icon: 'M14.7 6.3a4 4 0 0 0-5-5L12 3.6 9.6 6 7.3 3.7a4 4 0 0 0 5 5L4 17l3 3 7.7-8.3a4 4 0 0 0 5-5L17.4 9 15 6.6Z',
-  },
+  ...((currentUser.user?.level ?? 1) >= CRAFTING_MIN_LEVEL
+    ? [
+        {
+          id: 'craft',
+          nameKey: 'menu.craft',
+          route: routes.craftPath(),
+          icon: 'M14.7 6.3a4 4 0 0 0-5-5L12 3.6 9.6 6 7.3 3.7a4 4 0 0 0 5 5L4 17l3 3 7.7-8.3a4 4 0 0 0 5-5L17.4 9 15 6.6Z',
+        },
+      ]
+    : []),
 
   ...(currentUser.user?.currentShopId && inTown.value
     ? [

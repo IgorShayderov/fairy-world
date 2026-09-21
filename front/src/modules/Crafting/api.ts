@@ -3,6 +3,8 @@ import type { CraftInventoryItem } from '@/modules/Inventory/types';
 import routes from '@/routes';
 import { api } from '@/shared/api';
 
+export const CRAFTING_MIN_LEVEL = 10;
+
 export interface CraftIngredient extends CraftInventoryItem {
   owned: number;
 }

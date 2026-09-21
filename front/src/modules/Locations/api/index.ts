@@ -1,4 +1,4 @@
-import type { BattleState } from '@/modules/Monsters/api';
+import type { DungeonRunState } from '@/modules/Monsters/api';
 import routes from '@/routes';
 import { api } from '@shared/api';
 
@@ -10,8 +10,8 @@ export const resetDungeon = async (name: string): Promise<void> => {
   await api.post(routes.api.monsters.dungeonResetPath(name));
 };
 
-export const enterDungeon = async (name: string): Promise<BattleState> => {
-  const { data } = await api.post<BattleState>(routes.api.monsters.dungeonPath(name));
+export const enterDungeon = async (name: string): Promise<DungeonRunState> => {
+  const { data } = await api.post<DungeonRunState>(routes.api.monsters.dungeonPath(name));
   return data;
 };
 

@@ -7,6 +7,7 @@ import { SellManyDto } from './dto/sell-many.dto';
 import { ItemView } from '../common/views/item.view';
 import { ItemGeneratorService } from '../items/item-generator.service';
 import { SEEDED_CONSUMABLES } from '../items/seeded-consumables';
+import { CRAFTING_MIN_LEVEL } from '../crafting/crafting.catalog';
 import { townAt } from '../locations/towns';
 import { requiredPlayerLevel } from '../users/level-progression';
 import { getPotionRequiredLevel } from '../items/potion-effects';
@@ -48,18 +49,26 @@ export class ShopService implements OnModuleInit {
 
   async onModuleInit() {
     for (const consumable of SEEDED_CONSUMABLES) {
-      await this.prisma.item.updateMany({
-        where: { name: consumable.name },
-        data: {
-          level: consumable.level,
-          price: consumable.price,
-          description: consumable.description,
-        },
-      });
+      const data = {
+        level: consumable.level,
+        price: consumable.price,
+        description: consumable.description,
+        icon: 'icon_potion.png',
+        isConsumable: true,
+        rarity: consumable.rarity,
+        equipmentType: [consumable.equipmentType],
+      };
+      const existing = await this.prisma.item.findFirst({ where: { name: consumable.name }, select: { id: true } });
+      if (existing) await this.prisma.item.update({ where: { id: existing.id }, data });
+      else await this.prisma.item.create({ data: { name: consumable.name, ...data } });
     }
     await this.prisma.item.updateMany({
       where: { name: { contains: 'Axe' } },
       data: { icon: 'icon_axe.png' },
+    });
+    await this.prisma.shopStock.updateMany({
+      where: { item: { name: { contains: 'Health Potion' } }, quantity: { lt: 5 } },
+      data: { quantity: 5 },
     });
   }
 
@@ -192,9 +201,19 @@ export class ShopService implements OnModuleInit {
 
     const freeAttributeItem =
       playerLevel >= 30 ? eligibleConsumables.find((item) => item.name === 'Free Attribute Potion') : undefined;
-    const regularPotions = eligibleConsumables.filter((item) => item.name !== 'Free Attribute Potion');
+    const healthPotions = eligibleConsumables
+      .filter((item) => item.name?.includes('Health Potion'))
+      .sort(
+        (left, right) =>
+          Math.max(getPotionRequiredLevel(right.name), right.level ?? 1) -
+          Math.max(getPotionRequiredLevel(left.name), left.level ?? 1),
+      );
+    const regularPotions = eligibleConsumables.filter(
+      (item) => item.name !== 'Free Attribute Potion' && !item.name?.includes('Health Potion'),
+    );
 
     const selectedPotions: typeof consumables = [];
+    if (healthPotions[0]) selectedPotions.push(healthPotions[0]);
     if (freeAttributeItem && Math.random() < SHOP_FREE_ATTRIBUTE_POTION_CHANCE) {
       selectedPotions.push(freeAttributeItem);
     }
@@ -208,15 +227,16 @@ export class ShopService implements OnModuleInit {
     }
 
     for (const item of selectedPotions) {
+      const quantity = item.name?.includes('Health Potion') ? 5 : 1;
       await tx.shopStock.upsert({
         where: { shopId_itemId: { shopId, itemId: item.id } },
-        create: { shopId, itemId: item.id, quantity: 1 },
-        update: { quantity: { increment: 1 } },
+        create: { shopId, itemId: item.id, quantity },
+        update: { quantity: { increment: quantity } },
       });
       stockCount++;
     }
 
-    if (Math.random() < SHOP_RECIPE_CHANCE) {
+    if (playerLevel >= CRAFTING_MIN_LEVEL && Math.random() < SHOP_RECIPE_CHANCE) {
       const recipes = await tx.craftRecipe.findMany({
         where: {
           learners: { none: { gameProfileId } },
@@ -313,6 +333,9 @@ export class ShopService implements OnModuleInit {
       const craftRecipe = await tx.craftRecipe.findUnique({ where: { shopItemId: stock.itemId } });
       if (craftRecipe && dto.quantity !== 1) throw new BadRequestException('Recipes can only be purchased once');
       if (craftRecipe) {
+        if (profile.level < CRAFTING_MIN_LEVEL) {
+          throw new BadRequestException(`Crafting is available from level ${CRAFTING_MIN_LEVEL}`);
+        }
         const learned = await tx.learnedCraftRecipe.findUnique({
           where: { gameProfileId_recipeId: { gameProfileId: profile.id, recipeId: craftRecipe.id } },
         });

@@ -68,6 +68,7 @@ describe('UserView.renderCurrent', () => {
         buffs: [],
         dungeonVisits: [],
         killedMonsters: 42,
+        dungeonsCleared: 2,
         _count: { quests: 3 },
         sanctuaryVisits: [{ gameProfileId: 7, sanctuaryId: 1, nextBlessingAt: new Date('2099-01-01T00:00:00Z') }],
         craftItems: [],
@@ -159,6 +160,7 @@ describe('UserView.renderCurrent', () => {
 
     const result = UserView.renderCurrent(user);
     expect(result.killedMonsters).toBe(42);
+    expect(result.dungeonsCleared).toBe(2);
     expect(result.accomplishedQuests).toBe(3);
     expect(result.sanctuaryCooldowns).toEqual([{ sanctuaryId: 1, nextBlessingAt: new Date('2099-01-01T00:00:00Z') }]);
 

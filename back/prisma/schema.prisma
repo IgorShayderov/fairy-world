@@ -80,14 +80,15 @@ model GameProfile {
   userId Int  @unique
   user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  gold           Int @default(0)
-  gems           Int @default(0)
-  experience     Int @default(0)
-  level          Int @default(1)
-  freeAttributes Int @default(0)
-  killedMonsters Int @default(0)
-  mapPositionX   Float @default(1470)
-  mapPositionY   Float @default(1040)
+  gold            Int   @default(0)
+  gems            Int   @default(0)
+  experience      Int   @default(0)
+  level           Int   @default(1)
+  freeAttributes  Int   @default(0)
+  killedMonsters  Int   @default(0)
+  dungeonsCleared Int   @default(0)
+  mapPositionX    Float @default(1470)
+  mapPositionY    Float @default(960)
 
   inventory         InventoryItem[]
   profileAttributes ProfileAttribute[]
@@ -100,34 +101,36 @@ model GameProfile {
   questBoards       QuestBoard[]
   craftItems        PlayerCraftItem[]
   learnedRecipes    LearnedCraftRecipe[]
+  dungeonRun        DungeonRun?
 }
 
 model Quest {
   destinationTownId Int?
-  boardId      String?
-  boardRevision Int @default(0)
-  board        QuestBoard? @relation(fields: [boardId], references: [id])
-  rewardExperience Int @default(0)
-  townId       Int?
-  regionKey    String?
-  expiresAt    DateTime?
-  isPrimary    Boolean @default(false)
-  id           Int @id @default(autoincrement())
-  code         String @unique
-  monsterType  String
-  target       Int
-  rewardGold   Int
-  players      PlayerQuest[]
+  boardId           String?
+  boardRevision     Int           @default(0)
+  board             QuestBoard?   @relation(fields: [boardId], references: [id])
+  rewardExperience  Int           @default(0)
+  townId            Int?
+  regionKey         String?
+  expiresAt         DateTime?
+  isPrimary         Boolean       @default(false)
+  id                Int           @id @default(autoincrement())
+  code              String        @unique
+  monsterType       String
+  target            Int
+  rewardGold        Int
+  players           PlayerQuest[]
 }
 
 model QuestBoard {
-  id String @id @default(uuid())
+  id            String      @id @default(uuid())
   gameProfileId Int
-  townId Int
-  revision Int @default(0)
+  townId        Int
+  revision      Int         @default(0)
   nextRefreshAt DateTime
-  profile GameProfile @relation(fields: [gameProfileId], references: [id], onDelete: Cascade)
-  quests Quest[]
+  profile       GameProfile @relation(fields: [gameProfileId], references: [id], onDelete: Cascade)
+  quests        Quest[]
+
   @@unique([gameProfileId, townId])
 }
 
@@ -136,32 +139,43 @@ model PlayerQuest {
   gameProfileId Int
   questId       Int
   townId        Int
-  progress      Int @default(0)
-  acceptedAt    DateTime @default(now())
+  progress      Int         @default(0)
+  acceptedAt    DateTime    @default(now())
   completedAt   DateTime?
   gameProfile   GameProfile @relation(fields: [gameProfileId], references: [id], onDelete: Cascade)
-  quest         Quest @relation(fields: [questId], references: [id])
+  quest         Quest       @relation(fields: [questId], references: [id])
 
   @@id([gameProfileId, questId])
 }
 
 model DungeonVisit {
   gameProfileId Int
-  dungeon String
-  nextEntryAt DateTime
-  gameProfile GameProfile @relation(fields: [gameProfileId], references: [id], onDelete: Cascade)
+  dungeon       String
+  nextEntryAt   DateTime
+  gameProfile   GameProfile @relation(fields: [gameProfileId], references: [id], onDelete: Cascade)
+
   @@id([gameProfileId, dungeon])
 }
 
+model DungeonRun {
+  id            String      @id @default(uuid())
+  gameProfileId Int         @unique
+  dungeon       String
+  state         Json
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  gameProfile   GameProfile @relation(fields: [gameProfileId], references: [id], onDelete: Cascade)
+}
+
 model Sanctuary {
-  visits SanctuaryVisit[]
-  id Int @id
-  name String @unique
-  x Float
-  y Float
-  buffType PlayerBuffType
-  buffValue Float
-  durationMinutes Int @default(240)
+  visits          SanctuaryVisit[]
+  id              Int              @id
+  name            String           @unique
+  x               Float
+  y               Float
+  buffType        PlayerBuffType
+  buffValue       Float
+  durationMinutes Int              @default(240)
 }
 
 enum PlayerBuffType {
@@ -171,11 +185,12 @@ enum PlayerBuffType {
 }
 
 model SanctuaryVisit {
-  gameProfileId Int
-  sanctuaryId   Int
+  gameProfileId  Int
+  sanctuaryId    Int
   nextBlessingAt DateTime
-  gameProfile GameProfile @relation(fields: [gameProfileId], references: [id], onDelete: Cascade)
-  sanctuary Sanctuary @relation(fields: [sanctuaryId], references: [id], onDelete: Cascade)
+  gameProfile    GameProfile @relation(fields: [gameProfileId], references: [id], onDelete: Cascade)
+  sanctuary      Sanctuary   @relation(fields: [sanctuaryId], references: [id], onDelete: Cascade)
+
   @@id([gameProfileId, sanctuaryId])
 }
 
@@ -300,13 +315,14 @@ model Shop {
   townId        Int?
   stockLevel    Int?
   owner         GameProfile? @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  id            Int         @id @default(autoincrement())
+  id            Int          @id @default(autoincrement())
   name          String
-  gold          Int         @default(1000000)
+  gold          Int          @default(1000000)
   stock         ShopStock[]
   nextRestockAt DateTime?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
   @@unique([ownerId, townId])
 }
 
@@ -377,33 +393,33 @@ model CraftItem {
 model PlayerCraftItem {
   gameProfileId Int
   craftItemId   Int
-  quantity      Int       @default(0)
+  quantity      Int         @default(0)
   gameProfile   GameProfile @relation(fields: [gameProfileId], references: [id], onDelete: Cascade)
-  craftItem     CraftItem @relation(fields: [craftItemId], references: [id], onDelete: Cascade)
+  craftItem     CraftItem   @relation(fields: [craftItemId], references: [id], onDelete: Cascade)
 
   @@id([gameProfileId, craftItemId])
 }
 
 model CraftRecipe {
-  id                Int       @id @default(autoincrement())
-  code              String    @unique
+  id                Int                  @id @default(autoincrement())
+  code              String               @unique
   name              String
-  description       String    @default("")
-  shopItemId        Int       @unique
+  description       String               @default("")
+  shopItemId        Int                  @unique
   resultCraftItemId Int
-  resultQuantity    Int       @default(1)
-  shopItem          Item      @relation(fields: [shopItemId], references: [id], onDelete: Cascade)
-  resultCraftItem   CraftItem @relation("RecipeResult", fields: [resultCraftItemId], references: [id], onDelete: Restrict)
+  resultQuantity    Int                  @default(1)
+  shopItem          Item                 @relation(fields: [shopItemId], references: [id], onDelete: Cascade)
+  resultCraftItem   CraftItem            @relation("RecipeResult", fields: [resultCraftItemId], references: [id], onDelete: Restrict)
   ingredients       RecipeIngredient[]
   learners          LearnedCraftRecipe[]
 }
 
 model RecipeIngredient {
-  recipeId   Int
+  recipeId    Int
   craftItemId Int
-  quantity   Int @default(1)
-  recipe     CraftRecipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
-  craftItem  CraftItem @relation("IngredientMaterial", fields: [craftItemId], references: [id], onDelete: Restrict)
+  quantity    Int         @default(1)
+  recipe      CraftRecipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  craftItem   CraftItem   @relation("IngredientMaterial", fields: [craftItemId], references: [id], onDelete: Restrict)
 
   @@id([recipeId, craftItemId])
 }
@@ -411,7 +427,7 @@ model RecipeIngredient {
 model LearnedCraftRecipe {
   gameProfileId Int
   recipeId      Int
-  learnedAt     DateTime @default(now())
+  learnedAt     DateTime    @default(now())
   gameProfile   GameProfile @relation(fields: [gameProfileId], references: [id], onDelete: Cascade)
   recipe        CraftRecipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
 
@@ -419,12 +435,12 @@ model LearnedCraftRecipe {
 }
 
 model InventoryItem {
-  id            Int      @id @default(autoincrement())
+  id            Int               @id @default(autoincrement())
   gameProfileId Int
   itemId        Int
-  quantity      Int      @default(0)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @default(now()) @updatedAt
+  quantity      Int               @default(0)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @default(now()) @updatedAt
   slot          String?
   isEquiped     Boolean
   upgradeType   CraftUpgradeType?

@@ -7,27 +7,16 @@ import { UserView } from '../users/user.view';
 import { ItemRarity, PlayerBuffType, StatType } from '../../generated/client';
 import { ItemGeneratorService } from '../items/item-generator.service';
 import { ItemView } from '../common/views/item.view';
-import { rollMonsterLootRarity, rollDungeonLootRarity, rollQuestLootRarity } from './monster-loot';
-import { requireLandmark } from '../locations/landmarks';
+import { rollMonsterLootRarity, rollQuestLootRarity } from './monster-loot';
 import { progressionAfterExperience } from '../users/level-progression';
 import { recordQuestVictory } from '../quests/quest-progress';
-import { isOnTravelRoute } from '../locations/travel-routes';
-import { rollCraftMaterialCode } from '../crafting/crafting.catalog';
+import { canRetreatAt, encounterChanceAt } from '../locations/map-terrain';
+import type { UpdateMapPositionDto } from '../users/dto/update-map-position.dto';
+import { CRAFTING_MIN_LEVEL, rollCraftMaterialCode } from '../crafting/crafting.catalog';
+import { rollDeathCurse } from './death-curse';
+import { DungeonRunsService } from './dungeon-runs.service';
 
-export const DEATH_CURSES: Array<{ type: PlayerBuffType; value: number }> = [
-  { type: PlayerBuffType.DEFENSE, value: -4 },
-  { type: PlayerBuffType.DAMAGE, value: -2 },
-  { type: PlayerBuffType.EXPERIENCE, value: -8 },
-];
-
-export const rollDeathCurse = (
-  level: number,
-  random: () => number = Math.random,
-): { type: PlayerBuffType; value: number } | null => {
-  if (level <= 10) return null;
-  if (random() >= 0.2) return null;
-  return DEATH_CURSES[Math.floor(random() * DEATH_CURSES.length)];
-};
+export { DEATH_CURSES, rollDeathCurse } from './death-curse';
 
 type BattleStatus = 'ACTIVE' | 'VICTORY' | 'DEFEAT';
 type Combatant = {
@@ -43,7 +32,6 @@ type Combatant = {
 type Battle = {
   startedAt: Date;
   monsterType: string;
-  dungeon?: string;
   id: string;
   userId: number;
   status: BattleStatus;
@@ -53,6 +41,7 @@ type Battle = {
   events: Array<{ actor: 'PLAYER' | 'MONSTER'; damage: number; critical: boolean; dodged: boolean }>;
   experienceBonusPercent: number;
   goldBonusPercent: number;
+  canRetreat: boolean;
   rewards?: {
     gold: number;
     experience: number;
@@ -81,10 +70,9 @@ export class MonstersService {
     private monsterGenerator: MonsterGeneratorService,
     private usersService: UsersService,
     private itemGenerator: ItemGeneratorService,
+    private dungeonRuns: DungeonRunsService,
   ) {}
 
-  private readonly offRouteEncounterChance = 0.2;
-  private readonly routeEncounterChance = 0.1;
   private readonly battles = new Map<string, Battle>();
 
   findAll() {
@@ -102,9 +90,8 @@ export class MonstersService {
   async rollEncounter(userId: number) {
     const user = await this.usersService.findCurrentUser(userId);
     if (!user?.gameProfile) throw new NotFoundException('Game profile not found');
-    const chance = isOnTravelRoute(user.gameProfile.mapPositionX, user.gameProfile.mapPositionY)
-      ? this.routeEncounterChance
-      : this.offRouteEncounterChance;
+    const point = { x: user.gameProfile.mapPositionX, y: user.gameProfile.mapPositionY };
+    const chance = encounterChanceAt(point);
     if (Math.random() >= chance) return { encountered: false as const, chance };
     const player = UserView.renderCurrent(user);
     const monster = this.monsterGenerator.generate(player.level, {
@@ -112,67 +99,51 @@ export class MonstersService {
       y: user.gameProfile.mapPositionY,
     });
 
-    const battle = this.createBattle(userId, player, monster);
+    const battle = this.createBattle(userId, player, monster, canRetreatAt(point));
     this.battles.set(battle.id, battle);
     return { encountered: true as const, chance, monster, battle: this.renderBattle(battle) };
   }
 
-  async enterDungeon(userId: number, name: string) {
+  async updateMapPositionAndRollEncounter(userId: number, position: UpdateMapPositionDto) {
     const user = await this.usersService.findCurrentUser(userId);
     if (!user?.gameProfile) throw new NotFoundException('Game profile not found');
-    requireLandmark(name, 'dungeon', user.gameProfile);
-    const existing = [...this.battles.values()].find(
-      (battle) => battle.userId === userId && battle.status === 'ACTIVE',
-    );
-    if (existing) return this.renderBattle(existing);
-    await this.prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${userId})`;
-      const where = { gameProfileId_dungeon: { gameProfileId: user.gameProfile!.id, dungeon: name } };
-      const visit = await tx.dungeonVisit.findUnique({ where });
-      if (visit && visit.nextEntryAt > new Date())
-        throw new BadRequestException('Dungeon is resting. You can enter once per hour.');
-      const nextEntryAt = new Date(Date.now() + 60 * 60 * 1000);
-      await tx.dungeonVisit.upsert({
-        where,
-        create: { gameProfileId: user.gameProfile!.id, dungeon: name, nextEntryAt },
-        update: { nextEntryAt },
-      });
-    });
-    const player = UserView.renderCurrent(user);
-    const monster = this.monsterGenerator.generate(player.level + 2);
-    monster.name = `${name === 'EMBERDEEP' ? 'Flamebound' : 'Hollow'} Guardian — ${monster.name}`;
-    const battle = this.createBattle(userId, player, monster);
-    battle.dungeon = name;
-    battle.monster.health *= 2;
-    battle.monster.maxHealth *= 2;
-    battle.monster.damage = Math.ceil(battle.monster.damage * 1.5);
-    battle.monster.defense = Math.min(60, battle.monster.defense + 5);
-    battle.monster.rewardGold *= 3;
-    battle.monster.rewardExperience *= 3;
-    this.battles.set(battle.id, battle);
-    return this.renderBattle(battle);
+    const distance = Math.hypot(position.x - user.gameProfile.mapPositionX, position.y - user.gameProfile.mapPositionY);
+    if (distance > 200) {
+      throw new BadRequestException('Map position changed too far in one travel update');
+    }
+    await this.usersService.updateMapPosition(userId, position);
+    const chance = encounterChanceAt(position);
+    return {
+      position: { x: position.x, y: position.y },
+      encounter: distance < 60 ? { encountered: false as const, chance } : await this.rollEncounter(userId),
+    };
+  }
+
+  async enterDungeon(userId: number, name: string) {
+    return this.dungeonRuns.enter(userId, name);
+  }
+
+  activeDungeon(userId: number) {
+    return this.dungeonRuns.active(userId);
+  }
+
+  attackDungeonOpponent(userId: number, runId: string, opponentId: string) {
+    return this.dungeonRuns.attack(userId, runId, opponentId);
+  }
+
+  leaveDungeon(userId: number, runId: string) {
+    return this.dungeonRuns.leave(userId, runId);
+  }
+
+  useDungeonHealthPotion(userId: number, runId: string, inventoryItemId: number) {
+    return this.dungeonRuns.useHealthPotion(userId, runId, inventoryItemId);
   }
 
   async resetDungeon(userId: number, name: string) {
     if ([...this.battles.values()].some((battle) => battle.userId === userId && battle.status === 'ACTIVE')) {
       throw new BadRequestException('Finish the active battle first');
     }
-    return this.prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${userId})`;
-      const profile = await tx.gameProfile.findUnique({ where: { userId } });
-      if (!profile) throw new NotFoundException('Game profile not found');
-      requireLandmark(name, 'dungeon', profile);
-      const where = { gameProfileId_dungeon: { gameProfileId: profile.id, dungeon: name } };
-      const visit = await tx.dungeonVisit.findUnique({ where });
-      if (!visit || visit.nextEntryAt <= new Date()) throw new BadRequestException('Dungeon is already available');
-      const paid = await tx.gameProfile.updateMany({
-        where: { id: profile.id, gems: { gte: 10 } },
-        data: { gems: { decrement: 10 } },
-      });
-      if (paid.count !== 1) throw new BadRequestException('Not enough gems');
-      await tx.dungeonVisit.delete({ where });
-      return { success: true, cost: 10 };
-    });
+    return this.dungeonRuns.reset(userId, name);
   }
 
   async attack(userId: number, battleId: string) {
@@ -197,7 +168,7 @@ export class MonstersService {
     }
 
     if (battle.status === 'VICTORY') {
-      const lootRarity = battle.dungeon ? rollDungeonLootRarity() : rollMonsterLootRarity();
+      const lootRarity = rollMonsterLootRarity();
       battle.rewards = {
         gold: Math.round(battle.monster.rewardGold * (1 + battle.goldBonusPercent / 100)),
         experience: Math.round(battle.monster.rewardExperience * (1 + battle.experienceBonusPercent / 100)),
@@ -241,7 +212,10 @@ export class MonstersService {
           where: { gameProfileId: profile.id, isEquiped: false },
         });
         let availableSlots = Math.max(0, 24 - currentBackpackCount);
-        const drops = [lootRarity, ...finished.map(() => rollQuestLootRarity())];
+        const drops = [
+          lootRarity,
+          ...finished.filter((quest) => !quest.destinationTownId).map(() => rollQuestLootRarity()),
+        ];
         for (const [index, rarity] of drops.entries()) {
           if (!rarity) continue;
           const item = await this.itemGenerator.generate(
@@ -275,25 +249,23 @@ export class MonstersService {
             });
           }
         }
-        if (!battle.dungeon) {
-          const materialCode = rollCraftMaterialCode();
-          if (materialCode) {
-            const material = await tx.craftItem.findUnique({ where: { code: materialCode } });
-            if (material) {
-              await tx.playerCraftItem.upsert({
-                where: { gameProfileId_craftItemId: { gameProfileId: profile.id, craftItemId: material.id } },
-                create: { gameProfileId: profile.id, craftItemId: material.id, quantity: 1 },
-                update: { quantity: { increment: 1 } },
-              });
-              rewards.craftItems.push({
-                id: material.id,
-                name: material.name,
-                description: material.description,
-                icon: material.icon,
-                rarity: material.rarity,
-                quantity: 1,
-              });
-            }
+        const materialCode = profile.level >= CRAFTING_MIN_LEVEL ? rollCraftMaterialCode() : null;
+        if (materialCode) {
+          const material = await tx.craftItem.findUnique({ where: { code: materialCode } });
+          if (material) {
+            await tx.playerCraftItem.upsert({
+              where: { gameProfileId_craftItemId: { gameProfileId: profile.id, craftItemId: material.id } },
+              create: { gameProfileId: profile.id, craftItemId: material.id, quantity: 1 },
+              update: { quantity: { increment: 1 } },
+            });
+            rewards.craftItems.push({
+              id: material.id,
+              name: material.name,
+              description: material.description,
+              icon: material.icon,
+              rarity: material.rarity,
+              quantity: 1,
+            });
           }
         }
       });
@@ -303,7 +275,7 @@ export class MonstersService {
       await this.prisma.$transaction(async (tx) => {
         const profile = await tx.gameProfile.update({
           where: { userId },
-          data: { mapPositionX: 1470, mapPositionY: 1040 },
+          data: { mapPositionX: 1470, mapPositionY: 960 },
         });
         await tx.gameProfileBuff.deleteMany({ where: { gameProfileId: profile.id } });
         const curse = rollDeathCurse(profile.level);
@@ -328,6 +300,7 @@ export class MonstersService {
   retreat(userId: number, battleId: string) {
     const battle = this.battles.get(battleId);
     if (!battle || battle.userId !== userId) throw new NotFoundException('Active battle not found');
+    if (!battle.canRetreat) throw new BadRequestException('You can retreat only on a road or near a town');
     this.battles.delete(battleId);
     return { success: true };
   }
@@ -336,6 +309,7 @@ export class MonstersService {
     userId: number,
     player: ReturnType<typeof UserView.renderCurrent>,
     monster: GeneratedMonster,
+    canRetreat: boolean,
   ): Battle {
     const attribute = (name: string) => monster.attributes.find((entry) => entry.attribute.name === name)?.value ?? 0;
     const property = (name: StatType) => player.properties.find((entry) => entry.name === name)?.value ?? 0;
@@ -353,6 +327,7 @@ export class MonstersService {
         (player.activeBuffs.find(({ type }) => type === PlayerBuffType.EXPERIENCE)?.value ?? 0) +
         player.rewardBonuses.experiencePercent,
       goldBonusPercent: player.rewardBonuses.goldPercent,
+      canRetreat,
       player: {
         name: player.name ?? 'Player',
         health: playerHealth,
@@ -401,6 +376,7 @@ export class MonstersService {
       monster: battle.monster,
       events: battle.events,
       rewards: battle.rewards,
+      canRetreat: battle.canRetreat,
     };
   }
 }

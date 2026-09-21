@@ -1,6 +1,8 @@
 <template>
   <div class="absolute inset-0 z-40 flex items-center justify-center bg-[#06141d]/85 p-5 backdrop-blur-sm">
-    <section class="encounter-panel w-full max-w-4xl overflow-hidden rounded-2xl border border-[#ddbd6b]/45 text-white shadow-2xl">
+    <section
+      class="encounter-panel w-full max-w-4xl overflow-hidden rounded-2xl border border-[#ddbd6b]/45 text-white shadow-2xl"
+    >
       <header class="border-b border-[#ddbd6b]/20 px-6 py-4 text-center">
         <div class="text-[10px] font-bold tracking-[0.34em] text-[#efca72] uppercase">
           {{ t('fantasy.encounter.eyebrow') }} · {{ t('fantasy.encounter.turn', { turn: battle.turn }) }}
@@ -50,7 +52,11 @@
               {{ t('fantasy.encounter.loot') }}
             </div>
             <div class="flex flex-wrap gap-4">
-              <div v-for="(item, index) in battle.rewards.items" :key="`${item.id}-${index}`" class="flex flex-col items-center text-center">
+              <div
+                v-for="(item, index) in battle.rewards.items"
+                :key="`${item.id}-${index}`"
+                class="flex flex-col items-center text-center"
+              >
                 <InventoryItem :item="lootInventoryItem(item)" class="h-24 w-24 bg-white" />
                 <div class="mt-1 text-[10px] font-bold uppercase" :class="getRarityTextClass(item.rarity)">
                   {{ t(`profile.rarity.${item.rarity.toLowerCase()}`) }}
@@ -58,7 +64,10 @@
                 <div v-if="itemActions[index] === 'dropped'" class="mt-1 text-[11px] font-semibold text-red-400">
                   {{ t('fantasy.encounter.itemDropped') }}
                 </div>
-                <div v-else-if="itemActions[index] === 'replaced'" class="mt-1 text-[11px] font-semibold text-emerald-400">
+                <div
+                  v-else-if="itemActions[index] === 'replaced'"
+                  class="mt-1 text-[11px] font-semibold text-emerald-400"
+                >
                   {{ t('fantasy.encounter.itemReplaced') }}
                 </div>
                 <div v-else class="mt-1.5 flex flex-col items-center gap-1">
@@ -69,14 +78,14 @@
                     <div class="flex gap-1.5">
                       <button
                         type="button"
-                        class="rounded bg-amber-600 px-2.5 py-1 text-[10px] font-bold uppercase text-white hover:bg-amber-500"
+                        class="rounded bg-amber-600 px-2.5 py-1 text-[10px] font-bold text-white uppercase hover:bg-amber-500"
                         @click="openReplaceModal(item, index)"
                       >
                         {{ t('fantasy.encounter.replaceItem') }}
                       </button>
                       <button
                         type="button"
-                        class="rounded bg-red-800/80 px-2.5 py-1 text-[10px] font-bold uppercase text-white hover:bg-red-700"
+                        class="rounded bg-red-800/80 px-2.5 py-1 text-[10px] font-bold text-white uppercase hover:bg-red-700"
                         @click="dropLootItem(item, index)"
                       >
                         {{ t('fantasy.encounter.dropItem') }}
@@ -84,12 +93,14 @@
                     </div>
                   </template>
                   <template v-else>
-                    <div class="rounded border border-emerald-500/30 bg-emerald-950/80 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
+                    <div
+                      class="rounded border border-emerald-500/30 bg-emerald-950/80 px-2 py-0.5 text-[10px] font-bold text-emerald-300"
+                    >
                       ✓ {{ t('fantasy.encounter.addedToInventory') }}
                     </div>
                     <button
                       type="button"
-                      class="rounded bg-red-800/60 px-2 py-0.5 text-[9px] font-bold uppercase text-white/80 hover:bg-red-700"
+                      class="rounded bg-red-800/60 px-2 py-0.5 text-[9px] font-bold text-white/80 uppercase hover:bg-red-700"
                       @click="dropLootItem(item, index)"
                     >
                       {{ t('fantasy.encounter.dropItem') }}
@@ -103,18 +114,29 @@
             {{ t('fantasy.encounter.noLoot') }}
           </div>
           <div v-if="battle.rewards.craftItems?.length" class="mt-3 flex flex-wrap gap-3">
-            <div v-for="material in battle.rewards.craftItems" :key="material.id" class="flex items-center gap-2 rounded-lg border border-[#ddbd6b]/25 bg-[#071a23] px-3 py-2">
+            <div
+              v-for="material in battle.rewards.craftItems"
+              :key="material.id"
+              class="flex items-center gap-2 rounded-lg border border-[#ddbd6b]/25 bg-[#071a23] px-3 py-2"
+            >
               <img :src="`/icons/items/${material.icon}`" alt="" class="h-10 w-10 object-contain" />
-              <div><div class="text-[10px] font-bold tracking-wider text-[#efca72] uppercase">{{ t('crafting.materialDrop') }}</div><div class="text-sm font-semibold text-white">{{ material.name }} ×{{ material.quantity }}</div></div>
+              <div>
+                <div class="text-[10px] font-bold tracking-wider text-[#efca72] uppercase">
+                  {{ t('crafting.materialDrop') }}
+                </div>
+                <div class="text-sm font-semibold text-white">{{ material.name }} ×{{ material.quantity }}</div>
+              </div>
             </div>
           </div>
         </div>
-        <p v-if="battle.status === 'DEFEAT'" class="mt-3 text-sm text-amber-200">{{ t('fantasy.encounter.respawn') }}</p>
+        <p v-if="battle.status === 'DEFEAT'" class="mt-3 text-sm text-amber-200">
+          {{ t('fantasy.encounter.respawn') }}
+        </p>
       </div>
 
       <footer class="flex justify-end gap-3 border-t border-[#ddbd6b]/15 bg-[#081a23] px-6 py-4">
         <button
-          v-if="battle.status === 'ACTIVE'"
+          v-if="battle.status === 'ACTIVE' && battle.canRetreat"
           class="rounded-lg border border-white/15 px-5 py-2.5 text-xs font-bold tracking-wider text-[#b8cbc6] uppercase hover:bg-white/5 disabled:opacity-50"
           :disabled="loading"
           @click="$emit('retreat')"
@@ -144,7 +166,9 @@
       v-if="replacingItemIndex !== null && replacingLootItem"
       class="absolute inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
     >
-      <div class="flex w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-amber-400/50 bg-[#0d222d] text-white shadow-2xl">
+      <div
+        class="flex w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-amber-400/50 bg-[#0d222d] text-white shadow-2xl"
+      >
         <header class="border-b border-[#ddbd6b]/20 bg-[#081a23] px-6 py-3">
           <h3 class="font-serif text-lg font-bold text-amber-300">
             {{ t('fantasy.encounter.selectItemToReplace') }}
@@ -166,7 +190,8 @@
                 </div>
                 <div class="truncate text-sm font-bold text-white">{{ replacingLootItem.name }}</div>
                 <div class="text-xs" :class="getRarityTextClass(replacingLootItem.rarity)">
-                  {{ t(`profile.rarity.${replacingLootItem.rarity.toLowerCase()}`) }} · {{ t('profile.summary.level') }} {{ replacingLootItem.level }}
+                  {{ t(`profile.rarity.${replacingLootItem.rarity.toLowerCase()}`) }} · {{ t('profile.summary.level') }}
+                  {{ replacingLootItem.level }}
                 </div>
               </div>
             </div>
@@ -181,12 +206,15 @@
                   </div>
                   <div class="truncate text-sm font-bold text-white">{{ selectedBackpackItem.name }}</div>
                   <div class="text-xs" :class="getRarityTextClass(selectedBackpackItem.rarityKey)">
-                    {{ selectedBackpackItem.rarity }} · {{ t('profile.summary.level') }} {{ selectedBackpackItem.level }}
+                    {{ selectedBackpackItem.rarity }} · {{ t('profile.summary.level') }}
+                    {{ selectedBackpackItem.level }}
                   </div>
                 </div>
               </template>
               <template v-else>
-                <div class="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg border-2 border-dashed border-gray-600 text-xs text-gray-400">
+                <div
+                  class="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg border-2 border-dashed border-gray-600 text-xs text-gray-400"
+                >
                   ?
                 </div>
                 <div class="text-xs text-gray-400 italic">
@@ -207,7 +235,10 @@
               </span>
             </div>
 
-            <div v-if="playerBackpackItems.length === 0" class="rounded-lg border border-dashed border-gray-700 py-6 text-center text-sm text-gray-400">
+            <div
+              v-if="playerBackpackItems.length === 0"
+              class="rounded-lg border border-dashed border-gray-700 py-6 text-center text-sm text-gray-400"
+            >
               {{ t('shop.inventoryEmpty') }}
             </div>
 
@@ -216,9 +247,11 @@
                 v-for="invItem in playerBackpackItems"
                 :key="invItem.inventoryItemId"
                 class="group relative flex cursor-pointer flex-col items-center rounded-xl p-1 transition"
-                :class="selectedBackpackItem?.inventoryItemId === invItem.inventoryItemId
-                  ? 'scale-105 bg-amber-950/60 shadow-lg ring-2 ring-amber-400'
-                  : 'bg-white/5 hover:bg-white/10 hover:ring-1 hover:ring-white/30'"
+                :class="
+                  selectedBackpackItem?.inventoryItemId === invItem.inventoryItemId
+                    ? 'scale-105 bg-amber-950/60 shadow-lg ring-2 ring-amber-400'
+                    : 'bg-white/5 hover:bg-white/10 hover:ring-1 hover:ring-white/30'
+                "
                 @click="selectedBackpackItem = invItem"
               >
                 <InventoryItem :item="invItem" class="h-14 w-14 shrink-0 bg-white" />
@@ -237,7 +270,7 @@
           </button>
           <button
             type="button"
-            class="rounded-lg bg-amber-600 px-5 py-2 text-xs font-bold uppercase tracking-wider text-white shadow-lg transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-40"
+            class="rounded-lg bg-amber-600 px-5 py-2 text-xs font-bold tracking-wider text-white uppercase shadow-lg transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-40"
             :disabled="!selectedBackpackItem"
             @click="selectedBackpackItem && confirmReplace(selectedBackpackItem)"
           >
@@ -381,7 +414,8 @@ const CombatantCard = defineComponent({
         h('div', { class: 'mt-3 text-sm font-bold tracking-wide' }, card.name),
         h('div', { class: 'mt-2 h-3 w-full max-w-52 overflow-hidden rounded-full bg-black/40' }, [
           h('div', {
-            class: card.color === 'player' ? 'h-full bg-emerald-400 transition-all' : 'h-full bg-red-400 transition-all',
+            class:
+              card.color === 'player' ? 'h-full bg-emerald-400 transition-all' : 'h-full bg-red-400 transition-all',
             style: { width: `${Math.max(0, (card.health / card.maxHealth) * 100)}%` },
           }),
         ]),
@@ -392,12 +426,30 @@ const CombatantCard = defineComponent({
 </script>
 
 <style scoped>
-.encounter-panel { background: linear-gradient(145deg, rgb(14 38 47 / 98%), rgb(20 28 36 / 98%)); }
+.encounter-panel {
+  background: linear-gradient(145deg, rgb(14 38 47 / 98%), rgb(20 28 36 / 98%));
+}
 .battlefield-grid {
-  background: radial-gradient(circle at 25% 50%, rgb(67 167 147 / 16%), transparent 30%),
+  background:
+    radial-gradient(circle at 25% 50%, rgb(67 167 147 / 16%), transparent 30%),
     radial-gradient(circle at 75% 50%, rgb(198 77 59 / 18%), transparent 30%), #102831;
 }
-.combatant { display: flex; width: 92px; height: 92px; align-items: center; justify-content: center; border-radius: 50%; }
-.combatant-player { color: #9ce2d2; border: 2px solid rgb(127 218 197 / 60%); background: #173f40; }
-.combatant-monster { color: #ffab95; border: 2px solid rgb(238 111 83 / 60%); background: #42242a; }
+.combatant {
+  display: flex;
+  width: 92px;
+  height: 92px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+.combatant-player {
+  color: #9ce2d2;
+  border: 2px solid rgb(127 218 197 / 60%);
+  background: #173f40;
+}
+.combatant-monster {
+  color: #ffab95;
+  border: 2px solid rgb(238 111 83 / 60%);
+  background: #42242a;
+}
 </style>

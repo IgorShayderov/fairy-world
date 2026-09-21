@@ -6,6 +6,7 @@ import { MonsterGeneratorService } from './monster-generator.service';
 import { UsersService } from '../users/users.service';
 import { PlayerBuffType, StatType } from '../../generated/client';
 import { ItemGeneratorService } from '../items/item-generator.service';
+import { DungeonRunsService } from './dungeon-runs.service';
 
 describe('MonstersService', () => {
   let service: MonstersService;
@@ -37,9 +38,18 @@ describe('MonstersService', () => {
   };
   const mockUsersService = {
     findCurrentUser: jest.fn(),
+    updateMapPosition: jest.fn(),
   };
   const mockItemGenerator = {
     generate: jest.fn(),
+  };
+  const mockDungeonRuns = {
+    active: jest.fn(),
+    enter: jest.fn(),
+    attack: jest.fn(),
+    leave: jest.fn(),
+    useHealthPotion: jest.fn(),
+    reset: jest.fn(),
   };
   const currentUser = (
     level: number,
@@ -60,7 +70,7 @@ describe('MonstersService', () => {
       freeAttributes: 0,
       buffs,
       mapPositionX: 1470,
-      mapPositionY: 1040,
+      mapPositionY: 960,
       inventory: [],
       profileAttributes: [],
       profileStats:
@@ -87,6 +97,7 @@ describe('MonstersService', () => {
         { provide: MonsterGeneratorService, useValue: mockMonsterGenerator },
         { provide: UsersService, useValue: mockUsersService },
         { provide: ItemGeneratorService, useValue: mockItemGenerator },
+        { provide: DungeonRunsService, useValue: mockDungeonRuns },
       ],
     }).compile();
 
@@ -117,7 +128,7 @@ describe('MonstersService', () => {
     expect(battle.status).toBe('DEFEAT');
     expect(mockPrismaService.gameProfile.update).toHaveBeenCalledWith({
       where: { userId: 7 },
-      data: { mapPositionX: 1470, mapPositionY: 1040 },
+      data: { mapPositionX: 1470, mapPositionY: 960 },
     });
     expect(mockPrismaService.gameProfileBuff.deleteMany).toHaveBeenCalledWith({ where: { gameProfileId: 5 } });
     expect(mockPrismaService.gameProfileBuff.create).not.toHaveBeenCalled();
@@ -211,68 +222,21 @@ describe('MonstersService', () => {
     expect(mockPrismaService.inventoryItem.create).toHaveBeenCalledTimes(1);
   });
 
-  it('starts a guaranteed guardian battle at a dungeon and reuses it on repeated entry', async () => {
-    const user = currentUser(5);
-    mockUsersService.findCurrentUser.mockResolvedValue({
-      ...user,
-      gameProfile: { ...user.gameProfile, mapPositionX: 2470, mapPositionY: 1370 },
-    });
-    mockMonsterGenerator.generate.mockReturnValue({
-      id: 8,
-      name: 'Bandit',
-      level: 7,
-      rewardGold: 20,
-      rewardExperience: 30,
-      attributes: [],
-    });
-    const battle = await service.enterDungeon(7, 'EMBERDEEP');
-    expect(battle.status).toBe('ACTIVE');
-    expect(battle.monster.name).toContain('Flamebound Guardian');
-    expect(mockMonsterGenerator.generate).toHaveBeenCalledWith(7);
-    expect((await service.enterDungeon(7, 'EMBERDEEP')).id).toBe(battle.id);
-    expect(mockMonsterGenerator.generate).toHaveBeenCalledTimes(1);
-    expect(battle.monster.health).toBe(290);
-    expect(battle.monster.damage).toBe(26);
-    expect(battle.monster.rewardGold).toBe(60);
-    expect(battle.monster.rewardExperience).toBe(90);
-    expect(mockPrismaService.dungeonVisit.upsert).toHaveBeenCalledTimes(1);
-    service.retreat(7, battle.id);
-    mockPrismaService.dungeonVisit.findUnique.mockResolvedValue({ nextEntryAt: new Date(Date.now() + 3_600_000) });
-    await expect(service.enterDungeon(7, 'EMBERDEEP')).rejects.toThrow('once per hour');
-    expect(mockMonsterGenerator.generate).toHaveBeenCalledTimes(1);
-    mockPrismaService.dungeonVisit.findUnique.mockResolvedValue({ nextEntryAt: new Date(Date.now() - 1) });
-    await expect(service.enterDungeon(7, 'EMBERDEEP')).resolves.toMatchObject({ status: 'ACTIVE' });
-    expect(mockPrismaService.dungeonVisit.upsert).toHaveBeenCalledTimes(2);
-  });
+  it('delegates persistent dungeon operations to the dungeon run service', async () => {
+    const run = { id: 'run-1', dungeon: 'EMBERDEEP', status: 'ACTIVE' };
+    mockDungeonRuns.enter.mockResolvedValue(run);
+    mockDungeonRuns.active.mockResolvedValue(run);
+    mockDungeonRuns.attack.mockResolvedValue({ ...run, status: 'VICTORY' });
+    mockDungeonRuns.reset.mockResolvedValue({ success: true, cost: 10 });
 
-  it('rejects dungeon entry while the player is elsewhere', async () => {
-    const user = currentUser(5);
-    mockUsersService.findCurrentUser.mockResolvedValue({
-      ...user,
-      gameProfile: { ...user.gameProfile, mapPositionX: 1470, mapPositionY: 1040 },
+    await expect(service.enterDungeon(7, 'EMBERDEEP')).resolves.toBe(run);
+    await expect(service.activeDungeon(7)).resolves.toBe(run);
+    await expect(service.attackDungeonOpponent(7, 'run-1', 'enemy-1')).resolves.toMatchObject({
+      status: 'VICTORY',
     });
-    await expect(service.enterDungeon(7, 'EMBERDEEP')).rejects.toThrow('Travel to this landmark first');
-    expect(mockMonsterGenerator.generate).not.toHaveBeenCalled();
-  });
-
-  it('charges ten gems to reset an active dungeon cooldown', async () => {
-    mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 5, mapPositionX: 2470, mapPositionY: 1370 });
-    mockPrismaService.dungeonVisit.findUnique.mockResolvedValue({ nextEntryAt: new Date(Date.now() + 60000) });
-    mockPrismaService.gameProfile.updateMany.mockResolvedValue({ count: 1 });
     await expect(service.resetDungeon(7, 'EMBERDEEP')).resolves.toEqual({ success: true, cost: 10 });
-    expect(mockPrismaService.gameProfile.updateMany).toHaveBeenCalledWith({
-      where: { id: 5, gems: { gte: 10 } },
-      data: { gems: { decrement: 10 } },
-    });
-    expect(mockPrismaService.dungeonVisit.delete).toHaveBeenCalledTimes(1);
-  });
-
-  it('does not reset cooldown when gems are insufficient', async () => {
-    mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 5, mapPositionX: 2470, mapPositionY: 1370 });
-    mockPrismaService.dungeonVisit.findUnique.mockResolvedValue({ nextEntryAt: new Date(Date.now() + 60000) });
-    mockPrismaService.gameProfile.updateMany.mockResolvedValue({ count: 0 });
-    await expect(service.resetDungeon(7, 'EMBERDEEP')).rejects.toThrow('Not enough gems');
-    expect(mockPrismaService.dungeonVisit.delete).not.toHaveBeenCalled();
+    expect(mockDungeonRuns.enter).toHaveBeenCalledWith(7, 'EMBERDEEP');
+    expect(mockDungeonRuns.attack).toHaveBeenCalledWith(7, 'run-1', 'enemy-1');
   });
 
   describe('findAll', () => {
@@ -317,13 +281,75 @@ describe('MonstersService', () => {
     it('keeps twenty percent encounter chance away from routes', async () => {
       jest.spyOn(Math, 'random').mockReturnValue(0.15);
       const user = currentUser(1);
-      user.gameProfile.mapPositionX = 1000;
-      user.gameProfile.mapPositionY = 1000;
+      user.gameProfile.mapPositionX = 1400;
+      user.gameProfile.mapPositionY = 800;
       mockUsersService.findCurrentUser.mockResolvedValue(user);
       mockMonsterGenerator.generate.mockReturnValue({ id: 2, name: 'Wolf', level: 1, attributes: [] });
       const result = await service.rollEncounter(7);
       expect(result.encountered).toBe(true);
       expect(result.chance).toBe(0.2);
+    });
+
+    it('uses thirty percent in forests and bogs', async () => {
+      jest.spyOn(Math, 'random').mockReturnValue(0.4);
+      const user = currentUser(1);
+      user.gameProfile.mapPositionX = 790;
+      user.gameProfile.mapPositionY = 1220;
+      mockUsersService.findCurrentUser.mockResolvedValue(user);
+
+      await expect(service.rollEncounter(7)).resolves.toEqual({ encountered: false, chance: 0.3 });
+
+      user.gameProfile.mapPositionX = 420;
+      user.gameProfile.mapPositionY = 1510;
+      await expect(service.rollEncounter(7)).resolves.toEqual({ encountered: false, chance: 0.3 });
+    });
+
+    it('saves a travel step and rolls its encounter in one operation', async () => {
+      jest.spyOn(Math, 'random').mockReturnValue(0.9);
+      const user = currentUser(1);
+      user.gameProfile.mapPositionX = 1400;
+      user.gameProfile.mapPositionY = 800;
+      mockUsersService.findCurrentUser.mockResolvedValue(user);
+
+      await expect(service.updateMapPositionAndRollEncounter(7, { x: 1400, y: 800 })).resolves.toEqual({
+        position: { x: 1400, y: 800 },
+        encounter: { encountered: false, chance: 0.2 },
+      });
+      expect(mockUsersService.updateMapPosition).toHaveBeenCalledWith(7, { x: 1400, y: 800 });
+    });
+
+    it('rejects a forged position jump before saving or rolling an encounter', async () => {
+      const user = currentUser(1);
+      user.gameProfile.mapPositionX = 100;
+      user.gameProfile.mapPositionY = 100;
+      mockUsersService.findCurrentUser.mockResolvedValue(user);
+
+      await expect(service.updateMapPositionAndRollEncounter(7, { x: 500, y: 100 })).rejects.toThrow(
+        'Map position changed too far',
+      );
+      expect(mockUsersService.updateMapPosition).not.toHaveBeenCalled();
+      expect(mockMonsterGenerator.generate).not.toHaveBeenCalled();
+    });
+
+    it('allows retreat only on roads or near towns', async () => {
+      jest.spyOn(Math, 'random').mockReturnValue(0.01);
+      const user = currentUser(1);
+      user.gameProfile.mapPositionX = 1400;
+      user.gameProfile.mapPositionY = 800;
+      mockUsersService.findCurrentUser.mockResolvedValue(user);
+      mockMonsterGenerator.generate.mockReturnValue({ id: 2, name: 'Wolf', level: 1, attributes: [] });
+
+      const offRoad = await service.rollEncounter(7);
+      if (!offRoad.encountered) throw new Error('Expected encounter');
+      expect(offRoad.battle.canRetreat).toBe(false);
+      expect(() => service.retreat(7, offRoad.battle.id)).toThrow('only on a road or near a town');
+
+      user.gameProfile.mapPositionX = 1470;
+      user.gameProfile.mapPositionY = 960;
+      const onRoad = await service.rollEncounter(7);
+      if (!onRoad.encountered) throw new Error('Expected encounter');
+      expect(onRoad.battle.canRetreat).toBe(true);
+      expect(service.retreat(7, onRoad.battle.id)).toEqual({ success: true });
     });
 
     it('returns a generated level-appropriate monster when the roll succeeds', async () => {
@@ -343,7 +369,7 @@ describe('MonstersService', () => {
       const result = await service.rollEncounter(7);
       expect(result.encountered).toBe(true);
       if (!result.encountered) throw new Error('Expected encounter');
-      expect(mockMonsterGenerator.generate).toHaveBeenCalledWith(100, { x: 1470, y: 1040 });
+      expect(mockMonsterGenerator.generate).toHaveBeenCalledWith(100, { x: 1470, y: 960 });
       expect(result.monster).toBe(monster);
       expect(typeof result.battle.id).toBe('string');
       expect(result.battle.status).toBe('ACTIVE');
@@ -397,6 +423,7 @@ describe('MonstersService', () => {
         select: { id: true, level: true, experience: true },
       });
       expect(battle.rewards?.items).toEqual([]);
+      expect(mockPrismaService.craftItem.findUnique).not.toHaveBeenCalled();
       expect(mockPrismaService.gameProfile.update).toHaveBeenCalledWith({
         where: { id: 5 },
         data: { level: 6, experience: 0, freeAttributes: { increment: 5 } },

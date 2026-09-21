@@ -10,7 +10,6 @@ describe('UsersController', () => {
     findCurrentUser: jest.fn(),
     allocateAttribute: jest.fn(),
     consumeInventoryItem: jest.fn(),
-    updateMapPosition: jest.fn(),
     getLeaderboard: jest.fn(),
     dropInventoryItem: jest.fn(),
     replaceInventoryItem: jest.fn(),
@@ -62,7 +61,7 @@ describe('UsersController', () => {
         experience: 5,
         level: 2,
         freeAttributes: 0,
-        mapPosition: { x: 1470, y: 1040 },
+        mapPosition: { x: 1470, y: 960 },
         inventory: [],
         equippedItems: [],
       });
@@ -99,16 +98,10 @@ describe('UsersController', () => {
     expect(mockUsersService.consumeInventoryItem).toHaveBeenCalledWith(7, 14);
   });
 
-  it('updates the authenticated player map position', async () => {
-    const position = { x: 1550.25, y: 980.5 };
-    mockUsersService.updateMapPosition.mockResolvedValue(position);
-
-    await expect(controller.updateMapPosition({ user: { sub: 7 } } as never, position)).resolves.toEqual(position);
-    expect(mockUsersService.updateMapPosition).toHaveBeenCalledWith(7, position);
-  });
-
   it('returns the player leaderboard', async () => {
-    const leaderboard = [{ rank: 1, name: 'Alice', level: 10, killedMonsters: 15, questsCompleted: 3 }];
+    const leaderboard = [
+      { rank: 1, name: 'Alice', level: 10, killedMonsters: 15, dungeonsCleared: 2, questsCompleted: 3 },
+    ];
     mockUsersService.getLeaderboard.mockResolvedValue(leaderboard);
 
     await expect(controller.getLeaderboard({ user: { sub: 7 } } as never)).resolves.toEqual(leaderboard);

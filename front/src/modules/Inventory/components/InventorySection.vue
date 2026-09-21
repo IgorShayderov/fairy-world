@@ -60,6 +60,7 @@ const props = defineProps<{
   dragIndex: number | null;
   isHovered: string | null;
   craftInventory: CraftInventoryItem[];
+  craftingAvailable: boolean;
 }>();
 
 defineEmits<{
@@ -79,7 +80,7 @@ const currentPage = ref(0);
 const occupiedSlots = computed(() => props.inventory.filter((item) => item !== null).length);
 
 const totalPages = computed(() => {
-  return NORMAL_PAGES + 1;
+  return NORMAL_PAGES + (props.craftingAvailable ? 1 : 0);
 });
 
 const displayedCraftInventory = computed(() => {
