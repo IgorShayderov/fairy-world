@@ -1,11 +1,61 @@
 import { EquipmentType, ItemRarity } from '../../generated/client';
 
 export const SEEDED_CONSUMABLES = [
+  // Health potions restore persistent health during an active dungeon run.
+  {
+    name: 'Minor Health Potion',
+    description: 'Restores up to 50 Health during a dungeon expedition.',
+    price: 60,
+    rarity: ItemRarity.COMMON,
+    equipmentType: EquipmentType.POTION,
+    level: 1,
+  },
+  {
+    name: 'Lesser Health Potion',
+    description: 'Restores up to 120 Health during a dungeon expedition.',
+    price: 150,
+    rarity: ItemRarity.COMMON,
+    equipmentType: EquipmentType.POTION,
+    level: 10,
+  },
+  {
+    name: 'Medium Health Potion',
+    description: 'Restores up to 250 Health during a dungeon expedition.',
+    price: 360,
+    rarity: ItemRarity.MAGIC,
+    equipmentType: EquipmentType.POTION,
+    level: 20,
+  },
+  {
+    name: 'Mild Health Potion',
+    description: 'Restores up to 450 Health during a dungeon expedition.',
+    price: 700,
+    rarity: ItemRarity.MAGIC,
+    equipmentType: EquipmentType.POTION,
+    level: 30,
+  },
+  {
+    name: 'Greater Health Potion',
+    description: 'Restores up to 700 Health during a dungeon expedition.',
+    price: 1200,
+    rarity: ItemRarity.RARE,
+    equipmentType: EquipmentType.POTION,
+    level: 40,
+  },
+  {
+    name: 'Higher Health Potion',
+    description: 'Restores up to 1000 Health during a dungeon expedition.',
+    price: 1800,
+    rarity: ItemRarity.RARE,
+    equipmentType: EquipmentType.POTION,
+    level: 50,
+  },
+
   // Tier 1 (Level 10+)
   {
     name: 'Lesser Experience Potion',
     description: 'Increases experience gained by 10% for 4 hours.',
-    price: 50,
+    price: 100,
     rarity: ItemRarity.COMMON,
     equipmentType: EquipmentType.POTION,
     level: 10,
@@ -13,7 +63,7 @@ export const SEEDED_CONSUMABLES = [
   {
     name: 'Lesser Attack Potion',
     description: 'Increases Damage by 5 for 4 hours.',
-    price: 40,
+    price: 80,
     rarity: ItemRarity.COMMON,
     equipmentType: EquipmentType.POTION,
     level: 10,
@@ -21,7 +71,7 @@ export const SEEDED_CONSUMABLES = [
   {
     name: 'Lesser Defense Potion',
     description: 'Increases Defense rating by 5 for 4 hours.',
-    price: 40,
+    price: 80,
     rarity: ItemRarity.COMMON,
     equipmentType: EquipmentType.POTION,
     level: 10,
@@ -31,7 +81,7 @@ export const SEEDED_CONSUMABLES = [
   {
     name: 'Medium Experience Potion',
     description: 'Increases experience gained by 20% for 4 hours.',
-    price: 120,
+    price: 240,
     rarity: ItemRarity.MAGIC,
     equipmentType: EquipmentType.POTION,
     level: 20,
@@ -39,7 +89,7 @@ export const SEEDED_CONSUMABLES = [
   {
     name: 'Medium Attack Potion',
     description: 'Increases Damage by 10 for 4 hours.',
-    price: 90,
+    price: 180,
     rarity: ItemRarity.MAGIC,
     equipmentType: EquipmentType.POTION,
     level: 20,
@@ -47,7 +97,7 @@ export const SEEDED_CONSUMABLES = [
   {
     name: 'Medium Defense Potion',
     description: 'Increases Defense rating by 10 for 4 hours.',
-    price: 90,
+    price: 180,
     rarity: ItemRarity.MAGIC,
     equipmentType: EquipmentType.POTION,
     level: 20,
@@ -57,7 +107,7 @@ export const SEEDED_CONSUMABLES = [
   {
     name: 'Mild Experience Potion',
     description: 'Increases experience gained by 30% for 4 hours.',
-    price: 250,
+    price: 500,
     rarity: ItemRarity.MAGIC,
     equipmentType: EquipmentType.POTION,
     level: 30,
@@ -65,7 +115,7 @@ export const SEEDED_CONSUMABLES = [
   {
     name: 'Mild Attack Potion',
     description: 'Increases Damage by 20 for 4 hours.',
-    price: 180,
+    price: 360,
     rarity: ItemRarity.MAGIC,
     equipmentType: EquipmentType.POTION,
     level: 30,
@@ -73,7 +123,7 @@ export const SEEDED_CONSUMABLES = [
   {
     name: 'Mild Defense Potion',
     description: 'Increases Defense rating by 20 for 4 hours.',
-    price: 180,
+    price: 360,
     rarity: ItemRarity.MAGIC,
     equipmentType: EquipmentType.POTION,
     level: 30,
@@ -81,7 +131,7 @@ export const SEEDED_CONSUMABLES = [
   {
     name: 'Free Attribute Potion',
     description: 'Grants 1 free attribute point when consumed.',
-    price: 1000,
+    price: 2000,
     rarity: ItemRarity.UNIQUE,
     equipmentType: EquipmentType.POTION,
     level: 30,
@@ -91,7 +141,7 @@ export const SEEDED_CONSUMABLES = [
   {
     name: 'Greater Experience Potion',
     description: 'Increases experience gained by 40% for 4 hours.',
-    price: 450,
+    price: 900,
     rarity: ItemRarity.RARE,
     equipmentType: EquipmentType.POTION,
     level: 40,
@@ -99,7 +149,7 @@ export const SEEDED_CONSUMABLES = [
   {
     name: 'Greater Attack Potion',
     description: 'Increases Damage by 30 for 4 hours.',
-    price: 300,
+    price: 600,
     rarity: ItemRarity.RARE,
     equipmentType: EquipmentType.POTION,
     level: 40,
@@ -107,7 +157,7 @@ export const SEEDED_CONSUMABLES = [
   {
     name: 'Greater Defense Potion',
     description: 'Increases Defense rating by 30 for 4 hours.',
-    price: 300,
+    price: 600,
     rarity: ItemRarity.RARE,
     equipmentType: EquipmentType.POTION,
     level: 40,
@@ -117,7 +167,7 @@ export const SEEDED_CONSUMABLES = [
   {
     name: 'Higher Experience Potion',
     description: 'Increases experience gained by 50% for 4 hours.',
-    price: 800,
+    price: 1600,
     rarity: ItemRarity.RARE,
     equipmentType: EquipmentType.POTION,
     level: 50,
@@ -125,7 +175,7 @@ export const SEEDED_CONSUMABLES = [
   {
     name: 'Higher Attack Potion',
     description: 'Increases Damage by 50 for 4 hours.',
-    price: 500,
+    price: 1000,
     rarity: ItemRarity.RARE,
     equipmentType: EquipmentType.POTION,
     level: 50,
@@ -133,7 +183,7 @@ export const SEEDED_CONSUMABLES = [
   {
     name: 'Higher Defense Potion',
     description: 'Increases Defense rating by 50 for 4 hours.',
-    price: 500,
+    price: 1000,
     rarity: ItemRarity.RARE,
     equipmentType: EquipmentType.POTION,
     level: 50,

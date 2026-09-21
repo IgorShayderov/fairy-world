@@ -81,7 +81,7 @@ describe('CraftingService', () => {
   it('does not consume ingredients when the regular inventory is full', async () => {
     const tx = {
       $executeRaw: jest.fn(),
-      gameProfile: { findUnique: jest.fn().mockResolvedValue({ id: 4 }) },
+      gameProfile: { findUnique: jest.fn().mockResolvedValue({ id: 4, level: 18 }) },
       learnedCraftRecipe: {
         findUnique: jest.fn().mockResolvedValue({
           recipe: {
@@ -100,5 +100,23 @@ describe('CraftingService', () => {
 
     await expect(service.craft(7, 5)).rejects.toThrow('Inventory is full');
     expect(tx.playerCraftItem.findUnique).not.toHaveBeenCalled();
+  });
+
+  it('rejects crafting and upgrades before level 10', async () => {
+    const tx = {
+      $executeRaw: jest.fn(),
+      gameProfile: { findUnique: jest.fn().mockResolvedValue({ id: 4, level: 9 }) },
+      learnedCraftRecipe: { findUnique: jest.fn() },
+      inventoryItem: { findFirst: jest.fn() },
+    };
+    const prisma = {
+      $transaction: jest.fn((operation: (client: typeof tx) => unknown) => operation(tx)),
+    };
+    const service = new CraftingService(prisma as unknown as PrismaService);
+
+    await expect(service.craft(7, 5)).rejects.toThrow('available from level 10');
+    await expect(service.applyUpgrade(7, 3, 12)).rejects.toThrow('available from level 10');
+    expect(tx.learnedCraftRecipe.findUnique).not.toHaveBeenCalled();
+    expect(tx.inventoryItem.findFirst).not.toHaveBeenCalled();
   });
 });

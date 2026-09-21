@@ -3,7 +3,9 @@ import { randomUUID } from 'node:crypto';
 
 import { ItemRarity, PlayerBuffType, Prisma, StatType } from '../../generated/client';
 import { ItemView } from '../common/views/item.view';
+import { CRAFTING_MIN_LEVEL, pickCraftMaterialCode } from '../crafting/crafting.catalog';
 import { ItemGeneratorService } from '../items/item-generator.service';
+import { getPotionEffect, getPotionRequiredLevel } from '../items/potion-effects';
 import { requireLandmark } from '../locations/landmarks';
 import { PrismaService } from '../prisma.service';
 import { progressionAfterExperience } from '../users/level-progression';
@@ -26,6 +28,7 @@ type Combatant = {
 };
 
 type DungeonEvent = { actor: 'PLAYER' | 'MONSTER'; damage: number; critical: boolean; dodged: boolean };
+type DungeonBattleResult = { winner: 'PLAYER' | 'MONSTER'; winnerName: string };
 type DungeonOpponent = {
   id: string;
   monsterType: string;
@@ -40,6 +43,14 @@ type DungeonRewardItem = ReturnType<typeof ItemView.render> & {
   addedToInventory: boolean;
   inventoryFull: boolean;
 };
+type DungeonCraftReward = {
+  id: number;
+  name: string;
+  description: string;
+  icon: string;
+  rarity: ItemRarity;
+  quantity: number;
+};
 export type DungeonRunState = {
   id: string;
   dungeon: string;
@@ -48,11 +59,15 @@ export type DungeonRunState = {
   player: Combatant;
   opponents: DungeonOpponent[];
   latestEvents: DungeonEvent[];
+  lastBattleResult: DungeonBattleResult | null;
   lastExperience: number;
   experienceBonusPercent: number;
   goldBonusPercent: number;
-  rewards: null | { gold: number; item: DungeonRewardItem };
+  rewards: null | { gold: number; items: DungeonRewardItem[]; craftItems: DungeonCraftReward[] };
 };
+
+const DUNGEON_GOLD_MULTIPLIER = 2;
+const BONUS_RARE_ITEM_CHANCE = 0.1;
 
 const DUNGEON_ROLES = [
   { suffix: 'Stalker', image: '/images/dungeons/shadow-stalker.webp', health: 1.35, damage: 1.2, boss: false },
@@ -138,12 +153,13 @@ export class DungeonRunsService {
         const backpackCount = await tx.inventoryItem.count({
           where: { gameProfileId: profile.id, isEquiped: false },
         });
-        if (backpackCount >= 24) {
-          throw new BadRequestException('Inventory is full. Make room before fighting the boss.');
+        if (backpackCount >= 23) {
+          throw new BadRequestException('Make room for up to two dungeon reward items before fighting the boss.');
         }
       }
 
       state.latestEvents = [];
+      state.lastBattleResult = null;
       while (state.player.health > 0 && opponent.monster.health > 0) {
         this.strike(state.player, opponent.monster, 'PLAYER', state.latestEvents);
         if (opponent.monster.health <= 0) break;
@@ -151,11 +167,12 @@ export class DungeonRunsService {
       }
 
       if (state.player.health <= 0) {
+        state.lastBattleResult = { winner: 'MONSTER', winnerName: opponent.monster.name };
         state.status = 'DEFEAT';
         await tx.dungeonRun.delete({ where: { id: runId } });
         const defeatedProfile = await tx.gameProfile.update({
           where: { id: profile.id },
-          data: { mapPositionX: 1470, mapPositionY: 1040 },
+          data: { mapPositionX: 1470, mapPositionY: 960 },
         });
         await tx.gameProfileBuff.deleteMany({ where: { gameProfileId: profile.id } });
         const curse = rollDeathCurse(defeatedProfile.level);
@@ -173,6 +190,7 @@ export class DungeonRunsService {
       }
 
       opponent.status = 'DEFEATED';
+      state.lastBattleResult = { winner: 'PLAYER', winnerName: state.player.name };
       state.lastExperience = Math.round(opponent.monster.rewardExperience * (1 + state.experienceBonusPercent / 100));
       const updatedProfile = await tx.gameProfile.update({
         where: { id: profile.id },
@@ -200,6 +218,7 @@ export class DungeonRunsService {
       if (opponent.isBoss) {
         const gold = Math.round(
           state.opponents.reduce((sum, entry) => sum + entry.monster.rewardGold, 0) *
+            DUNGEON_GOLD_MULTIPLIER *
             (1 + state.goldBonusPercent / 100),
         );
         const rarity = rollDungeonLootRarity();
@@ -207,20 +226,39 @@ export class DungeonRunsService {
           { level: opponent.monster.level, rarity, minimumRarity: ItemRarity.RARE },
           tx,
         );
-        await tx.gameProfile.update({ where: { id: profile.id }, data: { gold: { increment: gold } } });
-        const inventoryEntry = await tx.inventoryItem.create({
-          data: { gameProfileId: profile.id, itemId: item.id, quantity: 1, slot: null, isEquiped: false },
+        const rewardItems = [item];
+        if (Math.random() < BONUS_RARE_ITEM_CHANCE) {
+          rewardItems.push(
+            await this.itemGenerator.generate(
+              { level: opponent.monster.level, rarity: ItemRarity.RARE, minimumRarity: ItemRarity.RARE },
+              tx,
+            ),
+          );
+        }
+        const inventoryEntries: Array<{ id: number }> = [];
+        for (const rewardItem of rewardItems) {
+          inventoryEntries.push(
+            await tx.inventoryItem.create({
+              data: { gameProfileId: profile.id, itemId: rewardItem.id, quantity: 1, slot: null, isEquiped: false },
+            }),
+          );
+        }
+        const craftItems = profile.level >= CRAFTING_MIN_LEVEL ? await this.awardCraftMaterials(tx, profile.id) : [];
+        await tx.gameProfile.update({
+          where: { id: profile.id },
+          data: { gold: { increment: gold }, dungeonsCleared: { increment: 1 } },
         });
         state.status = 'VICTORY';
         state.rewards = {
           gold,
-          item: {
-            ...ItemView.render(item),
+          items: rewardItems.map((rewardItem, index) => ({
+            ...ItemView.render(rewardItem),
             quantity: 1,
-            inventoryItemId: inventoryEntry.id,
+            inventoryItemId: inventoryEntries[index]?.id,
             addedToInventory: true,
             inventoryFull: false,
-          },
+          })),
+          craftItems,
         };
         await tx.dungeonRun.delete({ where: { id: runId } });
         return state;
@@ -228,6 +266,66 @@ export class DungeonRunsService {
 
       await tx.dungeonRun.update({ where: { id: runId }, data: { state: this.json(state) } });
       return state;
+    });
+  }
+
+  async leave(userId: number, runId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${userId})`;
+      const profile = await tx.gameProfile.findUnique({
+        where: { userId },
+        include: { dungeonRun: true },
+      });
+      if (!profile?.dungeonRun || profile.dungeonRun.id !== runId) {
+        throw new NotFoundException('Active dungeon run not found');
+      }
+      await tx.dungeonRun.delete({ where: { id: runId } });
+      return { success: true };
+    });
+  }
+
+  async useHealthPotion(userId: number, runId: string, inventoryItemId: number) {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${userId})`;
+      const profile = await tx.gameProfile.findUnique({
+        where: { userId },
+        include: { dungeonRun: true },
+      });
+      if (!profile?.dungeonRun || profile.dungeonRun.id !== runId) {
+        throw new NotFoundException('Active dungeon run not found');
+      }
+      const state = this.parseState(profile.dungeonRun.state);
+      if (state.status !== 'ACTIVE') throw new BadRequestException('Dungeon run has already ended');
+      if (state.player.health >= state.player.maxHealth) {
+        throw new BadRequestException('Health is already full');
+      }
+
+      const inventoryEntry = await tx.inventoryItem.findFirst({
+        where: { id: inventoryItemId, gameProfileId: profile.id, isEquiped: false },
+        include: { item: true },
+      });
+      if (!inventoryEntry) throw new NotFoundException('Health potion not found');
+      const effect = getPotionEffect(inventoryEntry.item.name);
+      if (!inventoryEntry.item.isConsumable || effect?.kind !== 'HEALTH') {
+        throw new BadRequestException('This item is not a health potion');
+      }
+      const requiredLevel = getPotionRequiredLevel(inventoryEntry.item.name);
+      if (profile.level < requiredLevel) {
+        throw new BadRequestException(`This potion requires player level ${requiredLevel}`);
+      }
+
+      const healed = Math.min(effect.restore, state.player.maxHealth - state.player.health);
+      state.player.health += healed;
+      if (inventoryEntry.quantity > 1) {
+        await tx.inventoryItem.update({
+          where: { id: inventoryEntry.id },
+          data: { quantity: { decrement: 1 } },
+        });
+      } else {
+        await tx.inventoryItem.delete({ where: { id: inventoryEntry.id } });
+      }
+      await tx.dungeonRun.update({ where: { id: runId }, data: { state: this.json(state) } });
+      return { run: state, healed };
     });
   }
 
@@ -280,6 +378,7 @@ export class DungeonRunsService {
       status: 'ACTIVE',
       startedAt: new Date().toISOString(),
       latestEvents: [],
+      lastBattleResult: null,
       lastExperience: 0,
       rewards: null,
       experienceBonusPercent:
@@ -346,8 +445,41 @@ export class DungeonRunsService {
     events.push({ actor, damage, critical, dodged: false });
   }
 
+  private async awardCraftMaterials(
+    tx: Prisma.TransactionClient,
+    gameProfileId: number,
+  ): Promise<DungeonCraftReward[]> {
+    const dropCount = 1 + Math.floor(Math.random() * 3);
+    const quantities = new Map<string, number>();
+    for (let index = 0; index < dropCount; index++) {
+      const code = pickCraftMaterialCode();
+      quantities.set(code, (quantities.get(code) ?? 0) + 1);
+    }
+
+    const rewards: DungeonCraftReward[] = [];
+    for (const [code, quantity] of quantities) {
+      const material = await tx.craftItem.findUnique({ where: { code } });
+      if (!material) continue;
+      await tx.playerCraftItem.upsert({
+        where: { gameProfileId_craftItemId: { gameProfileId, craftItemId: material.id } },
+        create: { gameProfileId, craftItemId: material.id, quantity },
+        update: { quantity: { increment: quantity } },
+      });
+      rewards.push({
+        id: material.id,
+        name: material.name,
+        description: material.description,
+        icon: material.icon,
+        rarity: material.rarity,
+        quantity,
+      });
+    }
+    return rewards;
+  }
+
   private parseState(state: Prisma.JsonValue): DungeonRunState {
-    return state as unknown as DungeonRunState;
+    const parsed = state as unknown as DungeonRunState;
+    return { ...parsed, lastBattleResult: parsed.lastBattleResult ?? null };
   }
 
   private json(state: DungeonRunState): Prisma.InputJsonValue {

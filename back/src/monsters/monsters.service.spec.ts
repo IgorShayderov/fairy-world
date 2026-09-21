@@ -38,6 +38,7 @@ describe('MonstersService', () => {
   };
   const mockUsersService = {
     findCurrentUser: jest.fn(),
+    updateMapPosition: jest.fn(),
   };
   const mockItemGenerator = {
     generate: jest.fn(),
@@ -46,6 +47,8 @@ describe('MonstersService', () => {
     active: jest.fn(),
     enter: jest.fn(),
     attack: jest.fn(),
+    leave: jest.fn(),
+    useHealthPotion: jest.fn(),
     reset: jest.fn(),
   };
   const currentUser = (
@@ -67,7 +70,7 @@ describe('MonstersService', () => {
       freeAttributes: 0,
       buffs,
       mapPositionX: 1470,
-      mapPositionY: 1040,
+      mapPositionY: 960,
       inventory: [],
       profileAttributes: [],
       profileStats:
@@ -125,7 +128,7 @@ describe('MonstersService', () => {
     expect(battle.status).toBe('DEFEAT');
     expect(mockPrismaService.gameProfile.update).toHaveBeenCalledWith({
       where: { userId: 7 },
-      data: { mapPositionX: 1470, mapPositionY: 1040 },
+      data: { mapPositionX: 1470, mapPositionY: 960 },
     });
     expect(mockPrismaService.gameProfileBuff.deleteMany).toHaveBeenCalledWith({ where: { gameProfileId: 5 } });
     expect(mockPrismaService.gameProfileBuff.create).not.toHaveBeenCalled();
@@ -278,13 +281,75 @@ describe('MonstersService', () => {
     it('keeps twenty percent encounter chance away from routes', async () => {
       jest.spyOn(Math, 'random').mockReturnValue(0.15);
       const user = currentUser(1);
-      user.gameProfile.mapPositionX = 1000;
-      user.gameProfile.mapPositionY = 1000;
+      user.gameProfile.mapPositionX = 1400;
+      user.gameProfile.mapPositionY = 800;
       mockUsersService.findCurrentUser.mockResolvedValue(user);
       mockMonsterGenerator.generate.mockReturnValue({ id: 2, name: 'Wolf', level: 1, attributes: [] });
       const result = await service.rollEncounter(7);
       expect(result.encountered).toBe(true);
       expect(result.chance).toBe(0.2);
+    });
+
+    it('uses thirty percent in forests and bogs', async () => {
+      jest.spyOn(Math, 'random').mockReturnValue(0.4);
+      const user = currentUser(1);
+      user.gameProfile.mapPositionX = 790;
+      user.gameProfile.mapPositionY = 1220;
+      mockUsersService.findCurrentUser.mockResolvedValue(user);
+
+      await expect(service.rollEncounter(7)).resolves.toEqual({ encountered: false, chance: 0.3 });
+
+      user.gameProfile.mapPositionX = 420;
+      user.gameProfile.mapPositionY = 1510;
+      await expect(service.rollEncounter(7)).resolves.toEqual({ encountered: false, chance: 0.3 });
+    });
+
+    it('saves a travel step and rolls its encounter in one operation', async () => {
+      jest.spyOn(Math, 'random').mockReturnValue(0.9);
+      const user = currentUser(1);
+      user.gameProfile.mapPositionX = 1400;
+      user.gameProfile.mapPositionY = 800;
+      mockUsersService.findCurrentUser.mockResolvedValue(user);
+
+      await expect(service.updateMapPositionAndRollEncounter(7, { x: 1400, y: 800 })).resolves.toEqual({
+        position: { x: 1400, y: 800 },
+        encounter: { encountered: false, chance: 0.2 },
+      });
+      expect(mockUsersService.updateMapPosition).toHaveBeenCalledWith(7, { x: 1400, y: 800 });
+    });
+
+    it('rejects a forged position jump before saving or rolling an encounter', async () => {
+      const user = currentUser(1);
+      user.gameProfile.mapPositionX = 100;
+      user.gameProfile.mapPositionY = 100;
+      mockUsersService.findCurrentUser.mockResolvedValue(user);
+
+      await expect(service.updateMapPositionAndRollEncounter(7, { x: 500, y: 100 })).rejects.toThrow(
+        'Map position changed too far',
+      );
+      expect(mockUsersService.updateMapPosition).not.toHaveBeenCalled();
+      expect(mockMonsterGenerator.generate).not.toHaveBeenCalled();
+    });
+
+    it('allows retreat only on roads or near towns', async () => {
+      jest.spyOn(Math, 'random').mockReturnValue(0.01);
+      const user = currentUser(1);
+      user.gameProfile.mapPositionX = 1400;
+      user.gameProfile.mapPositionY = 800;
+      mockUsersService.findCurrentUser.mockResolvedValue(user);
+      mockMonsterGenerator.generate.mockReturnValue({ id: 2, name: 'Wolf', level: 1, attributes: [] });
+
+      const offRoad = await service.rollEncounter(7);
+      if (!offRoad.encountered) throw new Error('Expected encounter');
+      expect(offRoad.battle.canRetreat).toBe(false);
+      expect(() => service.retreat(7, offRoad.battle.id)).toThrow('only on a road or near a town');
+
+      user.gameProfile.mapPositionX = 1470;
+      user.gameProfile.mapPositionY = 960;
+      const onRoad = await service.rollEncounter(7);
+      if (!onRoad.encountered) throw new Error('Expected encounter');
+      expect(onRoad.battle.canRetreat).toBe(true);
+      expect(service.retreat(7, onRoad.battle.id)).toEqual({ success: true });
     });
 
     it('returns a generated level-appropriate monster when the roll succeeds', async () => {
@@ -304,7 +369,7 @@ describe('MonstersService', () => {
       const result = await service.rollEncounter(7);
       expect(result.encountered).toBe(true);
       if (!result.encountered) throw new Error('Expected encounter');
-      expect(mockMonsterGenerator.generate).toHaveBeenCalledWith(100, { x: 1470, y: 1040 });
+      expect(mockMonsterGenerator.generate).toHaveBeenCalledWith(100, { x: 1470, y: 960 });
       expect(result.monster).toBe(monster);
       expect(typeof result.battle.id).toBe('string');
       expect(result.battle.status).toBe('ACTIVE');
@@ -358,6 +423,7 @@ describe('MonstersService', () => {
         select: { id: true, level: true, experience: true },
       });
       expect(battle.rewards?.items).toEqual([]);
+      expect(mockPrismaService.craftItem.findUnique).not.toHaveBeenCalled();
       expect(mockPrismaService.gameProfile.update).toHaveBeenCalledWith({
         where: { id: 5 },
         data: { level: 6, experience: 0, freeAttributes: { increment: 5 } },

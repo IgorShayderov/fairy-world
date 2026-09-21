@@ -1,6 +1,6 @@
 import { EquipmentType, ItemRarity, StatType } from '../../generated/client';
 import { PrismaService } from '../prisma.service';
-import { ItemGeneratorService } from './item-generator.service';
+import { calculateGeneratedItemPrice, ItemGeneratorService } from './item-generator.service';
 import { BASE_ITEMS } from './item-generator.config';
 
 interface GeneratedItemCreateArgs {
@@ -30,6 +30,11 @@ describe('ItemGeneratorService', () => {
   });
 
   afterEach(() => jest.restoreAllMocks());
+
+  it('prices level-nineteen equipment at more than twice the previous values', () => {
+    expect(calculateGeneratedItemPrice(60, ItemRarity.COMMON, 19)).toBeGreaterThanOrEqual(348);
+    expect(calculateGeneratedItemPrice(50, ItemRarity.MAGIC, 19)).toBeGreaterThanOrEqual(580);
+  });
 
   it('does not reuse Common gear for a Magic-or-better quest reward', async () => {
     jest.spyOn(Math, 'random').mockReturnValue(0);

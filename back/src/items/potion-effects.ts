@@ -8,12 +8,22 @@ export type PotionEffect =
   | { kind: 'FREE_ATTRIBUTE'; value: number };
 
 export const POTION_EFFECTS: Record<string, PotionEffect> = {
+  'Minor Health Potion': { kind: 'HEALTH', restore: 50 },
+  'Lesser Health Potion': { kind: 'HEALTH', restore: 120 },
+  'Medium Health Potion': { kind: 'HEALTH', restore: 250 },
+  'Mild Health Potion': { kind: 'HEALTH', restore: 450 },
+  'Greater Health Potion': { kind: 'HEALTH', restore: 700 },
+  'Higher Health Potion': { kind: 'HEALTH', restore: 1000 },
+
   // 10+ Level Potions
   'Lesser Experience Potion': { kind: 'BUFF', type: PlayerBuffType.EXPERIENCE, value: 10 },
   'Lesser Attack Potion': { kind: 'BUFF', type: PlayerBuffType.DAMAGE, value: 5 },
   'Lesser Defense Potion': { kind: 'BUFF', type: PlayerBuffType.DEFENSE, value: 5 },
 
   // 20+ Level Potions
+  'Medium Experience Potion': { kind: 'BUFF', type: PlayerBuffType.EXPERIENCE, value: 20 },
+  'Medium Attack Potion': { kind: 'BUFF', type: PlayerBuffType.DAMAGE, value: 10 },
+  'Medium Defense Potion': { kind: 'BUFF', type: PlayerBuffType.DEFENSE, value: 10 },
   'Moderate Experience Potion': { kind: 'BUFF', type: PlayerBuffType.EXPERIENCE, value: 20 },
   'Moderate Attack Potion': { kind: 'BUFF', type: PlayerBuffType.DAMAGE, value: 10 },
   'Moderate Defense Potion': { kind: 'BUFF', type: PlayerBuffType.DEFENSE, value: 10 },
@@ -33,14 +43,16 @@ export const POTION_EFFECTS: Record<string, PotionEffect> = {
   'Higher Experience Potion': { kind: 'BUFF', type: PlayerBuffType.EXPERIENCE, value: 50 },
   'Higher Attack Potion': { kind: 'BUFF', type: PlayerBuffType.DAMAGE, value: 50 },
   'Higher Defense Potion': { kind: 'BUFF', type: PlayerBuffType.DEFENSE, value: 50 },
-
-  // Internal / health test compatibility
-  'Lesser Health Potion': { kind: 'HEALTH', restore: 50 },
-  'Mild Health Potion': { kind: 'HEALTH', restore: 150 },
-  'Higher Health Potion': { kind: 'HEALTH', restore: 500 },
 };
 
 export const POTION_LEVEL_REQUIREMENTS: Record<string, number> = {
+  'Minor Health Potion': 1,
+  'Lesser Health Potion': 10,
+  'Medium Health Potion': 20,
+  'Mild Health Potion': 30,
+  'Greater Health Potion': 40,
+  'Higher Health Potion': 50,
+
   'Lesser Experience Potion': 10,
   'Lesser Attack Potion': 10,
   'Lesser Defense Potion': 10,
@@ -48,6 +60,9 @@ export const POTION_LEVEL_REQUIREMENTS: Record<string, number> = {
   'Moderate Experience Potion': 20,
   'Moderate Attack Potion': 20,
   'Moderate Defense Potion': 20,
+  'Medium Experience Potion': 20,
+  'Medium Attack Potion': 20,
+  'Medium Defense Potion': 20,
 
   'Mild Experience Potion': 30,
   'Mild Attack Potion': 30,

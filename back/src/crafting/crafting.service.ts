@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { CraftItemKind, EquipmentType, ItemRarity, Prisma } from '../../generated/client';
 import { PrismaService } from '../prisma.service';
-import { CRAFT_ITEMS, CRAFT_RECIPES, upgradeValueForLevel } from './crafting.catalog';
+import { CRAFTING_MIN_LEVEL, CRAFT_ITEMS, CRAFT_RECIPES, upgradeValueForLevel } from './crafting.catalog';
 
 @Injectable()
 export class CraftingService implements OnModuleInit {
@@ -24,7 +24,7 @@ export class CraftingService implements OnModuleInit {
             rarity: definition.rarity,
             equipmentType: [EquipmentType.UNKNOWN],
             isConsumable: false,
-            level: 1,
+            level: CRAFTING_MIN_LEVEL,
           };
           const inventoryItem = existingInventoryItem
             ? await tx.item.update({ where: { id: existingInventoryItem.id }, data })
@@ -71,7 +71,7 @@ export class CraftingService implements OnModuleInit {
                 rarity: ItemRarity.MAGIC,
                 equipmentType: [EquipmentType.RECIPE],
                 isConsumable: true,
-                level: 1,
+                level: CRAFTING_MIN_LEVEL,
               },
             })
           : await tx.item.create({
@@ -83,7 +83,7 @@ export class CraftingService implements OnModuleInit {
                 rarity: ItemRarity.MAGIC,
                 equipmentType: [EquipmentType.RECIPE],
                 isConsumable: true,
-                level: 1,
+                level: CRAFTING_MIN_LEVEL,
               },
             });
         const result = await tx.craftItem.findUniqueOrThrow({ where: { code: definition.resultCode } });
@@ -137,6 +137,9 @@ export class CraftingService implements OnModuleInit {
       },
     });
     if (!profile) throw new NotFoundException('Game profile not found');
+    if (profile.level < CRAFTING_MIN_LEVEL) {
+      throw new BadRequestException(`Crafting is available from level ${CRAFTING_MIN_LEVEL}`);
+    }
     const quantities = new Map(profile.craftItems.map(({ craftItemId, quantity }) => [craftItemId, quantity]));
     return {
       level: profile.level,
@@ -159,8 +162,11 @@ export class CraftingService implements OnModuleInit {
     return this.prisma.$transaction(
       async (tx) => {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(${userId})`;
-        const profile = await tx.gameProfile.findUnique({ where: { userId }, select: { id: true } });
+        const profile = await tx.gameProfile.findUnique({ where: { userId }, select: { id: true, level: true } });
         if (!profile) throw new NotFoundException('Game profile not found');
+        if (profile.level < CRAFTING_MIN_LEVEL) {
+          throw new BadRequestException(`Crafting is available from level ${CRAFTING_MIN_LEVEL}`);
+        }
         const learned = await tx.learnedCraftRecipe.findUnique({
           where: { gameProfileId_recipeId: { gameProfileId: profile.id, recipeId } },
           include: { recipe: { include: { ingredients: true, resultCraftItem: true } } },
@@ -215,6 +221,9 @@ export class CraftingService implements OnModuleInit {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(${userId})`;
         const profile = await tx.gameProfile.findUnique({ where: { userId }, select: { id: true, level: true } });
         if (!profile) throw new NotFoundException('Game profile not found');
+        if (profile.level < CRAFTING_MIN_LEVEL) {
+          throw new BadRequestException(`Crafting is available from level ${CRAFTING_MIN_LEVEL}`);
+        }
         if (upgradeInventoryItemId === inventoryItemId)
           throw new BadRequestException('An upgrade item cannot upgrade itself');
         const ownedUpgrade = await tx.inventoryItem.findFirst({

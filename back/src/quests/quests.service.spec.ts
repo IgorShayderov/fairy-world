@@ -4,7 +4,7 @@ import { QuestsService } from './quests.service';
 import { habitatForMonster } from '../monsters/monster-habitats';
 
 describe('QuestsService', () => {
-  const profile = { id: 5, gems: 60, mapPositionX: 1470, mapPositionY: 1040 };
+  const profile = { id: 5, gems: 60, mapPositionX: 1470, mapPositionY: 960 };
   const board = { id: 'board-1', revision: 0, nextRefreshAt: new Date('2099-01-01') };
   const quest = {
     id: 1,

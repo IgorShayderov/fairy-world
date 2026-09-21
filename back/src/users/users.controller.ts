@@ -20,7 +20,6 @@ import type { RequestWithUser } from '../auth/interfaces/request-with-user.inter
 import { UserView } from './user.view';
 import { EquipItemDto, EQUIPMENT_SLOTS, type EquipmentSlotId } from './dto/equip-item.dto';
 import { AllocateAttributeDto } from './dto/allocate-attribute.dto';
-import { UpdateMapPositionDto } from './dto/update-map-position.dto';
 import { ReplaceInventoryItemDto } from './dto/replace-inventory-item.dto';
 
 @ApiTags('users')
@@ -91,13 +90,6 @@ export class UsersController {
   @ApiBearerAuth()
   replaceInventoryItem(@Request() req: RequestWithUser, @Body() dto: ReplaceInventoryItemDto) {
     return this.usersService.replaceInventoryItem(req.user.sub, dto);
-  }
-
-  @Put('me/map-position')
-  @UseGuards(AuthGuard)
-  @ApiBearerAuth()
-  updateMapPosition(@Request() req: RequestWithUser, @Body() dto: UpdateMapPositionDto) {
-    return this.usersService.updateMapPosition(req.user.sub, dto);
   }
 
   @Put('me/equipment')

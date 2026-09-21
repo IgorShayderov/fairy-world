@@ -17,6 +17,20 @@ interface GeneratedModifier {
   value: number;
 }
 
+const ITEM_LEVEL_PRICE_GROWTH = 0.26;
+const RARITY_PRICE_MULTIPLIERS: Partial<Record<ItemRarity, number>> = {
+  [ItemRarity.COMMON]: 1,
+  [ItemRarity.MAGIC]: 2,
+  [ItemRarity.RARE]: 5,
+  [ItemRarity.UNIQUE]: 15,
+};
+
+export const calculateGeneratedItemPrice = (basePrice: number, rarity: ItemRarity, level: number, modifiersValue = 0) =>
+  Math.round(
+    basePrice * (RARITY_PRICE_MULTIPLIERS[rarity] ?? 1) * (1 + Math.max(1, level) * ITEM_LEVEL_PRICE_GROWTH) +
+      modifiersValue * 10,
+  );
+
 @Injectable()
 export class ItemGeneratorService {
   constructor(private readonly prisma: PrismaService) {}
@@ -244,16 +258,8 @@ export class ItemGeneratorService {
     level: number,
     modifiers: GeneratedModifier[],
   ): number {
-    const rarityMultiplier: Partial<Record<ItemRarity, number>> = {
-      [ItemRarity.COMMON]: 1,
-      [ItemRarity.MAGIC]: 2,
-      [ItemRarity.RARE]: 5,
-      [ItemRarity.UNIQUE]: 15,
-    };
-
     const modifiersValue = modifiers.reduce((sum, modifier) => sum + modifier.value, 0);
-
-    return Math.round(baseItem.basePrice * (rarityMultiplier[rarity] ?? 1) * (1 + level * 0.1) + modifiersValue * 10);
+    return calculateGeneratedItemPrice(baseItem.basePrice, rarity, level, modifiersValue);
   }
 
   private scaleBaseValue(value: number, level: number): number {

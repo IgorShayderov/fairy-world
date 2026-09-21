@@ -28,6 +28,7 @@ const modules = {
     materialDrop: 'Crafting material',
     dropUpgrade: 'Drop the upgrade onto an inventory item',
     recipeLearned: 'Recipe learned and added to your craft book.',
+    availableAtLevel: 'Crafting becomes available at level {{level}}.',
     types: { DAMAGE: 'Damage', DEFENSE: 'Defense', GOLD: '% Gold', EXPERIENCE: '% Experience', HEALTH: 'Health' },
   },
   leaderboard: {
@@ -37,6 +38,7 @@ const modules = {
     name: 'Name',
     level: 'Level',
     monsters: 'Monsters killed',
+    dungeons: 'Dungeons cleared',
     quests: 'Quests completed',
     empty: 'No players yet.',
     error: 'Could not load the leaderboard.',
@@ -129,8 +131,13 @@ const modules = {
         story:
           'Cold air rises from the stairwell. Three guardians wait beyond the sealed doors, and their warden watches from the deepest chamber.',
         effect:
-          'Defeat the three guardians in any order to unlock the boss. Each victory grants experience; clearing the dungeon grants gold and one guaranteed item: 70% Rare, 30% Unique.',
+          'Defeat the three guardians in any order to unlock the boss. Clearing the dungeon grants extra gold, 1–3 crafting materials from level 10, one guaranteed item (70% Rare, 30% Unique), and a 10% chance for a second Rare item.',
         action: 'Enter dungeon',
+        healthWarningTitle: 'Health is not restored inside',
+        healthWarning:
+          'Your current Health carries across all four dungeon fights and is not restored between opponents. Bring Health Potions before entering.',
+        cancelEntry: 'Not yet',
+        confirmEntry: 'Enter prepared',
       },
     },
     mapDescription: 'An atlas of old roads, hidden sanctums and forgotten magic',
@@ -150,12 +157,27 @@ const modules = {
       locked: 'Locked',
       defeated: 'Defeated',
       fight: 'Fight',
+      battleWinner: 'Winner: {{winner}}.',
       health: 'Health',
       damage: 'Damage',
       defense: 'Defense',
       critical: 'Critical',
       experienceEarned: '+{{experience}} experience. Gold and item rewards are held until the boss is defeated.',
       completed: 'Dungeon cleared — final rewards',
+      leave: 'Leave dungeon',
+      leaveTitle: 'Leave this dungeon?',
+      leaveWarning:
+        'Are you sure? This dungeon run will end immediately. You will keep experience already earned, but no gold or item reward will be given.',
+      stay: 'Stay in dungeon',
+      confirmLeave: 'Leave without rewards',
+      left: 'You left the dungeon. Final gold and item rewards were forfeited.',
+      healthPotions: 'Health potions',
+      healthDoesNotRestore: 'Health is not restored between dungeon fights.',
+      noHealthPotions: 'No Health Potions in your inventory.',
+      healthRestored: '+{{health}} Health restored.',
+      defeatedTitle: 'Dungeon expedition failed',
+      defeatedMessage:
+        'You were defeated and returned to Evercross. Review the final combat log above, then return to the map when ready.',
     },
     encounter: {
       eyebrow: 'Travel interrupted',

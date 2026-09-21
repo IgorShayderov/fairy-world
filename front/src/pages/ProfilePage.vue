@@ -14,6 +14,7 @@
           :player-gold="currentUserStore.user?.gold ?? 0"
           :player-gems="currentUserStore.user?.gems ?? 0"
           :killed-monsters="currentUserStore.user?.killedMonsters ?? 0"
+          :dungeons-cleared="currentUserStore.user?.dungeonsCleared ?? 0"
           :accomplished-quests="currentUserStore.user?.accomplishedQuests ?? 0"
           :player-free-attributes="currentUserStore.user?.freeAttributes ?? 0"
           :allocating-attribute="allocatingAttribute"
@@ -34,6 +35,7 @@
           :drag-index="dragItemIndex"
           :is-hovered="isHoveredSlot"
           :craft-inventory="currentUserStore.user?.craftInventory ?? []"
+          :crafting-available="(currentUserStore.user?.level ?? 1) >= CRAFTING_MIN_LEVEL"
           @drag-start="onInventoryDragStart"
           @drag-end="onDragEnd"
           @inventory-drop="onInventoryDrop"
@@ -56,7 +58,7 @@ import type { EquipmentSlotId, InventoryItemType } from '@/modules/Inventory/typ
 
 import { usersApi } from '@/modules/Auth/api/users';
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
-import { craftingApi } from '@/modules/Crafting/api';
+import { CRAFTING_MIN_LEVEL, craftingApi } from '@/modules/Crafting/api';
 import { useInventoryStore } from '@/modules/Inventory/store/inventory';
 import { getCompatibleEquipmentSlots, isTwoHanded } from '@/modules/Inventory/utils/equipment';
 import { getPotionRequiredLevel, isHealthPotion, isPotion } from '@/modules/Inventory/utils/potions';
@@ -238,7 +240,11 @@ const equipFromInventory = async (inventoryIndex: number) => {
     return;
   }
 
-  if (isPotion(item) && !isHealthPotion(item)) {
+  if (isPotion(item)) {
+    if (isHealthPotion(item)) {
+      $q.notify({ type: 'info', message: t('profile.healthPotionDungeonOnly') });
+      return;
+    }
     if (!canEquip(item)) return;
     await usersApi.consumeInventoryItem(item.inventoryItemId);
     await refreshInventory();

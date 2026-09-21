@@ -226,6 +226,7 @@ const props = defineProps<{
   playerGold: number;
   playerGems: number;
   killedMonsters: number;
+  dungeonsCleared: number;
   accomplishedQuests: number;
   playerFreeAttributes: number;
   allocatingAttribute: string | null;
@@ -286,6 +287,7 @@ const playerSummary = computed(() => [
   { key: 'gold', value: props.playerGold },
   { key: 'gems', value: props.playerGems },
   { key: 'killedMonsters', value: props.killedMonsters },
+  { key: 'dungeonsCleared', value: props.dungeonsCleared },
   { key: 'accomplishedQuests', value: props.accomplishedQuests },
 ]);
 

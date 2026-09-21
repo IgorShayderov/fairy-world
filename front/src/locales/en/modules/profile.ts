@@ -13,6 +13,7 @@ export default {
   fromBuff: 'from buff',
   activeBuffs: 'Active buffs',
   noActiveBuffs: 'No active buffs',
+  healthPotionDungeonOnly: 'Health potions can be used from the dungeon screen between fights.',
   buffDescriptions: {
     DAMAGE: 'Increases damage by {{value}}.',
     DEFENSE: 'Increases defense rating by {{value}}.',
@@ -38,6 +39,7 @@ export default {
   ratingPoints: 'Rating: {{value}}',
   summary: {
     killedMonsters: 'Monsters killed',
+    dungeonsCleared: 'Dungeons cleared',
     accomplishedQuests: 'Quests completed',
     level: 'Level',
     experience: 'Experience',

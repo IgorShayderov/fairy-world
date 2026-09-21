@@ -1,0 +1,2 @@
+ALTER TABLE "GameProfile"
+ADD COLUMN "dungeonsCleared" INTEGER NOT NULL DEFAULT 0;

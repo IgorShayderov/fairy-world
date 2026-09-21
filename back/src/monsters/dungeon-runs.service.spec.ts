@@ -17,7 +17,15 @@ describe('DungeonRunsService', () => {
     dungeonVisit: { findUnique: jest.fn(), upsert: jest.fn(), delete: jest.fn() },
     gameProfile: { findUnique: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
     gameProfileBuff: { deleteMany: jest.fn(), create: jest.fn() },
-    inventoryItem: { count: jest.fn(), create: jest.fn() },
+    inventoryItem: {
+      count: jest.fn(),
+      create: jest.fn(),
+      findFirst: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
+    craftItem: { findUnique: jest.fn() },
+    playerCraftItem: { upsert: jest.fn() },
   };
   const monsterGenerator = { generate: jest.fn() };
   const usersService = { findCurrentUser: jest.fn() };
@@ -52,6 +60,7 @@ describe('DungeonRunsService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     storedRun = null;
+    user.gameProfile.level = 5;
     prisma.$transaction.mockImplementation((operation: (client: typeof prisma) => unknown) => operation(prisma));
     prisma.dungeonRun.findUnique.mockImplementation(() =>
       Promise.resolve(storedRun ? { id: storedRun.id, state: storedRun.state } : null),
@@ -70,7 +79,14 @@ describe('DungeonRunsService', () => {
     });
     prisma.dungeonVisit.findUnique.mockResolvedValue(null);
     prisma.gameProfile.findUnique.mockImplementation(() =>
-      Promise.resolve({ id: 5, userId: 7, mapPositionX: 2470, mapPositionY: 1370, dungeonRun: storedRun }),
+      Promise.resolve({
+        id: 5,
+        userId: 7,
+        level: user.gameProfile.level,
+        mapPositionX: 2470,
+        mapPositionY: 1370,
+        dungeonRun: storedRun,
+      }),
     );
     prisma.gameProfile.update.mockResolvedValue({ id: 5, level: 5, experience: 0 });
     prisma.inventoryItem.count.mockResolvedValue(0);
@@ -129,6 +145,7 @@ describe('DungeonRunsService', () => {
       const result = await service.attack(7, run.id, guardian.id);
       expect(result.lastExperience).toBeGreaterThan(0);
       expect(result.rewards).toBeNull();
+      expect(result.lastBattleResult).toEqual({ winner: 'PLAYER', winnerName: 'Hero' });
     }
     expect(storedRun?.state.opponents.find(({ isBoss }) => isBoss)?.status).toBe('AVAILABLE');
     expect(itemGenerator.generate).not.toHaveBeenCalled();
@@ -136,12 +153,55 @@ describe('DungeonRunsService', () => {
     const completed = await service.attack(7, run.id, boss.id);
     expect(completed.status).toBe('VICTORY');
     expect(typeof completed.rewards?.gold).toBe('number');
-    expect(completed.rewards?.item).toMatchObject({ id: 44, rarity: ItemRarity.RARE, addedToInventory: true });
+    expect(completed.rewards?.items[0]).toMatchObject({ id: 44, rarity: ItemRarity.RARE, addedToInventory: true });
+    expect(completed.rewards!.gold).toBe(run.opponents.reduce((sum, entry) => sum + entry.monster.rewardGold, 0) * 2);
     expect(itemGenerator.generate).toHaveBeenCalledWith(
       { level: boss.monster.level, rarity: ItemRarity.RARE, minimumRarity: ItemRarity.RARE },
       prisma,
     );
     expect(storedRun).toBeNull();
+  });
+
+  it('can award a second Rare item and guaranteed crafting materials to level 10 players', async () => {
+    jest.spyOn(Math, 'random').mockReturnValue(0.05);
+    user.gameProfile.level = 10;
+    prisma.craftItem.findUnique.mockResolvedValue({
+      id: 12,
+      name: 'Iron Ore',
+      description: 'Ore',
+      icon: 'craft_iron_ore.png',
+      rarity: ItemRarity.COMMON,
+    });
+    const run = await service.enter(7, 'EMBERDEEP');
+    run.player.damage = 1_000_000;
+    const boss = run.opponents.find(({ isBoss }) => isBoss)!;
+    let completed = run;
+    for (const opponent of run.opponents) completed = await service.attack(7, run.id, opponent.id);
+
+    expect(completed.rewards?.items).toHaveLength(2);
+    expect(itemGenerator.generate).toHaveBeenLastCalledWith(
+      { level: boss.monster.level, rarity: ItemRarity.RARE, minimumRarity: ItemRarity.RARE },
+      prisma,
+    );
+    expect(completed.rewards?.craftItems).toEqual([expect.objectContaining({ id: 12, name: 'Iron Ore', quantity: 1 })]);
+    expect(prisma.playerCraftItem.upsert).toHaveBeenCalledWith({
+      where: { gameProfileId_craftItemId: { gameProfileId: 5, craftItemId: 12 } },
+      create: { gameProfileId: 5, craftItemId: 12, quantity: 1 },
+      update: { quantity: { increment: 1 } },
+    });
+  });
+
+  it('records the monster as the winner when the player loses a fight', async () => {
+    jest.spyOn(Math, 'random').mockReturnValue(0.99);
+    const run = await service.enter(7, 'EMBERDEEP');
+    run.player.health = 1;
+    run.player.damage = 1;
+    const guardian = run.opponents.find(({ isBoss }) => !isBoss)!;
+
+    const defeated = await service.attack(7, run.id, guardian.id);
+
+    expect(defeated.status).toBe('DEFEAT');
+    expect(defeated.lastBattleResult).toEqual({ winner: 'MONSTER', winnerName: guardian.monster.name });
   });
 
   it('keeps the boss alive until there is room for the guaranteed reward', async () => {
@@ -154,10 +214,39 @@ describe('DungeonRunsService', () => {
     prisma.inventoryItem.count.mockResolvedValue(24);
 
     await expect(service.attack(7, run.id, boss.id)).rejects.toThrow(
-      'Inventory is full. Make room before fighting the boss.',
+      'Make room for up to two dungeon reward items before fighting the boss.',
     );
     expect(boss.status).toBe('AVAILABLE');
     expect(boss.monster.health).toBe(boss.monster.maxHealth);
     expect(itemGenerator.generate).not.toHaveBeenCalled();
+  });
+
+  it('permanently abandons an unfinished run without granting final rewards', async () => {
+    const run = await service.enter(7, 'EMBERDEEP');
+
+    await expect(service.leave(7, run.id)).resolves.toEqual({ success: true });
+    expect(storedRun).toBeNull();
+    expect(itemGenerator.generate).not.toHaveBeenCalled();
+    expect(prisma.inventoryItem.create).not.toHaveBeenCalled();
+  });
+
+  it('consumes a health potion and persists restored dungeon health', async () => {
+    const run = await service.enter(7, 'EMBERDEEP');
+    run.player.health = 10;
+    prisma.inventoryItem.findFirst.mockResolvedValue({
+      id: 71,
+      quantity: 2,
+      item: { name: 'Minor Health Potion', isConsumable: true },
+    });
+
+    await expect(service.useHealthPotion(7, run.id, 71)).resolves.toMatchObject({
+      healed: 50,
+      run: { player: { health: 60 } },
+    });
+    expect(prisma.inventoryItem.update).toHaveBeenCalledWith({
+      where: { id: 71 },
+      data: { quantity: { decrement: 1 } },
+    });
+    expect(storedRun?.state.player.health).toBe(60);
   });
 });

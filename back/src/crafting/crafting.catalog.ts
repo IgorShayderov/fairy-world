@@ -1,5 +1,7 @@
 import { CraftItemKind, CraftUpgradeType, ItemRarity } from '../../generated/client';
 
+export const CRAFTING_MIN_LEVEL = 10;
+
 export const CRAFT_MATERIAL_DROP_CHANCE = 0.35;
 
 export const CRAFT_ITEMS = [
@@ -174,9 +176,12 @@ export const CRAFT_MATERIAL_DROP_POOL = [
   'EMBER_CRYSTAL',
 ] as const;
 
+export const pickCraftMaterialCode = (random: () => number = Math.random): string =>
+  CRAFT_MATERIAL_DROP_POOL[Math.floor(random() * CRAFT_MATERIAL_DROP_POOL.length)] ?? CRAFT_MATERIAL_DROP_POOL[0];
+
 export const rollCraftMaterialCode = (random: () => number = Math.random): string | null => {
   if (random() >= CRAFT_MATERIAL_DROP_CHANCE) return null;
-  return CRAFT_MATERIAL_DROP_POOL[Math.floor(random() * CRAFT_MATERIAL_DROP_POOL.length)] ?? null;
+  return pickCraftMaterialCode(random);
 };
 
 export const upgradeValueForLevel = (type: CraftUpgradeType, level: number): number => {

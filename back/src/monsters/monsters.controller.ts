@@ -17,12 +17,6 @@ export class MonstersController {
     return this.monstersService.findAll();
   }
 
-  @Post('encounter')
-  @ApiOkResponse({ description: 'Rolls the random encounter chance for one completed travel step' })
-  rollEncounter(@Request() req: RequestWithUser) {
-    return this.monstersService.rollEncounter(req.user.sub);
-  }
-
   @Post('dungeon/:name')
   enterDungeon(@Param('name') name: string, @Request() req: RequestWithUser) {
     return this.monstersService.enterDungeon(req.user.sub, name);
@@ -45,6 +39,20 @@ export class MonstersController {
     @Request() req: RequestWithUser,
   ) {
     return this.monstersService.attackDungeonOpponent(req.user.sub, runId, opponentId);
+  }
+
+  @Post('dungeon/run/:runId/leave')
+  leaveDungeon(@Param('runId') runId: string, @Request() req: RequestWithUser) {
+    return this.monstersService.leaveDungeon(req.user.sub, runId);
+  }
+
+  @Post('dungeon/run/:runId/potions/:inventoryItemId/use')
+  useDungeonHealthPotion(
+    @Param('runId') runId: string,
+    @Param('inventoryItemId', ParseIntPipe) inventoryItemId: number,
+    @Request() req: RequestWithUser,
+  ) {
+    return this.monstersService.useDungeonHealthPotion(req.user.sub, runId, inventoryItemId);
   }
 
   @Post('battle/:battleId/attack')

@@ -94,6 +94,8 @@
       :player-name="currentUserStore.user?.name ?? t('fantasy.encounter.traveler')"
       :loading="battlePending"
       @attack="handleDungeonAttack"
+      @use-potion="handleDungeonHealthPotion"
+      @leave="handleDungeonLeave"
       @close="activeDungeonRun = null"
     />
 
@@ -124,8 +126,9 @@ import {
   attackDungeonOpponent,
   attackMonster,
   getActiveDungeon,
+  leaveDungeon,
   retreatFromBattle,
-  rollMonsterEncounter,
+  useDungeonHealthPotion,
 } from '@/modules/Monsters/api';
 import routes from '@/routes';
 import { useCharacter } from '@modules/Game/composables/useCharacter';
@@ -225,7 +228,7 @@ let animationFrame: number | null = null;
 const mapWidth = 3200;
 const mapHeight = 2100;
 const initialX = 1470;
-const initialY = 1040;
+const initialY = 960;
 
 const { renderProceduralMap, isPointOnLand } = useMapGenerator();
 const { camera, centerOn, fitToScreen, startDrag, doDrag, endDrag, zoomAt, zoomBy, screenToMap } = useMapCamera(
@@ -251,21 +254,33 @@ const {
 } = useCharacter(initialX, initialY, mapWidth, mapHeight, canMoveTo, movementSpeedAt);
 let lastSavedPosition = `${initialX}:${initialY}`;
 
-const persistPosition = async () => {
+const persistPosition = async (): Promise<boolean> => {
   const nextPosition = {
     x: Math.round(position.x * 1000) / 1000,
     y: Math.round(position.y * 1000) / 1000,
   };
   const positionKey = `${nextPosition.x}:${nextPosition.y}`;
-  if (positionKey === lastSavedPosition) return;
+  if (positionKey === lastSavedPosition || encounterPending.value) return false;
   lastSavedPosition = positionKey;
+  encounterPending.value = true;
   try {
-    await usersApi.updateMapPosition(nextPosition);
-    if (currentUserStore.user) currentUserStore.user.mapPosition = nextPosition;
+    const result = await usersApi.updateMapPosition(nextPosition);
+    if (currentUserStore.user) currentUserStore.user.mapPosition = result.position;
+    if (result.encounter.encountered) {
+      stop();
+      activeLandmark.value = null;
+      showQuestOffers.value = false;
+      activeBattle.value = result.encounter.battle;
+      draw();
+      return true;
+    }
   } catch (error) {
     lastSavedPosition = '';
     console.error('Failed to save map position:', error);
+  } finally {
+    encounterPending.value = false;
   }
+  return false;
 };
 
 const draw = () => {
@@ -286,23 +301,8 @@ const draw = () => {
 };
 
 const checkForEncounter = async () => {
-  encounterPending.value = true;
-  try {
-    const encounterPosition = { x: Math.round(position.x), y: Math.round(position.y) };
-    await usersApi.updateMapPosition(encounterPosition);
-    if (currentUserStore.user) currentUserStore.user.mapPosition = encounterPosition;
-    const result = await rollMonsterEncounter();
-    if (result.encountered) {
-      stop();
-      activeBattle.value = result.battle;
-      draw();
-      return;
-    }
-  } catch (error) {
-    console.error('Failed to roll a travel encounter:', error);
-  } finally {
-    encounterPending.value = false;
-  }
+  const encountered = await persistPosition();
+  if (encountered) return;
 
   if (!disposed && !activeLandmark.value && isMoving.value) animationFrame = requestAnimationFrame(tick);
 };
@@ -330,15 +330,15 @@ const handlePlayerDefeat = () => {
     timeout: 6000,
     message: `${t('fantasy.encounter.defeat')}. ${t('fantasy.encounter.respawn')}`,
   });
-  setPosition(1470, 1040);
-  lastSavedPosition = '1470:1040';
+  setPosition(1470, 960);
+  lastSavedPosition = '1470:960';
   visitedLandmark = 'EVERCROSS';
   activeLandmark.value = null;
   if (currentUserStore.user) {
-    currentUserStore.user.mapPosition = { x: 1470, y: 1040 };
+    currentUserStore.user.mapPosition = { x: 1470, y: 960 };
     currentUserStore.user.activeBuffs = [];
   }
-  if (containerRef.value) centerOn(1470, 1040, containerRef.value.clientWidth, containerRef.value.clientHeight);
+  if (containerRef.value) centerOn(1470, 960, containerRef.value.clientWidth, containerRef.value.clientHeight);
   draw();
 };
 
@@ -349,7 +349,6 @@ const handleDungeonAttack = async (opponentId: string) => {
     activeDungeonRun.value = await attackDungeonOpponent(activeDungeonRun.value.id, opponentId);
     if (activeDungeonRun.value.status === 'DEFEAT') {
       handlePlayerDefeat();
-      activeDungeonRun.value = null;
     }
     await currentUserStore.fetchCurrentUser(true);
   } catch (error) {
@@ -358,6 +357,44 @@ const handleDungeonAttack = async (opponentId: string) => {
       type: 'negative',
       color: 'negative',
       timeout: 5000,
+      message: error instanceof Error ? error.message : t('fantasy.landmark.error'),
+    });
+  } finally {
+    battlePending.value = false;
+  }
+};
+
+const handleDungeonLeave = async () => {
+  if (!activeDungeonRun.value || battlePending.value) return;
+  battlePending.value = true;
+  try {
+    await leaveDungeon(activeDungeonRun.value.id);
+    activeDungeonRun.value = null;
+    Notify.create({ type: 'info', message: t('fantasy.dungeonRun.left') });
+  } catch (error) {
+    Notify.create({
+      type: 'negative',
+      message: error instanceof Error ? error.message : t('fantasy.landmark.error'),
+    });
+  } finally {
+    battlePending.value = false;
+  }
+};
+
+const handleDungeonHealthPotion = async (inventoryItemId: number) => {
+  if (!activeDungeonRun.value || battlePending.value) return;
+  battlePending.value = true;
+  try {
+    const result = await useDungeonHealthPotion(activeDungeonRun.value.id, inventoryItemId);
+    activeDungeonRun.value = result.run;
+    await currentUserStore.fetchCurrentUser(true);
+    Notify.create({
+      type: 'positive',
+      message: t('fantasy.dungeonRun.healthRestored', { health: result.healed }),
+    });
+  } catch (error) {
+    Notify.create({
+      type: 'negative',
       message: error instanceof Error ? error.message : t('fantasy.landmark.error'),
     });
   } finally {

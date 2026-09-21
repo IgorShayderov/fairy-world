@@ -1,5 +1,6 @@
 import type { CraftInventoryItem, EffectiveModifier, EquipmentSlotId, InventoryEntry } from '@/modules/Inventory/types';
 
+import type { EncounterRoll } from '@/modules/Monsters/api';
 import routes from '@/routes';
 import { api } from '@shared/api';
 
@@ -10,6 +11,7 @@ export type CurrentUser = {
   gold: number;
   gems: number;
   killedMonsters?: number;
+  dungeonsCleared?: number;
   accomplishedQuests?: number;
   sanctuaryCooldowns?: Array<{ sanctuaryId: number; nextBlessingAt: string }>;
   experience: number;
@@ -47,6 +49,7 @@ export type LeaderboardEntry = {
   name: string;
   level: number;
   killedMonsters: number;
+  dungeonsCleared: number;
   questsCompleted: number;
 };
 
@@ -79,8 +82,11 @@ export const usersApi = {
     });
     return data;
   },
-  async updateMapPosition(position: MapPosition): Promise<MapPosition> {
-    const { data } = await api.put<MapPosition>(routes.api.users.mapPositionPath(), position);
+  async updateMapPosition(position: MapPosition): Promise<{ position: MapPosition; encounter: EncounterRoll }> {
+    const { data } = await api.put<{ position: MapPosition; encounter: EncounterRoll }>(
+      routes.api.users.mapPositionPath(),
+      position
+    );
     return data;
   },
   async equipItem(inventoryItemId: number, slot: EquipmentSlotId): Promise<void> {
