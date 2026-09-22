@@ -69,6 +69,17 @@ const menuItems = computed(() => [
     route: routes.profilePath(),
     icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z',
   },
+
+  ...(currentUser.user?.currentShopId && inTown.value
+    ? [
+        {
+          id: 'shop',
+          nameKey: 'menu.shop',
+          route: routes.shopPath(),
+          icon: 'M3 3h2l2 10h10l4-8H5M9 17a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm8 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z',
+        },
+      ]
+    : []),
   {
     id: 'quests',
     nameKey: 'menu.quests',
@@ -88,17 +99,6 @@ const menuItems = computed(() => [
           nameKey: 'menu.craft',
           route: routes.craftPath(),
           icon: 'M14.7 6.3a4 4 0 0 0-5-5L12 3.6 9.6 6 7.3 3.7a4 4 0 0 0 5 5L4 17l3 3 7.7-8.3a4 4 0 0 0 5-5L17.4 9 15 6.6Z',
-        },
-      ]
-    : []),
-
-  ...(currentUser.user?.currentShopId && inTown.value
-    ? [
-        {
-          id: 'shop',
-          nameKey: 'menu.shop',
-          route: routes.shopPath(),
-          icon: 'M3 3h2l2 10h10l4-8H5M9 17a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm8 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z',
         },
       ]
     : []),

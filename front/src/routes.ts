@@ -53,11 +53,20 @@ const routes = {
     },
     monsters: {
       activeDungeonPath: () => [BASE_API_PATH, 'monsters', 'dungeon', 'active'].join('/'),
+      dungeonPartiesPath: (name: string) => [BASE_API_PATH, 'monsters', 'dungeon', 'parties', name].join('/'),
+      dungeonPartyJoinPath: (partyId: string) =>
+        [BASE_API_PATH, 'monsters', 'dungeon', 'parties', partyId, 'join'].join('/'),
+      dungeonPartyLeavePath: (partyId: string) =>
+        [BASE_API_PATH, 'monsters', 'dungeon', 'parties', partyId, 'leave'].join('/'),
+      dungeonPartyStartPath: (partyId: string) =>
+        [BASE_API_PATH, 'monsters', 'dungeon', 'parties', partyId, 'start'].join('/'),
       dungeonOpponentAttackPath: (runId: string, opponentId: string) =>
         [BASE_API_PATH, 'monsters', 'dungeon', 'run', runId, 'opponents', opponentId, 'attack'].join('/'),
       dungeonLeavePath: (runId: string) => [BASE_API_PATH, 'monsters', 'dungeon', 'run', runId, 'leave'].join('/'),
       dungeonHealthPotionPath: (runId: string, inventoryItemId: number) =>
         [BASE_API_PATH, 'monsters', 'dungeon', 'run', runId, 'potions', String(inventoryItemId), 'use'].join('/'),
+      dungeonPartyLootPath: (runId: string) =>
+        [BASE_API_PATH, 'monsters', 'dungeon', 'run', runId, 'loot', 'submit'].join('/'),
       dungeonResetPath: (name: string) => [BASE_API_PATH, 'monsters', 'dungeon', name, 'reset'].join('/'),
       dungeonPath: (name: string) => [BASE_API_PATH, 'monsters', 'dungeon', name].join('/'),
       listPath: () => [BASE_API_PATH, 'monsters'].join('/'),

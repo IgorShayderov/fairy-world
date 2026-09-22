@@ -67,7 +67,7 @@
     </aside>
 
     <LandmarkEncounter
-      v-if="activeLandmark && !activeBattle && !activeDungeonRun && !showQuestOffers"
+      v-if="activeLandmark && !activeBattle && !activeDungeonRun && !showQuestOffers && !showPartyLobby"
       :landmark="activeLandmark"
       :pending="landmarkPending"
       :message="landmarkMessage"
@@ -84,6 +84,14 @@
       @close="activeLandmark = null"
       @action="handleLandmarkAction"
       @quests="openQuests"
+      @party="showPartyLobby = true"
+    />
+
+    <DungeonPartyLobby
+      v-if="showPartyLobby && activeLandmark?.type === 'dungeon'"
+      :dungeon="activeLandmark.name"
+      @close="showPartyLobby = false"
+      @start="handlePartyStart"
     />
 
     <TownQuestDialog
@@ -99,8 +107,9 @@
       :loading="battlePending"
       @attack="handleDungeonAttack"
       @use-potion="handleDungeonHealthPotion"
+      @submit-loot="handleDungeonLootSubmit"
       @leave="handleDungeonLeave"
-      @close="activeDungeonRun = null"
+      @close="handleDungeonClose"
     />
 
     <BattleEncounter
@@ -132,6 +141,7 @@ import {
   getActiveDungeon,
   leaveDungeon,
   retreatFromBattle,
+  submitDungeonPartyLoot,
   useDungeonHealthPotion,
 } from '@/modules/Monsters/api';
 import routes from '@/routes';
@@ -141,6 +151,7 @@ import { useMapGenerator } from '@modules/Game/composables/useMapGenerator';
 
 import ActiveBuffs from '@/modules/Game/components/ActiveBuffs.vue';
 import BattleEncounter from '@/modules/Game/components/BattleEncounter.vue';
+import DungeonPartyLobby from '@/modules/Game/components/DungeonPartyLobby.vue';
 import DungeonRunEncounter from '@/modules/Game/components/DungeonRunEncounter.vue';
 import LandmarkEncounter from '@/modules/Game/components/LandmarkEncounter.vue';
 import TownQuestDialog from '@/modules/Quests/TownQuestDialog.vue';
@@ -219,8 +230,17 @@ const openQuests = async () => {
   }
 };
 const showQuestOffers = ref(false);
+const showPartyLobby = ref(false);
+const handlePartyStart = (run: DungeonRunState) => {
+  activeDungeonRun.value = run;
+  if (currentUserStore.user) currentUserStore.user.hasActiveDungeon = true;
+  activeLandmark.value = null;
+  showPartyLobby.value = false;
+  promptLandmark.value = null;
+};
 let visitedLandmark: string | null = null;
 let disposed = false;
+let dungeonPartyTimer: ReturnType<typeof setInterval> | undefined;
 const nearbyLandmark = (x: number, y: number) =>
   landmarks.find((landmark) => Math.hypot(x - landmark.x, y - landmark.y) <= 55);
 
@@ -248,6 +268,7 @@ const handleLandmarkAction = async () => {
       await currentUserStore.fetchCurrentUser(true);
       activeLandmark.value = null;
       promptLandmark.value = null;
+      showPartyLobby.value = false;
     } else if (landmark.type === 'sanctum') {
       if (!landmark.sanctuaryId) throw new Error('Unknown sanctuary');
       await receiveBlessing(landmark.sanctuaryId, {
@@ -322,6 +343,7 @@ const persistPosition = async (): Promise<boolean> => {
       activeLandmark.value = null;
       promptLandmark.value = null;
       showQuestOffers.value = false;
+      showPartyLobby.value = false;
       activeBattle.value = result.encounter.battle;
       draw();
       return true;
@@ -423,6 +445,7 @@ const handleDungeonLeave = async () => {
   try {
     await leaveDungeon(activeDungeonRun.value.id);
     activeDungeonRun.value = null;
+    if (currentUserStore.user) currentUserStore.user.hasActiveDungeon = false;
     Notify.create({ type: 'info', message: t('fantasy.dungeonRun.left') });
   } catch (error) {
     Notify.create({
@@ -432,6 +455,19 @@ const handleDungeonLeave = async () => {
   } finally {
     battlePending.value = false;
   }
+};
+
+const handleDungeonClose = async () => {
+  const run = activeDungeonRun.value;
+  if (run?.party && run.status !== 'ACTIVE') {
+    try {
+      await leaveDungeon(run.id);
+    } catch (error) {
+      console.error('Failed to close party dungeon:', error);
+    }
+  }
+  activeDungeonRun.value = null;
+  if (currentUserStore.user) currentUserStore.user.hasActiveDungeon = false;
 };
 
 const handleDungeonHealthPotion = async (inventoryItemId: number) => {
@@ -445,6 +481,22 @@ const handleDungeonHealthPotion = async (inventoryItemId: number) => {
       type: 'positive',
       message: t('fantasy.dungeonRun.healthRestored', { health: result.healed }),
     });
+  } catch (error) {
+    Notify.create({
+      type: 'negative',
+      message: error instanceof Error ? error.message : t('fantasy.landmark.error'),
+    });
+  } finally {
+    battlePending.value = false;
+  }
+};
+
+const handleDungeonLootSubmit = async (itemIds: number[]) => {
+  if (!activeDungeonRun.value || battlePending.value) return;
+  battlePending.value = true;
+  try {
+    activeDungeonRun.value = await submitDungeonPartyLoot(activeDungeonRun.value.id, itemIds);
+    await currentUserStore.fetchCurrentUser(true);
   } catch (error) {
     Notify.create({
       type: 'negative',
@@ -574,21 +626,41 @@ onMounted(async () => {
     void persistPosition();
   }
   resizeCanvas();
-  try {
-    activeDungeonRun.value = await getActiveDungeon();
-  } catch (error) {
-    console.error('Failed to restore dungeon run:', error);
+  if (user.hasActiveDungeon) {
+    try {
+      activeDungeonRun.value = await getActiveDungeon();
+    } catch (error) {
+      console.error('Failed to restore dungeon run:', error);
+    }
   }
   const landmark = nearbyLandmark(position.x, position.y);
   visitedLandmark = landmark?.name ?? null;
   promptLandmark.value = landmark ?? null;
   resizeObserver = new ResizeObserver(resizeCanvas);
   if (containerRef.value) resizeObserver.observe(containerRef.value);
+  dungeonPartyTimer = setInterval(() => {
+    void (async () => {
+      if (!activeDungeonRun.value?.party || battlePending.value) return;
+      try {
+        const wasChoosingLoot = activeDungeonRun.value.partyLoot?.status === 'CHOOSING';
+        const run = await getActiveDungeon();
+        if (run) {
+          activeDungeonRun.value = run;
+          if (wasChoosingLoot && run.partyLoot?.status === 'RESOLVED') {
+            await currentUserStore.fetchCurrentUser(true);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to refresh party dungeon:', error);
+      }
+    })();
+  }, 2000);
 });
 
 onUnmounted(() => {
   disposed = true;
   stopPromptDrag();
+  if (dungeonPartyTimer) clearInterval(dungeonPartyTimer);
   void persistPosition();
   resizeObserver?.disconnect();
   if (animationFrame !== null) cancelAnimationFrame(animationFrame);

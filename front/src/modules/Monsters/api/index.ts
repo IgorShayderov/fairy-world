@@ -54,7 +54,14 @@ export interface BattleState {
     rewardGold: number;
     rewardExperience: number;
   };
-  events: Array<{ actor: 'PLAYER' | 'MONSTER'; damage: number; critical: boolean; dodged: boolean }>;
+  events: Array<{
+    actor: 'PLAYER' | 'MONSTER';
+    damage: number;
+    critical: boolean;
+    dodged: boolean;
+    actorName?: string;
+    targetName?: string;
+  }>;
   rewards?: {
     gold: number;
     experience: number;
@@ -104,8 +111,10 @@ export interface DungeonRunState {
   latestEvents: BattleState['events'];
   lastBattleResult: null | { winner: 'PLAYER' | 'MONSTER'; winnerName: string };
   lastExperience: number;
+  totalExperience: number;
   rewards: null | {
     gold: number;
+    experience: number;
     items: Array<
       InventoryEntry['item'] & {
         quantity: 1;
@@ -123,6 +132,48 @@ export interface DungeonRunState {
       quantity: number;
     }>;
   };
+  party?: { id: string; members: DungeonPartyMember[] };
+  partyLoot?: {
+    status: 'CHOOSING' | 'RESOLVED';
+    submittedProfileIds: number[];
+    deadlineAt?: string;
+    items: Array<
+      InventoryEntry['item'] & {
+        quantity: 1;
+        claimantProfileIds: number[];
+        winnerProfileId?: number;
+        winnerName?: string;
+        inventoryItemId?: number;
+        addedToInventory: boolean;
+        inventoryFull: boolean;
+      }
+    >;
+  };
+}
+
+export interface DungeonPartyMember {
+  profileId: number;
+  userId: number;
+  name: string;
+  level: number;
+  leader: boolean;
+  health?: number;
+  maxHealth?: number;
+  mana?: number;
+  maxMana?: number;
+}
+
+export interface DungeonParty {
+  id: string;
+  dungeon: string;
+  status: string;
+  members: DungeonPartyMember[];
+  isLeader: boolean;
+}
+
+export interface DungeonPartyLobby {
+  currentParty: DungeonParty | null;
+  openParties: DungeonParty[];
 }
 
 export type EncounterRoll =
@@ -153,6 +204,30 @@ export const getActiveDungeon = async (): Promise<DungeonRunState | null> => {
   return data;
 };
 
+export const getDungeonParties = async (name: string): Promise<DungeonPartyLobby> => {
+  const { data } = await api.get<DungeonPartyLobby>(routes.api.monsters.dungeonPartiesPath(name));
+  return data;
+};
+
+export const createDungeonParty = async (name: string): Promise<DungeonParty> => {
+  const { data } = await api.post<DungeonParty>(routes.api.monsters.dungeonPartiesPath(name));
+  return data;
+};
+
+export const joinDungeonParty = async (partyId: string): Promise<DungeonParty> => {
+  const { data } = await api.post<DungeonParty>(routes.api.monsters.dungeonPartyJoinPath(partyId));
+  return data;
+};
+
+export const leaveDungeonParty = async (partyId: string): Promise<void> => {
+  await api.post(routes.api.monsters.dungeonPartyLeavePath(partyId));
+};
+
+export const startDungeonParty = async (partyId: string): Promise<DungeonRunState> => {
+  const { data } = await api.post<DungeonRunState>(routes.api.monsters.dungeonPartyStartPath(partyId));
+  return data;
+};
+
 export const attackDungeonOpponent = async (runId: string, opponentId: string): Promise<DungeonRunState> => {
   const { data } = await api.post<DungeonRunState>(routes.api.monsters.dungeonOpponentAttackPath(runId, opponentId));
   return data;
@@ -169,5 +244,10 @@ export const useDungeonHealthPotion = async (
   const { data } = await api.post<{ run: DungeonRunState; healed: number }>(
     routes.api.monsters.dungeonHealthPotionPath(runId, inventoryItemId)
   );
+  return data;
+};
+
+export const submitDungeonPartyLoot = async (runId: string, itemIds: number[]): Promise<DungeonRunState> => {
+  const { data } = await api.post<DungeonRunState>(routes.api.monsters.dungeonPartyLootPath(runId), { itemIds });
   return data;
 };

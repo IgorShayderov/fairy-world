@@ -3,6 +3,7 @@ import type { IApi, PromiseChainNode, RequestConfig, FailedRequest } from '@shar
 import routes from '@/routes';
 import { refresh } from '@modules/Auth/api';
 
+import { getApiErrorMessage } from './error-message';
 import { HttpError } from './HttpError';
 import { InterceptorManager } from './InterceptorManager';
 
@@ -22,9 +23,8 @@ const dispatchRequest = async (config: RequestConfig) => {
     if (!response.ok) {
       let message = `Response status: ${response.status}`;
       try {
-        const payload = (await response.json()) as { message?: string | string[] };
-        if (Array.isArray(payload.message)) message = payload.message.join(', ');
-        else if (payload.message) message = payload.message;
+        const payload = (await response.json()) as unknown;
+        message = getApiErrorMessage(payload) ?? message;
       } catch {
         // Some endpoints return an empty or non-JSON error body.
       }

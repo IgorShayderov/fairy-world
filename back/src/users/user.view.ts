@@ -39,6 +39,8 @@ type CurrentUserModel = Prisma.UserGetPayload<{
         dungeonVisits: true;
         sanctuaryVisits: true;
         craftItems: { include: { craftItem: true } };
+        dungeonRun: { select: { id: true } };
+        dungeonParty: { select: { party: { select: { status: true } } } };
         _count: { select: { quests: { where: { completedAt: { not: null } } } } };
       };
     };
@@ -278,6 +280,8 @@ export class UserView {
         process.env.NODE_ENV !== 'production' &&
         (process.env.NODE_ENV === 'development' || process.env.npm_lifecycle_event === 'start:dev'),
       currentShopId: profile ? (townAt(profile)?.shopId ?? null) : null,
+      hasActiveDungeon:
+        !!profile?.dungeonRun || (!!profile?.dungeonParty && profile.dungeonParty.party.status !== 'WAITING'),
       dungeonCooldowns: (profile?.dungeonVisits ?? []).map(({ dungeon, nextEntryAt }) => ({ dungeon, nextEntryAt })),
       level: playerLevel,
       freeAttributes: profile?.freeAttributes ?? 0,
