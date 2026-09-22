@@ -126,6 +126,8 @@ const modules = {
       },
       cooldown: 'You can enter again in {{minutes}} minutes.',
       blessingCooldown: 'This sanctuary can bless you again in {{minutes}} minutes.',
+      nearby: 'Nearby landmark',
+      explore: 'Explore',
       dungeon: {
         label: 'Dungeon entrance',
         story:

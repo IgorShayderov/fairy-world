@@ -69,18 +69,81 @@ export type DungeonRunState = {
 const DUNGEON_GOLD_MULTIPLIER = 2;
 const BONUS_RARE_ITEM_CHANCE = 0.1;
 
-const DUNGEON_ROLES = [
-  { suffix: 'Stalker', image: '/images/dungeons/shadow-stalker.webp', health: 1.35, damage: 1.2, boss: false },
-  { suffix: 'Stone Brute', image: '/images/dungeons/stone-brute.webp', health: 1.55, damage: 1.3, boss: false },
-  { suffix: 'Arcane Wraith', image: '/images/dungeons/arcane-wraith.webp', health: 1.3, damage: 1.4, boss: false },
-  { suffix: 'Ancient Warden', image: '/images/dungeons/ancient-warden.webp', health: 2.3, damage: 1.65, boss: true },
-] as const;
+type DungeonRole = {
+  name: string;
+  image: string;
+  health: number;
+  damage: number;
+  boss: boolean;
+};
 
-const DUNGEON_PREFIXES: Record<string, string> = {
-  EMBERDEEP: 'Flamebound',
-  HOLLOWGATE: 'Hollow',
-  ICEVAULT: 'Frostbound',
-  RAVENCRYPT: 'Graveborn',
+export const DUNGEON_ROSTERS: Record<string, readonly DungeonRole[]> = {
+  EMBERDEEP: [
+    {
+      name: 'Flamebound Stalker',
+      image: '/images/dungeons/shadow-stalker.webp',
+      health: 1.35,
+      damage: 1.2,
+      boss: false,
+    },
+    { name: 'Cinder Stone Brute', image: '/images/dungeons/stone-brute.webp', health: 1.55, damage: 1.3, boss: false },
+    { name: 'Ember Wraith', image: '/images/dungeons/arcane-wraith.webp', health: 1.3, damage: 1.4, boss: false },
+    {
+      name: 'Warden of the First Flame',
+      image: '/images/dungeons/ancient-warden.webp',
+      health: 2.3,
+      damage: 1.65,
+      boss: true,
+    },
+  ],
+  HOLLOWGATE: [
+    {
+      name: 'Hollowfang Stalker',
+      image: '/images/dungeons/hollowfang-stalker.webp',
+      health: 1.25,
+      damage: 1.35,
+      boss: false,
+    },
+    {
+      name: 'Ossuary Colossus',
+      image: '/images/dungeons/ossuary-colossus.webp',
+      health: 1.8,
+      damage: 1.15,
+      boss: false,
+    },
+    { name: 'Veilbound Hexer', image: '/images/dungeons/veilbound-hexer.webp', health: 1.2, damage: 1.55, boss: false },
+    { name: 'The Hollow King', image: '/images/dungeons/hollow-king.webp', health: 2.45, damage: 1.7, boss: true },
+  ],
+  ICEVAULT: [
+    { name: 'Rimeclaw Hunter', image: '/images/dungeons/rimeclaw-hunter.webp', health: 1.3, damage: 1.4, boss: false },
+    { name: 'Glacier Troll', image: '/images/dungeons/glacier-troll.webp', health: 1.85, damage: 1.15, boss: false },
+    { name: 'Frost Wraith', image: '/images/dungeons/frost-wraith.webp', health: 1.25, damage: 1.5, boss: false },
+    {
+      name: 'Icebound Sovereign',
+      image: '/images/dungeons/icebound-sovereign.webp',
+      health: 2.6,
+      damage: 1.6,
+      boss: true,
+    },
+  ],
+  RAVENCRYPT: [
+    {
+      name: 'Gravewing Stalker',
+      image: '/images/dungeons/gravewing-stalker.webp',
+      health: 1.3,
+      damage: 1.4,
+      boss: false,
+    },
+    {
+      name: 'Bonebound Knight',
+      image: '/images/dungeons/bonebound-knight.webp',
+      health: 1.65,
+      damage: 1.25,
+      boss: false,
+    },
+    { name: 'Plague Seer', image: '/images/dungeons/plague-seer.webp', health: 1.2, damage: 1.55, boss: false },
+    { name: 'The Raven Lich', image: '/images/dungeons/raven-lich.webp', health: 2.35, damage: 1.75, boss: true },
+  ],
 };
 
 @Injectable()
@@ -359,18 +422,10 @@ export class DungeonRunsService {
   ): DungeonRunState {
     const property = (name: StatType) => player.properties.find((entry) => entry.name === name)?.value ?? 0;
     const health = Math.max(1, property(StatType.HEALTH));
-    const prefix = DUNGEON_PREFIXES[dungeon] ?? 'Dungeon';
-    const opponents = DUNGEON_ROLES.map((role, index) => {
+    const roles = DUNGEON_ROSTERS[dungeon] ?? DUNGEON_ROSTERS.EMBERDEEP;
+    const opponents = roles.map((role, index) => {
       const generated = this.monsterGenerator.generate(player.level + (role.boss ? 4 : 2));
-      return this.createOpponent(
-        generated,
-        `${prefix} ${role.suffix}`,
-        role.image,
-        role.health,
-        role.damage,
-        !!role.boss,
-        index,
-      );
+      return this.createOpponent(generated, role.name, role.image, role.health, role.damage, role.boss, index);
     });
     return {
       id: randomUUID(),
@@ -479,7 +534,22 @@ export class DungeonRunsService {
 
   private parseState(state: Prisma.JsonValue): DungeonRunState {
     const parsed = state as unknown as DungeonRunState;
-    return { ...parsed, lastBattleResult: parsed.lastBattleResult ?? null };
+    const roster = DUNGEON_ROSTERS[parsed.dungeon];
+    return {
+      ...parsed,
+      lastBattleResult: parsed.lastBattleResult ?? null,
+      opponents: parsed.opponents.map((opponent, index) => {
+        const role = roster?.[index];
+        if (!role || (opponent.image === role.image && opponent.monster.name === role.name)) {
+          return opponent;
+        }
+        return {
+          ...opponent,
+          image: role.image,
+          monster: { ...opponent.monster, name: role.name },
+        };
+      }),
+    };
   }
 
   private json(state: DungeonRunState): Prisma.InputJsonValue {

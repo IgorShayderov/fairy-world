@@ -1,5 +1,5 @@
 import { ItemRarity, StatType } from '../../generated/client';
-import { DungeonRunsService, type DungeonRunState } from './dungeon-runs.service';
+import { DUNGEON_ROSTERS, DungeonRunsService, type DungeonRunState } from './dungeon-runs.service';
 
 describe('DungeonRunsService', () => {
   let storedRun: { id: string; state: DungeonRunState } | null;
@@ -132,6 +132,29 @@ describe('DungeonRunsService', () => {
     expect(run.opponents.find(({ isBoss }) => isBoss)?.status).toBe('LOCKED');
     await expect(service.active(7)).resolves.toMatchObject({ id: run.id, dungeon: 'EMBERDEEP' });
     expect(monsterGenerator.generate).toHaveBeenCalledTimes(4);
+  });
+
+  it('defines a completely distinct four-monster roster for every dungeon', () => {
+    expect(Object.keys(DUNGEON_ROSTERS).sort()).toEqual(['EMBERDEEP', 'HOLLOWGATE', 'ICEVAULT', 'RAVENCRYPT']);
+    expect(Object.values(DUNGEON_ROSTERS).every((roster) => roster.length === 4)).toBe(true);
+    const roles = Object.values(DUNGEON_ROSTERS).flat();
+    expect(new Set(roles.map(({ name }) => name))).toHaveProperty('size', 16);
+    expect(new Set(roles.map(({ image }) => image))).toHaveProperty('size', 16);
+    expect(Object.values(DUNGEON_ROSTERS).every((roster) => roster.filter(({ boss }) => boss).length === 1)).toBe(true);
+  });
+
+  it('updates names and artwork in a persisted legacy run without resetting its progress', async () => {
+    await service.enter(7, 'EMBERDEEP');
+    storedRun!.state.opponents[0].monsterType = 'Legacy monster';
+    storedRun!.state.opponents[0].image = '/images/dungeons/legacy.webp';
+    storedRun!.state.opponents[0].status = 'DEFEATED';
+
+    const restored = await service.active(7);
+    expect(restored?.opponents[0]).toMatchObject({
+      image: DUNGEON_ROSTERS.EMBERDEEP[0].image,
+      status: 'DEFEATED',
+      monster: { name: DUNGEON_ROSTERS.EMBERDEEP[0].name },
+    });
   });
 
   it('awards only experience for guardians, unlocks the boss, then guarantees final gold and Rare loot', async () => {

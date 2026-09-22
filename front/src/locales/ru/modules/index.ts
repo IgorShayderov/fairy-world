@@ -125,6 +125,8 @@ const modules = {
       },
       cooldown: 'Следующий вход через {{minutes}} мин.',
       blessingCooldown: 'Следующее благословение в этом святилище через {{minutes}} мин.',
+      nearby: 'Объект рядом',
+      explore: 'Осмотреть',
       dungeon: {
         label: 'Вход в подземелье',
         story:
