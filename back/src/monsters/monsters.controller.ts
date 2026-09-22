@@ -1,4 +1,14 @@
-import { Controller, Get, Param, UseGuards, ParseIntPipe, BadRequestException, Post, Request } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  UseGuards,
+  ParseIntPipe,
+  BadRequestException,
+  Post,
+  Request,
+} from '@nestjs/common';
 import { ApiOkResponse, ApiBearerAuth, ApiNotFoundResponse } from '@nestjs/swagger';
 
 import { MonstersService } from './monsters.service';
@@ -15,6 +25,31 @@ export class MonstersController {
   @ApiOkResponse({ description: 'List all monsters' })
   findAll() {
     return this.monstersService.findAll();
+  }
+
+  @Get('dungeon/parties/:name')
+  dungeonParties(@Param('name') name: string, @Request() req: RequestWithUser) {
+    return this.monstersService.dungeonParties(req.user.sub, name);
+  }
+
+  @Post('dungeon/parties/:name')
+  createDungeonParty(@Param('name') name: string, @Request() req: RequestWithUser) {
+    return this.monstersService.createDungeonParty(req.user.sub, name);
+  }
+
+  @Post('dungeon/parties/:partyId/join')
+  joinDungeonParty(@Param('partyId') partyId: string, @Request() req: RequestWithUser) {
+    return this.monstersService.joinDungeonParty(req.user.sub, partyId);
+  }
+
+  @Post('dungeon/parties/:partyId/leave')
+  leaveDungeonParty(@Param('partyId') partyId: string, @Request() req: RequestWithUser) {
+    return this.monstersService.leaveDungeonParty(req.user.sub, partyId);
+  }
+
+  @Post('dungeon/parties/:partyId/start')
+  startDungeonParty(@Param('partyId') partyId: string, @Request() req: RequestWithUser) {
+    return this.monstersService.startDungeonParty(req.user.sub, partyId);
   }
 
   @Post('dungeon/:name')
@@ -53,6 +88,15 @@ export class MonstersController {
     @Request() req: RequestWithUser,
   ) {
     return this.monstersService.useDungeonHealthPotion(req.user.sub, runId, inventoryItemId);
+  }
+
+  @Post('dungeon/run/:runId/loot/submit')
+  submitDungeonPartyLoot(
+    @Param('runId') runId: string,
+    @Body('itemIds') itemIds: unknown,
+    @Request() req: RequestWithUser,
+  ) {
+    return this.monstersService.submitDungeonPartyLoot(req.user.sub, runId, itemIds);
   }
 
   @Post('battle/:battleId/attack')

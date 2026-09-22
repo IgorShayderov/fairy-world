@@ -21,6 +21,8 @@ type CurrentUserModel = Prisma.UserGetPayload<{
         dungeonVisits: true;
         sanctuaryVisits: true;
         craftItems: { include: { craftItem: true } };
+        dungeonRun: { select: { id: true } };
+        dungeonParty: { select: { party: { select: { status: true } } } };
         _count: { select: { quests: { where: { completedAt: { not: null } } } } };
       };
     };
@@ -67,6 +69,8 @@ describe('UserView.renderCurrent', () => {
         mapPositionY: 900,
         buffs: [],
         dungeonVisits: [],
+        dungeonRun: null,
+        dungeonParty: null,
         killedMonsters: 42,
         dungeonsCleared: 2,
         _count: { quests: 3 },

@@ -123,6 +123,26 @@ export class MonstersService {
     return this.dungeonRuns.enter(userId, name);
   }
 
+  dungeonParties(userId: number, name: string) {
+    return this.dungeonRuns.partyLobby(userId, name);
+  }
+
+  createDungeonParty(userId: number, name: string) {
+    return this.dungeonRuns.createParty(userId, name);
+  }
+
+  joinDungeonParty(userId: number, partyId: string) {
+    return this.dungeonRuns.joinParty(userId, partyId);
+  }
+
+  leaveDungeonParty(userId: number, partyId: string) {
+    return this.dungeonRuns.leaveParty(userId, partyId);
+  }
+
+  startDungeonParty(userId: number, partyId: string) {
+    return this.dungeonRuns.startParty(userId, partyId);
+  }
+
   activeDungeon(userId: number) {
     return this.dungeonRuns.active(userId);
   }
@@ -137,6 +157,10 @@ export class MonstersService {
 
   useDungeonHealthPotion(userId: number, runId: string, inventoryItemId: number) {
     return this.dungeonRuns.useHealthPotion(userId, runId, inventoryItemId);
+  }
+
+  submitDungeonPartyLoot(userId: number, runId: string, itemIds: unknown) {
+    return this.dungeonRuns.submitPartyLoot(userId, runId, itemIds);
   }
 
   async resetDungeon(userId: number, name: string) {

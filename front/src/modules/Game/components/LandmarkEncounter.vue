@@ -52,6 +52,14 @@
           {{ t('menu.quests') }}
         </button>
         <button
+          v-if="kind === 'dungeon'"
+          class="rounded-lg border border-[#d8bd75]/55 px-4 py-2 font-semibold text-[#fff0bd] disabled:opacity-50"
+          :disabled="pending || coolingDown"
+          @click="$emit('party')"
+        >
+          {{ t('fantasy.party.commandDungeon') }}
+        </button>
+        <button
           class="rounded-lg bg-[#dfc16d] px-4 py-2 font-semibold text-[#102831] disabled:opacity-50"
           :disabled="pending || coolingDown"
           @click="requestAction"
@@ -112,6 +120,7 @@ const emit = defineEmits<{
   (event: 'close'): void;
   (event: 'action'): void;
   (event: 'quests'): void;
+  (event: 'party'): void;
   (event: 'reset-dungeon'): void;
 }>();
 const { t } = useTranslation();

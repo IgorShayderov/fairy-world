@@ -18,26 +18,6 @@
       <ActiveBuffs compact :buffs="currentUserStore.user?.activeBuffs ?? []" />
     </div>
 
-    <aside class="pointer-events-none absolute bottom-5 left-5 z-10 hidden sm:block">
-      <div class="atlas-panel px-4 py-3 text-[10px] font-semibold tracking-[0.15em] text-[#d6dfd5] uppercase">
-        <div class="mb-2 text-[#8dcfc7]">{{ t('fantasy.legend') }}</div>
-        <div class="grid grid-cols-2 gap-x-5 gap-y-2">
-          <span class="flex items-center gap-2"
-            ><i class="h-2 w-2 rounded-full bg-[#f6cf72] shadow-[0_0_8px_#f6cf72]"></i>{{ t('fantasy.city') }}</span
-          >
-          <span class="flex items-center gap-2"
-            ><i class="h-2 w-2 rounded-full bg-[#a9d48c] shadow-[0_0_8px_#a9d48c]"></i>{{ t('fantasy.village') }}</span
-          >
-          <span class="flex items-center gap-2"
-            ><i class="h-2 w-2 rounded-full bg-[#ff8067] shadow-[0_0_8px_#ff8067]"></i>{{ t('fantasy.dungeon') }}</span
-          >
-          <span class="flex items-center gap-2"
-            ><i class="h-2 w-2 rounded-full bg-[#8ce5ca] shadow-[0_0_8px_#8ce5ca]"></i>{{ t('fantasy.sanctum') }}</span
-          >
-        </div>
-      </div>
-    </aside>
-
     <div
       class="absolute top-5 right-5 z-20 flex flex-col overflow-hidden rounded-xl border border-[#d6bd75]/30 bg-[#102734]/90 shadow-2xl backdrop-blur-md"
     >
@@ -62,8 +42,32 @@
       </div>
     </div>
 
+    <aside
+      ref="promptCardRef"
+      v-if="promptLandmark && !activeLandmark && !activeBattle && !activeDungeonRun"
+      class="atlas-panel absolute z-30 w-[min(20rem,calc(100%-2.5rem))] cursor-grab touch-none p-4 text-[#d6e1de] select-none active:cursor-grabbing"
+      :style="{ borderColor: promptLandmark.accent, left: `${promptPosition.x}px`, top: `${promptPosition.y}px` }"
+      @pointerdown.stop="startPromptDrag"
+      @click.stop
+    >
+      <p class="text-[10px] font-bold tracking-[0.18em] uppercase" :style="{ color: promptLandmark.accent }">
+        {{ t('fantasy.landmark.nearby') }}
+      </p>
+      <div class="mt-1 font-serif text-xl font-semibold text-[#fff0bd]">{{ promptLandmark.name }}</div>
+      <p class="mt-1 text-xs text-[#a9bfba]">{{ promptLandmark.subtitle }}</p>
+      <div class="mt-3 flex justify-end">
+        <button
+          class="rounded-lg bg-[#dfc16d] px-3 py-1.5 text-xs font-bold text-[#102831]"
+          @pointerdown.stop
+          @click="enterPromptedLandmark"
+        >
+          {{ t('fantasy.landmark.explore') }}
+        </button>
+      </div>
+    </aside>
+
     <LandmarkEncounter
-      v-if="activeLandmark && !activeBattle && !activeDungeonRun && !showQuestOffers"
+      v-if="activeLandmark && !activeBattle && !activeDungeonRun && !showQuestOffers && !showPartyLobby"
       :landmark="activeLandmark"
       :pending="landmarkPending"
       :message="landmarkMessage"
@@ -80,6 +84,14 @@
       @close="activeLandmark = null"
       @action="handleLandmarkAction"
       @quests="openQuests"
+      @party="showPartyLobby = true"
+    />
+
+    <DungeonPartyLobby
+      v-if="showPartyLobby && activeLandmark?.type === 'dungeon'"
+      :dungeon="activeLandmark.name"
+      @close="showPartyLobby = false"
+      @start="handlePartyStart"
     />
 
     <TownQuestDialog
@@ -95,8 +107,9 @@
       :loading="battlePending"
       @attack="handleDungeonAttack"
       @use-potion="handleDungeonHealthPotion"
+      @submit-loot="handleDungeonLootSubmit"
       @leave="handleDungeonLeave"
-      @close="activeDungeonRun = null"
+      @close="handleDungeonClose"
     />
 
     <BattleEncounter
@@ -128,6 +141,7 @@ import {
   getActiveDungeon,
   leaveDungeon,
   retreatFromBattle,
+  submitDungeonPartyLoot,
   useDungeonHealthPotion,
 } from '@/modules/Monsters/api';
 import routes from '@/routes';
@@ -137,6 +151,7 @@ import { useMapGenerator } from '@modules/Game/composables/useMapGenerator';
 
 import ActiveBuffs from '@/modules/Game/components/ActiveBuffs.vue';
 import BattleEncounter from '@/modules/Game/components/BattleEncounter.vue';
+import DungeonPartyLobby from '@/modules/Game/components/DungeonPartyLobby.vue';
 import DungeonRunEncounter from '@/modules/Game/components/DungeonRunEncounter.vue';
 import LandmarkEncounter from '@/modules/Game/components/LandmarkEncounter.vue';
 import TownQuestDialog from '@/modules/Quests/TownQuestDialog.vue';
@@ -145,6 +160,48 @@ const { t } = useTranslation();
 const currentUserStore = useCurrentUserStore();
 const router = useRouter();
 const activeLandmark = ref<Landmark | null>(null);
+const promptLandmark = ref<Landmark | null>(null);
+const promptCardRef = ref<HTMLElement | null>(null);
+const promptPosition = ref({ x: 20, y: 20 });
+let promptDragOffset: { x: number; y: number } | null = null;
+
+const clampPromptPosition = (x: number, y: number) => {
+  const container = containerRef.value;
+  const card = promptCardRef.value;
+  if (!container || !card) return { x: Math.max(8, x), y: Math.max(8, y) };
+  return {
+    x: Math.min(Math.max(8, x), Math.max(8, container.clientWidth - card.offsetWidth - 8)),
+    y: Math.min(Math.max(8, y), Math.max(8, container.clientHeight - card.offsetHeight - 8)),
+  };
+};
+
+const dragPrompt = (event: PointerEvent) => {
+  if (!promptDragOffset || !containerRef.value) return;
+  const bounds = containerRef.value.getBoundingClientRect();
+  promptPosition.value = clampPromptPosition(
+    event.clientX - bounds.left - promptDragOffset.x,
+    event.clientY - bounds.top - promptDragOffset.y
+  );
+};
+
+const stopPromptDrag = () => {
+  promptDragOffset = null;
+  window.removeEventListener('pointermove', dragPrompt);
+  window.removeEventListener('pointerup', stopPromptDrag);
+  window.removeEventListener('pointercancel', stopPromptDrag);
+};
+
+const startPromptDrag = (event: PointerEvent) => {
+  if (event.button !== 0 || !containerRef.value) return;
+  const bounds = containerRef.value.getBoundingClientRect();
+  promptDragOffset = {
+    x: event.clientX - bounds.left - promptPosition.value.x,
+    y: event.clientY - bounds.top - promptPosition.value.y,
+  };
+  window.addEventListener('pointermove', dragPrompt);
+  window.addEventListener('pointerup', stopPromptDrag);
+  window.addEventListener('pointercancel', stopPromptDrag);
+};
 const handleDungeonReset = async () => {
   if (!activeLandmark.value || landmarkPending.value) return;
   landmarkPending.value = true;
@@ -173,17 +230,30 @@ const openQuests = async () => {
   }
 };
 const showQuestOffers = ref(false);
+const showPartyLobby = ref(false);
+const handlePartyStart = (run: DungeonRunState) => {
+  activeDungeonRun.value = run;
+  if (currentUserStore.user) currentUserStore.user.hasActiveDungeon = true;
+  activeLandmark.value = null;
+  showPartyLobby.value = false;
+  promptLandmark.value = null;
+};
 let visitedLandmark: string | null = null;
 let disposed = false;
+let dungeonPartyTimer: ReturnType<typeof setInterval> | undefined;
 const nearbyLandmark = (x: number, y: number) =>
   landmarks.find((landmark) => Math.hypot(x - landmark.x, y - landmark.y) <= 55);
 
 const openLandmark = (landmark: Landmark) => {
   stop();
   visitedLandmark = landmark.name;
+  promptLandmark.value = null;
   activeLandmark.value = landmark;
   landmarkMessage.value = '';
   void persistPosition();
+};
+const enterPromptedLandmark = () => {
+  if (promptLandmark.value) openLandmark(promptLandmark.value);
 };
 
 const handleLandmarkAction = async () => {
@@ -197,6 +267,8 @@ const handleLandmarkAction = async () => {
       activeDungeonRun.value = await enterDungeon(landmark.name);
       await currentUserStore.fetchCurrentUser(true);
       activeLandmark.value = null;
+      promptLandmark.value = null;
+      showPartyLobby.value = false;
     } else if (landmark.type === 'sanctum') {
       if (!landmark.sanctuaryId) throw new Error('Unknown sanctuary');
       await receiveBlessing(landmark.sanctuaryId, {
@@ -269,7 +341,9 @@ const persistPosition = async (): Promise<boolean> => {
     if (result.encounter.encountered) {
       stop();
       activeLandmark.value = null;
+      promptLandmark.value = null;
       showQuestOffers.value = false;
+      showPartyLobby.value = false;
       activeBattle.value = result.encounter.battle;
       draw();
       return true;
@@ -334,6 +408,7 @@ const handlePlayerDefeat = () => {
   lastSavedPosition = '1470:960';
   visitedLandmark = 'EVERCROSS';
   activeLandmark.value = null;
+  promptLandmark.value = null;
   if (currentUserStore.user) {
     currentUserStore.user.mapPosition = { x: 1470, y: 960 };
     currentUserStore.user.activeBuffs = [];
@@ -370,6 +445,7 @@ const handleDungeonLeave = async () => {
   try {
     await leaveDungeon(activeDungeonRun.value.id);
     activeDungeonRun.value = null;
+    if (currentUserStore.user) currentUserStore.user.hasActiveDungeon = false;
     Notify.create({ type: 'info', message: t('fantasy.dungeonRun.left') });
   } catch (error) {
     Notify.create({
@@ -379,6 +455,19 @@ const handleDungeonLeave = async () => {
   } finally {
     battlePending.value = false;
   }
+};
+
+const handleDungeonClose = async () => {
+  const run = activeDungeonRun.value;
+  if (run?.party && run.status !== 'ACTIVE') {
+    try {
+      await leaveDungeon(run.id);
+    } catch (error) {
+      console.error('Failed to close party dungeon:', error);
+    }
+  }
+  activeDungeonRun.value = null;
+  if (currentUserStore.user) currentUserStore.user.hasActiveDungeon = false;
 };
 
 const handleDungeonHealthPotion = async (inventoryItemId: number) => {
@@ -392,6 +481,22 @@ const handleDungeonHealthPotion = async (inventoryItemId: number) => {
       type: 'positive',
       message: t('fantasy.dungeonRun.healthRestored', { health: result.healed }),
     });
+  } catch (error) {
+    Notify.create({
+      type: 'negative',
+      message: error instanceof Error ? error.message : t('fantasy.landmark.error'),
+    });
+  } finally {
+    battlePending.value = false;
+  }
+};
+
+const handleDungeonLootSubmit = async (itemIds: number[]) => {
+  if (!activeDungeonRun.value || battlePending.value) return;
+  battlePending.value = true;
+  try {
+    activeDungeonRun.value = await submitDungeonPartyLoot(activeDungeonRun.value.id, itemIds);
+    await currentUserStore.fetchCurrentUser(true);
   } catch (error) {
     Notify.create({
       type: 'negative',
@@ -420,12 +525,13 @@ const tick = () => {
   const stillMoving = update();
   draw();
   const landmark = nearbyLandmark(position.x, position.y);
-  if (!landmark) visitedLandmark = null;
+  if (!landmark) {
+    visitedLandmark = null;
+    promptLandmark.value = null;
+  }
   if (landmark && visitedLandmark !== landmark.name) {
-    openLandmark(landmark);
-    draw();
-    animationFrame = null;
-    return;
+    visitedLandmark = landmark.name;
+    promptLandmark.value = landmark;
   }
   if (consumeTravelStep() && !encounterPending.value) {
     animationFrame = null;
@@ -446,6 +552,7 @@ const resizeCanvas = () => {
   ctx = canvasRef.value.getContext('2d');
   fitToScreen(width, height);
   centerOn(position.x, position.y, width, height);
+  promptPosition.value = clampPromptPosition(promptPosition.value.x, promptPosition.value.y);
   draw();
 };
 
@@ -519,20 +626,41 @@ onMounted(async () => {
     void persistPosition();
   }
   resizeCanvas();
-  try {
-    activeDungeonRun.value = await getActiveDungeon();
-  } catch (error) {
-    console.error('Failed to restore dungeon run:', error);
+  if (user.hasActiveDungeon) {
+    try {
+      activeDungeonRun.value = await getActiveDungeon();
+    } catch (error) {
+      console.error('Failed to restore dungeon run:', error);
+    }
   }
   const landmark = nearbyLandmark(position.x, position.y);
-  // Restoring a saved position is not a new arrival. Explicit nearby clicks still open it.
   visitedLandmark = landmark?.name ?? null;
+  promptLandmark.value = landmark ?? null;
   resizeObserver = new ResizeObserver(resizeCanvas);
   if (containerRef.value) resizeObserver.observe(containerRef.value);
+  dungeonPartyTimer = setInterval(() => {
+    void (async () => {
+      if (!activeDungeonRun.value?.party || battlePending.value) return;
+      try {
+        const wasChoosingLoot = activeDungeonRun.value.partyLoot?.status === 'CHOOSING';
+        const run = await getActiveDungeon();
+        if (run) {
+          activeDungeonRun.value = run;
+          if (wasChoosingLoot && run.partyLoot?.status === 'RESOLVED') {
+            await currentUserStore.fetchCurrentUser(true);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to refresh party dungeon:', error);
+      }
+    })();
+  }, 2000);
 });
 
 onUnmounted(() => {
   disposed = true;
+  stopPromptDrag();
+  if (dungeonPartyTimer) clearInterval(dungeonPartyTimer);
   void persistPosition();
   resizeObserver?.disconnect();
   if (animationFrame !== null) cancelAnimationFrame(animationFrame);

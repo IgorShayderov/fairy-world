@@ -80,6 +80,8 @@ export class UsersService {
               include: { craftItem: true },
               orderBy: { craftItemId: 'asc' },
             },
+            dungeonRun: { select: { id: true } },
+            dungeonParty: { select: { party: { select: { status: true } } } },
             _count: { select: { quests: { where: { completedAt: { not: null } } } } },
           },
         },

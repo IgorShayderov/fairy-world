@@ -19,6 +19,7 @@ export type CurrentUser = {
   maxLevel?: number;
   devGemPurchasesEnabled?: boolean;
   currentShopId?: number | null;
+  hasActiveDungeon?: boolean;
   dungeonCooldowns?: Array<{ dungeon: string; nextEntryAt: string }>;
   level: number;
   freeAttributes: number;

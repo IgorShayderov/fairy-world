@@ -44,6 +44,11 @@ describe('MonstersService', () => {
     generate: jest.fn(),
   };
   const mockDungeonRuns = {
+    partyLobby: jest.fn(),
+    createParty: jest.fn(),
+    joinParty: jest.fn(),
+    leaveParty: jest.fn(),
+    startParty: jest.fn(),
     active: jest.fn(),
     enter: jest.fn(),
     attack: jest.fn(),

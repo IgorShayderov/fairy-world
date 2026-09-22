@@ -102,6 +102,8 @@ model GameProfile {
   craftItems        PlayerCraftItem[]
   learnedRecipes    LearnedCraftRecipe[]
   dungeonRun        DungeonRun?
+  ledDungeonParties DungeonParty[]       @relation("DungeonPartyLeader")
+  dungeonParty      DungeonPartyMember?
 }
 
 model Quest {
@@ -165,6 +167,29 @@ model DungeonRun {
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
   gameProfile   GameProfile @relation(fields: [gameProfileId], references: [id], onDelete: Cascade)
+}
+
+model DungeonParty {
+  id              String               @id @default(uuid())
+  dungeon         String
+  status          String               @default("WAITING")
+  leaderProfileId Int
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  leader          GameProfile          @relation("DungeonPartyLeader", fields: [leaderProfileId], references: [id], onDelete: Cascade)
+  members         DungeonPartyMember[]
+
+  @@index([dungeon, status])
+}
+
+model DungeonPartyMember {
+  partyId       String
+  gameProfileId Int          @unique
+  joinedAt      DateTime     @default(now())
+  party         DungeonParty @relation(fields: [partyId], references: [id], onDelete: Cascade)
+  gameProfile   GameProfile  @relation(fields: [gameProfileId], references: [id], onDelete: Cascade)
+
+  @@id([partyId, gameProfileId])
 }
 
 model Sanctuary {
