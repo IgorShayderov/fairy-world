@@ -6,6 +6,7 @@ import { CLAN_ACTIVITY_REWARDS, CLAN_MIN_LEVEL, ClansService } from './clans.ser
 describe('ClansService', () => {
   const gameProfileFindUnique = jest.fn();
   const clanFindFirst = jest.fn();
+  const clanFindMany = jest.fn();
   const clanCreate = jest.fn();
   const clanFindUnique = jest.fn();
   const clanMemberFindMany = jest.fn();
@@ -14,7 +15,13 @@ describe('ClansService', () => {
   const transaction = jest.fn();
   const prisma = {
     gameProfile: { findUnique: gameProfileFindUnique },
-    clan: { findFirst: clanFindFirst, create: clanCreate, findUnique: clanFindUnique, update: clanUpdate },
+    clan: {
+      findFirst: clanFindFirst,
+      findMany: clanFindMany,
+      create: clanCreate,
+      findUnique: clanFindUnique,
+      update: clanUpdate,
+    },
     clanMember: { findMany: clanMemberFindMany, update: clanMemberUpdate },
     $transaction: transaction,
   } as unknown as PrismaService;
@@ -133,5 +140,55 @@ describe('ClansService', () => {
       where: { id: 'clan-1' },
       data: { activityPoints: { increment: expected } },
     });
+  });
+
+  it('ranks clans by activity and marks the current clan', async () => {
+    gameProfileFindUnique.mockResolvedValue({
+      ...profile,
+      clanMembership: { clanId: 'clan-1', gameProfileId: 7, role: ClanRole.MEMBER },
+    });
+    clanFindMany.mockResolvedValueOnce([{ id: 'clan-1' }, { id: 'clan-2' }]).mockResolvedValueOnce([
+      {
+        id: 'clan-2',
+        name: 'Sun Guard',
+        tag: 'SUN',
+        activityPoints: 500,
+        activeBannerCode: null,
+        _count: { members: 12 },
+      },
+      {
+        id: 'clan-1',
+        name: 'Moon Guard',
+        tag: 'MOON',
+        activityPoints: 340,
+        activeBannerCode: 'IRON_OATH',
+        _count: { members: 8 },
+      },
+    ]);
+    clanMemberFindMany.mockResolvedValue([]);
+
+    await expect(service.getLeaderboard(4)).resolves.toEqual([
+      {
+        rank: 1,
+        id: 'clan-2',
+        name: 'Sun Guard',
+        tag: 'SUN',
+        activityPoints: 500,
+        activeBannerCode: null,
+        memberCount: 12,
+        isCurrent: false,
+      },
+      {
+        rank: 2,
+        id: 'clan-1',
+        name: 'Moon Guard',
+        tag: 'MOON',
+        activityPoints: 340,
+        activeBannerCode: 'IRON_OATH',
+        memberCount: 8,
+        isCurrent: true,
+      },
+    ]);
+    expect(clanMemberFindMany).toHaveBeenCalledTimes(2);
   });
 });

@@ -83,6 +83,7 @@ const routes = {
     clans: {
       listPath: () => [BASE_API_PATH, 'clans'].join('/'),
       mePath: () => [BASE_API_PATH, 'clans', 'me'].join('/'),
+      leaderboardPath: () => [BASE_API_PATH, 'clans', 'leaderboard'].join('/'),
       createPath: () => [BASE_API_PATH, 'clans'].join('/'),
       joinPath: (clanId: string) => [BASE_API_PATH, 'clans', clanId, 'join'].join('/'),
       leavePath: () => [BASE_API_PATH, 'clans', 'leave'].join('/'),
