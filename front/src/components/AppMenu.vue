@@ -75,6 +75,16 @@ const menuItems = computed(() => [
     route: routes.pvpPath(),
     icon: 'M12 2.75 4.5 5.8v5.05c0 4.75 3.08 8.91 7.5 10.4 4.42-1.49 7.5-5.65 7.5-10.4V5.8L12 2.75Zm0 4.1v10.3M8.75 12h6.5',
   },
+  ...((currentUser.user?.level ?? 1) >= 10
+    ? [
+        {
+          id: 'clans',
+          nameKey: 'menu.clans',
+          route: routes.clansPath(),
+          icon: 'M4 21V4m0 1c4-2.5 7 2.5 12 0v9c-5 2.5-8-2.5-12 0m5 7v-5m6 5v-5M7 21h11',
+        },
+      ]
+    : []),
   ...(currentUser.user?.currentShopId && inTown.value
     ? [
         {
