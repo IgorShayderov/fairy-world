@@ -1,19 +1,26 @@
 <template>
   <main class="realm-page min-h-0 flex-1 overflow-y-auto p-6 sm:p-8">
-    <div class="mx-auto max-w-5xl">
+    <div class="mx-auto max-w-6xl">
       <!-- Arena Header -->
-      <header class="rounded-2xl border border-[#d8bd75]/25 bg-[#0b2530] p-6 shadow-xl">
-        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p class="text-xs font-bold tracking-[0.24em] text-[#efca72] uppercase">
-              {{ t('pvp.title') }}
-            </p>
-            <h1 class="mt-1 font-serif text-3xl font-semibold text-[#fff0bd]">
-              {{ t('pvp.title') }}
-            </h1>
-            <p class="mt-1 text-sm text-[#a9bfba]">
-              {{ t('pvp.subtitle') }}
-            </p>
+      <header class="arena-header relative overflow-hidden rounded-2xl border border-[#d8bd75]/30 p-6 shadow-xl sm:p-7">
+        <div class="relative z-10 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+          <div class="flex items-center gap-4">
+            <div
+              class="arena-emblem flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-[#efca72]/45 text-[#ffe59a]"
+            >
+              <QIcon name="shield" size="34px" />
+            </div>
+            <div>
+              <p class="text-xs font-bold tracking-[0.24em] text-[#efca72] uppercase">
+                {{ t('pvp.eyebrow') }}
+              </p>
+              <h1 class="mt-1 font-serif text-3xl font-semibold text-[#fff0bd]">
+                {{ t('pvp.title') }}
+              </h1>
+              <p class="mt-1 text-sm text-[#a9bfba]">
+                {{ t('pvp.subtitle') }}
+              </p>
+            </div>
           </div>
 
           <div class="flex flex-wrap items-center gap-3">
@@ -33,7 +40,7 @@
                 {{ t('pvp.coinsOfHonour') }}
               </div>
               <div class="flex items-center justify-end gap-1.5 text-sm font-bold text-amber-300">
-                <span>🏅</span>
+                <QIcon name="military_tech" size="18px" />
                 <span>{{ currentUserStore.user?.coinsOfHonour ?? 0 }}</span>
               </div>
             </div>
@@ -41,7 +48,7 @@
             <!-- Refresh Button (Costs 30 Gems) -->
             <button
               type="button"
-              class="flex h-11 min-w-[220px] items-center justify-center gap-2 rounded-xl border border-[#d8bd75]/40 bg-[#0d2934] px-4 text-xs font-bold tracking-wider text-[#f0d68a] uppercase shadow-md transition hover:bg-[#133744] hover:border-[#f0d68a] disabled:opacity-50"
+              class="flex h-11 min-w-[220px] items-center justify-center gap-2 rounded-xl border border-[#d8bd75]/40 bg-[#0d2934] px-4 text-xs font-bold tracking-wider text-[#f0d68a] uppercase shadow-md transition hover:border-[#f0d68a] hover:bg-[#133744] disabled:opacity-50"
               :disabled="loading || dueling || (currentUserStore.user?.gems ?? 0) < 30"
               @click="handleRefresh"
             >
@@ -57,9 +64,9 @@
         <!-- Attack Cooldown Notice -->
         <div
           v-if="cooldownSeconds > 0"
-          class="mb-5 flex flex-col gap-3 rounded-2xl border border-amber-500/30 bg-amber-950/40 p-4 sm:flex-row sm:items-center sm:justify-between shadow-lg"
+          class="mb-5 flex flex-col gap-3 rounded-2xl border border-amber-500/30 bg-amber-950/40 p-4 shadow-lg sm:flex-row sm:items-center sm:justify-between"
         >
-          <div class="flex items-center gap-3 text-amber-200 text-sm font-semibold">
+          <div class="flex items-center gap-3 text-sm font-semibold text-amber-200">
             <QIcon name="timer" size="22px" class="text-amber-400" />
             <span>{{ t('pvp.cooldownRemaining', { time: formattedCooldown }) }}</span>
           </div>
@@ -79,7 +86,11 @@
           {{ t('pvp.opponentsTitle') }}
         </h2>
 
-        <div v-if="error" role="alert" class="rounded-xl border border-red-500/30 bg-red-950/60 p-5 text-sm text-red-200">
+        <div
+          v-if="error"
+          role="alert"
+          class="rounded-xl border border-red-500/30 bg-red-950/60 p-5 text-sm text-red-200"
+        >
           {{ error }}
         </div>
 
@@ -90,7 +101,10 @@
           </div>
         </div>
 
-        <div v-else-if="!opponents.length" class="rounded-xl border border-white/10 bg-[#0b2530] p-8 text-center text-sm text-[#a9bfba]">
+        <div
+          v-else-if="!opponents.length"
+          class="rounded-xl border border-white/10 bg-[#0b2530] p-8 text-center text-sm text-[#a9bfba]"
+        >
           {{ t('pvp.noOpponents') }}
         </div>
 
@@ -98,63 +112,64 @@
           <article
             v-for="opp in opponents"
             :key="opp.id"
-            class="flex w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-[#d8bd75]/30 bg-[#0b2530] shadow-xl transition-all duration-200 hover:border-[#f0d68a]/70 hover:shadow-2xl"
+            class="opponent-card flex w-full min-w-0 flex-col overflow-hidden rounded-2xl border bg-[#0b2530] shadow-xl transition-all duration-200 hover:-translate-y-1 hover:shadow-2xl"
+            :class="`opponent-card--${opp.difficulty.toLowerCase()}`"
           >
             <!-- Card Difficulty Banner -->
-            <div class="flex h-10 items-center justify-between border-b border-[#d8bd75]/20 bg-[#071a23]/90 px-4 text-xs font-bold tracking-wider text-[#efca72] uppercase">
+            <div
+              class="flex h-10 items-center justify-between border-b border-[#d8bd75]/20 bg-[#071a23]/90 px-4 text-xs font-bold tracking-wider text-[#efca72] uppercase"
+            >
               <span>{{ difficultyLabel(opp.difficulty) }}</span>
-              <span class="rounded border border-[#d8bd75]/25 bg-[#0b2530] px-2 py-0.5 text-[10px] font-semibold text-[#a9bfba] normal-case">
+              <span
+                class="rounded border border-[#d8bd75]/25 bg-[#0b2530] px-2 py-0.5 text-[10px] font-semibold text-[#a9bfba] normal-case"
+              >
                 {{ t('profile.summary.level') }} {{ opp.level }}
               </span>
             </div>
 
             <!-- Opponent Portrait & Name -->
-            <div class="flex h-20 items-center gap-3.5 p-5 pb-3">
+            <div class="flex h-24 items-center gap-4 p-5 pb-3">
               <div
-                class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[#d8bd75]/30 bg-[#071a23] text-[#efca72] shadow-inner"
+                class="opponent-emblem flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-[#d8bd75]/35 bg-[#071a23] text-[#efca72] shadow-inner"
               >
-                <QIcon name="sports_kabaddi" size="26px" />
+                <QIcon :name="difficultyIcon(opp.difficulty)" size="28px" />
               </div>
               <div class="min-w-0 flex-1">
                 <h3 class="truncate font-serif text-base font-bold text-white" :title="opp.name">
                   {{ opp.name }}
                 </h3>
-                <div class="text-xs font-semibold text-[#efca72]">
-                  {{ t('profile.summary.level') }} {{ opp.level }}
-                </div>
+                <div class="text-xs font-semibold text-[#efca72]">{{ t('profile.summary.level') }} {{ opp.level }}</div>
               </div>
             </div>
 
             <!-- Combat Stats Breakdown -->
-            <div class="mx-5 my-2 h-[80px] rounded-xl border border-[#d8bd75]/15 bg-[#071a23] p-3 text-xs">
-              <div class="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[#a9bfba]">
-                <div class="flex items-center justify-between">
-                  <span>{{ t('pvp.hp') }}:</span>
+            <div class="mx-5 my-2 rounded-xl border border-[#d8bd75]/15 bg-[#071a23] p-3 text-xs">
+              <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-[#a9bfba]">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="flex items-center gap-1.5"><QIcon name="favorite" size="14px" />{{ t('pvp.hp') }}</span>
                   <span class="font-bold text-white">{{ opp.health }}</span>
                 </div>
-                <div class="flex items-center justify-between">
-                  <span>{{ t('pvp.damage') }}:</span>
+                <div class="flex items-center justify-between gap-2">
+                  <span class="flex items-center gap-1.5"><QIcon name="bolt" size="14px" />{{ t('pvp.damage') }}</span>
                   <span class="font-bold text-amber-300">{{ opp.damage }}</span>
                 </div>
-                <div class="flex items-center justify-between">
-                  <span>{{ t('pvp.defense') }}:</span>
+                <div class="flex items-center justify-between gap-2">
+                  <span class="flex items-center gap-1.5"
+                    ><QIcon name="shield" size="14px" />{{ t('pvp.defense') }}</span
+                  >
                   <span class="font-bold text-sky-300">{{ opp.defense }}%</span>
                 </div>
-                <div class="flex items-center justify-between">
-                  <span>{{ t('pvp.dodge') }}:</span>
+                <div class="flex items-center justify-between gap-2">
+                  <span class="flex items-center gap-1.5"><QIcon name="air" size="14px" />{{ t('pvp.dodge') }}</span>
                   <span class="font-bold text-emerald-300">{{ opp.dodge }}%</span>
                 </div>
               </div>
             </div>
 
-            <!-- Rewards Preview (Experience Only) -->
-            <div class="mt-auto h-[60px] px-5 py-2">
-              <div class="text-[10px] font-bold tracking-wider text-[#efca72] uppercase">
-                {{ t('pvp.rewards') }}
-              </div>
-              <div class="mt-1 flex items-center gap-3 text-xs font-bold">
-                <span class="text-emerald-300">+{{ opp.rewards.experience }} {{ t('pvp.experience') }}</span>
-              </div>
+            <!-- Keep exact experience hidden until the duel is resolved. -->
+            <div class="mt-auto flex min-h-[58px] items-center gap-2 px-5 py-3 text-xs leading-5 text-[#a9bfba]">
+              <QIcon name="military_tech" size="18px" class="shrink-0 text-[#efca72]" />
+              <span>{{ t('pvp.victoryRewardHint') }}</span>
             </div>
 
             <!-- Attack Action Button -->
@@ -173,7 +188,7 @@
                   <QIcon name="timer" size="16px" />
                   <span>{{ t('pvp.duel') }} ({{ formattedCooldown }})</span>
                 </span>
-                <span v-else>{{ t('pvp.duel') }}</span>
+                <span v-else class="flex items-center gap-2"><QIcon name="bolt" size="17px" />{{ t('pvp.duel') }}</span>
               </button>
             </div>
           </article>
@@ -201,7 +216,9 @@
         <div class="relative grid grid-cols-[1fr_auto_1fr] items-center gap-7 bg-[#102831] px-8 py-7">
           <!-- Player Card -->
           <div class="flex flex-col items-center">
-            <div class="flex h-20 w-20 items-center justify-center rounded-full border-2 border-emerald-400/60 bg-[#173f40] text-emerald-300 shadow-md">
+            <div
+              class="flex h-20 w-20 items-center justify-center rounded-full border-2 border-emerald-400/60 bg-[#173f40] text-emerald-300 shadow-md"
+            >
               <QIcon name="auto_awesome" size="40px" />
             </div>
             <div class="mt-3 text-sm font-bold tracking-wide">{{ activeDuel.player.name }}</div>
@@ -217,23 +234,32 @@
             </div>
           </div>
 
-          <div class="font-serif text-3xl font-black text-[#e8c66f]">VS</div>
+          <div
+            class="versus-mark flex h-14 w-14 items-center justify-center rounded-full border border-[#e8c66f]/40 font-serif text-lg font-black text-[#ffe59a]"
+          >
+            {{ t('pvp.vs') }}
+          </div>
 
           <!-- Opponent Card -->
           <div class="flex flex-col items-center">
-            <div class="flex h-20 w-20 items-center justify-center rounded-full border-2 border-rose-400/60 bg-[#42242a] text-rose-300 shadow-md">
-              <QIcon name="sports_kabaddi" size="40px" />
+            <div
+              class="flex h-20 w-20 items-center justify-center rounded-full border-2 border-rose-400/60 bg-[#42242a] text-rose-300 shadow-md"
+            >
+              <QIcon name="military_tech" size="40px" />
             </div>
             <div class="mt-3 text-sm font-bold tracking-wide">{{ activeDuel.opponent.name }}</div>
             <div class="mt-1 text-xs text-[#a9bfba]">Lvl {{ activeDuel.opponent.level }}</div>
             <div class="mt-2 h-3 w-full max-w-48 overflow-hidden rounded-full bg-black/40">
               <div
                 class="h-full bg-rose-400 transition-all duration-300"
-                :style="{ width: `${Math.max(0, (activeDuel.opponent.health / activeDuel.opponent.maxHealth) * 100)}%` }"
+                :style="{
+                  width: `${Math.max(0, (activeDuel.opponent.health / activeDuel.opponent.maxHealth) * 100)}%`,
+                }"
               />
             </div>
             <div class="mt-1 text-xs text-white/80">
-              {{ activeDuel.opponent.health }} / {{ activeDuel.opponent.maxHealth }} HP · {{ activeDuel.opponent.damage }} DMG
+              {{ activeDuel.opponent.health }} / {{ activeDuel.opponent.maxHealth }} HP ·
+              {{ activeDuel.opponent.damage }} DMG
             </div>
           </div>
         </div>
@@ -262,7 +288,9 @@
             </div>
             <div class="mt-2 flex gap-6 text-sm font-bold">
               <span class="text-emerald-300">+{{ activeDuel.rewards.experience }} {{ t('pvp.experience') }}</span>
-              <span class="text-amber-300">+{{ activeDuel.rewards.coinsOfHonour ?? 1 }} {{ t('pvp.coinOfHonour') }}</span>
+              <span class="text-amber-300"
+                >+{{ activeDuel.rewards.coinsOfHonour ?? 1 }} {{ t('pvp.coinOfHonour') }}</span
+              >
             </div>
           </div>
         </div>
@@ -289,7 +317,13 @@ import { Notify, QIcon } from 'quasar';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
-import { pvpApi, type PvpBattleEvent, type PvpDifficulty, type PvpDuelResult, type PvpOpponent } from '@/modules/Pvp/api';
+import {
+  pvpApi,
+  type PvpBattleEvent,
+  type PvpDifficulty,
+  type PvpDuelResult,
+  type PvpOpponent,
+} from '@/modules/Pvp/api';
 import { getApiErrorMessage } from '@/shared/api/error-message';
 
 const { t } = useTranslation();
@@ -402,6 +436,12 @@ const difficultyLabel = (difficulty: PvpDifficulty) => {
   return t('pvp.hard');
 };
 
+const difficultyIcon = (difficulty: PvpDifficulty) => {
+  if (difficulty === 'EASY') return 'person';
+  if (difficulty === 'MEDIUM') return 'shield';
+  return 'military_tech';
+};
+
 onMounted(() => {
   void fetchOpponents();
   timerInterval = setInterval(() => {
@@ -413,3 +453,63 @@ onUnmounted(() => {
   if (timerInterval) clearInterval(timerInterval);
 });
 </script>
+
+<style scoped>
+.arena-header {
+  background:
+    radial-gradient(circle at 7% 20%, rgb(225 193 105 / 16%) 0 1px, transparent 2px),
+    radial-gradient(circle at 88% -30%, rgb(225 193 105 / 14%) 0 20%, transparent 45%),
+    linear-gradient(130deg, #0d2b35 0%, #0b2530 55%, #101d28 100%);
+}
+
+.arena-header::after {
+  position: absolute;
+  right: -72px;
+  bottom: -120px;
+  width: 270px;
+  height: 270px;
+  content: '';
+  border: 1px solid rgb(239 202 114 / 12%);
+  border-radius: 9999px;
+  box-shadow:
+    0 0 0 28px rgb(239 202 114 / 4%),
+    0 0 0 58px rgb(239 202 114 / 3%);
+}
+
+.arena-emblem,
+.versus-mark {
+  background: radial-gradient(circle at 35% 30%, #244b53 0%, #102933 62%, #071a23 100%);
+  box-shadow:
+    inset 0 0 18px rgb(239 202 114 / 8%),
+    0 8px 24px rgb(0 0 0 / 28%);
+}
+
+.opponent-card {
+  border-color: rgb(216 189 117 / 28%);
+}
+
+.opponent-card--easy:hover {
+  border-color: rgb(110 231 183 / 65%);
+}
+
+.opponent-card--medium:hover {
+  border-color: rgb(125 211 252 / 65%);
+}
+
+.opponent-card--hard:hover {
+  border-color: rgb(251 191 36 / 72%);
+}
+
+.opponent-emblem {
+  box-shadow:
+    inset 0 0 15px rgb(239 202 114 / 9%),
+    0 5px 16px rgb(0 0 0 / 25%);
+}
+
+@media (max-width: 640px) {
+  .arena-emblem {
+    width: 3rem;
+    height: 3rem;
+  }
+}
+</style>

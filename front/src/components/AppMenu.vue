@@ -73,7 +73,7 @@ const menuItems = computed(() => [
     id: 'pvp',
     nameKey: 'menu.pvp',
     route: routes.pvpPath(),
-    icon: 'M18.36 5.64l-1.41-1.41L12 9.17 7.05 4.23 5.64 5.64l4.95 4.95-6.36 6.36v2.83h2.83l6.36-6.36 4.95 4.95 1.41-1.41-4.95-4.95 4.95-4.97z',
+    icon: 'M12 2.75 4.5 5.8v5.05c0 4.75 3.08 8.91 7.5 10.4 4.42-1.49 7.5-5.65 7.5-10.4V5.8L12 2.75Zm0 4.1v10.3M8.75 12h6.5',
   },
   ...(currentUser.user?.currentShopId && inTown.value
     ? [

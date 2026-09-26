@@ -56,6 +56,9 @@ const BOT_TITLES = [
 export const PVP_REFRESH_GEMS_COST = 30;
 export const PVP_RESET_COOLDOWN_GEMS_COST = 10;
 export const PVP_ATTACK_COOLDOWN_MS = 15 * 60 * 1000; // 15 minutes
+const BOT_HEALTH_MULTIPLIER = 1.4;
+const BOT_DEFENSE_MULTIPLIER = 1.3;
+const BOT_DODGE_MULTIPLIER = 1.25;
 
 type CachedOpponents = {
   opponents: PvpOpponent[];
@@ -339,10 +342,15 @@ export class PvpService implements OnModuleInit, OnModuleDestroy {
       targetLevel < playerLevel ? 'EASY' : targetLevel === playerLevel ? 'MEDIUM' : 'HARD';
 
     const mult = difficulty === 'EASY' ? 0.85 : difficulty === 'MEDIUM' ? 1.0 : 1.15;
-    const botHealth = Math.round((55 + targetLevel * 16) * mult);
+    // Generated rivals should be durable arena opponents without creating
+    // unexpected damage spikes. Their damage intentionally keeps the original
+    // formula while survivability receives a separate boost.
+    const botHealth = Math.round((55 + targetLevel * 16) * mult * BOT_HEALTH_MULTIPLIER);
     const botDamage = Math.max(1, Math.round((7 + targetLevel * 3.2) * mult));
-    const botDefense = Math.min(50, Math.max(0, Math.round((5 + targetLevel * 1.2) * mult)));
-    const botDodge = Math.min(30, Math.max(0, Math.round((4 + targetLevel * 0.35) * mult)));
+    const baseDefense = Math.round((5 + targetLevel * 1.2) * mult);
+    const baseDodge = Math.round((4 + targetLevel * 0.35) * mult);
+    const botDefense = Math.min(60, Math.max(0, Math.round(baseDefense * BOT_DEFENSE_MULTIPLIER + 5)));
+    const botDodge = Math.min(35, Math.max(0, Math.round(baseDodge * BOT_DODGE_MULTIPLIER + 3)));
     const botCrit = Math.min(35, Math.max(0, Math.round((5 + targetLevel * 0.4) * mult)));
 
     // 0 gold reward, EXP reduced by 50%

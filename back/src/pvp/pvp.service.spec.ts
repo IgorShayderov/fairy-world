@@ -83,6 +83,23 @@ describe('PvpService', () => {
       }
     });
 
+    it('makes generated opponents tougher without increasing their damage formula', async () => {
+      const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0);
+
+      try {
+        const [opponent] = await pvpService.getOpponents(1);
+
+        expect(opponent.level).toBe(10);
+        expect(opponent.difficulty).toBe('MEDIUM');
+        expect(opponent.damage).toBe(39);
+        expect(opponent.health).toBe(301);
+        expect(opponent.defense).toBe(27);
+        expect(opponent.dodge).toBe(13);
+      } finally {
+        randomSpy.mockRestore();
+      }
+    });
+
     it('matches real players within level range [playerLevel - 2, playerLevel + 3]', async () => {
       const realPlayer = {
         id: 2,
