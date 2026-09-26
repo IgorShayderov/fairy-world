@@ -69,7 +69,12 @@ const menuItems = computed(() => [
     route: routes.profilePath(),
     icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z',
   },
-
+  {
+    id: 'pvp',
+    nameKey: 'menu.pvp',
+    route: routes.pvpPath(),
+    icon: 'M18.36 5.64l-1.41-1.41L12 9.17 7.05 4.23 5.64 5.64l4.95 4.95-6.36 6.36v2.83h2.83l6.36-6.36 4.95 4.95 1.41-1.41-4.95-4.95 4.95-4.97z',
+  },
   ...(currentUser.user?.currentShopId && inTown.value
     ? [
         {

@@ -1,7 +1,13 @@
 import { BadRequestException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { CraftItemKind, EquipmentType, ItemRarity, Prisma } from '../../generated/client';
 import { PrismaService } from '../prisma.service';
-import { CRAFTING_MIN_LEVEL, CRAFT_ITEMS, CRAFT_RECIPES, upgradeValueForLevel } from './crafting.catalog';
+import {
+  craftIngredientQuantityForLevel,
+  CRAFTING_MIN_LEVEL,
+  CRAFT_ITEMS,
+  CRAFT_RECIPES,
+  upgradeValueForLevel,
+} from './crafting.catalog';
 
 @Injectable()
 export class CraftingService implements OnModuleInit {
@@ -151,7 +157,7 @@ export class CraftingService implements OnModuleInit {
         result: { ...recipe.resultCraftItem, quantity: recipe.resultQuantity },
         ingredients: recipe.ingredients.map(({ craftItem, quantity }) => ({
           ...craftItem,
-          quantity,
+          quantity: craftIngredientQuantityForLevel(quantity, profile.level),
           owned: quantities.get(craftItem.id) ?? 0,
         })),
       })),
@@ -180,14 +186,18 @@ export class CraftingService implements OnModuleInit {
           where: { name: learned.recipe.resultCraftItem.name },
         });
         if (!craftedInventoryItem) throw new NotFoundException('Crafted inventory item is not configured');
-        for (const ingredient of learned.recipe.ingredients) {
+        const ingredients = learned.recipe.ingredients.map((ingredient) => ({
+          ...ingredient,
+          quantity: craftIngredientQuantityForLevel(ingredient.quantity, profile.level),
+        }));
+        for (const ingredient of ingredients) {
           const owned = await tx.playerCraftItem.findUnique({
             where: { gameProfileId_craftItemId: { gameProfileId: profile.id, craftItemId: ingredient.craftItemId } },
           });
           if (!owned || owned.quantity < ingredient.quantity)
             throw new BadRequestException('Not enough crafting materials');
         }
-        for (const ingredient of learned.recipe.ingredients) {
+        for (const ingredient of ingredients) {
           const where = {
             gameProfileId_craftItemId: { gameProfileId: profile.id, craftItemId: ingredient.craftItemId },
           };
@@ -202,6 +212,10 @@ export class CraftingService implements OnModuleInit {
             quantity: learned.recipe.resultQuantity,
             slot: null,
             isEquiped: false,
+            upgradeType: learned.recipe.resultCraftItem.upgradeType,
+            upgradeValue: learned.recipe.resultCraftItem.upgradeType
+              ? upgradeValueForLevel(learned.recipe.resultCraftItem.upgradeType, profile.level)
+              : null,
           },
         });
         return {
@@ -244,7 +258,7 @@ export class CraftingService implements OnModuleInit {
           throw new BadRequestException('This item cannot be upgraded');
         if (target.upgradeType) throw new BadRequestException('This item has already been upgraded');
 
-        const value = upgradeValueForLevel(upgradeDefinition.upgradeType, profile.level);
+        const value = ownedUpgrade.upgradeValue ?? upgradeValueForLevel(upgradeDefinition.upgradeType, profile.level);
         let upgradedInventoryItemId = target.id;
         if (target.quantity > 1) {
           await tx.inventoryItem.update({ where: { id: target.id }, data: { quantity: { decrement: 1 } } });

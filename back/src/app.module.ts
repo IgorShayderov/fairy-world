@@ -14,6 +14,7 @@ import { LocationsModule } from './locations/locations.module';
 import { MonstersModule } from './monsters/monsters.module';
 import { QuestsModule } from './quests/quests.module';
 import { CraftingModule } from './crafting/crafting.module';
+import { PvpModule } from './pvp/pvp.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { CraftingModule } from './crafting/crafting.module';
     MonstersModule,
     QuestsModule,
     CraftingModule,
+    PvpModule,
     MailerModule.forRoot({
       transport: {
         host: process.env.SMTP_HOST,

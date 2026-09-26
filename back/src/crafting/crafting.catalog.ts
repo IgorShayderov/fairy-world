@@ -184,8 +184,16 @@ export const rollCraftMaterialCode = (random: () => number = Math.random): strin
   return pickCraftMaterialCode(random);
 };
 
+export const craftingUpgradeTierForLevel = (level: number): number => 1 + Math.floor(Math.max(0, level - 5) / 3);
+
+export const craftingCostMultiplierForLevel = (level: number): number =>
+  Math.max(1, craftingUpgradeTierForLevel(level) - craftingUpgradeTierForLevel(CRAFTING_MIN_LEVEL) + 1);
+
+export const craftIngredientQuantityForLevel = (baseQuantity: number, level: number): number =>
+  baseQuantity * craftingCostMultiplierForLevel(level);
+
 export const upgradeValueForLevel = (type: CraftUpgradeType, level: number): number => {
-  const tier = 1 + Math.floor(Math.max(0, level - 5) / 3);
+  const tier = craftingUpgradeTierForLevel(level);
   if (type === CraftUpgradeType.GOLD || type === CraftUpgradeType.EXPERIENCE) return tier * 2;
   if (type === CraftUpgradeType.DEFENSE) return tier * 2;
   if (type === CraftUpgradeType.HEALTH) return tier * 10;

@@ -74,6 +74,12 @@ const routes = {
       battleAttackPath: (battleId: string) => [BASE_API_PATH, 'monsters', 'battle', battleId, 'attack'].join('/'),
       battleRetreatPath: (battleId: string) => [BASE_API_PATH, 'monsters', 'battle', battleId, 'retreat'].join('/'),
     },
+    pvp: {
+      opponentsPath: () => [BASE_API_PATH, 'pvp', 'opponents'].join('/'),
+      refreshOpponentsPath: () => [BASE_API_PATH, 'pvp', 'opponents', 'refresh'].join('/'),
+      duelPath: () => [BASE_API_PATH, 'pvp', 'duel'].join('/'),
+      resetCooldownPath: () => [BASE_API_PATH, 'pvp', 'cooldown', 'reset'].join('/'),
+    },
     shop: {
       detailsPath: (shopId: number) => [BASE_API_PATH, 'shop', shopId].join('/'),
       buyPath: (shopId: number) => [BASE_API_PATH, 'shop', shopId, 'buy'].join('/'),
@@ -86,6 +92,7 @@ const routes = {
   settingsPath: () => '/settings',
   leaderboardPath: () => '/leaderboard',
   craftPath: () => '/craft',
+  pvpPath: () => '/pvp',
   questsPath: () => '/quests',
   loginPath: () => '/login',
   profilePath: () => '/profile',

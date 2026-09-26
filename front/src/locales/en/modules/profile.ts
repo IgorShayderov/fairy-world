@@ -45,6 +45,7 @@ export default {
     experience: 'Experience',
     gold: 'Gold',
     gems: 'Gems',
+    coinsOfHonour: 'Coins of Honour',
   },
   tooltip: {
     price: 'Price',

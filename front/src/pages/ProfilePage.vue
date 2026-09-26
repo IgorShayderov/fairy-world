@@ -13,6 +13,7 @@
           :experience-to-next-level="currentUserStore.user?.experienceToNextLevel ?? null"
           :player-gold="currentUserStore.user?.gold ?? 0"
           :player-gems="currentUserStore.user?.gems ?? 0"
+          :player-coins-of-honour="currentUserStore.user?.coinsOfHonour ?? 0"
           :killed-monsters="currentUserStore.user?.killedMonsters ?? 0"
           :dungeons-cleared="currentUserStore.user?.dungeonsCleared ?? 0"
           :accomplished-quests="currentUserStore.user?.accomplishedQuests ?? 0"

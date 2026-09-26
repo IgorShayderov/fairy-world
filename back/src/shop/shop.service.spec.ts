@@ -397,13 +397,11 @@ describe('ShopService trades', () => {
     expect(rendered.requiredPlayerLevel).toBe(50);
   });
 
-  it('assigns lower weights to higher level potions', () => {
-    expect(potionWeightForLevel(10)).toBe(5);
-    expect(potionWeightForLevel(20)).toBe(4);
-    expect(potionWeightForLevel(30)).toBe(3);
-    expect(potionWeightForLevel(40)).toBe(2);
-    expect(potionWeightForLevel(50)).toBe(1);
-    expect(potionWeightForLevel(50)).toBeLessThan(potionWeightForLevel(10));
+  it('prefers the best available potion tier while retaining lower-tier variety', () => {
+    expect(potionWeightForLevel(20, 20)).toBe(6);
+    expect(potionWeightForLevel(10, 20)).toBe(3);
+    expect(potionWeightForLevel(1, 20)).toBe(1);
+    expect(potionWeightForLevel(20, 20)).toBeGreaterThan(potionWeightForLevel(10, 20));
   });
 
   it('generates twelve items with levels around the player level when the shop restock is due', async () => {
@@ -562,7 +560,7 @@ describe('ShopService trades', () => {
     );
   });
 
-  it('always stocks the strongest health potion available for the player level', async () => {
+  it('usually stocks the strongest health potion available for the player level', async () => {
     const now = new Date('2026-09-11T09:00:00Z');
     jest.useFakeTimers().setSystemTime(now);
     jest.spyOn(Math, 'random').mockReturnValue(0.5);
@@ -597,5 +595,37 @@ describe('ShopService trades', () => {
     expect(tx.shopStock.upsert).not.toHaveBeenCalledWith(
       expect.objectContaining({ where: { shopId_itemId: { shopId: 2, itemId: 305 } } }),
     );
+  });
+
+  it('sometimes stocks a lower health potion tier', async () => {
+    const now = new Date('2026-09-11T09:00:00Z');
+    jest.useFakeTimers().setSystemTime(now);
+    jest.spyOn(Math, 'random').mockReturnValue(0.7);
+    tx.shop.findUnique
+      .mockResolvedValueOnce({ id: 2, name: 'Armory', gold: 500, nextRestockAt: null })
+      .mockResolvedValueOnce({ id: 2, name: 'Armory', gold: 500, nextRestockAt: new Date(), stock: [] });
+    tx.gameProfile.findUnique.mockResolvedValue({
+      id: 5,
+      gold: 200,
+      gems: 20,
+      level: 20,
+      mapPositionX: 940,
+      mapPositionY: 620,
+    });
+    tx.item.findMany.mockResolvedValue([
+      { id: 301, name: 'Minor Health Potion', level: 1, equipmentType: ['POTION'] },
+      { id: 302, name: 'Lesser Health Potion', level: 10, equipmentType: ['POTION'] },
+      { id: 303, name: 'Medium Health Potion', level: 20, equipmentType: ['POTION'] },
+      { id: 306, name: 'Medium Attack Potion', level: 20, equipmentType: ['POTION'] },
+    ]);
+    itemGenerator.generate.mockResolvedValue({ id: 42 });
+
+    await service.getShop(1, 2);
+
+    expect(tx.shopStock.upsert).toHaveBeenCalledWith({
+      where: { shopId_itemId: { shopId: 2, itemId: 302 } },
+      create: { shopId: 2, itemId: 302, quantity: 5 },
+      update: { quantity: { increment: 5 } },
+    });
   });
 });

@@ -10,6 +10,8 @@ export type CurrentUser = {
   email: string;
   gold: number;
   gems: number;
+  coinsOfHonour?: number;
+  pvpCooldownUntil?: string | null;
   killedMonsters?: number;
   dungeonsCleared?: number;
   accomplishedQuests?: number;

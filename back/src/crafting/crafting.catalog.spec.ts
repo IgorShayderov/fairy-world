@@ -1,5 +1,12 @@
 import { CraftUpgradeType } from '../../generated/client';
-import { pickCraftMaterialCode, rollCraftMaterialCode, upgradeValueForLevel } from './crafting.catalog';
+import {
+  craftIngredientQuantityForLevel,
+  craftingCostMultiplierForLevel,
+  craftingUpgradeTierForLevel,
+  pickCraftMaterialCode,
+  rollCraftMaterialCode,
+  upgradeValueForLevel,
+} from './crafting.catalog';
 
 describe('crafting catalog', () => {
   it('scales damage upgrades from level 5 every three levels', () => {
@@ -15,6 +22,18 @@ describe('crafting catalog', () => {
     expect(upgradeValueForLevel(CraftUpgradeType.GOLD, 18)).toBe(10);
     expect(upgradeValueForLevel(CraftUpgradeType.EXPERIENCE, 18)).toBe(10);
     expect(upgradeValueForLevel(CraftUpgradeType.HEALTH, 18)).toBe(50);
+  });
+
+  it('increases ingredient costs with every upgrade strength tier', () => {
+    expect(craftingUpgradeTierForLevel(5)).toBe(1);
+    expect(craftingUpgradeTierForLevel(8)).toBe(2);
+    expect(craftingUpgradeTierForLevel(18)).toBe(5);
+    expect(craftingCostMultiplierForLevel(10)).toBe(1);
+    expect(craftingCostMultiplierForLevel(11)).toBe(2);
+    expect(craftingCostMultiplierForLevel(18)).toBe(4);
+    expect(craftIngredientQuantityForLevel(3, 10)).toBe(3);
+    expect(craftIngredientQuantityForLevel(3, 11)).toBe(6);
+    expect(craftIngredientQuantityForLevel(3, 18)).toBe(12);
   });
 
   it('can drop a crafting material from an ordinary encounter', () => {

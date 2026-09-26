@@ -100,6 +100,20 @@ describe('shop quantity requests', () => {
     expect(mocks.post).not.toHaveBeenCalled();
   });
 
+  it('keeps only one active trade direction at a time', async () => {
+    const shop = useShopActions();
+    await shop.loadData();
+
+    shop.addToCart(3);
+    shop.adjustSell(4, 'Potion', 2, 1);
+    expect(shop.cart.value).toEqual({});
+    expect(shop.sellQuantity.value[4]).toBe(1);
+
+    shop.addToCart(3);
+    expect(shop.cart.value[3]).toBe(1);
+    expect(shop.sellHasItems()).toBe(false);
+  });
+
   it('spends gems through the dedicated shop refresh request', async () => {
     const shop = useShopActions();
     await shop.loadData();
