@@ -54,6 +54,12 @@ enum UserRole {
   ADMIN
 }
 
+enum ClanRole {
+  LEADER
+  OFFICER
+  MEMBER
+}
+
 model User {
   id                   Int            @id @default(autoincrement())
   email                String         @unique
@@ -80,17 +86,17 @@ model GameProfile {
   userId Int  @unique
   user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  gold            Int       @default(0)
-  gems            Int       @default(0)
-  coinsOfHonour   Int       @default(0)
+  gold             Int       @default(0)
+  gems             Int       @default(0)
+  coinsOfHonour    Int       @default(0)
   pvpCooldownUntil DateTime?
-  experience      Int       @default(0)
-  level           Int       @default(1)
-  freeAttributes  Int   @default(0)
-  killedMonsters  Int   @default(0)
-  dungeonsCleared Int   @default(0)
-  mapPositionX    Float @default(1470)
-  mapPositionY    Float @default(960)
+  experience       Int       @default(0)
+  level            Int       @default(1)
+  freeAttributes   Int       @default(0)
+  killedMonsters   Int       @default(0)
+  dungeonsCleared  Int       @default(0)
+  mapPositionX     Float     @default(1470)
+  mapPositionY     Float     @default(960)
 
   inventory         InventoryItem[]
   profileAttributes ProfileAttribute[]
@@ -106,6 +112,46 @@ model GameProfile {
   dungeonRun        DungeonRun?
   ledDungeonParties DungeonParty[]       @relation("DungeonPartyLeader")
   dungeonParty      DungeonPartyMember?
+  clanMembership    ClanMember?
+}
+
+model Clan {
+  id               String             @id @default(uuid())
+  name             String             @unique
+  tag              String             @unique
+  description      String             @default("")
+  activityPoints   Int                @default(0)
+  activeBannerCode String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  members          ClanMember[]
+  bannerUnlocks    ClanBannerUnlock[]
+}
+
+model ClanMember {
+  clanId                 String
+  gameProfileId          Int         @unique
+  role                   ClanRole    @default(MEMBER)
+  contributedActivity    Int         @default(0)
+  trackedKilledMonsters  Int         @default(0)
+  trackedDungeonsCleared Int         @default(0)
+  trackedQuestsCompleted Int         @default(0)
+  trackedPvpVictories    Int         @default(0)
+  joinedAt               DateTime    @default(now())
+  clan                   Clan        @relation(fields: [clanId], references: [id], onDelete: Cascade)
+  gameProfile            GameProfile @relation(fields: [gameProfileId], references: [id], onDelete: Cascade)
+
+  @@id([clanId, gameProfileId])
+  @@index([clanId, role])
+}
+
+model ClanBannerUnlock {
+  clanId     String
+  bannerCode String
+  unlockedAt DateTime @default(now())
+  clan       Clan     @relation(fields: [clanId], references: [id], onDelete: Cascade)
+
+  @@id([clanId, bannerCode])
 }
 
 model Quest {
