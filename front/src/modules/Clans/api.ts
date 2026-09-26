@@ -33,6 +33,11 @@ export type ClanSummary = Pick<
   'id' | 'name' | 'tag' | 'description' | 'activityPoints' | 'activeBannerCode' | 'memberCount'
 >;
 
+export type ClanLeaderboardEntry = Pick<
+  Clan,
+  'id' | 'name' | 'tag' | 'activityPoints' | 'activeBannerCode' | 'memberCount'
+> & { rank: number; isCurrent: boolean };
+
 export type ClanBanner = {
   code: string;
   name: string;
@@ -61,6 +66,10 @@ export const clansApi = {
     const { data } = await api.get<{ canJoin: boolean; minLevel: number; maxMembers: number; clans: ClanSummary[] }>(
       routes.api.clans.listPath()
     );
+    return data;
+  },
+  async getLeaderboard() {
+    const { data } = await api.get<ClanLeaderboardEntry[]>(routes.api.clans.leaderboardPath());
     return data;
   },
   async create(payload: { name: string; tag: string; description: string }) {

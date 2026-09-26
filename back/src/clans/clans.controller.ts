@@ -23,6 +23,11 @@ export class ClansController {
     return this.clansService.getMyClan(req.user.sub);
   }
 
+  @Get('leaderboard')
+  leaderboard(@Req() req: RequestWithUser) {
+    return this.clansService.getLeaderboard(req.user.sub);
+  }
+
   @Post()
   create(@Req() req: RequestWithUser, @Body() dto: CreateClanDto) {
     return this.clansService.createClan(req.user.sub, dto);

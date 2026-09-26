@@ -41,6 +41,28 @@ export class ClansService {
     };
   }
 
+  async getLeaderboard(userId: number) {
+    const profile = await this.profileForUser(userId);
+    const clanIds = await this.prisma.clan.findMany({ select: { id: true } });
+    for (const { id } of clanIds) await this.syncClanActivity(id);
+
+    const clans = await this.prisma.clan.findMany({
+      orderBy: [{ activityPoints: 'desc' }, { createdAt: 'asc' }],
+      take: 50,
+      include: { _count: { select: { members: true } } },
+    });
+    return clans.map((clan, index) => ({
+      rank: index + 1,
+      id: clan.id,
+      name: clan.name,
+      tag: clan.tag,
+      activityPoints: clan.activityPoints,
+      activeBannerCode: clan.activeBannerCode,
+      memberCount: clan._count.members,
+      isCurrent: profile.clanMembership?.clanId === clan.id,
+    }));
+  }
+
   async getMyClan(userId: number) {
     const profile = await this.profileForUser(userId);
     if (!profile.clanMembership) {
