@@ -80,7 +80,7 @@ export class UserView {
         ...(catalyst?.upgradeType
           ? {
               craftUpgradeType: catalyst.upgradeType,
-              craftUpgradeValue: upgradeValueForLevel(catalyst.upgradeType, playerLevel),
+              craftUpgradeValue: entry.upgradeValue ?? upgradeValueForLevel(catalyst.upgradeType, playerLevel),
             }
           : {}),
         item: ItemView.render(entry.item),
@@ -266,6 +266,8 @@ export class UserView {
       ...this.render(user),
       gold: profile?.gold ?? 0,
       gems: profile?.gems ?? 0,
+      coinsOfHonour: profile?.coinsOfHonour ?? 0,
+      pvpCooldownUntil: profile?.pvpCooldownUntil ? profile.pvpCooldownUntil.toISOString() : null,
       killedMonsters: profile?.killedMonsters ?? 0,
       dungeonsCleared: profile?.dungeonsCleared ?? 0,
       accomplishedQuests: profile?._count?.quests ?? 0,

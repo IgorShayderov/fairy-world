@@ -62,6 +62,8 @@ describe('UserView.renderCurrent', () => {
         userId: 1,
         gold: 100,
         gems: 25,
+        coinsOfHonour: 0,
+        pvpCooldownUntil: null,
         experience: 20,
         level: 3,
         freeAttributes: 0,
@@ -145,8 +147,8 @@ describe('UserView.renderCurrent', () => {
             quantity: 2,
             slot: null,
             isEquiped: false,
-            upgradeType: null,
-            upgradeValue: null,
+            upgradeType: 'HEALTH',
+            upgradeValue: 30,
             createdAt: new Date('2026-09-10T00:00:00Z'),
             updatedAt: new Date('2026-09-10T00:00:00Z'),
             item: {
@@ -173,7 +175,7 @@ describe('UserView.renderCurrent', () => {
     expect(result.inventory).toHaveLength(1);
     expect(result.inventory[0]).toMatchObject({
       craftUpgradeType: 'HEALTH',
-      craftUpgradeValue: 10,
+      craftUpgradeValue: 30,
     });
     expect(result.equippedItems).toHaveLength(1);
     expect(result.equippedItems[0]).toMatchObject({
@@ -238,6 +240,8 @@ describe('UserView.renderCurrent', () => {
       gameProfile: {
         gold: 0,
         gems: 0,
+        coinsOfHonour: 0,
+        pvpCooldownUntil: null,
         experience: 0,
         level: 1,
         freeAttributes: 0,
@@ -270,6 +274,8 @@ describe('UserView.renderCurrent', () => {
       gameProfile: {
         gold: 0,
         gems: 0,
+        coinsOfHonour: 0,
+        pvpCooldownUntil: null,
         experience: 0,
         level: 20,
         freeAttributes: 0,

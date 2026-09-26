@@ -22,14 +22,19 @@ export const SHOP_DEFAULT_GOLD = 1_000_000;
 export const SHOP_FREE_ATTRIBUTE_POTION_CHANCE = 0.03;
 export const SHOP_RECIPE_CHANCE = 0.25;
 
-export const potionWeightForLevel = (level: number): number => {
-  return Math.max(1, 6 - Math.floor(level / 10));
+export const potionWeightForLevel = (level: number, highestEligibleLevel: number): number => {
+  const tierDistance = Math.max(0, Math.ceil((highestEligibleLevel - level) / 10));
+  if (tierDistance === 0) return 6;
+  if (tierDistance === 1) return 3;
+  return 1;
 };
 
 const pickWeightedIndex = (items: Array<{ level: number; name: string }>): number => {
+  const levels = items.map((item) => Math.max(getPotionRequiredLevel(item.name), item.level ?? 1));
+  const highestEligibleLevel = Math.max(...levels);
   const weights = items.map((item) => {
     const lvl = Math.max(getPotionRequiredLevel(item.name), item.level ?? 1);
-    return potionWeightForLevel(lvl);
+    return potionWeightForLevel(lvl, highestEligibleLevel);
   });
   const totalWeight = weights.reduce((sum, w) => sum + w, 0);
   let roll = Math.random() * totalWeight;
@@ -213,7 +218,7 @@ export class ShopService implements OnModuleInit {
     );
 
     const selectedPotions: typeof consumables = [];
-    if (healthPotions[0]) selectedPotions.push(healthPotions[0]);
+    if (healthPotions.length) selectedPotions.push(healthPotions[pickWeightedIndex(healthPotions)]);
     if (freeAttributeItem && Math.random() < SHOP_FREE_ATTRIBUTE_POTION_CHANCE) {
       selectedPotions.push(freeAttributeItem);
     }

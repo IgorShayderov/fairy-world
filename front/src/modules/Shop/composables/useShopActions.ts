@@ -30,6 +30,9 @@ export function useShopActions() {
   const cart = ref<Record<number, number>>({});
   const sellQuantity = ref<Record<number, number>>({});
   const sellToast = ref({ show: false, message: '' });
+  const clearSellSelection = () => {
+    for (const itemId of Object.keys(sellQuantity.value)) sellQuantity.value[Number(itemId)] = 0;
+  };
 
   const loadData = async (forcePlayerRefresh = false) => {
     loading.value = true;
@@ -88,6 +91,7 @@ export function useShopActions() {
 
     if (currentQuantity >= item.quantity) return;
 
+    clearSellSelection();
     cart.value[itemId] = currentQuantity + 1;
   };
 
@@ -136,12 +140,16 @@ export function useShopActions() {
 
   const adjustSell = (itemId: number, _name: string, currentQty: number, delta: number) => {
     const selectedQuantity = sellQuantity.value[itemId] ?? 0;
-    sellQuantity.value[itemId] = Math.min(currentQty, Math.max(0, selectedQuantity + delta));
+    const nextQuantity = Math.min(currentQty, Math.max(0, selectedQuantity + delta));
+    if (nextQuantity > 0) cart.value = {};
+    sellQuantity.value[itemId] = nextQuantity;
   };
 
   const setSellQuantity = (itemId: number, currentQty: number, value: number) => {
     const quantity = Number.isFinite(value) ? Math.trunc(value) : 0;
-    sellQuantity.value[itemId] = Math.min(currentQty, Math.max(0, quantity));
+    const nextQuantity = Math.min(currentQty, Math.max(0, quantity));
+    if (nextQuantity > 0) cart.value = {};
+    sellQuantity.value[itemId] = nextQuantity;
   };
 
   const sellTotal = () =>
@@ -182,8 +190,7 @@ export function useShopActions() {
     }
   };
 
-  const addOneToSell = (itemId: number, name: string, currentQty: number) =>
-    adjustSell(itemId, name, currentQty, 1);
+  const addOneToSell = (itemId: number, name: string, currentQty: number) => adjustSell(itemId, name, currentQty, 1);
 
   const refreshStock = async () => {
     if (loading.value || gems.value < refreshCost.value) return;

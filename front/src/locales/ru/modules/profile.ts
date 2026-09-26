@@ -46,6 +46,7 @@ export default {
       experience: 'Опыт',
       gold: 'Золото',
       gems: 'Самоцветы',
+      coinsOfHonour: 'Монеты чести',
     },
     tooltip: {
       price: 'Цена',

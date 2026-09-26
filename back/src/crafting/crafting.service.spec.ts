@@ -15,6 +15,7 @@ describe('CraftingService', () => {
             gameProfileId: 4,
             quantity: 1,
             isEquiped: false,
+            upgradeValue: 30,
             item: { name: 'Vitality Crystal' },
           })
           .mockResolvedValueOnce({
@@ -39,11 +40,11 @@ describe('CraftingService', () => {
       success: true,
       inventoryItemId: 12,
       upgradeType: CraftUpgradeType.HEALTH,
-      value: 50,
+      value: 30,
     });
     expect(tx.inventoryItem.update).toHaveBeenCalledWith({
       where: { id: 12 },
-      data: { upgradeType: CraftUpgradeType.HEALTH, upgradeValue: 50 },
+      data: { upgradeType: CraftUpgradeType.HEALTH, upgradeValue: 30 },
     });
     expect(tx.inventoryItem.delete).toHaveBeenCalledWith({ where: { id: 3 } });
   });
@@ -100,6 +101,61 @@ describe('CraftingService', () => {
 
     await expect(service.craft(7, 5)).rejects.toThrow('Inventory is full');
     expect(tx.playerCraftItem.findUnique).not.toHaveBeenCalled();
+  });
+
+  it('charges the scaled material cost and snapshots the crafted upgrade strength', async () => {
+    const tx = {
+      $executeRaw: jest.fn(),
+      gameProfile: { findUnique: jest.fn().mockResolvedValue({ id: 4, level: 18 }) },
+      learnedCraftRecipe: {
+        findUnique: jest.fn().mockResolvedValue({
+          recipe: {
+            resultQuantity: 1,
+            resultCraftItem: {
+              name: 'Vitality Crystal',
+              upgradeType: CraftUpgradeType.HEALTH,
+            },
+            ingredients: [{ craftItemId: 2, quantity: 2 }],
+          },
+        }),
+      },
+      inventoryItem: {
+        count: jest.fn().mockResolvedValue(0),
+        create: jest.fn().mockResolvedValue({ id: 90 }),
+      },
+      item: { findFirst: jest.fn().mockResolvedValue({ id: 40 }) },
+      playerCraftItem: {
+        findUnique: jest.fn().mockResolvedValue({ quantity: 11 }),
+        findUniqueOrThrow: jest.fn().mockResolvedValue({ quantity: 11 }),
+        delete: jest.fn(),
+        update: jest.fn(),
+      },
+    };
+    const prisma = {
+      $transaction: jest.fn((operation: (client: typeof tx) => unknown) => operation(tx)),
+    };
+    const service = new CraftingService(prisma as unknown as PrismaService);
+
+    await expect(service.craft(7, 5)).resolves.toMatchObject({
+      success: true,
+      inventoryItemId: 90,
+      quantity: 1,
+    });
+    expect(tx.playerCraftItem.update).toHaveBeenCalledWith({
+      where: { gameProfileId_craftItemId: { gameProfileId: 4, craftItemId: 2 } },
+      data: { quantity: { decrement: 8 } },
+    });
+    expect(tx.inventoryItem.create).toHaveBeenCalledWith({
+      data: {
+        gameProfileId: 4,
+        itemId: 40,
+        quantity: 1,
+        slot: null,
+        isEquiped: false,
+        upgradeType: CraftUpgradeType.HEALTH,
+        upgradeValue: 50,
+      },
+    });
   });
 
   it('rejects crafting and upgrades before level 10', async () => {

@@ -225,6 +225,7 @@ const props = defineProps<{
   experienceToNextLevel: number | null;
   playerGold: number;
   playerGems: number;
+  playerCoinsOfHonour?: number;
   killedMonsters: number;
   dungeonsCleared: number;
   accomplishedQuests: number;
@@ -286,6 +287,7 @@ const playerSummary = computed(() => [
   },
   { key: 'gold', value: props.playerGold },
   { key: 'gems', value: props.playerGems },
+  { key: 'coinsOfHonour', value: props.playerCoinsOfHonour ?? 0 },
   { key: 'killedMonsters', value: props.killedMonsters },
   { key: 'dungeonsCleared', value: props.dungeonsCleared },
   { key: 'accomplishedQuests', value: props.accomplishedQuests },
