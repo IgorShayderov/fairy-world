@@ -8,6 +8,7 @@ import {
   isPointInRiver,
   isPointOnBridge,
   isPointOnRoute,
+  LANDMARK_VISUALS,
   landmarks,
   movementSpeedAt,
   mountains,
@@ -25,6 +26,15 @@ describe('map roads', () => {
     }
   });
 
+  it('gives settlements and sanctuaries distinct map silhouettes', () => {
+    expect(LANDMARK_VISUALS.capital.radius).toBeGreaterThan(LANDMARK_VISUALS.city.radius);
+    expect(LANDMARK_VISUALS.city.radius).toBeGreaterThan(LANDMARK_VISUALS.village.radius);
+    expect(LANDMARK_VISUALS.sanctum.label).toBe('SANCTUARY');
+    expect(
+      new Set([LANDMARK_VISUALS.city.label, LANDMARK_VISUALS.village.label, LANDMARK_VISUALS.sanctum.label])
+    ).toHaveLength(3);
+  });
+
   it('places bridges at road and river crossings', () => {
     expect(bridgeCrossings.length).toBeGreaterThan(0);
     expect(bridgeCrossings.every(({ x, y }) => isPointOnRoute(x, y, 2))).toBe(true);
@@ -33,9 +43,8 @@ describe('map roads', () => {
   it('uses one deliberate crossing near both Evercross and Moonfall', () => {
     const evercross = landmarks.find(({ name }) => name === 'EVERCROSS')!;
     const moonfall = landmarks.find(({ name }) => name === 'MOONFALL')!;
-    const near = (landmark: typeof evercross) => bridgeCrossings.filter(
-      ({ x, y }) => Math.hypot(x - landmark.x, y - landmark.y) < 260,
-    );
+    const near = (landmark: typeof evercross) =>
+      bridgeCrossings.filter(({ x, y }) => Math.hypot(x - landmark.x, y - landmark.y) < 260);
 
     expect(near(evercross)).toHaveLength(1);
     expect(near(moonfall)).toHaveLength(1);
@@ -70,15 +79,19 @@ describe('map roads', () => {
         const b = road[index]!;
         const steps = Math.ceil(Math.hypot(b.x - a.x, b.y - a.y));
         for (let step = 0; step <= steps; step++) {
-          const x = a.x + (b.x - a.x) * step / steps;
-          const y = a.y + (b.y - a.y) * step / steps;
+          const x = a.x + ((b.x - a.x) * step) / steps;
+          const y = a.y + ((b.y - a.y) * step) / steps;
           for (const mountain of mountains) {
             const dy = y - mountain.y;
             const fraction = (dy + mountain.size) / (1.34 * mountain.size);
             if (fraction < 0 || fraction > 1) continue;
-            const inside = x > mountain.x - .7 * mountain.size * fraction - 6
-              && x < mountain.x + .78 * mountain.size * fraction + 6;
-            expect(inside, `Road ${JSON.stringify(a)} → ${JSON.stringify(b)} crosses mountain at ${mountain.x},${mountain.y}`).toBe(false);
+            const inside =
+              x > mountain.x - 0.7 * mountain.size * fraction - 6 &&
+              x < mountain.x + 0.78 * mountain.size * fraction + 6;
+            expect(
+              inside,
+              `Road ${JSON.stringify(a)} → ${JSON.stringify(b)} crosses mountain at ${mountain.x},${mountain.y}`
+            ).toBe(false);
           }
         }
       }
