@@ -121,6 +121,8 @@ model Clan {
   tag              String             @unique
   description      String             @default("")
   activityPoints   Int                @default(0)
+  treasureLevel    Int                @default(0)
+  armoryLevel      Int                @default(0)
   activeBannerCode String?
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
@@ -133,6 +135,7 @@ model ClanMember {
   gameProfileId          Int         @unique
   role                   ClanRole    @default(MEMBER)
   contributedActivity    Int         @default(0)
+  contributedGold        Int         @default(0)
   trackedKilledMonsters  Int         @default(0)
   trackedDungeonsCleared Int         @default(0)
   trackedQuestsCompleted Int         @default(0)

@@ -512,6 +512,11 @@ const eventText = (event: DungeonRunState['latestEvents'][number]) => {
       const subject = event.actor === 'MONSTER' && event.targetName ? event.targetName : t('fantasy.encounter.enemy');
       return t('fantasy.encounter.dodged', { actor: subject });
     }
+    if (event.blocked) {
+      const target = event.targetName ?? t('fantasy.encounter.party');
+      const actor = event.actorName ?? t('fantasy.encounter.enemy');
+      return t('fantasy.encounter.blockedTarget', { actor, target });
+    }
     const actor = event.actorName ?? t('fantasy.encounter.enemy');
     if (event.targetName) {
       return t(event.critical ? 'fantasy.encounter.criticalHitTarget' : 'fantasy.encounter.hitTarget', {
@@ -527,6 +532,7 @@ const eventText = (event: DungeonRunState['latestEvents'][number]) => {
   }
   const actor = t(`fantasy.encounter.${getBattleEventSubject(event)}`);
   if (event.dodged) return t('fantasy.encounter.dodged', { actor });
+  if (event.blocked) return t('fantasy.encounter.blocked', { actor });
   return t(event.critical ? 'fantasy.encounter.criticalHit' : 'fantasy.encounter.hit', {
     actor,
     damage: event.damage,

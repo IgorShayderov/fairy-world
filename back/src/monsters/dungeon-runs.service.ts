@@ -23,6 +23,7 @@ type Combatant = {
   damage: number;
   defense: number;
   dodge: number;
+  blockChance: number;
   criticalChance: number;
   criticalDamage: number;
 };
@@ -32,6 +33,7 @@ type DungeonEvent = {
   damage: number;
   critical: boolean;
   dodged: boolean;
+  blocked?: boolean;
   targetName?: string;
   actorName?: string;
 };
@@ -88,6 +90,7 @@ export type DungeonPartyMemberView = {
   damage?: number;
   defense?: number;
   dodge?: number;
+  blockChance?: number;
   criticalChance?: number;
   criticalDamage?: number;
 };
@@ -997,6 +1000,7 @@ export class DungeonRunsService {
         damage: Math.max(1, property(StatType.DAMAGE)),
         defense: property(StatType.DEFENSE),
         dodge: property(StatType.DODGE),
+        blockChance: player.blockChance,
         criticalChance: property(StatType.CRIT),
         criticalDamage: property(StatType.CRIT_DAMAGE),
       },
@@ -1030,6 +1034,7 @@ export class DungeonRunsService {
         damage: Math.ceil((3 + generated.level * 2 + attribute('STRENGTH')) * damageMultiplier),
         defense: Math.min(60, generated.level * 0.8 + attribute('ENDURANCE') + (isBoss ? 8 : 4)),
         dodge: Math.min(30, generated.level * 0.3 + attribute('AGILITY')),
+        blockChance: 0,
         criticalChance: Math.min(30, 4 + generated.level * 0.25 + index),
         criticalDamage: isBoss ? 175 : 150,
         rewardGold: Math.max(1, Math.round(generated.rewardGold * (isBoss ? 2.5 : 1.25))),
@@ -1065,6 +1070,7 @@ export class DungeonRunsService {
         damage: Math.max(1, property(player, StatType.DAMAGE)),
         defense: property(player, StatType.DEFENSE),
         dodge: property(player, StatType.DODGE),
+        blockChance: player.blockChance,
         criticalChance: property(player, StatType.CRIT),
         criticalDamage: property(player, StatType.CRIT_DAMAGE),
       };
@@ -1087,6 +1093,7 @@ export class DungeonRunsService {
         damage: players.reduce((sum, player) => sum + property(player, StatType.DAMAGE), 0),
         defense: average(players.map((player) => property(player, StatType.DEFENSE))),
         dodge: average(players.map((player) => property(player, StatType.DODGE))),
+        blockChance: average(players.map((player) => player.blockChance)),
         criticalChance: average(players.map((player) => property(player, StatType.CRIT))),
         criticalDamage: average(players.map((player) => property(player, StatType.CRIT_DAMAGE))),
       },
@@ -1135,6 +1142,7 @@ export class DungeonRunsService {
       member.damage ??= Math.max(1, Math.round(state.player.damage / count));
       member.defense ??= state.player.defense;
       member.dodge ??= state.player.dodge;
+      member.blockChance ??= state.player.blockChance ?? 0;
       member.criticalChance ??= state.player.criticalChance;
       member.criticalDamage ??= state.player.criticalDamage;
     }
@@ -1163,6 +1171,7 @@ export class DungeonRunsService {
       member.damage = Math.max(1, property(StatType.DAMAGE));
       member.defense = property(StatType.DEFENSE);
       member.dodge = property(StatType.DODGE);
+      member.blockChance = rendered.blockChance;
       member.criticalChance = property(StatType.CRIT);
       member.criticalDamage = property(StatType.CRIT_DAMAGE);
     }
@@ -1182,6 +1191,7 @@ export class DungeonRunsService {
       damage: member.damage ?? 1,
       defense: member.defense ?? 0,
       dodge: member.dodge ?? 0,
+      blockChance: member.blockChance ?? 0,
       criticalChance: member.criticalChance ?? 0,
       criticalDamage: member.criticalDamage ?? 150,
     };
@@ -1228,6 +1238,10 @@ export class DungeonRunsService {
   ) {
     if (Math.random() * 100 < defender.dodge) {
       events.push({ actor, damage: 0, critical: false, dodged: true, actorName, targetName });
+      return;
+    }
+    if ((defender.blockChance ?? 0) > 0 && Math.random() * 100 < defender.blockChance) {
+      events.push({ actor, damage: 0, critical: false, dodged: false, blocked: true, actorName, targetName });
       return;
     }
     const critical = Math.random() * 100 < attacker.criticalChance;
@@ -1282,6 +1296,15 @@ export class DungeonRunsService {
     const totalExperience = parsed.totalExperience ?? calculatedTotalExperience;
     return {
       ...parsed,
+      player: parsed.player.blockChance === undefined ? { ...parsed.player, blockChance: 0 } : parsed.player,
+      party: parsed.party
+        ? {
+            ...parsed.party,
+            members: parsed.party.members.map((member) =>
+              member.blockChance === undefined ? { ...member, blockChance: 0 } : member,
+            ),
+          }
+        : parsed.party,
       lastBattleResult: parsed.lastBattleResult ?? null,
       totalExperience,
       rewards: parsed.rewards ? { ...parsed.rewards, experience: parsed.rewards.experience ?? totalExperience } : null,
@@ -1296,12 +1319,14 @@ export class DungeonRunsService {
       opponents: parsed.opponents.map((opponent, index) => {
         const role = roster?.[index];
         if (!role || (opponent.image === role.image && opponent.monster.name === role.name)) {
-          return opponent;
+          return opponent.monster.blockChance === undefined
+            ? { ...opponent, monster: { ...opponent.monster, blockChance: 0 } }
+            : opponent;
         }
         return {
           ...opponent,
           image: role.image,
-          monster: { ...opponent.monster, name: role.name },
+          monster: { ...opponent.monster, name: role.name, blockChance: opponent.monster.blockChance ?? 0 },
         };
       }),
     };

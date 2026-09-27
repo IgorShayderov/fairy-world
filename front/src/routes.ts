@@ -79,6 +79,8 @@ const routes = {
       refreshOpponentsPath: () => [BASE_API_PATH, 'pvp', 'opponents', 'refresh'].join('/'),
       duelPath: () => [BASE_API_PATH, 'pvp', 'duel'].join('/'),
       resetCooldownPath: () => [BASE_API_PATH, 'pvp', 'cooldown', 'reset'].join('/'),
+      shopPath: () => [BASE_API_PATH, 'pvp', 'shop'].join('/'),
+      buyShopOfferPath: () => [BASE_API_PATH, 'pvp', 'shop', 'buy'].join('/'),
     },
     clans: {
       listPath: () => [BASE_API_PATH, 'clans'].join('/'),
@@ -87,6 +89,8 @@ const routes = {
       createPath: () => [BASE_API_PATH, 'clans'].join('/'),
       joinPath: (clanId: string) => [BASE_API_PATH, 'clans', clanId, 'join'].join('/'),
       leavePath: () => [BASE_API_PATH, 'clans', 'leave'].join('/'),
+      upgradeBuildingPath: (building: 'treasure' | 'armory') =>
+        [BASE_API_PATH, 'clans', 'buildings', building, 'upgrade'].join('/'),
       shopPath: () => [BASE_API_PATH, 'clans', 'shop'].join('/'),
       buyBannerPath: (bannerCode: string) => [BASE_API_PATH, 'clans', 'shop', bannerCode, 'buy'].join('/'),
       equipBannerPath: (bannerCode: string) => [BASE_API_PATH, 'clans', 'banners', bannerCode, 'equip'].join('/'),

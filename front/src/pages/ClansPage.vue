@@ -55,6 +55,9 @@
           <button class="tab-button" :class="{ active: activeTab === 'hall' }" @click="activeTab = 'hall'">
             <QIcon name="groups" size="18px" />{{ t('clans.hall') }}
           </button>
+          <button class="tab-button" :class="{ active: activeTab === 'upgrades' }" @click="activeTab = 'upgrades'">
+            <QIcon name="account_balance" size="18px" />{{ t('clans.upgrades') }}
+          </button>
           <button class="tab-button" :class="{ active: activeTab === 'shop' }" @click="openShop">
             <QIcon name="flag" size="18px" />{{ t('clans.shop') }}
           </button>
@@ -83,6 +86,9 @@
                     {{ t('clans.contribution') }}
                   </div>
                   <div class="font-bold text-[#efca72]">{{ member.contributedActivity }}</div>
+                  <div class="mt-1 text-xs font-semibold text-amber-200/80">
+                    {{ t('clans.goldContributed', { value: member.contributedGold.toLocaleString() }) }}
+                  </div>
                 </div>
                 <div v-if="canManageMember(member)" class="flex gap-1">
                   <template v-if="pendingRemoveId === member.profileId">
@@ -149,6 +155,98 @@
               <button v-else class="danger-button w-full" @click="leaveArmed = true">{{ t('clans.leave') }}</button>
             </div>
           </aside>
+        </section>
+
+        <section v-else-if="activeTab === 'upgrades'" class="mt-5">
+          <div class="rounded-2xl border border-[#d8bd75]/25 bg-[#0b2530] p-5 shadow-lg sm:p-6">
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 class="font-serif text-2xl text-[#fff0bd]">{{ t('clans.upgrades') }}</h2>
+                <p class="mt-1 max-w-2xl text-sm text-[#a9bfba]">{{ t('clans.upgradesText') }}</p>
+              </div>
+              <div class="rounded-xl border border-[#efca72]/25 bg-[#071a23] px-4 py-2 text-right">
+                <span class="block text-[10px] font-bold tracking-wider text-[#7e9a9b] uppercase">{{
+                  t('clans.yourGold')
+                }}</span>
+                <strong class="text-xl text-[#efca72]">{{ clan.viewerGold.toLocaleString() }}</strong>
+              </div>
+            </div>
+
+            <div class="mt-6 grid gap-5 lg:grid-cols-2">
+              <article class="building-card building-card--treasure">
+                <div class="building-icon"><QIcon name="savings" size="42px" /></div>
+                <div class="building-content min-w-0 flex-1">
+                  <div class="building-heading flex items-start justify-between gap-3">
+                    <div>
+                      <h3 class="font-serif text-2xl text-[#fff0bd]">{{ t('clans.treasure') }}</h3>
+                      <p class="mt-1 text-sm leading-5 text-[#a9bfba]">{{ t('clans.treasureText') }}</p>
+                    </div>
+                    <span class="building-level"
+                      >{{ clan.buildings.treasure.level }} / {{ clan.buildings.maxLevel }}</span
+                    >
+                  </div>
+                  <div class="mt-4 h-2 overflow-hidden rounded-full bg-[#06151d]">
+                    <div
+                      class="h-full rounded-full bg-amber-400"
+                      :style="{ width: `${(clan.buildings.treasure.level / clan.buildings.maxLevel) * 100}%` }"
+                    />
+                  </div>
+                  <strong class="mt-4 block text-lg text-amber-300">
+                    {{ t('clans.goldBonus', { value: clan.buildings.treasure.bonusPercent }) }}
+                  </strong>
+                  <button
+                    class="primary-button mt-4 w-full"
+                    :disabled="
+                      actionBusy ||
+                      clan.buildings.treasure.nextCost === null ||
+                      clan.viewerGold < (clan.buildings.treasure.nextCost ?? 0)
+                    "
+                    @click="upgradeBuilding('treasure')"
+                  >
+                    <QIcon name="upgrade" size="18px" />
+                    {{ upgradeLabel(clan.buildings.treasure.nextCost) }}
+                  </button>
+                </div>
+              </article>
+
+              <article class="building-card building-card--armory">
+                <div class="building-icon"><QIcon name="castle" size="42px" /></div>
+                <div class="building-content min-w-0 flex-1">
+                  <div class="building-heading flex items-start justify-between gap-3">
+                    <div>
+                      <h3 class="font-serif text-2xl text-[#fff0bd]">{{ t('clans.armory') }}</h3>
+                      <p class="mt-1 text-sm leading-5 text-[#a9bfba]">{{ t('clans.armoryText') }}</p>
+                    </div>
+                    <span class="building-level"
+                      >{{ clan.buildings.armory.level }} / {{ clan.buildings.maxLevel }}</span
+                    >
+                  </div>
+                  <div class="mt-4 h-2 overflow-hidden rounded-full bg-[#06151d]">
+                    <div
+                      class="h-full rounded-full bg-sky-400"
+                      :style="{ width: `${(clan.buildings.armory.level / clan.buildings.maxLevel) * 100}%` }"
+                    />
+                  </div>
+                  <strong class="mt-4 block text-lg text-sky-300">
+                    {{ t('clans.experienceBonus', { value: clan.buildings.armory.bonusPercent }) }}
+                  </strong>
+                  <button
+                    class="primary-button mt-4 w-full"
+                    :disabled="
+                      actionBusy ||
+                      clan.buildings.armory.nextCost === null ||
+                      clan.viewerGold < (clan.buildings.armory.nextCost ?? 0)
+                    "
+                    @click="upgradeBuilding('armory')"
+                  >
+                    <QIcon name="upgrade" size="18px" />
+                    {{ upgradeLabel(clan.buildings.armory.nextCost) }}
+                  </button>
+                </div>
+              </article>
+            </div>
+            <p class="mt-5 text-center text-xs text-[#7e9a9b]">{{ t('clans.upgradeSharedHint') }}</p>
+          </div>
         </section>
 
         <section v-else class="mt-5 rounded-2xl border border-[#d8bd75]/25 bg-[#0b2530] p-5 shadow-lg sm:p-6">
@@ -267,10 +365,12 @@ import { useTranslation } from 'i18next-vue';
 import { Notify, QIcon } from 'quasar';
 import { onMounted, reactive, ref } from 'vue';
 
+import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 import {
   clansApi,
   type Clan,
   type ClanBanner as ClanBannerType,
+  type ClanBuilding,
   type ClanMember,
   type ClanShop,
   type ClanSummary,
@@ -280,6 +380,7 @@ import { getApiErrorMessage } from '@/shared/api/error-message';
 import ClanBanner from '@/modules/Clans/ClanBanner.vue';
 
 const { t } = useTranslation();
+const currentUser = useCurrentUserStore();
 const loading = ref(true);
 const actionBusy = ref(false);
 const eligible = ref(true);
@@ -288,7 +389,7 @@ const maxMembers = ref(20);
 const clan = ref<Clan | null>(null);
 const clanList = ref<ClanSummary[]>([]);
 const shop = ref<ClanShop | null>(null);
-const activeTab = ref<'hall' | 'shop'>('hall');
+const activeTab = ref<'hall' | 'upgrades' | 'shop'>('hall');
 const leaveArmed = ref(false);
 const pendingRemoveId = ref<number | null>(null);
 const form = reactive({ name: '', tag: '', description: '' });
@@ -369,6 +470,16 @@ const removeMember = async (member: ClanMember) =>
     clan.value = await clansApi.removeMember(member.profileId);
     pendingRemoveId.value = null;
   });
+
+const upgradeBuilding = async (building: ClanBuilding) =>
+  run(async () => {
+    clan.value = await clansApi.upgradeBuilding(building);
+    await currentUser.fetchCurrentUser(true);
+    Notify.create({ type: 'positive', message: t('clans.buildingUpgraded') });
+  });
+
+const upgradeLabel = (cost: number | null) =>
+  cost === null ? t('clans.maxLevel') : t('clans.upgradeForGold', { cost: cost.toLocaleString() });
 
 const canManageMember = (member: ClanMember) => {
   if (!clan.value || member.profileId === clan.value.viewerProfileId || member.role === 'LEADER') return false;
@@ -601,6 +712,54 @@ onMounted(() => void load());
   border-radius: 1rem;
   background: #071a23;
 }
+.building-card {
+  display: flex;
+  gap: 1rem;
+  min-height: 250px;
+  padding: 1.25rem;
+  border: 1px solid rgb(216 189 117 / 20%);
+  border-radius: 1rem;
+  background: radial-gradient(circle at 0% 0%, rgb(239 202 114 / 10%), transparent 42%), #071a23;
+}
+.building-content {
+  display: flex;
+  flex-direction: column;
+}
+.building-heading {
+  min-height: 7.5rem;
+}
+.building-content .primary-button {
+  margin-top: auto;
+}
+.building-card--armory {
+  background: radial-gradient(circle at 0% 0%, rgb(92 190 231 / 10%), transparent 42%), #071a23;
+}
+.building-icon {
+  display: flex;
+  width: 4.5rem;
+  height: 4.5rem;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgb(239 202 114 / 28%);
+  border-radius: 1rem;
+  color: #efca72;
+  background: #102f39;
+  box-shadow: 0 8px 25px rgb(0 0 0 / 24%);
+}
+.building-card--armory .building-icon {
+  color: #7dd3fc;
+  border-color: rgb(125 211 252 / 25%);
+}
+.building-level {
+  flex: none;
+  padding: 0.3rem 0.55rem;
+  border: 1px solid rgb(216 189 117 / 20%);
+  border-radius: 999px;
+  color: #cbbd91;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
 .banner-action {
   font-size: 0.68rem;
 }
@@ -617,6 +776,12 @@ onMounted(() => void load());
   }
   .registry-row .quiet-button {
     width: 100%;
+  }
+  .building-card {
+    flex-direction: column;
+  }
+  .building-heading {
+    min-height: 0;
   }
 }
 </style>

@@ -5,6 +5,7 @@ import { generateTownOffers } from './quest-board';
 import { habitatForMonster } from '../monsters/monster-habitats';
 import type { Quest, Prisma } from '../../generated/client';
 import { progressionAfterExperience } from '../users/level-progression';
+import { clanBuildingBonus } from '../clans/clan-buildings';
 
 const renderQuest = (quest: Quest) => ({
   ...quest,
@@ -18,7 +19,11 @@ export class QuestsService {
 
   async deliver(userId: number, questId: number) {
     return this.prisma.$transaction(async (tx) => {
-      const profile = await tx.gameProfile.update({ where: { userId }, data: { gold: { increment: 0 } } });
+      const profile = await tx.gameProfile.update({
+        where: { userId },
+        data: { gold: { increment: 0 } },
+        include: { clanMembership: { include: { clan: { select: { treasureLevel: true, armoryLevel: true } } } } },
+      });
       const key = { gameProfileId_questId: { gameProfileId: profile.id, questId } };
       const entry = await tx.playerQuest.findUnique({ where: key, include: { quest: true } });
       if (!entry || entry.canceledAt) throw new NotFoundException('Active quest not found');
@@ -27,11 +32,15 @@ export class QuestsService {
       if (!town || entry.quest.destinationTownId !== town.shopId)
         throw new BadRequestException('Visit the destination town to deliver this message');
       await tx.playerQuest.update({ where: key, data: { progress: 1, completedAt: new Date() } });
-      const progression = progressionAfterExperience(profile.level, profile.experience + entry.quest.rewardExperience);
+      const treasureBonus = clanBuildingBonus(profile.clanMembership?.clan.treasureLevel ?? 0);
+      const armoryBonus = clanBuildingBonus(profile.clanMembership?.clan.armoryLevel ?? 0);
+      const rewardGold = Math.round(entry.quest.rewardGold * (1 + treasureBonus / 100));
+      const rewardExperience = Math.round(entry.quest.rewardExperience * (1 + armoryBonus / 100));
+      const progression = progressionAfterExperience(profile.level, profile.experience + rewardExperience);
       await tx.gameProfile.update({
         where: { id: profile.id },
         data: {
-          gold: { increment: entry.quest.rewardGold },
+          gold: { increment: rewardGold },
           experience: progression.experience,
           level: progression.level,
           freeAttributes: { increment: progression.freeAttributes },

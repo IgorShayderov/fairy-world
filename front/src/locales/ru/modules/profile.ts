@@ -52,6 +52,8 @@ export default {
       price: 'Цена',
       attributes: 'Характеристики',
       properties: 'Свойства',
+      combatBonuses: 'Боевые бонусы',
+      blockChance: 'Шанс блока',
     },
     attributeNames: {
       STRENGTH: 'Сила',

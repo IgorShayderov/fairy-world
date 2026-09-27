@@ -11,6 +11,7 @@ describe('clan module', () => {
     expect(routes.clansPath()).toBe('/clans');
     expect(routes.api.clans.mePath()).toContain('/api/v1/clans/me');
     expect(routes.api.clans.leaderboardPath()).toContain('/api/v1/clans/leaderboard');
+    expect(routes.api.clans.upgradeBuildingPath('treasure')).toContain('/api/v1/clans/buildings/treasure/upgrade');
     expect(routes.api.clans.joinPath('abc')).toContain('/api/v1/clans/abc/join');
     expect(routes.api.clans.buyBannerPath('IRON_OATH')).toContain('/api/v1/clans/shop/IRON_OATH/buy');
   });
@@ -32,6 +33,13 @@ describe('clan module', () => {
 
     await expect(clansApi.getLeaderboard()).resolves.toEqual(ranking);
     expect(api.get).toHaveBeenCalledWith(routes.api.clans.leaderboardPath());
+  });
+
+  it('upgrades a shared clan building', async () => {
+    vi.spyOn(api, 'post').mockResolvedValueOnce({ data: { clan: { id: 'clan-1' } } } as never);
+
+    await expect(clansApi.upgradeBuilding('armory')).resolves.toEqual({ id: 'clan-1' });
+    expect(api.post).toHaveBeenCalledWith(routes.api.clans.upgradeBuildingPath('armory'));
   });
 
   it('uses the clan endpoints', async () => {

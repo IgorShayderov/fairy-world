@@ -43,6 +43,11 @@ export class ClansController {
     return this.clansService.leaveClan(req.user.sub);
   }
 
+  @Post('buildings/:building/upgrade')
+  upgradeBuilding(@Req() req: RequestWithUser, @Param('building') building: string) {
+    return this.clansService.upgradeBuilding(req.user.sub, building);
+  }
+
   @Post('members/:profileId/role')
   updateRole(
     @Req() req: RequestWithUser,

@@ -64,6 +64,7 @@ export interface InventoryItemType {
   equipmentType?: EquipmentType[];
   equipmentTypes?: EquipmentType[];
   isTwoHanded?: boolean;
+  blockChance?: number;
   quantity?: number;
   attributes?: ItemModifier[];
   properties?: ItemModifier[];
@@ -88,6 +89,7 @@ export interface InventoryEntry {
     rarity: ItemRarity;
     equipmentType: EquipmentType[];
     isTwoHanded?: boolean;
+    blockChance?: number;
     attributes: ItemModifier[];
     properties: ItemModifier[];
   };

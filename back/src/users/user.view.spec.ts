@@ -23,6 +23,9 @@ type CurrentUserModel = Prisma.UserGetPayload<{
         craftItems: { include: { craftItem: true } };
         dungeonRun: { select: { id: true } };
         dungeonParty: { select: { party: { select: { status: true } } } };
+        clanMembership: {
+          include: { clan: { select: { treasureLevel: true; armoryLevel: true } } };
+        };
         _count: { select: { quests: { where: { completedAt: { not: null } } } } };
       };
     };
@@ -73,6 +76,19 @@ describe('UserView.renderCurrent', () => {
         dungeonVisits: [],
         dungeonRun: null,
         dungeonParty: null,
+        clanMembership: {
+          clanId: 'clan-1',
+          gameProfileId: 7,
+          role: 'MEMBER' as const,
+          contributedActivity: 0,
+          contributedGold: 0,
+          trackedKilledMonsters: 0,
+          trackedDungeonsCleared: 0,
+          trackedQuestsCompleted: 0,
+          trackedPvpVictories: 0,
+          joinedAt: new Date('2026-09-10T00:00:00Z'),
+          clan: { treasureLevel: 3, armoryLevel: 2 },
+        },
         killedMonsters: 42,
         dungeonsCleared: 2,
         _count: { quests: 3 },
@@ -171,6 +187,8 @@ describe('UserView.renderCurrent', () => {
     expect(result.sanctuaryCooldowns).toEqual([{ sanctuaryId: 1, nextBlessingAt: new Date('2099-01-01T00:00:00Z') }]);
 
     expect(result.gems).toBe(25);
+    expect(result.blockChance).toBe(10);
+    expect(result.rewardBonuses).toEqual({ goldPercent: 6, experiencePercent: 4 });
     expect(result.mapPosition).toEqual({ x: 1600, y: 900 });
     expect(result.inventory).toHaveLength(1);
     expect(result.inventory[0]).toMatchObject({
