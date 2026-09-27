@@ -1,7 +1,7 @@
 <template>
   <div class="absolute inset-0 z-40 flex items-center justify-center overflow-y-auto bg-[#06141d]/85 p-5 backdrop-blur-sm">
     <section
-      class="encounter-panel flex max-h-full min-h-0 w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-[#ddbd6b]/45 text-white shadow-2xl"
+      class="encounter-panel flex max-h-full min-h-0 w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-[#ddbd6b]/45 text-white shadow-2xl"
     >
       <header class="shrink-0 border-b border-[#ddbd6b]/20 px-6 py-4 text-center">
         <div class="text-[10px] font-bold tracking-[0.34em] text-[#efca72] uppercase">
@@ -12,7 +12,75 @@
         </h2>
       </header>
 
-      <div class="battlefield-grid relative grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-7 px-8 py-7">
+      <div v-if="mode === 'tactical'" class="tactical-battlefield relative shrink-0 overflow-hidden">
+        <div class="battle-haze" />
+        <div class="initiative-ribbon">
+          <span class="initiative-unit initiative-unit--active"><QIcon name="shield" /> {{ playerName }}</span>
+          <QIcon name="chevron_right" />
+          <span class="initiative-unit"><QIcon name="pest_control" /> {{ battle.monster.name }}</span>
+        </div>
+        <div class="hex-arena" aria-label="Tactical battlefield">
+          <button
+            v-for="cell in arenaCells"
+            :key="cell"
+            type="button"
+            class="hex-cell"
+            :class="{
+              'hex-cell--reachable': reachableCells.has(cell),
+              'hex-cell--player': cell === battle.arena.playerPosition,
+              'hex-cell--monster': cell === battle.arena.monsterPosition,
+              'hex-cell--blocked': battle.arena.blockedCells.includes(cell),
+            }"
+            :style="cellStyle(cell)"
+            :disabled="loading || !reachableCells.has(cell)"
+            :aria-label="t('fantasy.encounter.moveToHex', { hex: cell + 1 })"
+            @click="moveToCell(cell)"
+          >
+            <QIcon v-if="battle.arena.blockedCells.includes(cell)" name="landscape" class="terrain-rock" />
+          </button>
+        </div>
+        <div
+          class="battle-unit battle-unit--player"
+          :style="unitStyle(battle.arena.playerPosition)"
+        >
+          <img :key="`player-action-${battle.turn}`" src="/images/battle/player-knight.png" alt="" :class="playerAnimationClass" />
+        </div>
+        <button
+          type="button"
+          class="battle-unit battle-unit--monster"
+          :class="{ 'battle-unit--targetable': battle.arena.canAttack }"
+          :style="unitStyle(battle.arena.monsterPosition)"
+          :disabled="loading || !battle.arena.canAttack"
+          @click="attackEnemy"
+        >
+          <img :key="`monster-action-${battle.turn}`" :src="monsterImage" alt="" :class="monsterAnimationClass" />
+          <span v-if="battle.arena.canAttack" class="melee-target"><QIcon name="gps_fixed" /></span>
+        </button>
+        <div class="tactical-stat tactical-stat--player">
+          <strong>{{ playerName }}</strong>
+          <span>{{ battle.player.health }} / {{ battle.player.maxHealth }} HP</span>
+          <div><i :style="{ width: `${playerHealthPercent}%` }" /></div>
+        </div>
+        <div class="tactical-stat tactical-stat--monster">
+          <strong>{{ battle.monster.name }}</strong>
+          <span>{{ battle.monster.health }} / {{ battle.monster.maxHealth }} HP</span>
+          <div><i :style="{ width: `${monsterHealthPercent}%` }" /></div>
+        </div>
+        <div class="turn-standard">
+          <QIcon name="shield" size="19px" />
+          {{ t('fantasy.encounter.tacticalTurn', { turn: battle.turn }) }}
+        </div>
+        <div class="arena-instruction">
+          <QIcon :name="battle.arena.canAttack ? 'sports_martial_arts' : 'ads_click'" />
+          {{
+            battle.arena.canAttack
+              ? t('fantasy.encounter.enemyInRange')
+              : t('fantasy.encounter.chooseMovement', { range: battle.arena.playerMovement })
+          }}
+        </div>
+      </div>
+
+      <div v-else class="battlefield-grid relative grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-7 px-8 py-7">
         <CombatantCard
           icon="auto_awesome"
           :name="playerName"
@@ -143,11 +211,58 @@
         >
           {{ t('fantasy.encounter.retreat') }}
         </button>
+        <template v-if="battle.status === 'ACTIVE' && mode === 'choose'">
+          <button
+            class="rounded-lg border border-[#dfc16d]/45 bg-[#dfc16d]/10 px-6 py-2.5 text-xs font-bold tracking-wider text-[#ffe69a] uppercase hover:bg-[#dfc16d]/20 disabled:opacity-50"
+            :disabled="loading"
+            @click="startQuickBattle"
+          >
+            <QIcon name="fast_forward" size="18px" />
+            {{ t('fantasy.encounter.quickBattle') }}
+          </button>
+          <button
+            class="rounded-lg bg-[#bd4938] px-7 py-2.5 text-xs font-bold tracking-wider text-white uppercase shadow-lg hover:bg-[#d15743] disabled:opacity-50"
+            :disabled="loading"
+            @click="mode = 'tactical'"
+          >
+            <QIcon name="stadia_controller" size="18px" />
+            {{ t('fantasy.encounter.tacticalBattle') }}
+          </button>
+        </template>
+        <template v-else-if="battle.status === 'ACTIVE' && mode === 'tactical'">
+          <button
+            class="battle-action battle-action--defend"
+            :disabled="loading"
+            @click="emit('tactical-action', { action: 'DEFEND' })"
+          >
+            <QIcon name="shield" size="19px" />{{ t('fantasy.encounter.defend') }}
+          </button>
+          <button
+            class="battle-action battle-action--power"
+            :disabled="loading || battle.powerAttackCooldown > 0 || !battle.arena.canAttack"
+            @click="emit('tactical-action', { action: 'POWER_ATTACK' })"
+          >
+            <QIcon name="local_fire_department" size="19px" />
+            {{
+              battle.powerAttackCooldown > 0
+                ? t('fantasy.encounter.powerCooldown', { turns: battle.powerAttackCooldown })
+                : t('fantasy.encounter.powerAttack')
+            }}
+          </button>
+          <button
+            class="battle-action battle-action--attack"
+            :disabled="loading || !battle.arena.canAttack"
+            @click="attackEnemy"
+          >
+            <QIcon name="sports_martial_arts" size="19px" />
+            {{ loading ? t('fantasy.encounter.attacking') : t('fantasy.encounter.attack') }}
+          </button>
+        </template>
         <button
-          v-if="battle.status === 'ACTIVE'"
+          v-else-if="battle.status === 'ACTIVE'"
           class="rounded-lg bg-[#bd4938] px-7 py-2.5 text-xs font-bold tracking-wider text-white uppercase shadow-lg hover:bg-[#d15743] disabled:opacity-50"
           :disabled="loading"
-          @click="$emit('attack')"
+          @click="startQuickBattle"
         >
           {{ loading ? t('fantasy.encounter.attacking') : t('fantasy.encounter.attack') }}
         </button>
@@ -293,19 +408,73 @@ import { usersApi } from '@/modules/Auth/api/users';
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 import { getBattleEventSubject } from '@/modules/Game/battleEvent';
 import { getRarityTextClass } from '@/modules/Inventory/utils/rarity';
-import type { BattleState } from '@/modules/Monsters/api';
+import type { BattleState, TacticalBattleAction } from '@/modules/Monsters/api';
 
 import InventoryItem from '@/modules/Inventory/components/InventoryItem.vue';
 
 const props = defineProps<{ battle: BattleState; playerName: string; loading: boolean }>();
-defineEmits<{ (event: 'attack'): void; (event: 'retreat'): void; (event: 'close'): void }>();
+const emit = defineEmits<{
+  (event: 'quick-battle'): void;
+  (event: 'tactical-action', action: TacticalBattleAction): void;
+  (event: 'retreat'): void;
+  (event: 'close'): void;
+}>();
 const { t } = useTranslation();
+const mode = ref<'choose' | 'quick' | 'tactical'>('choose');
 
 const currentUserStore = useCurrentUserStore();
 const itemActions = ref<Record<number, 'dropped' | 'replaced'>>({});
 const replacingItemIndex = ref<number | null>(null);
 const replacingLootItem = ref<NonNullable<BattleState['rewards']>['items'][number] | null>(null);
 const selectedBackpackItem = ref<InventoryItemType | null>(null);
+const monsterImage = '/images/battle/enemy-brute.png';
+const arenaCells = computed(() => Array.from({ length: props.battle.arena.columns * props.battle.arena.rows }, (_, i) => i));
+const reachableCells = computed(() => new Set(props.battle.arena.reachableCells));
+const cellStyle = (cell: number) => {
+  const row = Math.floor(cell / props.battle.arena.columns);
+  const column = cell % props.battle.arena.columns;
+  return {
+    left: `${6 + column * 11 + (row % 2) * 5.5}%`,
+    top: `${38 + row * 9}%`,
+  };
+};
+const unitStyle = (cell: number) => {
+  const row = Math.floor(cell / props.battle.arena.columns);
+  const column = cell % props.battle.arena.columns;
+  return {
+    left: `${2 + column * 11 + (row % 2) * 5.5}%`,
+    bottom: `${49 - row * 9}%`,
+    zIndex: 20 + row,
+  };
+};
+const moveToCell = (cell: number) => {
+  if (props.loading || !reachableCells.value.has(cell)) return;
+  emit('tactical-action', { action: 'MOVE', targetCell: cell });
+};
+const attackEnemy = () => {
+  if (props.loading || !props.battle.arena.canAttack) return;
+  emit('tactical-action', { action: 'ATTACK' });
+};
+const playerHealthPercent = computed(() =>
+  Math.max(0, Math.min(100, (props.battle.player.health / props.battle.player.maxHealth) * 100))
+);
+const monsterHealthPercent = computed(() =>
+  Math.max(0, Math.min(100, (props.battle.monster.health / props.battle.monster.maxHealth) * 100))
+);
+const playerAnimationClass = computed(() => {
+  const event = props.battle.events.find((entry) => entry.actor === 'PLAYER');
+  if (!event) return '';
+  if (event.action === 'MOVE') return '';
+  if (event.action === 'DEFEND') return 'unit-defending';
+  return event.dodged || event.blocked ? 'unit-missed' : 'unit-attacking';
+});
+const monsterAnimationClass = computed(() =>
+  props.battle.events.some((entry) => entry.actor === 'MONSTER' && entry.action !== 'MOVE') ? 'unit-attacking' : ''
+);
+const startQuickBattle = () => {
+  mode.value = 'quick';
+  emit('quick-battle');
+};
 
 const playerBackpackItems = computed<InventoryItemType[]>(() => {
   return (currentUserStore.user?.inventory ?? []).map((entry) => ({
@@ -390,10 +559,20 @@ const statusTitle = computed(() => {
 });
 
 const eventText = (event: BattleState['events'][number]) => {
+  if (event.action === 'MOVE') {
+    return t(event.actor === 'PLAYER' ? 'fantasy.encounter.youMove' : 'fantasy.encounter.enemyMoves');
+  }
+  if (event.action === 'DEFEND') return t('fantasy.encounter.defendLog');
   const actor = t(`fantasy.encounter.${getBattleEventSubject(event)}`);
   if (event.dodged) return t('fantasy.encounter.dodged', { actor });
   if (event.blocked) return t('fantasy.encounter.blocked', { actor });
-  return t(event.critical ? 'fantasy.encounter.criticalHit' : 'fantasy.encounter.hit', {
+  const messageKey =
+    event.action === 'POWER_ATTACK'
+      ? 'fantasy.encounter.powerHit'
+      : event.critical
+        ? 'fantasy.encounter.criticalHit'
+        : 'fantasy.encounter.hit';
+  return t(messageKey, {
     actor,
     damage: event.damage,
   });
@@ -435,6 +614,301 @@ const CombatantCard = defineComponent({
     radial-gradient(circle at 25% 50%, rgb(67 167 147 / 16%), transparent 30%),
     radial-gradient(circle at 75% 50%, rgb(198 77 59 / 18%), transparent 30%), #102831;
 }
+.tactical-battlefield {
+  height: clamp(340px, 48vh, 520px);
+  min-height: 340px;
+  background:
+    linear-gradient(to bottom, transparent 55%, rgb(4 17 22 / 28%)),
+    url('/images/battle/tactical-battlefield.png') center 58% / cover no-repeat;
+  perspective: 1100px;
+}
+.battle-haze {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 65%, rgb(35 182 150 / 16%), transparent 23%),
+    radial-gradient(circle at 80% 65%, rgb(203 75 49 / 20%), transparent 23%),
+    linear-gradient(to top, rgb(4 13 18 / 42%), transparent 48%);
+  pointer-events: none;
+}
+.initiative-ribbon {
+  position: absolute;
+  top: 3.5%;
+  left: 3%;
+  z-index: 35;
+  display: flex;
+  max-width: 42%;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem;
+  border: 1px solid rgb(239 202 114 / 30%);
+  border-radius: 0.65rem;
+  color: rgb(226 236 233 / 72%);
+  background: rgb(5 20 27 / 84%);
+  box-shadow: 0 8px 22px rgb(0 0 0 / 30%);
+  backdrop-filter: blur(6px);
+}
+.initiative-unit {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.3rem;
+  overflow: hidden;
+  padding: 0.28rem 0.45rem;
+  border-radius: 0.4rem;
+  font-size: 0.62rem;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.initiative-unit--active {
+  color: #ffe39a;
+  background: rgb(201 157 54 / 20%);
+  box-shadow: inset 0 0 0 1px rgb(255 220 128 / 18%);
+}
+.hex-arena {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+}
+.hex-cell {
+  position: absolute;
+  width: 11.25%;
+  height: 16%;
+  border: 0;
+  clip-path: polygon(25% 4%, 75% 4%, 100% 50%, 75% 96%, 25% 96%, 0 50%);
+  cursor: default;
+  background: rgb(241 220 159 / 8%);
+  box-shadow: inset 0 0 0 2px rgb(255 239 190 / 20%);
+  transition: filter 0.16s ease, background 0.16s ease;
+}
+.hex-cell::after {
+  position: absolute;
+  inset: 4px;
+  clip-path: inherit;
+  content: '';
+  background: linear-gradient(145deg, rgb(255 255 255 / 5%), rgb(2 14 18 / 16%));
+}
+.hex-cell--reachable {
+  cursor: pointer;
+  background: rgb(83 214 178 / 30%);
+  box-shadow: inset 0 0 0 2px rgb(121 255 217 / 64%), 0 0 15px rgb(35 218 165 / 25%);
+}
+.hex-cell--reachable:hover {
+  filter: brightness(1.45);
+}
+.hex-cell--player {
+  background: rgb(58 179 234 / 34%);
+  box-shadow: inset 0 0 0 2px rgb(147 224 255 / 78%), 0 0 18px rgb(51 184 241 / 33%);
+}
+.hex-cell--monster {
+  background: rgb(219 74 49 / 36%);
+  box-shadow: inset 0 0 0 2px rgb(255 134 103 / 82%), 0 0 18px rgb(234 63 36 / 36%);
+}
+.hex-cell--blocked {
+  background: rgb(48 54 45 / 48%);
+  box-shadow: inset 0 0 0 2px rgb(198 180 125 / 28%);
+}
+.terrain-rock {
+  position: relative;
+  z-index: 2;
+  color: #9c9881;
+  font-size: clamp(1.15rem, 2vw, 2rem);
+  filter: drop-shadow(0 3px 2px rgb(0 0 0 / 65%));
+}
+.battle-unit {
+  position: absolute;
+  width: min(19%, 205px);
+  height: 53%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  transform-origin: 50% 100%;
+  transition: left 0.45s ease, bottom 0.45s ease, filter 0.2s ease;
+  filter: drop-shadow(0 22px 12px rgb(0 0 0 / 48%));
+}
+.battle-unit img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.battle-unit--targetable {
+  cursor: crosshair;
+  filter: drop-shadow(0 0 15px rgb(255 83 56 / 72%)) drop-shadow(0 22px 12px rgb(0 0 0 / 48%));
+}
+.melee-target {
+  position: absolute;
+  top: 12%;
+  left: 50%;
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border: 1px solid rgb(255 177 144 / 70%);
+  border-radius: 50%;
+  color: white;
+  background: rgb(174 48 30 / 84%);
+  box-shadow: 0 0 18px rgb(255 70 42 / 65%);
+  transform: translateX(-50%);
+  animation: target-pulse 1.15s ease-in-out infinite;
+}
+.tactical-stat {
+  position: absolute;
+  bottom: 4%;
+  z-index: 5;
+  display: grid;
+  width: min(34%, 260px);
+  grid-template-columns: 1fr auto;
+  gap: 0.2rem 0.6rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid rgb(239 202 114 / 35%);
+  border-radius: 0.65rem;
+  color: white;
+  background: rgb(5 20 27 / 88%);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 38%);
+  backdrop-filter: blur(6px);
+}
+.tactical-stat--player {
+  left: 3%;
+}
+.tactical-stat--monster {
+  right: 3%;
+  text-align: right;
+}
+.tactical-stat strong,
+.tactical-stat span {
+  overflow: hidden;
+  font-size: 0.68rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tactical-stat span {
+  color: #c7d8d4;
+}
+.tactical-stat > div {
+  height: 0.4rem;
+  grid-column: 1 / -1;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 55%);
+}
+.tactical-stat i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #0aa878, #36e6ae);
+  transition: width 0.35s ease;
+}
+.tactical-stat--monster i {
+  margin-left: auto;
+  background: linear-gradient(90deg, #f57555, #b72e2e);
+}
+.turn-standard {
+  position: absolute;
+  top: 4%;
+  left: 50%;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid rgb(239 202 114 / 38%);
+  border-radius: 999px;
+  color: #ffe39a;
+  background: rgb(5 20 27 / 78%);
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  transform: translateX(-50%);
+  backdrop-filter: blur(5px);
+}
+.arena-instruction {
+  position: absolute;
+  right: 3%;
+  top: 4%;
+  z-index: 35;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  max-width: 32%;
+  padding: 0.42rem 0.65rem;
+  border-radius: 0.5rem;
+  color: #d8e9e4;
+  background: rgb(5 20 27 / 78%);
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1.2;
+  backdrop-filter: blur(5px);
+}
+.battle-action {
+  display: inline-flex;
+  min-height: 2.65rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.6rem 1rem;
+  border-radius: 0.65rem;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: 0.18s;
+}
+.battle-action--attack {
+  color: white;
+  background: #bd4938;
+}
+.battle-action--defend {
+  color: #c9eaff;
+  border: 1px solid rgb(125 211 252 / 38%);
+  background: rgb(12 74 110 / 35%);
+}
+.battle-action--power {
+  color: #ffe4a3;
+  border: 1px solid rgb(251 191 36 / 40%);
+  background: rgb(146 64 14 / 35%);
+}
+.battle-action:hover:not(:disabled) {
+  filter: brightness(1.14);
+  transform: translateY(-1px);
+}
+.battle-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+.battle-unit img.unit-attacking {
+  animation: tactical-strike 0.55s ease-in-out;
+}
+.battle-unit--monster img.unit-attacking {
+  animation-name: tactical-strike-reverse;
+}
+.battle-unit img.unit-defending {
+  animation: tactical-defend 0.65s ease-in-out;
+}
+.battle-unit img.unit-missed {
+  animation: tactical-miss 0.55s ease-in-out;
+}
+@keyframes tactical-strike {
+  0%, 100% { transform: translateX(0) rotateY(0); }
+  48% { transform: translateX(34%) rotateY(-8deg) scale(1.05); }
+}
+@keyframes tactical-strike-reverse {
+  0%, 100% { transform: translateX(0) rotateY(0); }
+  48% { transform: translateX(-34%) rotateY(8deg) scale(1.05); }
+}
+@keyframes tactical-defend {
+  0%, 100% { filter: drop-shadow(0 22px 12px rgb(0 0 0 / 48%)); }
+  50% { filter: drop-shadow(0 0 18px rgb(83 197 255 / 88%)); transform: scale(0.96); }
+}
+@keyframes tactical-miss {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(12%); opacity: 0.72; }
+}
+@keyframes target-pulse {
+  0%, 100% { transform: translateX(-50%) scale(1); }
+  50% { transform: translateX(-50%) scale(1.15); }
+}
 .combatant {
   display: flex;
   width: 92px;
@@ -452,5 +926,21 @@ const CombatantCard = defineComponent({
   color: #ffab95;
   border: 2px solid rgb(238 111 83 / 60%);
   background: #42242a;
+}
+@media (max-width: 640px) {
+  .tactical-battlefield {
+    height: 340px;
+  }
+  .battle-unit {
+    width: 25%;
+    height: 45%;
+  }
+  .tactical-stat {
+    width: 43%;
+  }
+  .initiative-ribbon,
+  .arena-instruction {
+    display: none;
+  }
 }
 </style>

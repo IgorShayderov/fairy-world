@@ -270,10 +270,10 @@ describe('ClansService', () => {
     });
     clanMemberFindMany.mockResolvedValue([]);
     clanFindUnique
-      .mockResolvedValueOnce({ id: 'clan-1', activityPoints: 120, bannerUnlocks: [] })
+      .mockResolvedValueOnce({ id: 'clan-1', activityPoints: 180, bannerUnlocks: [] })
       .mockResolvedValueOnce({
         id: 'clan-1',
-        activityPoints: 120,
+        activityPoints: 180,
         activeBannerCode: 'IRON_OATH',
         bannerUnlocks: [{ bannerCode: 'IRON_OATH' }],
       });
@@ -287,7 +287,7 @@ describe('ClansService', () => {
       where: { id: 'clan-1' },
       data: { activeBannerCode: 'IRON_OATH' },
     });
-    expect(result.activityPoints).toBe(120);
+    expect(result.activityPoints).toBe(180);
     expect(result.banners.find((banner) => banner.code === 'IRON_OATH')?.unlocked).toBe(true);
   });
 
@@ -299,7 +299,7 @@ describe('ClansService', () => {
     clanMemberFindMany.mockResolvedValue([]);
     clanFindUnique.mockResolvedValueOnce({
       id: 'clan-1',
-      activityPoints: 120,
+      activityPoints: 180,
       activeBannerCode: null,
       bannerUnlocks: [],
     });

@@ -348,6 +348,8 @@ describe('MonstersService', () => {
       const offRoad = await service.rollEncounter(7);
       if (!offRoad.encountered) throw new Error('Expected encounter');
       expect(offRoad.battle.canRetreat).toBe(false);
+      expect(service.activeForcedBattle(7)?.id).toBe(offRoad.battle.id);
+      expect(service.activeForcedBattle(8)).toBeNull();
       expect(() => service.retreat(7, offRoad.battle.id)).toThrow('only on a road or near a town');
 
       user.gameProfile.mapPositionX = 1470;
@@ -476,6 +478,69 @@ describe('MonstersService', () => {
         where: { id: 5 },
         data: { level: 6, experience: 0, freeAttributes: { increment: 5 } },
       });
+    });
+
+    it('moves both combatants across the tactical arena before melee attacks are available', async () => {
+      jest.spyOn(Math, 'random').mockReturnValueOnce(0.01).mockReturnValue(0.99);
+      mockUsersService.findCurrentUser.mockResolvedValue(currentUser(5, 500));
+      mockMonsterGenerator.generate.mockReturnValue({
+        id: 3,
+        name: 'Hill Raider',
+        monsterType: 'Hill Raider',
+        level: 5,
+        rewardGold: 20,
+        rewardExperience: 25,
+        attributes: [],
+      });
+      const encounter = await service.rollEncounter(7);
+      if (!encounter.encountered) throw new Error('Expected encounter');
+
+      await expect(service.takeTurn(7, encounter.battle.id, 'ATTACK')).rejects.toThrow(
+        'Move next to the enemy before attacking',
+      );
+      const firstTurn = await service.takeTurn(7, encounter.battle.id, 'MOVE', 19);
+
+      expect(firstTurn.status).toBe('ACTIVE');
+      expect(firstTurn.turn).toBe(2);
+      expect(firstTurn.events).toHaveLength(2);
+      expect(firstTurn.events[0]).toMatchObject({ actor: 'PLAYER', action: 'MOVE', fromCell: 16, toCell: 19 });
+      expect(firstTurn.events[1]).toMatchObject({ actor: 'MONSTER', action: 'MOVE', fromCell: 23, toCell: 21 });
+      expect(firstTurn.arena).toMatchObject({ playerPosition: 19, monsterPosition: 21, canAttack: false });
+      expect(mockPrismaService.gameProfile.update).not.toHaveBeenCalled();
+
+      const defended = await service.takeTurn(7, encounter.battle.id, 'DEFEND');
+      expect(defended.turn).toBe(3);
+      expect(defended.events[0]).toMatchObject({ actor: 'PLAYER', action: 'DEFEND', damage: 0 });
+      expect(defended.events[1]).toMatchObject({ actor: 'MONSTER', action: 'MOVE', toCell: 20 });
+      expect(defended.events.at(-1)).toMatchObject({ actor: 'MONSTER' });
+      expect(defended.arena.canAttack).toBe(true);
+    });
+
+    it('gives tactical power strike a three-turn cooldown', async () => {
+      jest.spyOn(Math, 'random').mockReturnValueOnce(0.01).mockReturnValue(0.99);
+      mockUsersService.findCurrentUser.mockResolvedValue(currentUser(5, 500));
+      mockMonsterGenerator.generate.mockReturnValue({
+        id: 4,
+        name: 'Ironhide',
+        monsterType: 'Ironhide',
+        level: 5,
+        rewardGold: 20,
+        rewardExperience: 25,
+        attributes: [{ value: 50, attribute: { name: 'ENDURANCE' } }],
+      });
+      const encounter = await service.rollEncounter(7);
+      if (!encounter.encountered) throw new Error('Expected encounter');
+
+      await service.takeTurn(7, encounter.battle.id, 'MOVE', 19);
+      await service.takeTurn(7, encounter.battle.id, 'DEFEND');
+      const turn = await service.takeTurn(7, encounter.battle.id, 'POWER_ATTACK');
+
+      expect(turn.status).toBe('ACTIVE');
+      expect(turn.powerAttackCooldown).toBe(3);
+      expect(turn.events[0]).toMatchObject({ actor: 'PLAYER', action: 'POWER_ATTACK' });
+      await expect(service.takeTurn(7, encounter.battle.id, 'POWER_ATTACK')).rejects.toThrow(
+        'Power attack is ready in 3 turn(s)',
+      );
     });
 
     it('adds a generated rarity-weighted item drop to inventory on victory', async () => {

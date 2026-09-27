@@ -63,6 +63,9 @@ export interface BattleState {
     blocked?: boolean;
     actorName?: string;
     targetName?: string;
+    action?: BattleAction;
+    fromCell?: number;
+    toCell?: number;
   }>;
   rewards?: {
     gold: number;
@@ -86,6 +89,23 @@ export interface BattleState {
     }>;
   };
   canRetreat: boolean;
+  powerAttackCooldown: number;
+  arena: {
+    columns: number;
+    rows: number;
+    playerPosition: number;
+    monsterPosition: number;
+    playerMovement: number;
+    blockedCells: number[];
+    reachableCells: number[];
+    canAttack: boolean;
+  };
+}
+
+export type BattleAction = 'ATTACK' | 'DEFEND' | 'POWER_ATTACK' | 'MOVE';
+export interface TacticalBattleAction {
+  action: BattleAction;
+  targetCell?: number;
 }
 
 export type DungeonOpponentStatus = 'AVAILABLE' | 'LOCKED' | 'DEFEATED';
@@ -194,6 +214,16 @@ export const getMonster = async (id: number): Promise<Monster> => {
 
 export const attackMonster = async (battleId: string): Promise<BattleState> => {
   const { data } = await api.post<BattleState>(routes.api.monsters.battleAttackPath(battleId));
+  return data;
+};
+
+export const getActiveForcedBattle = async (): Promise<BattleState | null> => {
+  const { data } = await api.get<BattleState | null>(routes.api.monsters.activeBattlePath());
+  return data;
+};
+
+export const takeBattleTurn = async (battleId: string, turn: TacticalBattleAction): Promise<BattleState> => {
+  const { data } = await api.post<BattleState>(routes.api.monsters.battleTurnPath(battleId), turn);
   return data;
 };
 

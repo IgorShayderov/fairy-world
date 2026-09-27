@@ -136,7 +136,8 @@
       :battle="activeBattle"
       :player-name="currentUserStore.user?.name ?? t('fantasy.encounter.traveler')"
       :loading="battlePending"
-      @attack="handleAttack"
+      @quick-battle="handleAttack"
+      @tactical-action="handleTacticalAction"
       @retreat="handleRetreat"
       @close="activeBattle = null"
     />
@@ -154,15 +155,17 @@ import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 import { canHuntAt, landmarks, movementSpeedAt, type Landmark } from '@/modules/Game/composables/useMapObjects';
 import { rollHuntDelaySeconds } from '@/modules/Game/hunt';
 import { enterDungeon, receiveBlessing, resetDungeon } from '@/modules/Locations/api';
-import type { BattleState, DungeonRunState } from '@/modules/Monsters/api';
+import type { BattleState, DungeonRunState, TacticalBattleAction } from '@/modules/Monsters/api';
 import {
   attackDungeonOpponent,
   attackMonster,
+  getActiveForcedBattle,
   getActiveDungeon,
   huntMonster,
   leaveDungeon,
   retreatFromBattle,
   submitDungeonPartyLoot,
+  takeBattleTurn,
   useDungeonHealthPotion,
 } from '@/modules/Monsters/api';
 import routes from '@/routes';
@@ -417,6 +420,23 @@ const handleAttack = async () => {
     if (activeBattle.value.status !== 'ACTIVE') await currentUserStore.fetchCurrentUser(true);
   } catch (error) {
     console.error('Battle attack failed:', error);
+  } finally {
+    battlePending.value = false;
+  }
+};
+
+const handleTacticalAction = async (action: TacticalBattleAction) => {
+  if (!activeBattle.value || battlePending.value) return;
+  battlePending.value = true;
+  try {
+    activeBattle.value = await takeBattleTurn(activeBattle.value.id, action);
+    if (activeBattle.value.status === 'DEFEAT') handlePlayerDefeat();
+    if (activeBattle.value.status !== 'ACTIVE') await currentUserStore.fetchCurrentUser(true);
+  } catch (error) {
+    Notify.create({
+      type: 'negative',
+      message: error instanceof Error ? error.message : t('fantasy.landmark.error'),
+    });
   } finally {
     battlePending.value = false;
   }
@@ -708,9 +728,17 @@ onMounted(async () => {
       console.error('Failed to restore dungeon run:', error);
     }
   }
+  if (!activeDungeonRun.value) {
+    try {
+      activeBattle.value = await getActiveForcedBattle();
+      if (activeBattle.value) stop();
+    } catch (error) {
+      console.error('Failed to restore active encounter:', error);
+    }
+  }
   const landmark = nearbyLandmark(position.x, position.y);
   visitedLandmark = landmark?.name ?? null;
-  promptLandmark.value = landmark ?? null;
+  promptLandmark.value = activeBattle.value ? null : (landmark ?? null);
   resizeObserver = new ResizeObserver(resizeCanvas);
   if (containerRef.value) resizeObserver.observe(containerRef.value);
   dungeonPartyTimer = setInterval(() => {

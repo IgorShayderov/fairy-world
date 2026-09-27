@@ -72,6 +72,8 @@ const routes = {
       listPath: () => [BASE_API_PATH, 'monsters'].join('/'),
       byIdPath: (id: number) => [BASE_API_PATH, 'monsters', String(id)].join('/'),
       battleAttackPath: (battleId: string) => [BASE_API_PATH, 'monsters', 'battle', battleId, 'attack'].join('/'),
+      activeBattlePath: () => [BASE_API_PATH, 'monsters', 'battle', 'active'].join('/'),
+      battleTurnPath: (battleId: string) => [BASE_API_PATH, 'monsters', 'battle', battleId, 'turn'].join('/'),
       battleRetreatPath: (battleId: string) => [BASE_API_PATH, 'monsters', 'battle', battleId, 'retreat'].join('/'),
       huntPath: () => [BASE_API_PATH, 'monsters', 'hunt'].join('/'),
     },
