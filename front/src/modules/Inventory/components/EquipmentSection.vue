@@ -35,15 +35,31 @@
           >
             <div
               v-if="slot.id === 'banner' && activeClanBannerCode"
-              class="relative flex h-full w-full items-center justify-center rounded-lg border-2 border-solid border-amber-300/50 bg-white shadow-sm"
-              :title="t('clans.bannerPvpBonus', { value: activeClanBannerBonusPercent })"
+              class="flex h-full w-full items-center justify-center rounded-lg border-2 border-solid border-amber-300/50 bg-white shadow-sm"
             >
               <ClanBanner :code="activeClanBannerCode" size="medium" />
-              <span
-                class="absolute right-1 bottom-1 left-1 rounded bg-[#0b2530] px-1 py-0.5 text-center text-[8px] font-black tracking-wide text-amber-200 uppercase shadow"
+              <QMenu
+                class="max-w-lg overflow-y-auto bg-gray-900 p-3 text-white"
+                anchor="top middle"
+                self="bottom middle"
+                max-height="70vh"
+                max-width="32rem"
+                hover
+                :hover-hide-delay="300"
+                no-focus
+                no-refocus
               >
-                +{{ activeClanBannerBonusPercent }}% PvP
-              </span>
+                <div class="font-semibold">{{ activeClanBanner?.name ?? t('profile.slots.banner') }}</div>
+                <div class="mt-1 inline-flex rounded bg-amber-900/60 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-amber-200 uppercase">
+                  {{ t('clans.bannerLevel', { level: activeClanBanner?.level ?? activeClanBannerBonusPercent / 5 }) }}
+                </div>
+                <div v-if="activeClanBanner?.description" class="mt-1 text-xs text-gray-200">
+                  {{ activeClanBanner.description }}
+                </div>
+                <div class="mt-2 border-t border-gray-600 pt-2 text-xs font-semibold text-emerald-300">
+                  {{ t('clans.bannerPvpBonus', { value: activeClanBannerBonusPercent }) }}
+                </div>
+              </QMenu>
             </div>
             <InventoryItem
               v-else
@@ -206,7 +222,7 @@
 
 <script setup lang="ts">
 import { useTranslation } from 'i18next-vue';
-import { QCard, QBtn, QTooltip } from 'quasar';
+import { QCard, QBtn, QMenu, QTooltip } from 'quasar';
 import { computed, ref } from 'vue';
 
 import type { Component } from 'vue';
@@ -247,6 +263,13 @@ const props = defineProps<{
   allocatingAttribute: string | null;
   activeClanBannerCode?: string | null;
   activeClanBannerBonusPercent?: number;
+  activeClanBanner?: {
+    code: string;
+    name: string;
+    description: string;
+    level: number;
+    pvpBonusPercent: number;
+  } | null;
   disableItemTooltips?: boolean;
 }>();
 

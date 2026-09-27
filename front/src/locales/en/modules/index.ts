@@ -203,6 +203,7 @@ const modules = {
     bannerInventory: 'Banner inventory',
     bannerInventoryText: 'Every banner your clan has earned is kept here permanently.',
     bannerPvpBonus: '+{{value}}% damage and defense in PvP',
+    bannerLevel: 'Clan banner · Level {{level}}',
     noUnlockedBanners: 'Reach 120 clan activity to unlock your first banner.',
     bannerMilestones: 'Next milestones',
     unlockAt: '{{current}} / {{cost}} activity',

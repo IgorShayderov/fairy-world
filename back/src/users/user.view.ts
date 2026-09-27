@@ -9,7 +9,7 @@ import {
 } from '../../generated/client';
 import { CRAFT_ITEMS, upgradeValueForLevel } from '../crafting/crafting.catalog';
 import { clanBuildingBonus } from '../clans/clan-buildings';
-import { clanBannerPvpBonusPercent } from '../clans/clan-banners';
+import { CLAN_BANNERS, clanBannerPvpBonusPercent } from '../clans/clan-banners';
 import { ItemView } from '../common/views/item.view';
 import { townAt } from '../locations/towns';
 import { shieldBlockChance } from '../items/shield-block';
@@ -73,6 +73,9 @@ export type UserViewType = 'default' | 'extended';
 export class UserView {
   static renderCurrent(user: CurrentUserModel) {
     const profile = user.gameProfile;
+    const activeClanBanner = CLAN_BANNERS.find(
+      (banner) => banner.code === profile?.clanMembership?.clan.activeBannerCode,
+    );
     const playerLevel = profile?.level ?? 1;
     const entries = profile?.inventory ?? [];
     const equippedEntries = entries.filter((entry) => entry.isEquiped);
@@ -307,6 +310,7 @@ export class UserView {
       activeClanBannerPvpBonusPercent: clanBannerPvpBonusPercent(
         profile?.clanMembership?.clan.activeBannerCode,
       ),
+      activeClanBanner: activeClanBanner ?? null,
       blockChance,
       craftInventory: (profile?.craftItems ?? []).map(({ craftItem, quantity }) => ({ ...craftItem, quantity })),
       attributes: [...attributes.values()],

@@ -203,6 +203,7 @@ const modules = {
     bannerInventory: 'Инвентарь знамён',
     bannerInventoryText: 'Все заслуженные кланом знамёна навсегда хранятся здесь.',
     bannerPvpBonus: '+{{value}}% к урону и защите в PvP',
+    bannerLevel: 'Знамя клана · Уровень {{level}}',
     noUnlockedBanners: 'Достигните 120 активности клана, чтобы открыть первое знамя.',
     bannerMilestones: 'Следующие достижения',
     unlockAt: '{{current}} / {{cost}} активности',

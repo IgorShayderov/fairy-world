@@ -21,6 +21,7 @@
           :allocating-attribute="allocatingAttribute"
           :active-clan-banner-code="currentUserStore.user?.activeClanBannerCode ?? null"
           :active-clan-banner-bonus-percent="currentUserStore.user?.activeClanBannerPvpBonusPercent ?? 0"
+          :active-clan-banner="currentUserStore.user?.activeClanBanner ?? null"
           :disable-item-tooltips="dragUpgradeItem !== null"
           @slot-enter="(id) => (isHoveredSlot = id)"
           @slot-leave="isHoveredSlot = null"
