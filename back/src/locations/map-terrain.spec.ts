@@ -1,4 +1,4 @@
-import { canRetreatAt, encounterChanceAt, isInBog, isInForest } from './map-terrain';
+import { canHuntAt, canRetreatAt, encounterChanceAt, isInBog, isInForest } from './map-terrain';
 
 describe('map terrain', () => {
   it('uses route, open-land, and difficult-terrain encounter chances', () => {
@@ -19,5 +19,12 @@ describe('map terrain', () => {
     expect(canRetreatAt({ x: 1470, y: 960 })).toBe(true);
     expect(canRetreatAt({ x: 1500, y: 950 })).toBe(true);
     expect(canRetreatAt({ x: 1400, y: 800 })).toBe(false);
+  });
+
+  it('permits hunting only away from roads, settlements, and sanctuaries', () => {
+    expect(canHuntAt({ x: 1400, y: 800 })).toBe(true);
+    expect(canHuntAt({ x: 1400, y: 960 })).toBe(false);
+    expect(canHuntAt({ x: 1470, y: 960 })).toBe(false);
+    expect(canHuntAt({ x: 1200, y: 250 })).toBe(false);
   });
 });

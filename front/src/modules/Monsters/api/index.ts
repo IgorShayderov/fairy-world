@@ -201,6 +201,11 @@ export const retreatFromBattle = async (battleId: string): Promise<void> => {
   await api.post(routes.api.monsters.battleRetreatPath(battleId));
 };
 
+export const huntMonster = async (): Promise<{ monster: GeneratedMonster; battle: BattleState }> => {
+  const { data } = await api.post<{ monster: GeneratedMonster; battle: BattleState }>(routes.api.monsters.huntPath());
+  return data;
+};
+
 export const getActiveDungeon = async (): Promise<DungeonRunState | null> => {
   const { data } = await api.get<DungeonRunState | null>(routes.api.monsters.activeDungeonPath());
   return data;

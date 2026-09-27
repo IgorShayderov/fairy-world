@@ -109,6 +109,12 @@ export class MonstersController {
     return this.monstersService.retreat(req.user.sub, battleId);
   }
 
+  @Post('hunt')
+  @ApiOkResponse({ description: 'Starts a guaranteed encounter when the saved position is valid hunting terrain' })
+  hunt(@Request() req: RequestWithUser) {
+    return this.monstersService.hunt(req.user.sub);
+  }
+
   @Get(':id')
   @ApiOkResponse({ description: 'Monster by id' })
   @ApiNotFoundResponse({ description: 'Monster not found' })

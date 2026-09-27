@@ -283,6 +283,12 @@ const modules = {
     zoomOut: 'Zoom out',
     resetView: 'Reset map view',
     controlsHint: 'Drag to explore · Click to travel · Scroll to zoom',
+    hunt: {
+      action: 'Hunt',
+      searching: 'Tracking… {{seconds}}s',
+      hint: 'Search this wilderness for a monster',
+      error: 'No trail could be found here.',
+    },
     party: {
       commandDungeon: 'Command dungeon',
       back: 'Back',

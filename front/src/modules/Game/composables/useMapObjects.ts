@@ -285,6 +285,15 @@ export const movementSpeedAt = (x: number, y: number) => {
   return 0.7;
 };
 
+export const canHuntAt = (x: number, y: number) => {
+  if (isPointOnRoute(x, y)) return false;
+  return !landmarks.some((landmark) => {
+    if (landmark.type === 'dungeon') return false;
+    const reach = landmark.type === 'sanctum' ? 85 : 70;
+    return Math.hypot(x - landmark.x, y - landmark.y) <= reach;
+  });
+};
+
 const terrainPoints = (feature: TerrainFeature) => {
   const random = seededRandom(feature.seed);
   return Array.from({ length: 14 }, (_, index) => {

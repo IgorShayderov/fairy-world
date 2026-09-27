@@ -1,5 +1,6 @@
 import { townAt } from './towns';
 import { isOnTravelRoute } from './travel-routes';
+import { encounterLandmarks } from './landmarks';
 
 type Point = { x: number; y: number };
 type TerrainFeature = Point & { rx: number; ry: number; angle: number };
@@ -44,3 +45,13 @@ export const encounterChanceAt = (point: Point) => {
 
 export const canRetreatAt = (point: Point) =>
   isOnTravelRoute(point.x, point.y) || Boolean(townAt({ mapPositionX: point.x, mapPositionY: point.y }));
+
+const isNearSanctuary = (point: Point) =>
+  Object.values(encounterLandmarks).some(
+    (landmark) => landmark.type === 'sanctum' && Math.hypot(point.x - landmark.x, point.y - landmark.y) <= 85,
+  );
+
+export const canHuntAt = (point: Point) =>
+  !isOnTravelRoute(point.x, point.y) &&
+  !townAt({ mapPositionX: point.x, mapPositionY: point.y }) &&
+  !isNearSanctuary(point);

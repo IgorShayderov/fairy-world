@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   bridgeCrossings,
+  canHuntAt,
   isPointInBog,
   isPointInForest,
   isPointInMountain,
@@ -70,6 +71,13 @@ describe('map roads', () => {
     expect(isPointInForest(790, 1220)).toBe(true);
     expect(movementSpeedAt(790, 1220)).toBe(0.4);
     expect(movementSpeedAt(420, 1510)).toBe(0.2);
+  });
+
+  it('allows hunting only away from routes, settlements, and sanctuaries', () => {
+    expect(canHuntAt(1400, 800)).toBe(true);
+    expect(canHuntAt(1400, 960)).toBe(false);
+    expect(canHuntAt(1470, 960)).toBe(false);
+    expect(canHuntAt(1200, 250)).toBe(false);
   });
 
   it('never crosses a drawn mountain, including the road stroke', () => {

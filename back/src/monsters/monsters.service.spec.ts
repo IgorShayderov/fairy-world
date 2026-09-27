@@ -94,6 +94,7 @@ describe('MonstersService', () => {
     );
     mockPrismaService.gameProfile.update.mockResolvedValue({ id: 5, level: 1, experience: 14 });
     mockPrismaService.craftItem.findUnique.mockResolvedValue(null);
+    mockDungeonRuns.active.mockResolvedValue(null);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -390,6 +391,48 @@ describe('MonstersService', () => {
       });
       expect(result.battle.monster.id).toBe(2);
       expect(result.battle.monster.health).toBeGreaterThan(0);
+    });
+
+    it('starts a guaranteed hunt encounter away from roads and landmarks', async () => {
+      const user = currentUser(8);
+      user.gameProfile.mapPositionX = 1400;
+      user.gameProfile.mapPositionY = 800;
+      mockUsersService.findCurrentUser.mockResolvedValue(user);
+      const monster = {
+        id: 2,
+        name: 'Hunted Wolf',
+        monsterType: 'Dire Wolf',
+        level: 8,
+        rewardGold: 25,
+        rewardExperience: 40,
+        attributes: [],
+      };
+      mockMonsterGenerator.generate.mockReturnValue(monster);
+
+      const result = await service.hunt(7);
+
+      expect(mockMonsterGenerator.generate).toHaveBeenCalledWith(8, { x: 1400, y: 800 });
+      expect(result.monster).toBe(monster);
+      expect(result.battle.status).toBe('ACTIVE');
+      expect(result.battle.canRetreat).toBe(false);
+    });
+
+    it('rejects hunting on roads, near settlements, and near sanctuaries', async () => {
+      const user = currentUser(8);
+      mockUsersService.findCurrentUser.mockResolvedValue(user);
+      await expect(service.hunt(7)).rejects.toThrow('Hunting is available only away from roads');
+
+      user.gameProfile.mapPositionX = 1200;
+      user.gameProfile.mapPositionY = 250;
+      await expect(service.hunt(7)).rejects.toThrow('Hunting is available only away from roads');
+      expect(mockMonsterGenerator.generate).not.toHaveBeenCalled();
+    });
+
+    it('does not allow hunting during an active dungeon run', async () => {
+      mockDungeonRuns.active.mockResolvedValue({ id: 'active-run' });
+
+      await expect(service.hunt(7)).rejects.toThrow('Finish the active dungeon first');
+      expect(mockUsersService.findCurrentUser).not.toHaveBeenCalled();
     });
 
     it('resolves the entire battle with one attack and permanently awards victory rewards', async () => {
