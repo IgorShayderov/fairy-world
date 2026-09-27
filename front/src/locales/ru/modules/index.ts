@@ -145,6 +145,7 @@ const modules = {
     shopBuy: 'Купить',
     shopBuying: 'Покупка...',
     shopPurchased: '{{item}} добавлен в инвентарь.',
+    bannerBonus: 'Знамя: +{{value}}% к урону и защите',
   },
   clans: {
     eyebrow: 'Братства королевства',
@@ -201,6 +202,7 @@ const modules = {
       'Постоянные знамёна открываются автоматически за достижения активности клана. Активность не расходуется.',
     bannerInventory: 'Инвентарь знамён',
     bannerInventoryText: 'Все заслуженные кланом знамёна навсегда хранятся здесь.',
+    bannerPvpBonus: '+{{value}}% к урону и защите в PvP',
     noUnlockedBanners: 'Достигните 120 активности клана, чтобы открыть первое знамя.',
     bannerMilestones: 'Следующие достижения',
     unlockAt: '{{current}} / {{cost}} активности',

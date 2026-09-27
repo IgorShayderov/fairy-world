@@ -190,6 +190,7 @@ describe('UserView.renderCurrent', () => {
     expect(result.blockChance).toBe(10);
     expect(result.rewardBonuses).toEqual({ goldPercent: 6, experiencePercent: 4 });
     expect(result.activeClanBannerCode).toBe('IRON_OATH');
+    expect(result.activeClanBannerPvpBonusPercent).toBe(5);
     expect(result.mapPosition).toEqual({ x: 1600, y: 900 });
     expect(result.inventory).toHaveLength(1);
     expect(result.inventory[0]).toMatchObject({

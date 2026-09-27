@@ -1,6 +1,8 @@
 export const CLAN_BANNERS = [
   {
     code: 'IRON_OATH',
+    level: 1,
+    pvpBonusPercent: 5,
     name: 'Iron Oath',
     description: 'A battle-worn standard for clans taking their first victories.',
     cost: 120,
@@ -9,6 +11,8 @@ export const CLAN_BANNERS = [
   },
   {
     code: 'VERDANT_HART',
+    level: 2,
+    pvpBonusPercent: 10,
     name: 'Verdant Hart',
     description: 'The green hart marks hunters who thrive beyond the roads.',
     cost: 300,
@@ -17,6 +21,8 @@ export const CLAN_BANNERS = [
   },
   {
     code: 'MOONWATCH',
+    level: 3,
+    pvpBonusPercent: 15,
     name: 'Moonwatch',
     description: 'A silver sigil for companions who keep watch through the night.',
     cost: 600,
@@ -25,6 +31,8 @@ export const CLAN_BANNERS = [
   },
   {
     code: 'FROSTBOUND',
+    level: 4,
+    pvpBonusPercent: 20,
     name: 'Frostbound',
     description: 'Carried by clans who have endured the frozen north.',
     cost: 1000,
@@ -33,6 +41,8 @@ export const CLAN_BANNERS = [
   },
   {
     code: 'SUN_CROWN',
+    level: 5,
+    pvpBonusPercent: 25,
     name: 'Sun Crown',
     description: 'A radiant standard reserved for the realm’s most active clans.',
     cost: 1800,
@@ -42,3 +52,6 @@ export const CLAN_BANNERS = [
 ] as const;
 
 export type ClanBannerCode = (typeof CLAN_BANNERS)[number]['code'];
+
+export const clanBannerPvpBonusPercent = (code?: string | null) =>
+  CLAN_BANNERS.find((banner) => banner.code === code)?.pvpBonusPercent ?? 0;

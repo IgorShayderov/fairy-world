@@ -15,6 +15,7 @@ export type PvpOpponent = {
   blockChance: number;
   criticalChance: number;
   criticalDamage: number;
+  bannerBonusPercent: number;
   rewards: {
     gold: number;
     experience: number;
@@ -32,6 +33,7 @@ export type PvpCombatant = {
   blockChance: number;
   criticalChance: number;
   criticalDamage: number;
+  bannerBonusPercent: number;
 };
 
 export type PvpBattleEvent = {

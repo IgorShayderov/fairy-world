@@ -35,10 +35,15 @@
           >
             <div
               v-if="slot.id === 'banner' && activeClanBannerCode"
-              class="flex h-full w-full items-center justify-center rounded-lg border-2 border-solid border-amber-300/50 bg-white shadow-sm"
-              :title="t('profile.slots.banner')"
+              class="relative flex h-full w-full items-center justify-center rounded-lg border-2 border-solid border-amber-300/50 bg-white shadow-sm"
+              :title="t('clans.bannerPvpBonus', { value: activeClanBannerBonusPercent })"
             >
               <ClanBanner :code="activeClanBannerCode" size="medium" />
+              <span
+                class="absolute right-1 bottom-1 left-1 rounded bg-[#0b2530] px-1 py-0.5 text-center text-[8px] font-black tracking-wide text-amber-200 uppercase shadow"
+              >
+                +{{ activeClanBannerBonusPercent }}% PvP
+              </span>
             </div>
             <InventoryItem
               v-else
@@ -241,6 +246,7 @@ const props = defineProps<{
   playerFreeAttributes: number;
   allocatingAttribute: string | null;
   activeClanBannerCode?: string | null;
+  activeClanBannerBonusPercent?: number;
   disableItemTooltips?: boolean;
 }>();
 

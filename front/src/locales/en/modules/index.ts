@@ -145,6 +145,7 @@ const modules = {
     shopBuy: 'Buy',
     shopBuying: 'Buying...',
     shopPurchased: '{{item}} was added to your inventory.',
+    bannerBonus: 'Banner: +{{value}}% damage & defense',
   },
   clans: {
     eyebrow: 'Brotherhoods of the realm',
@@ -201,6 +202,7 @@ const modules = {
       'Permanent banners unlock automatically at clan activity milestones. Activity is never spent.',
     bannerInventory: 'Banner inventory',
     bannerInventoryText: 'Every banner your clan has earned is kept here permanently.',
+    bannerPvpBonus: '+{{value}}% damage and defense in PvP',
     noUnlockedBanners: 'Reach 120 clan activity to unlock your first banner.',
     bannerMilestones: 'Next milestones',
     unlockAt: '{{current}} / {{cost}} activity',

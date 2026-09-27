@@ -54,6 +54,8 @@ export type ClanBanner = {
   name: string;
   description: string;
   cost: number;
+  level: number;
+  pvpBonusPercent: number;
   icon: string;
   colors: readonly [string, string, string];
   unlocked: boolean;

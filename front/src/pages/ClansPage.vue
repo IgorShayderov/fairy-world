@@ -283,6 +283,10 @@
                     <span class="owned-chip">{{ t('clans.unlocked') }}</span>
                   </div>
                   <p class="mt-1 min-h-12 text-xs leading-5 text-[#a9bfba]">{{ banner.description }}</p>
+                  <p class="banner-bonus mt-2">
+                    <QIcon name="sports_martial_arts" size="15px" />
+                    {{ t('clans.bannerPvpBonus', { value: banner.pvpBonusPercent }) }}
+                  </p>
                   <button
                     class="banner-action mt-3 w-full"
                     :disabled="!shop?.canManage || shop?.activeBannerCode === banner.code || actionBusy"
@@ -307,6 +311,10 @@
               <div class="min-w-0 flex-1">
                 <h3 class="font-serif text-lg font-semibold text-[#fff0bd]">{{ banner.name }}</h3>
                 <p class="mt-1 min-h-12 text-xs leading-5 text-[#a9bfba]">{{ banner.description }}</p>
+                <p class="banner-bonus mt-2">
+                  <QIcon name="sports_martial_arts" size="15px" />
+                  {{ t('clans.bannerPvpBonus', { value: banner.pvpBonusPercent }) }}
+                </p>
                 <div class="milestone-progress mt-3">
                   <div
                     class="milestone-progress__bar"
@@ -755,6 +763,15 @@ onMounted(() => void load());
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.banner-bonus {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #efca72;
+  font-size: 0.7rem;
+  font-weight: 700;
 }
 
 .milestone-progress {

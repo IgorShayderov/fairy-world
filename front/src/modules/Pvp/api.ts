@@ -21,6 +21,7 @@ export interface PvpOpponent {
   blockChance: number;
   criticalChance: number;
   criticalDamage: number;
+  bannerBonusPercent: number;
   rewards: {
     gold: number;
     experience: number;
@@ -38,6 +39,7 @@ export interface PvpCombatant {
   blockChance: number;
   criticalChance: number;
   criticalDamage: number;
+  bannerBonusPercent: number;
 }
 
 export interface PvpBattleEvent {

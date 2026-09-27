@@ -9,6 +9,7 @@ import {
 } from '../../generated/client';
 import { CRAFT_ITEMS, upgradeValueForLevel } from '../crafting/crafting.catalog';
 import { clanBuildingBonus } from '../clans/clan-buildings';
+import { clanBannerPvpBonusPercent } from '../clans/clan-banners';
 import { ItemView } from '../common/views/item.view';
 import { townAt } from '../locations/towns';
 import { shieldBlockChance } from '../items/shield-block';
@@ -303,6 +304,9 @@ export class UserView {
       activeBuffs: activeBuffs.map(({ type, value, expiresAt }) => ({ type, value, expiresAt })),
       rewardBonuses: { goldPercent: goldBonusPercent, experiencePercent: experienceBonusPercent },
       activeClanBannerCode: profile?.clanMembership?.clan.activeBannerCode ?? null,
+      activeClanBannerPvpBonusPercent: clanBannerPvpBonusPercent(
+        profile?.clanMembership?.clan.activeBannerCode,
+      ),
       blockChance,
       craftInventory: (profile?.craftItems ?? []).map(({ craftItem, quantity }) => ({ ...craftItem, quantity })),
       attributes: [...attributes.values()],

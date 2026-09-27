@@ -32,6 +32,9 @@
               <div class="text-sm font-semibold text-white">
                 {{ t('profile.summary.level') }} {{ currentUserStore.user?.level ?? 1 }}
               </div>
+              <div v-if="currentUserStore.user?.activeClanBannerPvpBonusPercent" class="mt-0.5 text-[10px] text-emerald-300">
+                {{ t('pvp.bannerBonus', { value: currentUserStore.user.activeClanBannerPvpBonusPercent }) }}
+              </div>
             </div>
 
             <!-- Coins of Honour Balance -->
@@ -161,6 +164,9 @@
                   {{ opp.name }}
                 </h3>
                 <div class="text-xs font-semibold text-[#efca72]">{{ t('profile.summary.level') }} {{ opp.level }}</div>
+                <div v-if="opp.bannerBonusPercent" class="mt-1 text-[10px] font-bold text-emerald-300">
+                  {{ t('pvp.bannerBonus', { value: opp.bannerBonusPercent }) }}
+                </div>
               </div>
             </div>
 
@@ -247,6 +253,9 @@
             </div>
             <div class="mt-3 text-sm font-bold tracking-wide">{{ activeDuel.player.name }}</div>
             <div class="mt-1 text-xs text-[#a9bfba]">Lvl {{ activeDuel.player.level }}</div>
+            <div v-if="activeDuel.player.bannerBonusPercent" class="mt-1 text-[10px] font-bold text-emerald-300">
+              {{ t('pvp.bannerBonus', { value: activeDuel.player.bannerBonusPercent }) }}
+            </div>
             <div class="mt-2 h-3 w-full max-w-48 overflow-hidden rounded-full bg-black/40">
               <div
                 class="h-full bg-emerald-400 transition-all duration-300"
@@ -273,6 +282,9 @@
             </div>
             <div class="mt-3 text-sm font-bold tracking-wide">{{ activeDuel.opponent.name }}</div>
             <div class="mt-1 text-xs text-[#a9bfba]">Lvl {{ activeDuel.opponent.level }}</div>
+            <div v-if="activeDuel.opponent.bannerBonusPercent" class="mt-1 text-[10px] font-bold text-emerald-300">
+              {{ t('pvp.bannerBonus', { value: activeDuel.opponent.bannerBonusPercent }) }}
+            </div>
             <div class="mt-2 h-3 w-full max-w-48 overflow-hidden rounded-full bg-black/40">
               <div
                 class="h-full bg-rose-400 transition-all duration-300"
