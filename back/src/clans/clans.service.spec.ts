@@ -1,6 +1,7 @@
 import { ForbiddenException } from '@nestjs/common';
 import { ClanRole } from '../../generated/client';
 import { PrismaService } from '../prisma.service';
+import { clanBuildingUpgradeCost } from './clan-buildings';
 import { CLAN_ACTIVITY_REWARDS, CLAN_MIN_LEVEL, ClansService } from './clans.service';
 
 describe('ClansService', () => {
@@ -12,6 +13,8 @@ describe('ClansService', () => {
   const clanMemberFindMany = jest.fn();
   const clanMemberUpdate = jest.fn();
   const clanUpdate = jest.fn();
+  const clanUpdateMany = jest.fn();
+  const gameProfileUpdateMany = jest.fn();
   const transaction = jest.fn();
   const prisma = {
     gameProfile: { findUnique: gameProfileFindUnique },
@@ -21,16 +24,22 @@ describe('ClansService', () => {
       create: clanCreate,
       findUnique: clanFindUnique,
       update: clanUpdate,
+      updateMany: clanUpdateMany,
     },
     clanMember: { findMany: clanMemberFindMany, update: clanMemberUpdate },
     $transaction: transaction,
   } as unknown as PrismaService;
   let service: ClansService;
 
+  it('starts building upgrades at 2,500 gold', () => {
+    expect(clanBuildingUpgradeCost(0)).toBe(2_500);
+  });
+
   const profile = {
     id: 7,
     userId: 4,
     level: 10,
+    gold: 10_000,
     killedMonsters: 12,
     dungeonsCleared: 2,
     coinsOfHonour: 3,
@@ -50,6 +59,8 @@ describe('ClansService', () => {
       tag: 'MOON',
       description: '',
       activityPoints: 0,
+      treasureLevel: 0,
+      armoryLevel: 0,
       activeBannerCode: null,
       bannerUnlocks: [],
       members: [
@@ -57,13 +68,20 @@ describe('ClansService', () => {
           gameProfileId: 7,
           role: ClanRole.LEADER,
           contributedActivity: 0,
+          contributedGold: 0,
           joinedAt: new Date(),
           gameProfile: { level: 10, user: { name: 'Hero' } },
         },
       ],
     });
+    gameProfileUpdateMany.mockResolvedValue({ count: 1 });
+    clanUpdateMany.mockResolvedValue({ count: 1 });
     transaction.mockImplementation((callback: (client: unknown) => unknown) =>
-      callback({ clanMember: { update: clanMemberUpdate }, clan: { update: clanUpdate } }),
+      callback({
+        gameProfile: { updateMany: gameProfileUpdateMany },
+        clanMember: { update: clanMemberUpdate },
+        clan: { findUnique: clanFindUnique, update: clanUpdate, updateMany: clanUpdateMany },
+      }),
     );
   });
 
@@ -190,5 +208,54 @@ describe('ClansService', () => {
       },
     ]);
     expect(clanMemberFindMany).toHaveBeenCalledTimes(2);
+  });
+
+  it('lets every member spend personal gold to upgrade a shared building', async () => {
+    gameProfileFindUnique.mockResolvedValue({
+      ...profile,
+      clanMembership: { clanId: 'clan-1', gameProfileId: 7, role: ClanRole.MEMBER },
+    });
+    clanFindUnique.mockResolvedValueOnce({ treasureLevel: 2, armoryLevel: 1 }).mockResolvedValueOnce({
+      id: 'clan-1',
+      name: 'Moon Guard',
+      tag: 'MOON',
+      description: '',
+      activityPoints: 0,
+      treasureLevel: 3,
+      armoryLevel: 1,
+      activeBannerCode: null,
+      bannerUnlocks: [],
+      members: [
+        {
+          gameProfileId: 7,
+          role: ClanRole.MEMBER,
+          contributedActivity: 0,
+          contributedGold: clanBuildingUpgradeCost(2),
+          joinedAt: new Date(),
+          gameProfile: { gold: 9_000, level: 10, user: { name: 'Hero' } },
+        },
+      ],
+    });
+    clanMemberFindMany.mockResolvedValue([]);
+
+    const result = await service.upgradeBuilding(4, 'treasure');
+
+    expect(gameProfileUpdateMany).toHaveBeenCalledWith({
+      where: { id: 7, gold: { gte: clanBuildingUpgradeCost(2) } },
+      data: { gold: { decrement: clanBuildingUpgradeCost(2) } },
+    });
+    expect(clanUpdateMany).toHaveBeenCalledWith({
+      where: { id: 'clan-1', treasureLevel: 2 },
+      data: { treasureLevel: { increment: 1 } },
+    });
+    expect(clanMemberUpdate).toHaveBeenCalledWith({
+      where: { gameProfileId: 7 },
+      data: { contributedGold: { increment: clanBuildingUpgradeCost(2) } },
+    });
+    expect(result.clan?.buildings.treasure).toEqual({
+      level: 3,
+      bonusPercent: 6,
+      nextCost: clanBuildingUpgradeCost(3),
+    });
   });
 });

@@ -93,6 +93,9 @@
       <div v-if="displayItem.price !== undefined" class="mt-2 text-xs">
         {{ $t('profile.tooltip.price') }}: {{ displayItem.price }}g
       </div>
+      <div v-if="displayItem.blockChance" class="mt-2 text-xs font-semibold text-sky-200">
+        {{ $t('profile.tooltip.blockChance') }}: {{ displayItem.blockChance }}%
+      </div>
       <div v-if="displayItem.attributes?.length" class="mt-2 text-xs">
         <div class="font-semibold">{{ $t('profile.tooltip.attributes') }}</div>
         <div v-for="attribute in displayItem.attributes" :key="attribute.name">
@@ -403,6 +406,22 @@ const buildComparisonRows = (kind: ModifierKind): ComparisonRow[] => {
 
 const comparisonGroups = computed(() =>
   [
+    {
+      key: 'blockChance',
+      label: t('profile.tooltip.combatBonuses'),
+      rows:
+        props.item?.blockChance || props.comparisonItem?.blockChance
+          ? [
+              {
+                name: 'blockChance',
+                label: t('profile.tooltip.blockChance'),
+                currentValue: props.item?.blockChance ?? 0,
+                equippedValue: props.comparisonItem?.blockChance ?? 0,
+                difference: (props.item?.blockChance ?? 0) - (props.comparisonItem?.blockChance ?? 0),
+              },
+            ]
+          : [],
+    },
     { key: 'attributes', label: t('profile.tooltip.attributes'), rows: buildComparisonRows('attribute') },
     { key: 'properties', label: t('profile.tooltip.properties'), rows: buildComparisonRows('property') },
   ].filter(({ rows }) => rows.length > 0)

@@ -198,6 +198,9 @@ export class PvpService implements OnModuleInit, OnModuleDestroy {
             },
             dungeonRun: { select: { id: true } },
             dungeonParty: { select: { party: { select: { status: true } } } },
+            clanMembership: {
+              include: { clan: { select: { treasureLevel: true, armoryLevel: true } } },
+            },
             _count: { select: { quests: { where: { completedAt: { not: null } } } } },
           },
         },
@@ -273,6 +276,9 @@ export class PvpService implements OnModuleInit, OnModuleDestroy {
             },
             dungeonRun: { select: { id: true } },
             dungeonParty: { select: { party: { select: { status: true } } } },
+            clanMembership: {
+              include: { clan: { select: { treasureLevel: true, armoryLevel: true } } },
+            },
             _count: { select: { quests: { where: { completedAt: { not: null } } } } },
           },
         },
@@ -328,6 +334,7 @@ export class PvpService implements OnModuleInit, OnModuleDestroy {
       damage,
       defense,
       dodge,
+      blockChance: candidateRendered.blockChance,
       criticalChance: crit,
       criticalDamage: critDamage,
       rewards: {
@@ -367,6 +374,7 @@ export class PvpService implements OnModuleInit, OnModuleDestroy {
       damage: botDamage,
       defense: botDefense,
       dodge: botDodge,
+      blockChance: 0,
       criticalChance: botCrit,
       criticalDamage: 150,
       rewards: {
@@ -406,6 +414,7 @@ export class PvpService implements OnModuleInit, OnModuleDestroy {
       damage: Math.max(1, Math.round(property(StatType.DAMAGE))),
       defense: Math.round(property(StatType.DEFENSE)),
       dodge: Math.round(property(StatType.DODGE)),
+      blockChance: player.blockChance,
       criticalChance: Math.round(property(StatType.CRIT)),
       criticalDamage: Math.round(property(StatType.CRIT_DAMAGE) || 150),
     };
@@ -418,6 +427,7 @@ export class PvpService implements OnModuleInit, OnModuleDestroy {
       damage: opponent.damage,
       defense: opponent.defense,
       dodge: opponent.dodge,
+      blockChance: opponent.blockChance,
       criticalChance: opponent.criticalChance,
       criticalDamage: opponent.criticalDamage,
     };
@@ -446,7 +456,10 @@ export class PvpService implements OnModuleInit, OnModuleDestroy {
 
     if (status === 'VICTORY') {
       const profile = user.gameProfile;
-      const progression = progressionAfterExperience(profile.level, profile.experience + opponent.rewards.experience);
+      const rewardedExperience = Math.round(
+        opponent.rewards.experience * (1 + player.rewardBonuses.experiencePercent / 100),
+      );
+      const progression = progressionAfterExperience(profile.level, profile.experience + rewardedExperience);
       const cooldownUntil = new Date(Date.now() + PVP_ATTACK_COOLDOWN_MS);
 
       await this.prisma.$transaction(async (tx) => {
@@ -482,7 +495,7 @@ export class PvpService implements OnModuleInit, OnModuleDestroy {
         cooldownUntil: cooldownUntil.toISOString(),
         rewards: {
           gold: 0,
-          experience: opponent.rewards.experience,
+          experience: rewardedExperience,
           coinsOfHonour: 1,
         },
       };
@@ -515,6 +528,11 @@ export class PvpService implements OnModuleInit, OnModuleDestroy {
         critical: false,
         dodged: true,
       });
+      return;
+    }
+
+    if (defender.blockChance > 0 && Math.random() * 100 < defender.blockChance) {
+      events.push({ actor, damage: 0, critical: false, dodged: false, blocked: true });
       return;
     }
 

@@ -9,6 +9,7 @@ export type ClanMember = {
   level: number;
   role: ClanRole;
   contributedActivity: number;
+  contributedGold: number;
   joinedAt: string;
 };
 
@@ -18,6 +19,13 @@ export type Clan = {
   tag: string;
   description: string;
   activityPoints: number;
+  viewerGold: number;
+  buildings: {
+    maxLevel: number;
+    bonusPerLevel: number;
+    treasure: ClanBuildingState;
+    armory: ClanBuildingState;
+  };
   activeBannerCode: string | null;
   unlockedBannerCodes: string[];
   memberCount: number;
@@ -27,6 +35,9 @@ export type Clan = {
   activityRewards: { monsterKill: number; quest: number; pvpVictory: number; dungeon: number };
   members: ClanMember[];
 };
+
+export type ClanBuilding = 'treasure' | 'armory';
+export type ClanBuildingState = { level: number; bonusPercent: number; nextCost: number | null };
 
 export type ClanSummary = Pick<
   Clan,
@@ -83,6 +94,10 @@ export const clansApi = {
   async leave() {
     const { data } = await api.post<{ left: boolean; clanDisbanded: boolean }>(routes.api.clans.leavePath());
     return data;
+  },
+  async upgradeBuilding(building: ClanBuilding) {
+    const { data } = await api.post<{ clan: Clan }>(routes.api.clans.upgradeBuildingPath(building));
+    return data.clan;
   },
   async getShop() {
     const { data } = await api.get<ClanShop>(routes.api.clans.shopPath());

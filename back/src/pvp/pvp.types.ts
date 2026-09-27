@@ -12,6 +12,7 @@ export type PvpOpponent = {
   damage: number;
   defense: number;
   dodge: number;
+  blockChance: number;
   criticalChance: number;
   criticalDamage: number;
   rewards: {
@@ -28,6 +29,7 @@ export type PvpCombatant = {
   damage: number;
   defense: number;
   dodge: number;
+  blockChance: number;
   criticalChance: number;
   criticalDamage: number;
 };
@@ -37,6 +39,7 @@ export type PvpBattleEvent = {
   damage: number;
   critical: boolean;
   dodged: boolean;
+  blocked?: boolean;
 };
 
 export type PvpDuelResult = {

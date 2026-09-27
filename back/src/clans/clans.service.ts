@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { ClanRole } from '../../generated/client';
 import { PrismaService } from '../prisma.service';
 import { CLAN_BANNERS } from './clan-banners';
+import { CLAN_BUILDING_BONUS_PER_LEVEL, CLAN_BUILDING_MAX_LEVEL, clanBuildingUpgradeCost } from './clan-buildings';
 import type { CreateClanDto } from './dto/create-clan.dto';
 
 export const CLAN_MIN_LEVEL = 10;
@@ -75,6 +76,48 @@ export class ClansService {
       minLevel: CLAN_MIN_LEVEL,
       eligible: true,
     };
+  }
+
+  async upgradeBuilding(userId: number, building: string) {
+    if (building !== 'treasure' && building !== 'armory') throw new BadRequestException('Unknown clan building');
+    const selected = building;
+    const profile = await this.profileForUser(userId);
+    if (!profile.clanMembership) throw new BadRequestException('You are not in a clan');
+    const clanId = profile.clanMembership.clanId;
+
+    await this.prisma.$transaction(async (tx) => {
+      const clan = await tx.clan.findUnique({
+        where: { id: clanId },
+        select: { treasureLevel: true, armoryLevel: true },
+      });
+      if (!clan) throw new NotFoundException('Clan not found');
+      const level = selected === 'treasure' ? clan.treasureLevel : clan.armoryLevel;
+      if (level >= CLAN_BUILDING_MAX_LEVEL) throw new BadRequestException('This clan building is fully upgraded');
+      const cost = clanBuildingUpgradeCost(level);
+      const payment = await tx.gameProfile.updateMany({
+        where: { id: profile.id, gold: { gte: cost } },
+        data: { gold: { decrement: cost } },
+      });
+      if (payment.count !== 1) throw new BadRequestException(`You need ${cost} gold for this upgrade`);
+
+      const upgraded =
+        selected === 'treasure'
+          ? await tx.clan.updateMany({
+              where: { id: clanId, treasureLevel: level },
+              data: { treasureLevel: { increment: 1 } },
+            })
+          : await tx.clan.updateMany({
+              where: { id: clanId, armoryLevel: level },
+              data: { armoryLevel: { increment: 1 } },
+            });
+      if (upgraded.count !== 1) throw new BadRequestException('The building changed; please try again');
+      await tx.clanMember.update({
+        where: { gameProfileId: profile.id },
+        data: { contributedGold: { increment: cost } },
+      });
+    });
+
+    return this.getMyClan(userId);
   }
 
   async createClan(userId: number, dto: CreateClanDto) {
@@ -263,12 +306,27 @@ export class ClansService {
       tag: clan.tag,
       description: clan.description,
       activityPoints: clan.activityPoints,
+      buildings: {
+        maxLevel: CLAN_BUILDING_MAX_LEVEL,
+        bonusPerLevel: CLAN_BUILDING_BONUS_PER_LEVEL,
+        treasure: {
+          level: clan.treasureLevel,
+          bonusPercent: clan.treasureLevel * CLAN_BUILDING_BONUS_PER_LEVEL,
+          nextCost: clan.treasureLevel < CLAN_BUILDING_MAX_LEVEL ? clanBuildingUpgradeCost(clan.treasureLevel) : null,
+        },
+        armory: {
+          level: clan.armoryLevel,
+          bonusPercent: clan.armoryLevel * CLAN_BUILDING_BONUS_PER_LEVEL,
+          nextCost: clan.armoryLevel < CLAN_BUILDING_MAX_LEVEL ? clanBuildingUpgradeCost(clan.armoryLevel) : null,
+        },
+      },
       activeBannerCode: clan.activeBannerCode,
       unlockedBannerCodes: clan.bannerUnlocks.map((entry) => entry.bannerCode),
       memberCount: clan.members.length,
       maxMembers: CLAN_MAX_MEMBERS,
       viewerRole: viewer?.role ?? null,
       viewerProfileId,
+      viewerGold: viewer?.gameProfile.gold ?? 0,
       activityRewards: CLAN_ACTIVITY_REWARDS,
       members: clan.members.map((member) => ({
         profileId: member.gameProfileId,
@@ -276,6 +334,7 @@ export class ClansService {
         level: member.gameProfile.level,
         role: member.role,
         contributedActivity: member.contributedActivity,
+        contributedGold: member.contributedGold,
         joinedAt: member.joinedAt,
       })),
     };

@@ -39,6 +39,7 @@ export interface BattleCombatant {
   damage: number;
   defense: number;
   dodge: number;
+  blockChance: number;
   criticalChance: number;
   criticalDamage: number;
 }
@@ -59,6 +60,7 @@ export interface BattleState {
     damage: number;
     critical: boolean;
     dodged: boolean;
+    blocked?: boolean;
     actorName?: string;
     targetName?: string;
   }>;

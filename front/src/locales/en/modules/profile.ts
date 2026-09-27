@@ -51,6 +51,8 @@ export default {
     price: 'Price',
     attributes: 'Attributes',
     properties: 'Properties',
+    combatBonuses: 'Combat bonuses',
+    blockChance: 'Block chance',
   },
   attributeNames: {
     STRENGTH: 'Strength',

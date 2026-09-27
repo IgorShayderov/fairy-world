@@ -15,6 +15,7 @@ export interface PvpOpponent {
   damage: number;
   defense: number;
   dodge: number;
+  blockChance: number;
   criticalChance: number;
   criticalDamage: number;
   rewards: {
@@ -31,6 +32,7 @@ export interface PvpCombatant {
   damage: number;
   defense: number;
   dodge: number;
+  blockChance: number;
   criticalChance: number;
   criticalDamage: number;
 }
@@ -40,6 +42,7 @@ export interface PvpBattleEvent {
   damage: number;
   critical: boolean;
   dodged: boolean;
+  blocked?: boolean;
 }
 
 export interface PvpDuelResult {
@@ -75,9 +78,7 @@ export const pvpApi = {
   },
 
   async resetCooldown(): Promise<{ success: boolean; pvpCooldownUntil: null }> {
-    const { data } = await api.post<{ success: boolean; pvpCooldownUntil: null }>(
-      routes.api.pvp.resetCooldownPath(),
-    );
+    const { data } = await api.post<{ success: boolean; pvpCooldownUntil: null }>(routes.api.pvp.resetCooldownPath());
     return data;
   },
 };

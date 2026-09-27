@@ -82,6 +82,9 @@ export class UsersService {
             },
             dungeonRun: { select: { id: true } },
             dungeonParty: { select: { party: { select: { status: true } } } },
+            clanMembership: {
+              include: { clan: { select: { treasureLevel: true, armoryLevel: true } } },
+            },
             _count: { select: { quests: { where: { completedAt: { not: null } } } } },
           },
         },

@@ -424,8 +424,16 @@ const closeDuel = async () => {
 };
 
 const formatCombatEvent = (event: PvpBattleEvent) => {
-  const actor = event.actor === 'PLAYER' ? t('pvp.player') : t('pvp.opponent');
+  const actor =
+    event.blocked || event.dodged
+      ? event.actor === 'PLAYER'
+        ? t('pvp.opponent')
+        : t('pvp.player')
+      : event.actor === 'PLAYER'
+        ? t('pvp.player')
+        : t('pvp.opponent');
   if (event.dodged) return t('pvp.dodged', { actor });
+  if (event.blocked) return t('pvp.blocked', { actor });
   if (event.critical) return t('pvp.criticalHit', { actor, damage: event.damage });
   return t('pvp.hit', { actor, damage: event.damage });
 };

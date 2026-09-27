@@ -392,6 +392,7 @@ const statusTitle = computed(() => {
 const eventText = (event: BattleState['events'][number]) => {
   const actor = t(`fantasy.encounter.${getBattleEventSubject(event)}`);
   if (event.dodged) return t('fantasy.encounter.dodged', { actor });
+  if (event.blocked) return t('fantasy.encounter.blocked', { actor });
   return t(event.critical ? 'fantasy.encounter.criticalHit' : 'fantasy.encounter.hit', {
     actor,
     damage: event.damage,

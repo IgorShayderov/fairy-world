@@ -26,6 +26,7 @@ type Combatant = {
   damage: number;
   defense: number;
   dodge: number;
+  blockChance: number;
   criticalChance: number;
   criticalDamage: number;
 };
@@ -38,7 +39,7 @@ type Battle = {
   turn: number;
   player: Combatant;
   monster: Combatant & { id: number; level: number; rewardGold: number; rewardExperience: number };
-  events: Array<{ actor: 'PLAYER' | 'MONSTER'; damage: number; critical: boolean; dodged: boolean }>;
+  events: Array<{ actor: 'PLAYER' | 'MONSTER'; damage: number; critical: boolean; dodged: boolean; blocked?: boolean }>;
   experienceBonusPercent: number;
   goldBonusPercent: number;
   canRetreat: boolean;
@@ -359,6 +360,7 @@ export class MonstersService {
         damage: Math.max(1, property(StatType.DAMAGE)),
         defense: property(StatType.DEFENSE),
         dodge: property(StatType.DODGE),
+        blockChance: player.blockChance,
         criticalChance: property(StatType.CRIT),
         criticalDamage: property(StatType.CRIT_DAMAGE),
       },
@@ -371,6 +373,7 @@ export class MonstersService {
         damage: 3 + monster.level * 2 + attribute('STRENGTH'),
         defense: Math.min(45, monster.level * 0.8 + attribute('ENDURANCE')),
         dodge: Math.min(30, monster.level * 0.3 + attribute('AGILITY')),
+        blockChance: 0,
         criticalChance: Math.min(25, 3 + monster.level * 0.2),
         criticalDamage: 140,
         rewardGold: monster.rewardGold,
@@ -382,6 +385,10 @@ export class MonstersService {
   private strike(attacker: Combatant, defender: Combatant, actor: 'PLAYER' | 'MONSTER', events: Battle['events']) {
     if (Math.random() * 100 < defender.dodge) {
       events.push({ actor, damage: 0, critical: false, dodged: true });
+      return;
+    }
+    if (defender.blockChance > 0 && Math.random() * 100 < defender.blockChance) {
+      events.push({ actor, damage: 0, critical: false, dodged: false, blocked: true });
       return;
     }
     const critical = Math.random() * 100 < attacker.criticalChance;

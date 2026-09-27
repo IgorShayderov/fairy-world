@@ -8,8 +8,10 @@ import {
   type Prisma,
 } from '../../generated/client';
 import { CRAFT_ITEMS, upgradeValueForLevel } from '../crafting/crafting.catalog';
+import { clanBuildingBonus } from '../clans/clan-buildings';
 import { ItemView } from '../common/views/item.view';
 import { townAt } from '../locations/towns';
+import { shieldBlockChance } from '../items/shield-block';
 import { experienceToNextLevel, MAX_PLAYER_LEVEL } from './level-progression';
 import {
   ATTRIBUTE_EFFECTS,
@@ -41,6 +43,9 @@ type CurrentUserModel = Prisma.UserGetPayload<{
         craftItems: { include: { craftItem: true } };
         dungeonRun: { select: { id: true } };
         dungeonParty: { select: { party: { select: { status: true } } } };
+        clanMembership: {
+          include: { clan: { select: { treasureLevel: true; armoryLevel: true } } };
+        };
         _count: { select: { quests: { where: { completedAt: { not: null } } } } };
       };
     };
@@ -70,6 +75,7 @@ export class UserView {
     const playerLevel = profile?.level ?? 1;
     const entries = profile?.inventory ?? [];
     const equippedEntries = entries.filter((entry) => entry.isEquiped);
+    const blockChance = equippedEntries.reduce((highest, entry) => Math.max(highest, shieldBlockChance(entry.item)), 0);
     const renderEntry = (entry: (typeof entries)[number]) => {
       const catalyst = CRAFT_ITEMS.find(
         (definition) => definition.kind === CraftItemKind.UPGRADE && definition.name === entry.item.name,
@@ -183,6 +189,9 @@ export class UserView {
       property.value += entry.upgradeValue;
     }
 
+    goldBonusPercent += clanBuildingBonus(profile?.clanMembership?.clan.treasureLevel ?? 0);
+    experienceBonusPercent += clanBuildingBonus(profile?.clanMembership?.clan.armoryLevel ?? 0);
+
     for (const attribute of attributes.values()) {
       for (const [propertyName, bonusPerPoint] of Object.entries(
         ATTRIBUTE_EFFECTS[attribute.name as AttributeType].properties,
@@ -293,6 +302,7 @@ export class UserView {
       },
       activeBuffs: activeBuffs.map(({ type, value, expiresAt }) => ({ type, value, expiresAt })),
       rewardBonuses: { goldPercent: goldBonusPercent, experiencePercent: experienceBonusPercent },
+      blockChance,
       craftInventory: (profile?.craftItems ?? []).map(({ craftItem, quantity }) => ({ ...craftItem, quantity })),
       attributes: [...attributes.values()],
       properties: renderedProperties,
