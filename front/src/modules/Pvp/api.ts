@@ -1,3 +1,6 @@
+import type { CraftUpgradeType } from '@/modules/Inventory/types';
+import type { ShopItem } from '@/modules/Shop/types';
+
 import routes from '@/routes';
 import { api } from '@/shared/api';
 
@@ -61,6 +64,20 @@ export interface PvpDuelResult {
   } | null;
 }
 
+export interface PvpShopOffer {
+  id: string;
+  kind: 'POTION' | 'UPGRADE';
+  cost: number;
+  upgradeType: CraftUpgradeType | null;
+  upgradeValue: number | null;
+  item: Omit<ShopItem, 'quantity'>;
+}
+
+export interface PvpShop {
+  coinsOfHonour: number;
+  offers: PvpShopOffer[];
+}
+
 export const pvpApi = {
   async getOpponents(): Promise<PvpOpponent[]> {
     const { data } = await api.get<PvpOpponent[]>(routes.api.pvp.opponentsPath());
@@ -79,6 +96,20 @@ export const pvpApi = {
 
   async resetCooldown(): Promise<{ success: boolean; pvpCooldownUntil: null }> {
     const { data } = await api.post<{ success: boolean; pvpCooldownUntil: null }>(routes.api.pvp.resetCooldownPath());
+    return data;
+  },
+  async getShop(): Promise<PvpShop> {
+    const { data } = await api.get<PvpShop>(routes.api.pvp.shopPath());
+    return data;
+  },
+  async buyShopOffer(offerId: string): Promise<{
+    success: boolean;
+    itemId: number;
+    cost: number;
+    coinsOfHonour: number;
+    offers: PvpShopOffer[];
+  }> {
+    const { data } = await api.post(routes.api.pvp.buyShopOfferPath(), { offerId });
     return data;
   },
 };

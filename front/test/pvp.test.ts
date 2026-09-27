@@ -13,6 +13,8 @@ describe('PvP module and routes', () => {
     expect(routes.api.pvp.refreshOpponentsPath()).toContain('/api/v1/pvp/opponents/refresh');
     expect(routes.api.pvp.duelPath()).toContain('/api/v1/pvp/duel');
     expect(routes.api.pvp.resetCooldownPath()).toContain('/api/v1/pvp/cooldown/reset');
+    expect(routes.api.pvp.shopPath()).toContain('/api/v1/pvp/shop');
+    expect(routes.api.pvp.buyShopOfferPath()).toContain('/api/v1/pvp/shop/buy');
   });
 
   it('calls correct endpoints in pvpApi', async () => {
@@ -39,6 +41,16 @@ describe('PvP module and routes', () => {
     const resetRes = await pvpApi.resetCooldown();
     expect(resetRes).toEqual(mockReset);
     expect(api.post).toHaveBeenCalledWith(routes.api.pvp.resetCooldownPath());
+
+    vi.mocked(api.get).mockResolvedValueOnce({ data: { coinsOfHonour: 3, offers: [] } });
+    await pvpApi.getShop();
+    expect(api.get).toHaveBeenCalledWith(routes.api.pvp.shopPath());
+
+    vi.mocked(api.post).mockResolvedValueOnce({ data: { success: true } });
+    await pvpApi.buyShopOffer('potion:7');
+    expect(api.post).toHaveBeenCalledWith(routes.api.pvp.buyShopOfferPath(), {
+      offerId: 'potion:7',
+    });
   });
 
   it('includes complete English and Russian localization for PvP and menu item', () => {
@@ -64,5 +76,7 @@ describe('PvP module and routes', () => {
     expect(ru.pvp.victory).toBe('Победа!');
     expect(en.pvp.defeat).toBe('Defeat');
     expect(ru.pvp.defeat).toBe('Поражение');
+    expect(en.pvp.shopTitle).toBe('Honour Shop');
+    expect(ru.pvp.shopTitle).toBe('Магазин чести');
   });
 });

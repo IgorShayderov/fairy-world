@@ -13,6 +13,8 @@ export interface ShopItem {
   quantity: number;
   rarity: ItemRarity;
   equipmentType: EquipmentType[];
+  isTwoHanded?: boolean;
+  blockChance?: number;
   attributes: ItemModifier[];
   properties: ItemModifier[];
 }

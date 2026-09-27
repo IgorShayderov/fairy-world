@@ -79,6 +79,8 @@ const routes = {
       refreshOpponentsPath: () => [BASE_API_PATH, 'pvp', 'opponents', 'refresh'].join('/'),
       duelPath: () => [BASE_API_PATH, 'pvp', 'duel'].join('/'),
       resetCooldownPath: () => [BASE_API_PATH, 'pvp', 'cooldown', 'reset'].join('/'),
+      shopPath: () => [BASE_API_PATH, 'pvp', 'shop'].join('/'),
+      buyShopOfferPath: () => [BASE_API_PATH, 'pvp', 'shop', 'buy'].join('/'),
     },
     clans: {
       listPath: () => [BASE_API_PATH, 'clans'].join('/'),

@@ -1,6 +1,6 @@
 <template>
   <main class="flex h-dvh flex-col overflow-hidden">
-    <AppHeader :auth="false" />
+    <AppHeader />
 
     <RouterView class="min-h-0 flex-1 overflow-hidden" />
   </main>
@@ -10,7 +10,6 @@
 import { RouterView } from 'vue-router';
 
 import AppHeader from '@components/AppHeader.vue';
-
 </script>
 
 <style>

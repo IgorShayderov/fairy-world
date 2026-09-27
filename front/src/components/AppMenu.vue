@@ -8,7 +8,7 @@
       class="absolute top-1/2 -left-4 z-20 flex h-8 w-8 -translate-y-1/2 -rotate-90 border-[#806f43]! bg-[#0b2530]! text-[#f0d68a]! shadow-[0_4px_14px_rgba(0,0,0,0.35)]"
     />
 
-    <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden py-4">
+    <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden pt-4">
       <h2
         class="mb-3 text-lg font-semibold whitespace-nowrap text-[#f0d68a] transition-all duration-300"
         :class="isSidebarExpanded ? 'max-w-[200px] px-4 opacity-100' : 'max-w-0 px-0 opacity-0'"
@@ -19,6 +19,40 @@
       <div class="realm-menu-scroll flex-1 space-y-3 overflow-x-hidden overflow-y-auto px-[7px]">
         <SidebarItem v-for="item in menuItems" :key="item.id" :item="item" :is-expanded="isSidebarExpanded" />
       </div>
+
+      <div class="mt-3 shrink-0 border-t border-[#35515b]/80 px-[7px] pt-3 pb-4">
+        <button
+          type="button"
+          class="group flex h-11 w-full items-center overflow-hidden rounded-md border border-[#71434b] bg-[linear-gradient(135deg,#351c25_0%,#241923_100%)] text-[#f3b8bd] shadow-[0_5px_14px_rgba(0,0,0,0.24)] transition-all duration-200 hover:border-[#b45a64] hover:bg-[linear-gradient(135deg,#4a202b_0%,#2f1a24_100%)] hover:text-[#ffd8db] focus-visible:ring-2 focus-visible:ring-[#d87982] focus-visible:ring-offset-2 focus-visible:ring-offset-[#081b26] focus-visible:outline-none"
+          :aria-label="t('auth.buttons.logout')"
+          :title="t('auth.buttons.logout')"
+          @click="handleLogout"
+        >
+          <span class="flex w-[34px] shrink-0 items-center justify-center">
+            <svg
+              class="h-5 w-5 transition-transform duration-200 group-hover:translate-x-0.5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M10 17l5-5-5-5m5 5H3m10-9h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-6"
+              />
+            </svg>
+          </span>
+
+          <span
+            class="truncate text-sm font-semibold tracking-wide transition-all duration-300"
+            :class="isSidebarExpanded ? 'ml-2 max-w-[200px] opacity-100' : 'ml-0 max-w-0 opacity-0'"
+          >
+            {{ t('auth.buttons.logout') }}
+          </span>
+        </button>
+      </div>
     </div>
   </aside>
 </template>
@@ -26,7 +60,9 @@
 <script setup lang="ts">
 import { useTranslation } from 'i18next-vue';
 import { computed, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
 
+import { signOut } from '@/modules/Auth/api';
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 import { CRAFTING_MIN_LEVEL } from '@/modules/Crafting/api';
 import { landmarks } from '@/modules/Game/composables/useMapObjects';
@@ -38,6 +74,7 @@ import SidebarItem from './SidebarItem.vue';
 import ToggleExpandButton from '@/components/ToggleExpandButton.vue';
 
 const { t } = useTranslation();
+const router = useRouter();
 const isSidebarExpanded = ref(StorageService.get('sidebarExpanded'));
 
 watch(isSidebarExpanded, (newValue) => {
@@ -45,6 +82,16 @@ watch(isSidebarExpanded, (newValue) => {
 });
 
 const currentUser = useCurrentUserStore();
+const handleLogout = async () => {
+  try {
+    await signOut();
+  } catch (error) {
+    console.error('Failed to log out:', error);
+  } finally {
+    await router.push(routes.loginPath());
+  }
+};
+
 const inTown = computed(() => {
   const position = currentUser.user?.mapPosition;
   return (

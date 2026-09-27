@@ -59,8 +59,30 @@
         </div>
       </header>
 
+      <nav
+        v-if="!activeDuel"
+        class="mt-6 inline-flex rounded-xl border border-[#d8bd75]/25 bg-[#071a23] p-1 shadow-lg"
+        :aria-label="t('pvp.sectionNavigation')"
+      >
+        <button
+          v-for="tab in pvpTabs"
+          :key="tab.id"
+          type="button"
+          class="flex h-10 items-center gap-2 rounded-lg px-5 text-xs font-bold tracking-wider uppercase transition"
+          :class="
+            activeTab === tab.id
+              ? 'bg-[#d6b75f] text-[#08202a] shadow'
+              : 'text-[#a9bfba] hover:bg-[#12313c] hover:text-[#fff0bd]'
+          "
+          @click="activeTab = tab.id"
+        >
+          <QIcon :name="tab.icon" size="18px" />
+          {{ t(tab.labelKey) }}
+        </button>
+      </nav>
+
       <!-- Opponents Grid -->
-      <section v-if="!activeDuel" class="mt-8">
+      <section v-if="!activeDuel && activeTab === 'arena'" class="mt-8">
         <!-- Attack Cooldown Notice -->
         <div
           v-if="cooldownSeconds > 0"
@@ -195,6 +217,8 @@
         </div>
       </section>
 
+      <PvpShop v-if="!activeDuel && activeTab === 'shop'" />
+
       <!-- Active Duel Combat Modal -->
       <section
         v-if="activeDuel"
@@ -326,6 +350,8 @@ import {
 } from '@/modules/Pvp/api';
 import { getApiErrorMessage } from '@/shared/api/error-message';
 
+import PvpShop from '@/modules/Pvp/components/PvpShop.vue';
+
 const { t } = useTranslation();
 const currentUserStore = useCurrentUserStore();
 
@@ -336,6 +362,11 @@ const resettingCooldown = ref(false);
 const error = ref<string | null>(null);
 const selectedOpponentId = ref<string | null>(null);
 const activeDuel = ref<PvpDuelResult | null>(null);
+const activeTab = ref<'arena' | 'shop'>('arena');
+const pvpTabs = [
+  { id: 'arena' as const, labelKey: 'pvp.arenaTab', icon: 'shield' },
+  { id: 'shop' as const, labelKey: 'pvp.shopTab', icon: 'workspace_premium' },
+];
 
 const now = ref(Date.now());
 let timerInterval: NodeJS.Timeout | null = null;
