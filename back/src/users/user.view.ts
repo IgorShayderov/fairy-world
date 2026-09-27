@@ -44,7 +44,7 @@ type CurrentUserModel = Prisma.UserGetPayload<{
         dungeonRun: { select: { id: true } };
         dungeonParty: { select: { party: { select: { status: true } } } };
         clanMembership: {
-          include: { clan: { select: { treasureLevel: true; armoryLevel: true } } };
+          include: { clan: { select: { treasureLevel: true; armoryLevel: true; activeBannerCode: true } } };
         };
         _count: { select: { quests: { where: { completedAt: { not: null } } } } };
       };
@@ -302,6 +302,7 @@ export class UserView {
       },
       activeBuffs: activeBuffs.map(({ type, value, expiresAt }) => ({ type, value, expiresAt })),
       rewardBonuses: { goldPercent: goldBonusPercent, experiencePercent: experienceBonusPercent },
+      activeClanBannerCode: profile?.clanMembership?.clan.activeBannerCode ?? null,
       blockChance,
       craftInventory: (profile?.craftItems ?? []).map(({ craftItem, quantity }) => ({ ...craftItem, quantity })),
       attributes: [...attributes.values()],

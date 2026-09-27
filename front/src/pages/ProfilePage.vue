@@ -19,6 +19,7 @@
           :accomplished-quests="currentUserStore.user?.accomplishedQuests ?? 0"
           :player-free-attributes="currentUserStore.user?.freeAttributes ?? 0"
           :allocating-attribute="allocatingAttribute"
+          :active-clan-banner-code="currentUserStore.user?.activeClanBannerCode ?? null"
           :disable-item-tooltips="dragUpgradeItem !== null"
           @slot-enter="(id) => (isHoveredSlot = id)"
           @slot-leave="isHoveredSlot = null"
@@ -99,8 +100,7 @@ const isCraftUpgradeItem = (item: InventoryItemType) =>
   Boolean(item.craftUpgradeType) || CRAFT_UPGRADE_ICONS.has(item.icon);
 
 onMounted(async () => {
-  const hasLegacyCraftUpgrade = (currentUserStore.user?.craftInventory ?? []).some(({ kind }) => kind !== 'MATERIAL');
-  await currentUserStore.fetchCurrentUser(hasLegacyCraftUpgrade);
+  await currentUserStore.fetchCurrentUser(true);
   inventoryStore.hydrateInventory(currentUserStore.user?.inventory ?? [], currentUserStore.user?.equippedItems ?? []);
 });
 

@@ -33,6 +33,7 @@ export type CurrentUser = {
   properties: EffectiveModifier[];
   craftInventory: CraftInventoryItem[];
   rewardBonuses?: { goldPercent: number; experiencePercent: number };
+  activeClanBannerCode?: string | null;
 };
 
 export type MapPosition = {

@@ -122,7 +122,7 @@ export class MonstersService {
 
     const player = UserView.renderCurrent(user);
     const monster = this.monsterGenerator.generate(player.level, point);
-    const battle = this.createBattle(userId, player, monster, false);
+    const battle = this.createBattle(userId, player, monster, canRetreatAt(point));
     this.battles.set(battle.id, battle);
     return { monster, battle: this.renderBattle(battle) };
   }

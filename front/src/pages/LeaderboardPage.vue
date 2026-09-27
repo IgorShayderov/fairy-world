@@ -1,8 +1,8 @@
 <template>
-  <main class="realm-page min-h-0 flex-1 overflow-auto p-5 sm:p-8">
-    <div class="mx-auto max-w-5xl">
+  <main class="realm-page min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-scroll p-5 sm:p-8">
+    <div class="mx-auto w-full min-w-0 max-w-5xl">
       <header
-        class="rounded-2xl border border-[#d8bd75]/25 bg-[linear-gradient(135deg,#0d2b35,#0b2530_60%,#171d28)] p-6 shadow-xl"
+        class="leaderboard-header rounded-2xl border border-[#d8bd75]/25 bg-[linear-gradient(135deg,#0d2b35,#0b2530_60%,#171d28)] p-6 shadow-xl"
       >
         <p class="text-xs font-bold tracking-[0.24em] text-[#efca72] uppercase">{{ t('menu.leaderboard') }}</p>
         <h1 class="mt-1 font-serif text-3xl font-semibold text-[#fff0bd]">
@@ -79,7 +79,7 @@
           </tbody>
         </table>
 
-        <table v-else class="w-full min-w-[620px] border-collapse text-left">
+        <table v-else class="w-full min-w-[760px] table-fixed border-collapse text-left">
           <thead>
             <tr>
               <th>{{ t('leaderboard.rank') }}</th>
@@ -167,6 +167,20 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.realm-page {
+  scrollbar-gutter: stable;
+}
+
+.leaderboard-header {
+  min-height: 8.6rem;
+}
+
+.leaderboard-table {
+  width: 100%;
+  min-width: 0;
+  min-height: 34rem;
+}
+
 .leaderboard-tab {
   display: flex;
   flex: 1;

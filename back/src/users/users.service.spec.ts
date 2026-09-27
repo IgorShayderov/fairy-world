@@ -134,7 +134,7 @@ describe('UsersService', () => {
               dungeonRun: { select: { id: true } },
               dungeonParty: { select: { party: { select: { status: true } } } },
               clanMembership: {
-                include: { clan: { select: { treasureLevel: true, armoryLevel: true } } },
+                include: { clan: { select: { treasureLevel: true, armoryLevel: true, activeBannerCode: true } } },
               },
               _count: { select: { quests: { where: { completedAt: { not: null } } } } },
             },

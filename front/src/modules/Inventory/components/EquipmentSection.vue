@@ -33,7 +33,15 @@
             @dragleave="$emit('slot-leave')"
             @drop.prevent="$emit('slot-drop', slot.id)"
           >
+            <div
+              v-if="slot.id === 'banner' && activeClanBannerCode"
+              class="flex h-full w-full items-center justify-center rounded-lg border-2 border-solid border-amber-300/50 bg-white shadow-sm"
+              :title="t('profile.slots.banner')"
+            >
+              <ClanBanner :code="activeClanBannerCode" size="medium" />
+            </div>
             <InventoryItem
+              v-else
               :item="
                 slot.item
                   ? {
@@ -213,6 +221,7 @@ import ShieldIcon from './icons/ShieldIcon.vue';
 import WeaponIcon from './icons/WeaponIcon.vue';
 import InventoryItem from './InventoryItem.vue';
 
+import ClanBanner from '@/modules/Clans/ClanBanner.vue';
 import SectionNavigation from '@/shared/components/SectionNavigation.vue';
 
 const props = defineProps<{
@@ -231,6 +240,7 @@ const props = defineProps<{
   accomplishedQuests: number;
   playerFreeAttributes: number;
   allocatingAttribute: string | null;
+  activeClanBannerCode?: string | null;
   disableItemTooltips?: boolean;
 }>();
 

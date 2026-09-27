@@ -45,21 +45,19 @@
     <button
       v-if="huntAvailable && !activeLandmark && !activeBattle && !activeDungeonRun"
       class="hunt-control absolute bottom-5 left-5 z-20 flex items-center gap-3 rounded-xl border px-4 py-3 text-left shadow-2xl backdrop-blur-md"
-      :disabled="huntPending"
-      @click="handleHunt"
+      :class="{ 'hunt-control--cancel': huntPending }"
+      @click="huntPending ? cancelHunt() : handleHunt()"
     >
       <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-[#d9b95f]/15 text-[#f0cf73]">
-        <QIcon name="pets" size="22px" />
+        <QIcon :name="huntPending ? 'close' : 'pets'" size="22px" />
       </span>
       <span>
         <span class="block text-xs font-bold tracking-[0.12em] text-[#ffe49a] uppercase">
-          {{
-            huntPending
-              ? t('fantasy.hunt.searching', { seconds: huntCountdown })
-              : t('fantasy.hunt.action')
-          }}
+          {{ huntPending ? t('fantasy.hunt.cancel') : t('fantasy.hunt.action') }}
         </span>
-        <span class="mt-0.5 block text-[10px] text-[#a9bfba]">{{ t('fantasy.hunt.hint') }}</span>
+        <span class="mt-0.5 block text-[10px] text-[#a9bfba]">
+          {{ huntPending ? t('fantasy.hunt.searching') : t('fantasy.hunt.hint') }}
+        </span>
       </span>
     </button>
 
@@ -317,6 +315,7 @@ const activeDungeonRun = ref<DungeonRunState | null>(null);
 const encounterPending = ref(false);
 const huntPending = ref(false);
 const huntCountdown = ref(0);
+let huntAttempt = 0;
 const battlePending = ref(false);
 let ctx: CanvasRenderingContext2D | null = null;
 let resizeObserver: ResizeObserver | null = null;
@@ -425,6 +424,7 @@ const handleAttack = async () => {
 
 const handleHunt = async () => {
   if (!huntAvailable.value || huntPending.value || activeBattle.value) return;
+  const attempt = ++huntAttempt;
   huntPending.value = true;
   const delaySeconds = rollHuntDelaySeconds();
   huntCountdown.value = delaySeconds;
@@ -432,11 +432,13 @@ const handleHunt = async () => {
   try {
     const encounteredWhileSaving = await persistPosition();
     if (encounteredWhileSaving) return;
+    if (attempt !== huntAttempt) return;
     for (let seconds = delaySeconds; seconds > 0; seconds--) {
       huntCountdown.value = seconds;
       await new Promise((resolve) => window.setTimeout(resolve, 1000));
-      if (disposed) return;
+      if (disposed || attempt !== huntAttempt) return;
     }
+    if (attempt !== huntAttempt) return;
     const result = await huntMonster();
     activeLandmark.value = null;
     promptLandmark.value = null;
@@ -450,9 +452,17 @@ const handleHunt = async () => {
       message: error instanceof Error ? error.message : t('fantasy.hunt.error'),
     });
   } finally {
-    huntCountdown.value = 0;
-    huntPending.value = false;
+    if (attempt === huntAttempt) {
+      huntCountdown.value = 0;
+      huntPending.value = false;
+    }
   }
+};
+
+const cancelHunt = () => {
+  huntAttempt += 1;
+  huntCountdown.value = 0;
+  huntPending.value = false;
 };
 
 const handlePlayerDefeat = () => {
@@ -633,7 +643,14 @@ const onPointerUp = (event: PointerEvent) => {
   isDragging.value = false;
   canvasRef.value?.releasePointerCapture(event.pointerId);
   if (!endDrag(event.clientX, event.clientY) || !canvasRef.value) return;
-  if (activeBattle.value || activeDungeonRun.value || activeLandmark.value || encounterPending.value) return;
+  if (
+    activeBattle.value ||
+    activeDungeonRun.value ||
+    activeLandmark.value ||
+    encounterPending.value ||
+    huntPending.value
+  )
+    return;
 
   const pointer = relativePointer(event);
   const mapCoords = screenToMap(pointer.x, pointer.y);
@@ -717,6 +734,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   disposed = true;
+  cancelHunt();
   stopPromptDrag();
   if (dungeonPartyTimer) clearInterval(dungeonPartyTimer);
   void persistPosition();
@@ -785,9 +803,14 @@ onUnmounted(() => {
   transform: translateY(-1px);
 }
 
-.hunt-control:disabled {
-  cursor: wait;
-  opacity: 0.65;
+.hunt-control--cancel {
+  border-color: rgb(232 126 105 / 55%);
+  background: linear-gradient(135deg, rgb(47 29 34 / 96%), rgb(55 35 39 / 92%));
+}
+
+.hunt-control--cancel:hover {
+  border-color: rgb(244 154 135 / 80%);
+  background: linear-gradient(135deg, rgb(62 33 39 / 98%), rgb(70 41 44 / 95%));
 }
 
 canvas {
