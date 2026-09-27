@@ -1,9 +1,9 @@
 <template>
-  <div class="absolute inset-0 z-40 flex items-center justify-center bg-[#06141d]/85 p-5 backdrop-blur-sm">
+  <div class="absolute inset-0 z-40 flex items-center justify-center overflow-y-auto bg-[#06141d]/85 p-5 backdrop-blur-sm">
     <section
-      class="encounter-panel w-full max-w-4xl overflow-hidden rounded-2xl border border-[#ddbd6b]/45 text-white shadow-2xl"
+      class="encounter-panel flex max-h-full min-h-0 w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-[#ddbd6b]/45 text-white shadow-2xl"
     >
-      <header class="border-b border-[#ddbd6b]/20 px-6 py-4 text-center">
+      <header class="shrink-0 border-b border-[#ddbd6b]/20 px-6 py-4 text-center">
         <div class="text-[10px] font-bold tracking-[0.34em] text-[#efca72] uppercase">
           {{ t('fantasy.encounter.eyebrow') }} · {{ t('fantasy.encounter.turn', { turn: battle.turn }) }}
         </div>
@@ -12,7 +12,7 @@
         </h2>
       </header>
 
-      <div class="battlefield-grid relative grid grid-cols-[1fr_auto_1fr] items-center gap-7 px-8 py-7">
+      <div class="battlefield-grid relative grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-7 px-8 py-7">
         <CombatantCard
           icon="auto_awesome"
           :name="playerName"
@@ -32,7 +32,7 @@
         />
       </div>
 
-      <div class="min-h-24 border-t border-[#ddbd6b]/15 bg-[#0b2029]/85 px-6 py-4">
+      <div class="min-h-0 flex-1 overflow-y-auto border-t border-[#ddbd6b]/15 bg-[#0b2029]/85 px-6 py-4">
         <h3 class="text-xs font-bold tracking-[0.16em] text-[#efca72] uppercase">
           {{ t('fantasy.encounter.combatLog') }}
         </h3>
@@ -134,7 +134,7 @@
         </p>
       </div>
 
-      <footer class="flex justify-end gap-3 border-t border-[#ddbd6b]/15 bg-[#081a23] px-6 py-4">
+      <footer class="flex shrink-0 justify-end gap-3 border-t border-[#ddbd6b]/15 bg-[#081a23] px-6 py-4">
         <button
           v-if="battle.status === 'ACTIVE' && battle.canRetreat"
           class="rounded-lg border border-white/15 px-5 py-2.5 text-xs font-bold tracking-wider text-[#b8cbc6] uppercase hover:bg-white/5 disabled:opacity-50"

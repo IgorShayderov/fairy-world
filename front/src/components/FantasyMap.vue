@@ -42,6 +42,25 @@
       </div>
     </div>
 
+    <button
+      v-if="huntAvailable && !activeLandmark && !activeBattle && !activeDungeonRun"
+      class="hunt-control absolute bottom-5 left-5 z-20 flex items-center gap-3 rounded-xl border px-4 py-3 text-left shadow-2xl backdrop-blur-md"
+      :class="{ 'hunt-control--cancel': huntPending }"
+      @click="huntPending ? cancelHunt() : handleHunt()"
+    >
+      <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-[#d9b95f]/15 text-[#f0cf73]">
+        <QIcon :name="huntPending ? 'close' : 'pets'" size="22px" />
+      </span>
+      <span>
+        <span class="block text-xs font-bold tracking-[0.12em] text-[#ffe49a] uppercase">
+          {{ huntPending ? t('fantasy.hunt.cancel') : t('fantasy.hunt.action') }}
+        </span>
+        <span class="mt-0.5 block text-[10px] text-[#a9bfba]">
+          {{ huntPending ? t('fantasy.hunt.searching') : t('fantasy.hunt.hint') }}
+        </span>
+      </span>
+    </button>
+
     <aside
       ref="promptCardRef"
       v-if="promptLandmark && !activeLandmark && !activeBattle && !activeDungeonRun"
@@ -127,18 +146,20 @@
 <script setup lang="ts">
 import { useTranslation } from 'i18next-vue';
 import { Notify, QIcon } from 'quasar';
-import { onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { usersApi } from '@/modules/Auth/api/users';
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
-import { landmarks, movementSpeedAt, type Landmark } from '@/modules/Game/composables/useMapObjects';
+import { canHuntAt, landmarks, movementSpeedAt, type Landmark } from '@/modules/Game/composables/useMapObjects';
+import { rollHuntDelaySeconds } from '@/modules/Game/hunt';
 import { enterDungeon, receiveBlessing, resetDungeon } from '@/modules/Locations/api';
 import type { BattleState, DungeonRunState } from '@/modules/Monsters/api';
 import {
   attackDungeonOpponent,
   attackMonster,
   getActiveDungeon,
+  huntMonster,
   leaveDungeon,
   retreatFromBattle,
   submitDungeonPartyLoot,
@@ -292,6 +313,9 @@ const isDragging = ref(false);
 const activeBattle = ref<BattleState | null>(null);
 const activeDungeonRun = ref<DungeonRunState | null>(null);
 const encounterPending = ref(false);
+const huntPending = ref(false);
+const huntCountdown = ref(0);
+let huntAttempt = 0;
 const battlePending = ref(false);
 let ctx: CanvasRenderingContext2D | null = null;
 let resizeObserver: ResizeObserver | null = null;
@@ -324,6 +348,7 @@ const {
   stop,
   setPosition,
 } = useCharacter(initialX, initialY, mapWidth, mapHeight, canMoveTo, movementSpeedAt);
+const huntAvailable = computed(() => !isMoving.value && canHuntAt(position.x, position.y));
 let lastSavedPosition = `${initialX}:${initialY}`;
 
 const persistPosition = async (): Promise<boolean> => {
@@ -395,6 +420,49 @@ const handleAttack = async () => {
   } finally {
     battlePending.value = false;
   }
+};
+
+const handleHunt = async () => {
+  if (!huntAvailable.value || huntPending.value || activeBattle.value) return;
+  const attempt = ++huntAttempt;
+  huntPending.value = true;
+  const delaySeconds = rollHuntDelaySeconds();
+  huntCountdown.value = delaySeconds;
+  stop();
+  try {
+    const encounteredWhileSaving = await persistPosition();
+    if (encounteredWhileSaving) return;
+    if (attempt !== huntAttempt) return;
+    for (let seconds = delaySeconds; seconds > 0; seconds--) {
+      huntCountdown.value = seconds;
+      await new Promise((resolve) => window.setTimeout(resolve, 1000));
+      if (disposed || attempt !== huntAttempt) return;
+    }
+    if (attempt !== huntAttempt) return;
+    const result = await huntMonster();
+    activeLandmark.value = null;
+    promptLandmark.value = null;
+    showQuestOffers.value = false;
+    showPartyLobby.value = false;
+    activeBattle.value = result.battle;
+    draw();
+  } catch (error) {
+    Notify.create({
+      type: 'negative',
+      message: error instanceof Error ? error.message : t('fantasy.hunt.error'),
+    });
+  } finally {
+    if (attempt === huntAttempt) {
+      huntCountdown.value = 0;
+      huntPending.value = false;
+    }
+  }
+};
+
+const cancelHunt = () => {
+  huntAttempt += 1;
+  huntCountdown.value = 0;
+  huntPending.value = false;
 };
 
 const handlePlayerDefeat = () => {
@@ -575,7 +643,14 @@ const onPointerUp = (event: PointerEvent) => {
   isDragging.value = false;
   canvasRef.value?.releasePointerCapture(event.pointerId);
   if (!endDrag(event.clientX, event.clientY) || !canvasRef.value) return;
-  if (activeBattle.value || activeDungeonRun.value || activeLandmark.value || encounterPending.value) return;
+  if (
+    activeBattle.value ||
+    activeDungeonRun.value ||
+    activeLandmark.value ||
+    encounterPending.value ||
+    huntPending.value
+  )
+    return;
 
   const pointer = relativePointer(event);
   const mapCoords = screenToMap(pointer.x, pointer.y);
@@ -659,6 +734,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   disposed = true;
+  cancelHunt();
   stopPromptDrag();
   if (dungeonPartyTimer) clearInterval(dungeonPartyTimer);
   void persistPosition();
@@ -709,6 +785,32 @@ onUnmounted(() => {
 .map-control:hover {
   color: #fff3bd;
   background: rgb(104 152 144 / 22%);
+}
+
+.hunt-control {
+  border-color: rgb(217 185 95 / 42%);
+  color: #d6e1de;
+  background: linear-gradient(135deg, rgb(12 34 44 / 95%), rgb(17 48 49 / 90%));
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    transform 160ms ease;
+}
+
+.hunt-control:hover:not(:disabled) {
+  border-color: rgb(240 207 115 / 75%);
+  background: linear-gradient(135deg, rgb(15 43 53 / 98%), rgb(22 61 58 / 94%));
+  transform: translateY(-1px);
+}
+
+.hunt-control--cancel {
+  border-color: rgb(232 126 105 / 55%);
+  background: linear-gradient(135deg, rgb(47 29 34 / 96%), rgb(55 35 39 / 92%));
+}
+
+.hunt-control--cancel:hover {
+  border-color: rgb(244 154 135 / 80%);
+  background: linear-gradient(135deg, rgb(62 33 39 / 98%), rgb(70 41 44 / 95%));
 }
 
 canvas {

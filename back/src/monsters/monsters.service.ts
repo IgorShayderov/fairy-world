@@ -10,7 +10,7 @@ import { ItemView } from '../common/views/item.view';
 import { rollMonsterLootRarity, rollQuestLootRarity } from './monster-loot';
 import { progressionAfterExperience } from '../users/level-progression';
 import { recordQuestVictory } from '../quests/quest-progress';
-import { canRetreatAt, encounterChanceAt } from '../locations/map-terrain';
+import { canHuntAt, canRetreatAt, encounterChanceAt } from '../locations/map-terrain';
 import type { UpdateMapPositionDto } from '../users/dto/update-map-position.dto';
 import { CRAFTING_MIN_LEVEL, rollCraftMaterialCode } from '../crafting/crafting.catalog';
 import { rollDeathCurse } from './death-curse';
@@ -103,6 +103,28 @@ export class MonstersService {
     const battle = this.createBattle(userId, player, monster, canRetreatAt(point));
     this.battles.set(battle.id, battle);
     return { encountered: true as const, chance, monster, battle: this.renderBattle(battle) };
+  }
+
+  async hunt(userId: number) {
+    if ([...this.battles.values()].some((battle) => battle.userId === userId && battle.status === 'ACTIVE')) {
+      throw new BadRequestException('Finish the active battle first');
+    }
+    if (await this.dungeonRuns.active(userId)) {
+      throw new BadRequestException('Finish the active dungeon first');
+    }
+
+    const user = await this.usersService.findCurrentUser(userId);
+    if (!user?.gameProfile) throw new NotFoundException('Game profile not found');
+    const point = { x: user.gameProfile.mapPositionX, y: user.gameProfile.mapPositionY };
+    if (!canHuntAt(point)) {
+      throw new BadRequestException('Hunting is available only away from roads, settlements, and sanctuaries');
+    }
+
+    const player = UserView.renderCurrent(user);
+    const monster = this.monsterGenerator.generate(player.level, point);
+    const battle = this.createBattle(userId, player, monster, canRetreatAt(point));
+    this.battles.set(battle.id, battle);
+    return { monster, battle: this.renderBattle(battle) };
   }
 
   async updateMapPositionAndRollEncounter(userId: number, position: UpdateMapPositionDto) {

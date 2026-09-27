@@ -9,6 +9,7 @@ import {
 } from '../../generated/client';
 import { CRAFT_ITEMS, upgradeValueForLevel } from '../crafting/crafting.catalog';
 import { clanBuildingBonus } from '../clans/clan-buildings';
+import { CLAN_BANNERS, clanBannerPvpBonusPercent } from '../clans/clan-banners';
 import { ItemView } from '../common/views/item.view';
 import { townAt } from '../locations/towns';
 import { shieldBlockChance } from '../items/shield-block';
@@ -44,7 +45,7 @@ type CurrentUserModel = Prisma.UserGetPayload<{
         dungeonRun: { select: { id: true } };
         dungeonParty: { select: { party: { select: { status: true } } } };
         clanMembership: {
-          include: { clan: { select: { treasureLevel: true; armoryLevel: true } } };
+          include: { clan: { select: { treasureLevel: true; armoryLevel: true; activeBannerCode: true } } };
         };
         _count: { select: { quests: { where: { completedAt: { not: null } } } } };
       };
@@ -72,6 +73,9 @@ export type UserViewType = 'default' | 'extended';
 export class UserView {
   static renderCurrent(user: CurrentUserModel) {
     const profile = user.gameProfile;
+    const activeClanBanner = CLAN_BANNERS.find(
+      (banner) => banner.code === profile?.clanMembership?.clan.activeBannerCode,
+    );
     const playerLevel = profile?.level ?? 1;
     const entries = profile?.inventory ?? [];
     const equippedEntries = entries.filter((entry) => entry.isEquiped);
@@ -302,6 +306,11 @@ export class UserView {
       },
       activeBuffs: activeBuffs.map(({ type, value, expiresAt }) => ({ type, value, expiresAt })),
       rewardBonuses: { goldPercent: goldBonusPercent, experiencePercent: experienceBonusPercent },
+      activeClanBannerCode: profile?.clanMembership?.clan.activeBannerCode ?? null,
+      activeClanBannerPvpBonusPercent: clanBannerPvpBonusPercent(
+        profile?.clanMembership?.clan.activeBannerCode,
+      ),
+      activeClanBanner: activeClanBanner ?? null,
       blockChance,
       craftInventory: (profile?.craftItems ?? []).map(({ craftItem, quantity }) => ({ ...craftItem, quantity })),
       attributes: [...attributes.values()],

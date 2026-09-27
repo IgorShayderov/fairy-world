@@ -1,6 +1,6 @@
 <template>
-  <main class="realm-page min-h-0 flex-1 overflow-y-auto p-5 sm:p-8">
-    <div class="mx-auto max-w-6xl">
+  <main class="realm-page min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-scroll p-5 sm:p-8">
+    <div class="mx-auto w-full min-w-0 max-w-6xl">
       <header class="clan-header relative overflow-hidden rounded-2xl border border-[#d8bd75]/30 p-6 shadow-xl sm:p-8">
         <div class="relative z-10 flex items-center gap-5">
           <ClanBanner :code="clan?.activeBannerCode ?? null" size="large" />
@@ -63,7 +63,7 @@
           </button>
         </nav>
 
-        <section v-if="activeTab === 'hall'" class="mt-5 grid gap-5 lg:grid-cols-[1fr_320px]">
+        <section v-if="activeTab === 'hall'" class="clan-tab-panel mt-5 grid gap-5 lg:grid-cols-[1fr_320px]">
           <div class="rounded-2xl border border-[#d8bd75]/25 bg-[#0b2530] p-5 shadow-lg">
             <h2 class="font-serif text-2xl text-[#fff0bd]">{{ t('clans.members') }}</h2>
             <div class="mt-4 space-y-2">
@@ -157,7 +157,7 @@
           </aside>
         </section>
 
-        <section v-else-if="activeTab === 'upgrades'" class="mt-5">
+        <section v-else-if="activeTab === 'upgrades'" class="clan-tab-panel mt-5">
           <div class="rounded-2xl border border-[#d8bd75]/25 bg-[#0b2530] p-5 shadow-lg sm:p-6">
             <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
               <div>
@@ -249,7 +249,10 @@
           </div>
         </section>
 
-        <section v-else class="mt-5 rounded-2xl border border-[#d8bd75]/25 bg-[#0b2530] p-5 shadow-lg sm:p-6">
+        <section
+          v-else
+          class="clan-tab-panel mt-5 rounded-2xl border border-[#d8bd75]/25 bg-[#0b2530] p-5 shadow-lg sm:p-6"
+        >
           <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h2 class="font-serif text-2xl text-[#fff0bd]">{{ t('clans.shop') }}</h2>
@@ -268,38 +271,62 @@
           >
             {{ t('clans.officersOnly') }}
           </p>
-          <div class="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            <article v-for="banner in shop?.banners ?? []" :key="banner.code" class="banner-card">
+          <div class="mt-6 border-t border-[#d8bd75]/15 pt-5">
+            <h3 class="font-serif text-xl text-[#fff0bd]">{{ t('clans.bannerInventory') }}</h3>
+            <p class="mt-1 text-xs text-[#7e9a9b]">{{ t('clans.bannerInventoryText') }}</p>
+            <div v-if="unlockedBanners.length" class="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <article v-for="banner in unlockedBanners" :key="banner.code" class="banner-card banner-card--owned">
+                <ClanBanner :code="banner.code" :catalog="shop?.banners ?? []" size="medium" />
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center justify-between gap-2">
+                    <h4 class="font-serif text-lg font-semibold text-[#fff0bd]">{{ banner.name }}</h4>
+                    <span class="owned-chip">{{ t('clans.unlocked') }}</span>
+                  </div>
+                  <p class="mt-1 min-h-12 text-xs leading-5 text-[#a9bfba]">{{ banner.description }}</p>
+                  <p class="banner-bonus mt-2">
+                    <QIcon name="sports_martial_arts" size="15px" />
+                    {{ t('clans.bannerPvpBonus', { value: banner.pvpBonusPercent }) }}
+                  </p>
+                  <button
+                    class="banner-action mt-3 w-full"
+                    :disabled="!shop?.canManage || shop?.activeBannerCode === banner.code || actionBusy"
+                    @click="equipBanner(banner)"
+                  >
+                    <QIcon :name="shop?.activeBannerCode === banner.code ? 'check_circle' : 'flag'" size="17px" />
+                    {{ shop?.activeBannerCode === banner.code ? t('clans.equipped') : t('clans.equip') }}
+                  </button>
+                </div>
+              </article>
+            </div>
+            <p v-else class="mt-4 rounded-xl border border-dashed border-[#d8bd75]/20 p-5 text-sm text-[#7e9a9b]">
+              {{ t('clans.noUnlockedBanners') }}
+            </p>
+          </div>
+
+          <div v-if="lockedBanners.length" class="mt-6 border-t border-[#d8bd75]/15 pt-5">
+            <h3 class="font-serif text-xl text-[#fff0bd]">{{ t('clans.bannerMilestones') }}</h3>
+            <div class="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <article v-for="banner in lockedBanners" :key="banner.code" class="banner-card banner-card--locked">
               <ClanBanner :code="banner.code" :catalog="shop?.banners ?? []" size="medium" />
               <div class="min-w-0 flex-1">
                 <h3 class="font-serif text-lg font-semibold text-[#fff0bd]">{{ banner.name }}</h3>
                 <p class="mt-1 min-h-12 text-xs leading-5 text-[#a9bfba]">{{ banner.description }}</p>
-                <button
-                  class="banner-action mt-3 w-full"
-                  :disabled="
-                    !shop?.canManage ||
-                    shop.activeBannerCode === banner.code ||
-                    (!banner.unlocked && (shop?.activityPoints ?? 0) < banner.cost) ||
-                    actionBusy
-                  "
-                  @click="banner.unlocked ? equipBanner(banner) : buyBanner(banner)"
-                >
-                  <QIcon
-                    :name="
-                      shop?.activeBannerCode === banner.code ? 'check_circle' : banner.unlocked ? 'flag' : 'lock_open'
-                    "
-                    size="17px"
+                <p class="banner-bonus mt-2">
+                  <QIcon name="sports_martial_arts" size="15px" />
+                  {{ t('clans.bannerPvpBonus', { value: banner.pvpBonusPercent }) }}
+                </p>
+                <div class="milestone-progress mt-3">
+                  <div
+                    class="milestone-progress__bar"
+                    :style="{ width: `${Math.min(100, ((shop?.activityPoints ?? 0) / banner.cost) * 100)}%` }"
                   />
-                  {{
-                    shop?.activeBannerCode === banner.code
-                      ? t('clans.equipped')
-                      : banner.unlocked
-                        ? t('clans.equip')
-                        : t('clans.buy', { cost: banner.cost })
-                  }}
-                </button>
+                </div>
+                <div class="mt-2 text-xs font-bold text-[#efca72]">
+                  {{ t('clans.unlockAt', { current: shop?.activityPoints ?? 0, cost: banner.cost }) }}
+                </div>
               </div>
             </article>
+            </div>
           </div>
         </section>
       </template>
@@ -363,7 +390,7 @@
 import '@/css/realm-pages.css';
 import { useTranslation } from 'i18next-vue';
 import { Notify, QIcon } from 'quasar';
-import { onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 import {
@@ -393,6 +420,8 @@ const activeTab = ref<'hall' | 'upgrades' | 'shop'>('hall');
 const leaveArmed = ref(false);
 const pendingRemoveId = ref<number | null>(null);
 const form = reactive({ name: '', tag: '', description: '' });
+const unlockedBanners = computed(() => shop.value?.banners.filter((banner) => banner.unlocked) ?? []);
+const lockedBanners = computed(() => shop.value?.banners.filter((banner) => !banner.unlocked) ?? []);
 
 const load = async () => {
   loading.value = true;
@@ -440,23 +469,16 @@ const openShop = async () => {
   if (!shop.value)
     await run(async () => {
       shop.value = await clansApi.getShop();
+      if (currentUser.user) currentUser.user.activeClanBannerCode = shop.value.activeBannerCode;
+      if (clan.value) clan.value.activeBannerCode = shop.value.activeBannerCode;
     });
 };
-
-const buyBanner = async (banner: ClanBannerType) =>
-  run(async () => {
-    shop.value = await clansApi.buyBanner(banner.code);
-    if (clan.value) {
-      clan.value.activityPoints = shop.value.activityPoints;
-      clan.value.activeBannerCode = banner.code;
-    }
-    Notify.create({ type: 'positive', message: t('clans.bannerUnlocked', { name: banner.name }) });
-  });
 
 const equipBanner = async (banner: ClanBannerType) =>
   run(async () => {
     shop.value = await clansApi.equipBanner(banner.code);
     if (clan.value) clan.value.activeBannerCode = banner.code;
+    if (currentUser.user) currentUser.user.activeClanBannerCode = banner.code;
     Notify.create({ type: 'positive', message: t('clans.bannerEquipped', { name: banner.name }) });
   });
 
@@ -508,6 +530,16 @@ onMounted(() => void load());
 </script>
 
 <style scoped>
+.realm-page {
+  scrollbar-gutter: stable;
+}
+
+.clan-tab-panel {
+  width: 100%;
+  min-width: 0;
+  min-height: 42rem;
+}
+
 .clan-header {
   background:
     radial-gradient(circle at 90% 0%, rgb(239 202 114 / 15%), transparent 38%),
@@ -711,6 +743,48 @@ onMounted(() => void load());
   border: 1px solid rgb(216 189 117 / 18%);
   border-radius: 1rem;
   background: #071a23;
+}
+
+.banner-card--owned {
+  border-color: rgb(81 205 161 / 28%);
+}
+
+.banner-card--locked {
+  opacity: 0.78;
+}
+
+.owned-chip {
+  padding: 0.2rem 0.45rem;
+  border: 1px solid rgb(81 205 161 / 35%);
+  border-radius: 999px;
+  color: #75dcb7;
+  background: rgb(12 74 58 / 30%);
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.banner-bonus {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #efca72;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.milestone-progress {
+  height: 0.42rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #06151d;
+}
+
+.milestone-progress__bar {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #af7d36, #efca72);
 }
 .building-card {
   display: flex;

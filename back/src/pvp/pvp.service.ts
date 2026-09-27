@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException, OnModuleDestroy, On
 import { randomUUID } from 'node:crypto';
 import { CraftItemKind, StatType } from '../../generated/client';
 import { PrismaService } from '../prisma.service';
+import { clanBannerPvpBonusPercent } from '../clans/clan-banners';
 import { UsersService } from '../users/users.service';
 import { UserView } from '../users/user.view';
 import { progressionAfterExperience } from '../users/level-progression';
@@ -59,6 +60,11 @@ export const PVP_ATTACK_COOLDOWN_MS = 15 * 60 * 1000; // 15 minutes
 const BOT_HEALTH_MULTIPLIER = 1.4;
 const BOT_DEFENSE_MULTIPLIER = 1.3;
 const BOT_DODGE_MULTIPLIER = 1.25;
+
+export const applyPvpBannerDamageBonus = (value: number, bonusPercent: number) =>
+  Math.round(value * (1 + bonusPercent / 100));
+export const applyPvpBannerDefenseBonus = (value: number, bonusPercent: number) =>
+  Math.round(value + bonusPercent);
 
 type CachedOpponents = {
   opponents: PvpOpponent[];
@@ -199,7 +205,9 @@ export class PvpService implements OnModuleInit, OnModuleDestroy {
             dungeonRun: { select: { id: true } },
             dungeonParty: { select: { party: { select: { status: true } } } },
             clanMembership: {
-              include: { clan: { select: { treasureLevel: true, armoryLevel: true } } },
+              include: {
+                clan: { select: { treasureLevel: true, armoryLevel: true, activeBannerCode: true } },
+              },
             },
             _count: { select: { quests: { where: { completedAt: { not: null } } } } },
           },
@@ -277,7 +285,9 @@ export class PvpService implements OnModuleInit, OnModuleDestroy {
             dungeonRun: { select: { id: true } },
             dungeonParty: { select: { party: { select: { status: true } } } },
             clanMembership: {
-              include: { clan: { select: { treasureLevel: true, armoryLevel: true } } },
+              include: {
+                clan: { select: { treasureLevel: true, armoryLevel: true, activeBannerCode: true } },
+              },
             },
             _count: { select: { quests: { where: { completedAt: { not: null } } } } },
           },
@@ -310,8 +320,9 @@ export class PvpService implements OnModuleInit, OnModuleDestroy {
     const prop = (name: StatType) => candidateRendered.properties.find((p) => p.name === name)?.value ?? 0;
 
     const health = Math.max(1, Math.round(prop(StatType.HEALTH)));
-    const damage = Math.max(1, Math.round(prop(StatType.DAMAGE)));
-    const defense = Math.max(0, Math.round(prop(StatType.DEFENSE)));
+    const bannerBonusPercent = clanBannerPvpBonusPercent(candidateRendered.activeClanBannerCode);
+    const damage = Math.max(1, applyPvpBannerDamageBonus(prop(StatType.DAMAGE), bannerBonusPercent));
+    const defense = Math.max(0, applyPvpBannerDefenseBonus(prop(StatType.DEFENSE), bannerBonusPercent));
     const dodge = Math.max(0, Math.round(prop(StatType.DODGE)));
     const crit = Math.max(0, Math.round(prop(StatType.CRIT)));
     const critDamage = Math.max(100, Math.round(prop(StatType.CRIT_DAMAGE) || 150));
@@ -337,6 +348,7 @@ export class PvpService implements OnModuleInit, OnModuleDestroy {
       blockChance: candidateRendered.blockChance,
       criticalChance: crit,
       criticalDamage: critDamage,
+      bannerBonusPercent,
       rewards: {
         gold: 0,
         experience: reducedExp,
@@ -377,6 +389,7 @@ export class PvpService implements OnModuleInit, OnModuleDestroy {
       blockChance: 0,
       criticalChance: botCrit,
       criticalDamage: 150,
+      bannerBonusPercent: 0,
       rewards: {
         gold: 0,
         experience: reducedExp,
@@ -406,17 +419,19 @@ export class PvpService implements OnModuleInit, OnModuleDestroy {
     const property = (name: StatType) => player.properties.find((entry) => entry.name === name)?.value ?? 0;
 
     const playerHealth = Math.max(1, Math.round(property(StatType.HEALTH)));
+    const playerBannerBonusPercent = clanBannerPvpBonusPercent(player.activeClanBannerCode);
     const playerCombatant: PvpCombatant = {
       name: player.name ?? 'Player',
       level: player.level,
       health: playerHealth,
       maxHealth: playerHealth,
-      damage: Math.max(1, Math.round(property(StatType.DAMAGE))),
-      defense: Math.round(property(StatType.DEFENSE)),
+      damage: Math.max(1, applyPvpBannerDamageBonus(property(StatType.DAMAGE), playerBannerBonusPercent)),
+      defense: applyPvpBannerDefenseBonus(property(StatType.DEFENSE), playerBannerBonusPercent),
       dodge: Math.round(property(StatType.DODGE)),
       blockChance: player.blockChance,
       criticalChance: Math.round(property(StatType.CRIT)),
       criticalDamage: Math.round(property(StatType.CRIT_DAMAGE) || 150),
+      bannerBonusPercent: playerBannerBonusPercent,
     };
 
     const opponentCombatant: PvpCombatant = {
@@ -430,6 +445,7 @@ export class PvpService implements OnModuleInit, OnModuleDestroy {
       blockChance: opponent.blockChance,
       criticalChance: opponent.criticalChance,
       criticalDamage: opponent.criticalDamage,
+      bannerBonusPercent: opponent.bannerBonusPercent,
     };
 
     const events: PvpBattleEvent[] = [];

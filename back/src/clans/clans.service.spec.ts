@@ -14,6 +14,8 @@ describe('ClansService', () => {
   const clanMemberUpdate = jest.fn();
   const clanUpdate = jest.fn();
   const clanUpdateMany = jest.fn();
+  const clanBannerUnlockCreate = jest.fn();
+  const clanBannerUnlockCreateMany = jest.fn();
   const gameProfileUpdateMany = jest.fn();
   const transaction = jest.fn();
   const prisma = {
@@ -27,6 +29,7 @@ describe('ClansService', () => {
       updateMany: clanUpdateMany,
     },
     clanMember: { findMany: clanMemberFindMany, update: clanMemberUpdate },
+    clanBannerUnlock: { create: clanBannerUnlockCreate, createMany: clanBannerUnlockCreateMany },
     $transaction: transaction,
   } as unknown as PrismaService;
   let service: ClansService;
@@ -80,6 +83,7 @@ describe('ClansService', () => {
       callback({
         gameProfile: { updateMany: gameProfileUpdateMany },
         clanMember: { update: clanMemberUpdate },
+        clanBannerUnlock: { create: clanBannerUnlockCreate },
         clan: { findUnique: clanFindUnique, update: clanUpdate, updateMany: clanUpdateMany },
       }),
     );
@@ -257,5 +261,59 @@ describe('ClansService', () => {
       bonusPercent: 6,
       nextCost: clanBuildingUpgradeCost(3),
     });
+  });
+
+  it('unlocks a reached banner milestone without spending clan activity', async () => {
+    gameProfileFindUnique.mockResolvedValue({
+      ...profile,
+      clanMembership: { clanId: 'clan-1', gameProfileId: 7, role: ClanRole.LEADER },
+    });
+    clanMemberFindMany.mockResolvedValue([]);
+    clanFindUnique
+      .mockResolvedValueOnce({ id: 'clan-1', activityPoints: 120, bannerUnlocks: [] })
+      .mockResolvedValueOnce({
+        id: 'clan-1',
+        activityPoints: 120,
+        activeBannerCode: 'IRON_OATH',
+        bannerUnlocks: [{ bannerCode: 'IRON_OATH' }],
+      });
+
+    const result = await service.buyBanner(4, 'IRON_OATH');
+
+    expect(clanBannerUnlockCreate).toHaveBeenCalledWith({
+      data: { clanId: 'clan-1', bannerCode: 'IRON_OATH' },
+    });
+    expect(clanUpdate).toHaveBeenCalledWith({
+      where: { id: 'clan-1' },
+      data: { activeBannerCode: 'IRON_OATH' },
+    });
+    expect(result.activityPoints).toBe(120);
+    expect(result.banners.find((banner) => banner.code === 'IRON_OATH')?.unlocked).toBe(true);
+  });
+
+  it('automatically equips the first earned banner when the clan has none', async () => {
+    gameProfileFindUnique.mockResolvedValue({
+      ...profile,
+      clanMembership: { clanId: 'clan-1', gameProfileId: 7, role: ClanRole.MEMBER },
+    });
+    clanMemberFindMany.mockResolvedValue([]);
+    clanFindUnique.mockResolvedValueOnce({
+      id: 'clan-1',
+      activityPoints: 120,
+      activeBannerCode: null,
+      bannerUnlocks: [],
+    });
+
+    const result = await service.getShop(4);
+
+    expect(clanBannerUnlockCreateMany).toHaveBeenCalledWith({
+      data: [{ clanId: 'clan-1', bannerCode: 'IRON_OATH' }],
+      skipDuplicates: true,
+    });
+    expect(clanUpdate).toHaveBeenCalledWith({
+      where: { id: 'clan-1' },
+      data: { activeBannerCode: 'IRON_OATH' },
+    });
+    expect(result.activeBannerCode).toBe('IRON_OATH');
   });
 });

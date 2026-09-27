@@ -73,6 +73,7 @@ const routes = {
       byIdPath: (id: number) => [BASE_API_PATH, 'monsters', String(id)].join('/'),
       battleAttackPath: (battleId: string) => [BASE_API_PATH, 'monsters', 'battle', battleId, 'attack'].join('/'),
       battleRetreatPath: (battleId: string) => [BASE_API_PATH, 'monsters', 'battle', battleId, 'retreat'].join('/'),
+      huntPath: () => [BASE_API_PATH, 'monsters', 'hunt'].join('/'),
     },
     pvp: {
       opponentsPath: () => [BASE_API_PATH, 'pvp', 'opponents'].join('/'),

@@ -24,7 +24,7 @@ type CurrentUserModel = Prisma.UserGetPayload<{
         dungeonRun: { select: { id: true } };
         dungeonParty: { select: { party: { select: { status: true } } } };
         clanMembership: {
-          include: { clan: { select: { treasureLevel: true; armoryLevel: true } } };
+          include: { clan: { select: { treasureLevel: true; armoryLevel: true; activeBannerCode: true } } };
         };
         _count: { select: { quests: { where: { completedAt: { not: null } } } } };
       };
@@ -87,7 +87,7 @@ describe('UserView.renderCurrent', () => {
           trackedQuestsCompleted: 0,
           trackedPvpVictories: 0,
           joinedAt: new Date('2026-09-10T00:00:00Z'),
-          clan: { treasureLevel: 3, armoryLevel: 2 },
+          clan: { treasureLevel: 3, armoryLevel: 2, activeBannerCode: 'IRON_OATH' },
         },
         killedMonsters: 42,
         dungeonsCleared: 2,
@@ -189,6 +189,8 @@ describe('UserView.renderCurrent', () => {
     expect(result.gems).toBe(25);
     expect(result.blockChance).toBe(10);
     expect(result.rewardBonuses).toEqual({ goldPercent: 6, experiencePercent: 4 });
+    expect(result.activeClanBannerCode).toBe('IRON_OATH');
+    expect(result.activeClanBannerPvpBonusPercent).toBe(5);
     expect(result.mapPosition).toEqual({ x: 1600, y: 900 });
     expect(result.inventory).toHaveLength(1);
     expect(result.inventory[0]).toMatchObject({

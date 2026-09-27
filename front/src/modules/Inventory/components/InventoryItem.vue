@@ -90,7 +90,7 @@
       <div v-if="effectiveRequiredPlayerLevel" class="mt-1 text-xs text-amber-200">
         {{ $t('profile.requiredLevel', { level: effectiveRequiredPlayerLevel }) }}
       </div>
-      <div v-if="displayItem.price !== undefined" class="mt-2 text-xs">
+      <div v-if="displayItem.price !== undefined && displayItem.price > 0" class="mt-2 text-xs">
         {{ $t('profile.tooltip.price') }}: {{ displayItem.price }}g
       </div>
       <div v-if="displayItem.blockChance" class="mt-2 text-xs font-semibold text-sky-200">
@@ -114,7 +114,7 @@
       >
         {{
           $t('crafting.previewBonus', {
-            value: displayItem.craftUpgradeValue,
+            value: formatUpgradeValue(displayItem.craftUpgradeType, displayItem.craftUpgradeValue),
             type: $t(`crafting.types.${displayItem.craftUpgradeType}`),
           })
         }}
@@ -126,7 +126,7 @@
         <span class="font-semibold">{{ $t('crafting.upgrade') }}:</span>
         {{
           $t('crafting.bonus', {
-            value: displayItem.upgradeValue,
+            value: formatUpgradeValue(displayItem.upgradeType, displayItem.upgradeValue),
             type: $t(`crafting.types.${displayItem.upgradeType}`),
           })
         }}
@@ -428,6 +428,11 @@ const comparisonGroups = computed(() =>
 );
 
 const signedValue = (value: number) => `${value > 0 ? '+' : ''}${value}`;
+const formatUpgradeValue = (type?: string | null, value?: number | null) => {
+  if (value === undefined || value === null) return '';
+  const isPercent = type === 'GOLD' || type === 'EXPERIENCE';
+  return `${value > 0 ? '+' : ''}${value}${isPercent ? '%' : ''}`;
+};
 const differenceClass = (difference: number) => ({
   'font-semibold text-green-400': difference > 0,
   'font-semibold text-red-400': difference < 0,

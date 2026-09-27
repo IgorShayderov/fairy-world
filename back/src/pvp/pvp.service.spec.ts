@@ -1,6 +1,13 @@
 import { PrismaService } from '../prisma.service';
 import { UsersService } from '../users/users.service';
-import { PvpService, PVP_REFRESH_GEMS_COST, PVP_RESET_COOLDOWN_GEMS_COST } from './pvp.service';
+import { UserView } from '../users/user.view';
+import {
+  applyPvpBannerDamageBonus,
+  applyPvpBannerDefenseBonus,
+  PvpService,
+  PVP_REFRESH_GEMS_COST,
+  PVP_RESET_COOLDOWN_GEMS_COST,
+} from './pvp.service';
 
 describe('PvpService', () => {
   let pvpService: PvpService;
@@ -203,6 +210,39 @@ describe('PvpService', () => {
   });
 
   describe('duel', () => {
+    it('applies the active clan banner damage and defense bonus only to the PvP combatant', async () => {
+      const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.99);
+      const opponents = await pvpService.getOpponents(1);
+      const bannerUser = {
+        ...mockCurrentUser,
+        gameProfile: {
+          ...mockCurrentUser.gameProfile,
+          profileStats: [
+            { stat: { name: 'DAMAGE' }, value: 100 },
+            { stat: { name: 'DEFENSE' }, value: 20 },
+            { stat: { name: 'HEALTH' }, value: 9999 },
+          ],
+          clanMembership: {
+            clan: { treasureLevel: 0, armoryLevel: 0, activeBannerCode: 'IRON_OATH' },
+          },
+        },
+      };
+      mockFindCurrentUser.mockResolvedValue(bannerUser);
+
+      try {
+        const rendered = UserView.renderCurrent(bannerUser as never);
+        const baseDamage = rendered.properties.find((property) => property.name === 'DAMAGE')?.value ?? 0;
+        const baseDefense = rendered.properties.find((property) => property.name === 'DEFENSE')?.value ?? 0;
+        const result = await pvpService.duel(1, opponents[0].id);
+
+        expect(result.player.bannerBonusPercent).toBe(5);
+        expect(result.player.damage).toBe(applyPvpBannerDamageBonus(baseDamage, 5));
+        expect(result.player.defense).toBe(applyPvpBannerDefenseBonus(baseDefense, 5));
+      } finally {
+        randomSpy.mockRestore();
+      }
+    });
+
     it('throws BadRequestException if attack is on cooldown', async () => {
       await pvpService.getOpponents(1);
 

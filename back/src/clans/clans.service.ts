@@ -202,10 +202,27 @@ export class ClansService {
       include: { bannerUnlocks: true },
     });
     if (!clan) throw new NotFoundException('Clan not found');
-    const unlocked = new Set(clan.bannerUnlocks.map((entry) => entry.bannerCode));
+    const earnedBanners = CLAN_BANNERS.filter((banner) => clan.activityPoints >= banner.cost);
+    if (earnedBanners.length) {
+      await this.prisma.clanBannerUnlock.createMany({
+        data: earnedBanners.map((banner) => ({ clanId: clan.id, bannerCode: banner.code })),
+        skipDuplicates: true,
+      });
+    }
+    const activeBannerCode = clan.activeBannerCode ?? earnedBanners[0]?.code ?? null;
+    if (!clan.activeBannerCode && activeBannerCode) {
+      await this.prisma.clan.update({
+        where: { id: clan.id },
+        data: { activeBannerCode },
+      });
+    }
+    const unlocked = new Set([
+      ...clan.bannerUnlocks.map((entry) => entry.bannerCode),
+      ...earnedBanners.map((banner) => banner.code),
+    ]);
     return {
       activityPoints: clan.activityPoints,
-      activeBannerCode: clan.activeBannerCode,
+      activeBannerCode,
       canManage: membership.role === ClanRole.LEADER || membership.role === ClanRole.OFFICER,
       banners: CLAN_BANNERS.map((banner) => ({ ...banner, unlocked: unlocked.has(banner.code) })),
     };
@@ -224,12 +241,13 @@ export class ClansService {
         include: { bannerUnlocks: { where: { bannerCode } } },
       });
       if (!clan) throw new NotFoundException('Clan not found');
-      if (clan.bannerUnlocks.length) throw new BadRequestException('This banner is already unlocked');
       if (clan.activityPoints < banner.cost) throw new BadRequestException('Not enough clan activity');
-      await tx.clanBannerUnlock.create({ data: { clanId: clan.id, bannerCode } });
+      if (!clan.bannerUnlocks.length) {
+        await tx.clanBannerUnlock.create({ data: { clanId: clan.id, bannerCode } });
+      }
       await tx.clan.update({
         where: { id: clan.id },
-        data: { activityPoints: { decrement: banner.cost }, activeBannerCode: bannerCode },
+        data: { activeBannerCode: bannerCode },
       });
     });
     return this.getShop(userId);

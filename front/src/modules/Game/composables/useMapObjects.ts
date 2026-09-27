@@ -9,21 +9,53 @@ export type Landmark = Point & {
 };
 
 export const landmarks: Landmark[] = [
-  { x: 1200, y: 330, name: 'SUNSPIRE', subtitle: 'Sanctuary of the Northern Sun', type: 'sanctum', sanctuaryId: 3, accent: '#ffd477' },
+  {
+    x: 1200,
+    y: 330,
+    name: 'SUNSPIRE',
+    subtitle: 'Sanctuary of the Northern Sun',
+    type: 'sanctum',
+    sanctuaryId: 3,
+    accent: '#ffd477',
+  },
   { x: 1770, y: 300, name: 'ICEVAULT', subtitle: 'The Frozen Depths', type: 'dungeon', accent: '#8bcfe8' },
   { x: 450, y: 350, name: 'RAVENCRYPT', subtitle: 'The Forgotten Barrows', type: 'dungeon', accent: '#bb91de' },
   { x: 940, y: 620, name: 'AURELIA', subtitle: 'The Sunlit Citadel', type: 'capital', accent: '#f6cf72' },
   { x: 2060, y: 570, name: 'MOONFALL', subtitle: 'City of Silver Spires', type: 'city', accent: '#b8d9ff' },
   { x: 1470, y: 960, name: 'EVERCROSS', subtitle: 'The Wandering Market', type: 'village', accent: '#efbd74' },
   { x: 2470, y: 1370, name: 'EMBERDEEP', subtitle: 'Vault of the First Flame', type: 'dungeon', accent: '#ff8067' },
-  { x: 720, y: 1480, name: 'STARGLEN', subtitle: 'Sanctuary of Whispers', type: 'sanctum', sanctuaryId: 1, accent: '#8ce5ca' },
+  {
+    x: 720,
+    y: 1480,
+    name: 'STARGLEN',
+    subtitle: 'Sanctuary of Whispers',
+    type: 'sanctum',
+    sanctuaryId: 1,
+    accent: '#8ce5ca',
+  },
   { x: 1720, y: 1640, name: 'MOSSKEEP', subtitle: 'Village beneath the Boughs', type: 'village', accent: '#a9d48c' },
   { x: 520, y: 850, name: 'WESTMERE', subtitle: 'Harbor of Amber Sails', type: 'city', accent: '#f4bd72' },
   { x: 2530, y: 520, name: 'FROSTWATCH', subtitle: 'The Northern Beacon', type: 'village', accent: '#c5e4ef' },
   { x: 1120, y: 1580, name: 'LARKHAVEN', subtitle: 'City of Green Glass', type: 'city', accent: '#f4bd72' },
   { x: 2680, y: 1040, name: 'HOLLOWGATE', subtitle: 'The Door Below', type: 'dungeon', accent: '#cf84f1' },
-  { x: 2240, y: 1540, name: 'DAWNSHRINE', subtitle: 'Temple of the Last Star', type: 'sanctum', sanctuaryId: 2, accent: '#ffe08a' },
+  {
+    x: 2240,
+    y: 1540,
+    name: 'DAWNSHRINE',
+    subtitle: 'Temple of the Last Star',
+    type: 'sanctum',
+    sanctuaryId: 2,
+    accent: '#ffe08a',
+  },
 ];
+
+export const LANDMARK_VISUALS: Record<Landmark['type'], { radius: number; label: string }> = {
+  capital: { radius: 43, label: 'CAPITAL' },
+  city: { radius: 39, label: 'CITY' },
+  village: { radius: 35, label: 'VILLAGE' },
+  dungeon: { radius: 34, label: 'DUNGEON' },
+  sanctum: { radius: 37, label: 'SANCTUARY' },
+};
 
 // Named endpoints keep roads stable when landmarks are inserted or reordered.
 const road = (from: string, to: string, ...via: Point[]): Point[] => {
@@ -41,13 +73,7 @@ export const roads: Point[][] = [
   road('AURELIA', 'SUNSPIRE'),
   road('SUNSPIRE', 'ICEVAULT'),
   road('AURELIA', 'EVERCROSS'),
-  road(
-    'EVERCROSS',
-    'MOONFALL',
-    { x: 1700, y: 885 },
-    { x: 1880, y: 710 },
-    { x: 2025, y: 535 },
-  ),
+  road('EVERCROSS', 'MOONFALL', { x: 1700, y: 885 }, { x: 1880, y: 710 }, { x: 2025, y: 535 }),
   road('MOONFALL', 'FROSTWATCH', { x: 2250, y: 535 }, { x: 2580, y: 535 }),
   road('FROSTWATCH', 'HOLLOWGATE', { x: 2770, y: 600 }, { x: 2850, y: 950 }),
   road('EVERCROSS', 'STARGLEN', { x: 1190, y: 1080 }, { x: 930, y: 1280 }),
@@ -112,9 +138,9 @@ const detectedBridgeCrossings = roads.flatMap((route) =>
       river.slice(1).flatMap((riverEnd, riverIndex) => {
         const crossing = segmentIntersection(route[roadIndex]!, roadEnd, river[riverIndex]!, riverEnd);
         return crossing ? [crossing] : [];
-      }),
-    ),
-  ),
+      })
+    )
+  )
 );
 
 export const bridgeCrossings = [
@@ -129,7 +155,7 @@ const distanceToOrientedRectangle = (
   center: Point,
   angle: number,
   halfLength: number,
-  halfWidth: number,
+  halfWidth: number
 ) => {
   const offsetX = point.x - center.x;
   const offsetY = point.y - center.y;
@@ -143,7 +169,7 @@ export const isPointOnBridge = (x: number, y: number) =>
 
 export const isPointInRiver = (x: number, y: number, tolerance = 14) =>
   rivers.some((river) =>
-    river.slice(1).some((end, index) => distanceToSegment({ x, y }, river[index]!, end) <= tolerance),
+    river.slice(1).some((end, index) => distanceToSegment({ x, y }, river[index]!, end) <= tolerance)
   );
 
 export const isPointInMountain = (x: number, y: number, padding = 8) =>
@@ -162,12 +188,17 @@ const distanceToSegment = (point: Point, start: Point, end: Point) => {
   const dx = end.x - start.x;
   const dy = end.y - start.y;
   const lengthSquared = dx * dx + dy * dy;
-  const ratio = lengthSquared === 0 ? 0 : Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared));
+  const ratio =
+    lengthSquared === 0
+      ? 0
+      : Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared));
   return Math.hypot(point.x - (start.x + ratio * dx), point.y - (start.y + ratio * dy));
 };
 
 export const isPointOnRoute = (x: number, y: number, tolerance = 18) =>
-  roads.some((points) => points.slice(1).some((end, index) => distanceToSegment({ x, y }, points[index]!, end) <= tolerance));
+  roads.some((points) =>
+    points.slice(1).some((end, index) => distanceToSegment({ x, y }, points[index]!, end) <= tolerance)
+  );
 
 const seededRandom = (seed: number) => {
   let value = seed >>> 0;
@@ -185,17 +216,19 @@ export const mountains = (() => {
   return [
     { x: 1510, y: 520, count: 15, dx: 69, slope: -4 },
     { x: 2380, y: 650, count: 13, dx: 23, slope: 64 },
-  ].flatMap((range) => Array.from({ length: range.count }, (_, index) => {
-    const size = 72 + random() * 42;
-    return {
-      x: range.x + index * range.dx + (random() - 0.5) * 34,
-      y: range.y + index * range.slope + (random() - 0.5) * 46,
-      size,
-      widthScale: 0.78 + random() * 0.38,
-      lean: (random() - 0.5) * 0.22,
-      snowLine: 0.42 + random() * 0.14,
-    };
-  }));
+  ].flatMap((range) =>
+    Array.from({ length: range.count }, (_, index) => {
+      const size = 72 + random() * 42;
+      return {
+        x: range.x + index * range.dx + (random() - 0.5) * 34,
+        y: range.y + index * range.slope + (random() - 0.5) * 46,
+        size,
+        widthScale: 0.78 + random() * 0.38,
+        lean: (random() - 0.5) * 0.22,
+        snowLine: 0.42 + random() * 0.14,
+      };
+    })
+  );
 })();
 
 type TerrainFeature = Point & { rx: number; ry: number; angle: number; seed: number };
@@ -206,9 +239,7 @@ export const lakes: TerrainFeature[] = [
   { x: 1040, y: 1810, rx: 92, ry: 54, angle: -0.12, seed: 73 },
 ];
 
-export const frozenLakes: TerrainFeature[] = [
-  { x: 2835, y: 350, rx: 150, ry: 78, angle: -0.16, seed: 89 },
-];
+export const frozenLakes: TerrainFeature[] = [{ x: 2835, y: 350, rx: 150, ry: 78, angle: -0.16, seed: 89 }];
 
 export const bogs: TerrainFeature[] = [
   { x: 420, y: 1510, rx: 150, ry: 88, angle: 0.15, seed: 101 },
@@ -244,15 +275,23 @@ const isInsideFeature = (feature: TerrainFeature, x: number, y: number, padding 
 
 export const isPointInBog = (x: number, y: number) => bogs.some((bog) => isInsideFeature(bog, x, y));
 
-export const isPointInForest = (x: number, y: number) => forestRegions.some(
-  (forest) => ((x - forest.x) / forest.radiusX) ** 2 + ((y - forest.y) / forest.radiusY) ** 2 <= 1,
-);
+export const isPointInForest = (x: number, y: number) =>
+  forestRegions.some((forest) => ((x - forest.x) / forest.radiusX) ** 2 + ((y - forest.y) / forest.radiusY) ** 2 <= 1);
 
 export const movementSpeedAt = (x: number, y: number) => {
   if (isPointOnRoute(x, y)) return 1;
   if (isPointInBog(x, y)) return 0.2;
   if (isPointInForest(x, y)) return 0.4;
   return 0.7;
+};
+
+export const canHuntAt = (x: number, y: number) => {
+  if (isPointOnRoute(x, y)) return false;
+  return !landmarks.some((landmark) => {
+    if (landmark.type === 'dungeon') return false;
+    const reach = landmark.type === 'sanctum' ? 85 : 70;
+    return Math.hypot(x - landmark.x, y - landmark.y) <= reach;
+  });
 };
 
 const terrainPoints = (feature: TerrainFeature) => {
@@ -388,7 +427,7 @@ export function useMapObjects() {
         4,
         lake.x,
         lake.y,
-        lake.rx,
+        lake.rx
       );
       water.addColorStop(0, '#83c7be');
       water.addColorStop(0.52, '#4d9998');
@@ -419,12 +458,7 @@ export function useMapObjects() {
       traceTerrainFeature(ctx, lake);
       ctx.shadowColor = 'rgba(45, 83, 96, 0.3)';
       ctx.shadowBlur = 18;
-      const ice = ctx.createLinearGradient(
-        lake.x - lake.rx,
-        lake.y - lake.ry,
-        lake.x + lake.rx,
-        lake.y + lake.ry,
-      );
+      const ice = ctx.createLinearGradient(lake.x - lake.rx, lake.y - lake.ry, lake.x + lake.rx, lake.y + lake.ry);
       ice.addColorStop(0, '#dce9e6');
       ice.addColorStop(0.45, '#a9cfd0');
       ice.addColorStop(1, '#719fac');
@@ -708,7 +742,7 @@ export function useMapObjects() {
     size: number,
     widthScale: number,
     lean: number,
-    snowLine: number,
+    snowLine: number
   ) => {
     ctx.save();
     ctx.translate(x, y);
@@ -829,15 +863,7 @@ export function useMapObjects() {
 
   const drawMountainRanges = (ctx: CanvasRenderingContext2D) => {
     for (const mountain of [...mountains].sort((a, b) => a.y - b.y)) {
-      drawMountain(
-        ctx,
-        mountain.x,
-        mountain.y,
-        mountain.size,
-        mountain.widthScale,
-        mountain.lean,
-        mountain.snowLine,
-      );
+      drawMountain(ctx, mountain.x, mountain.y, mountain.size, mountain.widthScale, mountain.lean, mountain.snowLine);
     }
 
     ctx.save();
@@ -891,7 +917,7 @@ export function useMapObjects() {
       const blocksRoad = isPointOnRoute(x, y, 30 + size * 0.5);
       const blocksLandmark = landmarks.some((landmark) => Math.hypot(x - landmark.x, y - landmark.y) < 64 + size);
       const insideLake = [...lakes, ...frozenLakes].some(
-        (lake) => Math.hypot((x - lake.x) / lake.rx, (y - lake.y) / lake.ry) < 1.15,
+        (lake) => Math.hypot((x - lake.x) / lake.rx, (y - lake.y) / lake.ry) < 1.15
       );
       if (blocksRoad || blocksLandmark || insideLake) continue;
       trees.push({ x, y, size, color: colors[Math.floor(random() * colors.length)]! });
@@ -910,7 +936,7 @@ export function useMapObjects() {
         forest.radiusY,
         forest.count,
         forest.seed,
-        forest.colors,
+        forest.colors
       );
     }
 
@@ -926,19 +952,183 @@ export function useMapObjects() {
     ctx.restore();
   };
 
+  const drawSettlementGlyph = (ctx: CanvasRenderingContext2D, type: 'capital' | 'city', accent: string) => {
+    ctx.fillStyle = accent;
+    ctx.strokeStyle = accent;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    // A readable skyline: the capital has a taller crowned keep while cities
+    // use a wider fortified silhouette.
+    ctx.beginPath();
+    ctx.moveTo(-24, 18);
+    ctx.lineTo(-24, -8);
+    ctx.lineTo(-20, -8);
+    ctx.lineTo(-20, -13);
+    ctx.lineTo(-14, -13);
+    ctx.lineTo(-14, -8);
+    ctx.lineTo(-9, -8);
+    ctx.lineTo(-9, type === 'capital' ? -18 : -12);
+    ctx.lineTo(-4, type === 'capital' ? -18 : -12);
+    ctx.lineTo(-4, type === 'capital' ? -23 : -17);
+    ctx.lineTo(4, type === 'capital' ? -23 : -17);
+    ctx.lineTo(4, type === 'capital' ? -18 : -12);
+    ctx.lineTo(9, type === 'capital' ? -18 : -12);
+    ctx.lineTo(9, -8);
+    ctx.lineTo(14, -8);
+    ctx.lineTo(14, -13);
+    ctx.lineTo(20, -13);
+    ctx.lineTo(20, -8);
+    ctx.lineTo(24, -8);
+    ctx.lineTo(24, 18);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = '#10242c';
+    ctx.beginPath();
+    ctx.roundRect(-5, 5, 10, 13, [5, 5, 0, 0]);
+    ctx.fill();
+    for (const windowX of [-17, 0, 17]) {
+      ctx.beginPath();
+      ctx.arc(windowX, windowX === 0 ? -6 : 1, 2.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    if (type === 'capital') {
+      ctx.strokeStyle = 'rgba(255, 246, 210, 0.86)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, -23);
+      ctx.lineTo(0, -31);
+      ctx.lineTo(9, -28);
+      ctx.lineTo(0, -25);
+      ctx.stroke();
+    }
+  };
+
+  const drawVillageGlyph = (ctx: CanvasRenderingContext2D, accent: string) => {
+    // Overlapping rooflines make villages read as a settlement rather than a
+    // smaller version of a city.
+    ctx.fillStyle = 'rgba(244, 238, 207, 0.92)';
+    ctx.fillRect(-20, 2, 22, 16);
+    ctx.fillRect(4, 6, 18, 12);
+
+    ctx.fillStyle = accent;
+    ctx.beginPath();
+    ctx.moveTo(-24, 3);
+    ctx.lineTo(-9, -13);
+    ctx.lineTo(6, 3);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(0, 7);
+    ctx.lineTo(13, -7);
+    ctx.lineTo(26, 7);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = '#15303a';
+    ctx.fillRect(-13, 8, 6, 10);
+    ctx.fillRect(10, 10, 5, 5);
+    ctx.fillStyle = 'rgba(255, 224, 128, 0.95)';
+    ctx.fillRect(-1, 7, 3, 4);
+    ctx.fillRect(17, 10, 3, 4);
+
+    ctx.strokeStyle = 'rgba(247, 231, 184, 0.82)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-27, 24);
+    ctx.quadraticCurveTo(-2, 15, 28, 24);
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(238, 228, 202, 0.56)';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(-2, -8);
+    ctx.bezierCurveTo(4, -14, -3, -18, 4, -23);
+    ctx.stroke();
+  };
+
+  const drawSanctumGlyph = (ctx: CanvasRenderingContext2D, accent: string) => {
+    // Sanctuaries use a small temple silhouette instead of an abstract magic
+    // symbol, so they remain recognizable as explorable buildings at a glance.
+    ctx.strokeStyle = 'rgba(244, 236, 202, 0.5)';
+    ctx.lineWidth = 1.75;
+    ctx.beginPath();
+    ctx.arc(0, -5, 26, Math.PI * 1.08, Math.PI * 1.92);
+    ctx.stroke();
+
+    ctx.fillStyle = accent;
+    ctx.beginPath();
+    ctx.moveTo(-25, -2);
+    ctx.lineTo(0, -18);
+    ctx.lineTo(25, -2);
+    ctx.closePath();
+    ctx.fill();
+
+    // A shallow dome and beacon distinguish the sanctuary from city towers.
+    ctx.beginPath();
+    ctx.arc(0, -17, 10, Math.PI, Math.PI * 2);
+    ctx.lineTo(10, -15);
+    ctx.lineTo(-10, -15);
+    ctx.fill();
+
+    ctx.strokeStyle = accent;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, -27);
+    ctx.lineTo(0, -22);
+    ctx.moveTo(-3, -25);
+    ctx.lineTo(3, -25);
+    ctx.stroke();
+
+    ctx.fillStyle = 'rgba(241, 236, 209, 0.94)';
+    ctx.fillRect(-22, -1, 44, 21);
+
+    ctx.fillStyle = '#173039';
+    for (const columnX of [-15, -7, 7, 15]) {
+      ctx.fillRect(columnX - 2, 3, 4, 14);
+    }
+
+    ctx.fillStyle = accent;
+    ctx.fillRect(-25, 18, 50, 4);
+    ctx.fillRect(-21, 23, 42, 3);
+
+    ctx.fillStyle = '#11272f';
+    ctx.beginPath();
+    ctx.roundRect(-5, 7, 10, 13, [5, 5, 0, 0]);
+    ctx.fill();
+
+    ctx.shadowColor = accent;
+    ctx.shadowBlur = 8;
+    ctx.fillStyle = 'rgba(255, 247, 211, 0.9)';
+    ctx.beginPath();
+    ctx.arc(0, 12, 2.25, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  };
+
   const drawLandmarkIcon = (ctx: CanvasRenderingContext2D, landmark: Landmark) => {
     const { x, y, type, accent } = landmark;
-    const radius = type === 'capital' ? 39 : type === 'city' ? 36 : 33;
+    const { radius } = LANDMARK_VISUALS[type];
     ctx.save();
     ctx.translate(x, y);
 
     ctx.beginPath();
-    ctx.ellipse(0, radius * 0.72, radius * 1.25, radius * 0.37, 0, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(45, 39, 27, 0.24)';
+    ctx.ellipse(0, radius * 0.82, radius * 1.35, radius * 0.38, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(35, 31, 23, 0.3)';
     ctx.fill();
 
     ctx.shadowColor = accent;
-    ctx.shadowBlur = type === 'dungeon' || type === 'sanctum' ? 28 : 18;
+    ctx.shadowBlur = type === 'sanctum' ? 34 : type === 'dungeon' ? 26 : 20;
+
+    ctx.beginPath();
+    ctx.arc(0, 0, radius + 4, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(33, 45, 43, 0.7)';
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(61, 55, 40, 0.68)';
+    ctx.stroke();
 
     ctx.beginPath();
     ctx.arc(0, 0, radius, 0, Math.PI * 2);
@@ -948,79 +1138,23 @@ export function useMapObjects() {
     badge.addColorStop(1, '#0d2028');
     ctx.fillStyle = badge;
     ctx.fill();
-    ctx.lineWidth = 5;
+    ctx.lineWidth = type === 'capital' ? 6 : 5;
     ctx.strokeStyle = accent;
     ctx.stroke();
 
     ctx.shadowBlur = 0;
     ctx.beginPath();
-    ctx.arc(0, 0, radius - 7, 0, Math.PI * 2);
+    ctx.arc(0, 0, radius - 7.5, 0, Math.PI * 2);
     ctx.lineWidth = 1.5;
     ctx.strokeStyle = 'rgba(244, 232, 189, 0.52)';
     ctx.stroke();
 
-    ctx.fillStyle = accent;
-    ctx.strokeStyle = accent;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.lineWidth = 3.5;
     if (type === 'capital' || type === 'city') {
-      ctx.fillRect(-15, -5, 30, 21);
-      ctx.fillRect(-22, -14, 11, 30);
-      ctx.fillRect(11, -14, 11, 30);
-      ctx.beginPath();
-      ctx.moveTo(-23, -14);
-      ctx.lineTo(-16.5, -24);
-      ctx.lineTo(-10, -14);
-      ctx.moveTo(10, -14);
-      ctx.lineTo(16.5, -24);
-      ctx.lineTo(23, -14);
-      ctx.stroke();
-      ctx.fillStyle = '#10252d';
-      ctx.fillRect(-4, 5, 8, 11);
-      ctx.fillRect(-19, -8, 4, 5);
-      ctx.fillRect(15, -8, 4, 5);
-      if (type === 'capital') {
-        ctx.fillStyle = accent;
-        ctx.beginPath();
-        ctx.moveTo(-8, -5);
-        ctx.lineTo(0, -18);
-        ctx.lineTo(8, -5);
-        ctx.closePath();
-        ctx.fill();
-      }
+      drawSettlementGlyph(ctx, type, accent);
     } else if (type === 'village') {
-      ctx.beginPath();
-      ctx.moveTo(-19, -2);
-      ctx.lineTo(-5, -16);
-      ctx.lineTo(9, -2);
-      ctx.lineTo(6, -2);
-      ctx.lineTo(6, 15);
-      ctx.lineTo(-16, 15);
-      ctx.lineTo(-16, -2);
-      ctx.closePath();
-      ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(4, 5);
-      ctx.lineTo(14, -5);
-      ctx.lineTo(23, 5);
-      ctx.lineTo(20, 5);
-      ctx.lineTo(20, 16);
-      ctx.lineTo(7, 16);
-      ctx.lineTo(7, 5);
-      ctx.closePath();
-      ctx.fillStyle = 'rgba(226, 238, 218, 0.86)';
-      ctx.fill();
-      ctx.fillStyle = '#173039';
-      ctx.fillRect(-8, 6, 6, 9);
-      ctx.fillRect(12, 8, 4, 5);
-      ctx.strokeStyle = 'rgba(240, 218, 154, 0.72)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(-23, 21);
-      ctx.quadraticCurveTo(0, 14, 24, 21);
-      ctx.stroke();
+      drawVillageGlyph(ctx, accent);
     } else if (type === 'dungeon') {
+      ctx.fillStyle = accent;
       ctx.beginPath();
       ctx.arc(0, 7, 18, Math.PI, Math.PI * 2);
       ctx.lineTo(18, 19);
@@ -1049,26 +1183,7 @@ export function useMapObjects() {
         ctx.stroke();
       }
     } else {
-      ctx.strokeStyle = 'rgba(237, 226, 188, 0.72)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(0, 0, 24, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.beginPath();
-      for (let point = 0; point < 12; point++) {
-        const angle = (point * Math.PI) / 6 - Math.PI / 2;
-        const starRadius = point % 2 === 0 ? 22 : 7;
-        const px = Math.cos(angle) * starRadius;
-        const py = Math.sin(angle) * starRadius;
-        if (point === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
-      }
-      ctx.closePath();
-      ctx.fill();
-      ctx.fillStyle = '#193038';
-      ctx.beginPath();
-      ctx.arc(0, 0, 4, 0, Math.PI * 2);
-      ctx.fill();
+      drawSanctumGlyph(ctx, accent);
     }
     ctx.restore();
   };
@@ -1078,26 +1193,50 @@ export function useMapObjects() {
       drawLandmarkIcon(ctx, landmark);
       ctx.save();
       ctx.textAlign = 'center';
-      ctx.font = '700 25px Georgia, serif';
-      const nameWidth = ctx.measureText(landmark.name).width + 24;
-      ctx.fillStyle = 'rgba(222, 205, 155, 0.76)';
+      ctx.font = '700 24px Georgia, serif';
+      const nameWidth = Math.max(ctx.measureText(landmark.name).width + 30, 116);
+
+      ctx.shadowColor = 'rgba(34, 31, 23, 0.2)';
+      ctx.shadowBlur = 8;
+      ctx.shadowOffsetY = 3;
+      ctx.fillStyle = 'rgba(229, 215, 171, 0.92)';
       ctx.beginPath();
-      ctx.roundRect(landmark.x - nameWidth / 2, landmark.y - 72, nameWidth, 32, 10);
+      ctx.roundRect(landmark.x - nameWidth / 2, landmark.y - 78, nameWidth, 36, 11);
       ctx.fill();
-      ctx.strokeStyle = 'rgba(78, 65, 42, 0.38)';
-      ctx.lineWidth = 1.5;
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetY = 0;
+      ctx.strokeStyle = 'rgba(70, 60, 40, 0.58)';
+      ctx.lineWidth = 1.75;
       ctx.stroke();
+
+      ctx.fillStyle = landmark.accent;
+      ctx.beginPath();
+      ctx.roundRect(landmark.x - 28, landmark.y - 84, 56, 14, 7);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(52, 48, 36, 0.5)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.font = '700 8px Inter, Arial, sans-serif';
+      ctx.letterSpacing = '1px';
+      ctx.fillStyle = '#173039';
+      ctx.fillText(LANDMARK_VISUALS[landmark.type].label, landmark.x, landmark.y - 74);
+
+      ctx.letterSpacing = '0px';
+      ctx.font = '700 24px Georgia, serif';
       ctx.fillStyle = '#29271f';
-      ctx.fillText(landmark.name, landmark.x, landmark.y - 49);
+      ctx.fillText(landmark.name, landmark.x, landmark.y - 51);
 
       ctx.font = 'italic 17px Georgia, serif';
       const subtitleWidth = ctx.measureText(landmark.subtitle).width + 20;
-      ctx.fillStyle = 'rgba(205, 188, 139, 0.62)';
+      ctx.fillStyle = 'rgba(217, 200, 151, 0.76)';
       ctx.beginPath();
-      ctx.roundRect(landmark.x - subtitleWidth / 2, landmark.y + 42, subtitleWidth, 27, 9);
+      ctx.roundRect(landmark.x - subtitleWidth / 2, landmark.y + 47, subtitleWidth, 27, 9);
       ctx.fill();
-      ctx.fillStyle = 'rgba(48, 45, 34, 0.9)';
-      ctx.fillText(landmark.subtitle, landmark.x, landmark.y + 61);
+      ctx.strokeStyle = 'rgba(92, 77, 48, 0.22)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(42, 40, 31, 0.94)';
+      ctx.fillText(landmark.subtitle, landmark.x, landmark.y + 66);
       ctx.restore();
     }
   };
