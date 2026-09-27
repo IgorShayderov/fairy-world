@@ -42,11 +42,14 @@ describe('PvP module and routes', () => {
     expect(resetRes).toEqual(mockReset);
     expect(api.post).toHaveBeenCalledWith(routes.api.pvp.resetCooldownPath());
 
-    vi.mocked(api.get).mockResolvedValueOnce({ data: { coinsOfHonour: 3, offers: [] } });
+    vi.mocked(api.get).mockResolvedValueOnce({ data: { coinsOfHonour: 3, offers: [] }, meta: {} });
     await pvpApi.getShop();
     expect(api.get).toHaveBeenCalledWith(routes.api.pvp.shopPath());
 
-    vi.mocked(api.post).mockResolvedValueOnce({ data: { success: true } });
+    vi.mocked(api.post).mockResolvedValueOnce({
+      data: { success: true, itemId: 7, cost: 5, coinsOfHonour: 2, offers: [] },
+      meta: {},
+    });
     await pvpApi.buyShopOffer('potion:7');
     expect(api.post).toHaveBeenCalledWith(routes.api.pvp.buyShopOfferPath(), {
       offerId: 'potion:7',

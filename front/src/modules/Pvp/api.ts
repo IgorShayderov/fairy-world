@@ -78,6 +78,14 @@ export interface PvpShop {
   offers: PvpShopOffer[];
 }
 
+export interface PvpShopPurchaseResult {
+  success: boolean;
+  itemId: number;
+  cost: number;
+  coinsOfHonour: number;
+  offers: PvpShopOffer[];
+}
+
 export const pvpApi = {
   async getOpponents(): Promise<PvpOpponent[]> {
     const { data } = await api.get<PvpOpponent[]>(routes.api.pvp.opponentsPath());
@@ -102,14 +110,8 @@ export const pvpApi = {
     const { data } = await api.get<PvpShop>(routes.api.pvp.shopPath());
     return data;
   },
-  async buyShopOffer(offerId: string): Promise<{
-    success: boolean;
-    itemId: number;
-    cost: number;
-    coinsOfHonour: number;
-    offers: PvpShopOffer[];
-  }> {
-    const { data } = await api.post(routes.api.pvp.buyShopOfferPath(), { offerId });
+  async buyShopOffer(offerId: string): Promise<PvpShopPurchaseResult> {
+    const { data } = await api.post<PvpShopPurchaseResult>(routes.api.pvp.buyShopOfferPath(), { offerId });
     return data;
   },
 };
