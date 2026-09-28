@@ -58,6 +58,7 @@ type Battle = {
   playerPosition: number;
   monsterPosition: number;
   blockedCells: number[];
+  playerMovedThisTurn: boolean;
   experienceBonusPercent: number;
   goldBonusPercent: number;
   canRetreat: boolean;
@@ -387,13 +388,18 @@ export class MonstersService {
     if (action === 'POWER_ATTACK' && battle.powerAttackCooldown > 0) {
       throw new BadRequestException(`Power attack is ready in ${battle.powerAttackCooldown} turn(s)`);
     }
+    if (action === 'MOVE' && battle.playerMovedThisTurn) {
+      throw new BadRequestException('You have already moved this turn');
+    }
 
     const canAttack = this.areAdjacent(battle.playerPosition, battle.monsterPosition);
     if ((action === 'ATTACK' || action === 'POWER_ATTACK') && !canAttack) {
       throw new BadRequestException('Move next to the enemy before attacking');
     }
 
-    battle.events = [];
+    battle.events = battle.playerMovedThisTurn
+      ? battle.events.filter((event) => event.actor === 'PLAYER' && event.action === 'MOVE')
+      : [];
     if (action === 'MOVE') {
       if (!Number.isInteger(targetCell)) throw new BadRequestException('Choose a battlefield hex');
       const reachable = this.reachableCells(
@@ -414,13 +420,15 @@ export class MonstersService {
         fromCell,
         toCell: targetCell,
       });
+      battle.playerMovedThisTurn = true;
+      return this.renderBattle(battle);
     } else if (action === 'DEFEND') {
       battle.events.push({ actor: 'PLAYER', damage: 0, critical: false, dodged: false, action: 'DEFEND' });
     } else {
       const originalDamage = battle.player.damage;
       if (action === 'POWER_ATTACK') battle.player.damage = originalDamage * 1.5;
       this.strike(battle.player, battle.monster, 'PLAYER', battle.events);
-      battle.events[0].action = action;
+      battle.events[battle.events.length - 1].action = action;
       battle.player.damage = originalDamage;
       if (action === 'POWER_ATTACK') battle.powerAttackCooldown = 3;
     }
@@ -459,6 +467,7 @@ export class MonstersService {
     if (battle.player.health <= 0) return this.attack(userId, battleId, true);
 
     if (action !== 'POWER_ATTACK') battle.powerAttackCooldown = Math.max(0, battle.powerAttackCooldown - 1);
+    battle.playerMovedThisTurn = false;
     battle.turn++;
     return this.renderBattle(battle);
   }
@@ -493,6 +502,7 @@ export class MonstersService {
       playerPosition: ARENA_COLUMNS * 2,
       monsterPosition: ARENA_COLUMNS * 2 + ARENA_COLUMNS - 1,
       blockedCells: [10, 29],
+      playerMovedThisTurn: false,
       experienceBonusPercent:
         (player.activeBuffs.find(({ type }) => type === PlayerBuffType.EXPERIENCE)?.value ?? 0) +
         player.rewardBonuses.experiencePercent,
@@ -546,6 +556,7 @@ export class MonstersService {
   private renderBattle(battle: Battle) {
     return {
       id: battle.id,
+      monsterType: battle.monsterType,
       status: battle.status,
       turn: battle.turn,
       player: battle.player,
@@ -562,10 +573,11 @@ export class MonstersService {
         playerMovement: PLAYER_MOVEMENT,
         blockedCells: battle.blockedCells,
         reachableCells:
-          battle.status === 'ACTIVE'
+          battle.status === 'ACTIVE' && !battle.playerMovedThisTurn
             ? this.reachableCells(battle.playerPosition, battle.monsterPosition, PLAYER_MOVEMENT, battle.blockedCells)
             : [],
         canAttack: battle.status === 'ACTIVE' && this.areAdjacent(battle.playerPosition, battle.monsterPosition),
+        playerHasMoved: battle.playerMovedThisTurn,
       },
     };
   }

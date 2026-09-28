@@ -14,10 +14,26 @@
 
       <div v-if="mode === 'tactical'" class="tactical-battlefield relative shrink-0 overflow-hidden">
         <div class="battle-haze" />
-        <div class="initiative-ribbon">
-          <span class="initiative-unit initiative-unit--active"><QIcon name="shield" /> {{ playerName }}</span>
-          <QIcon name="chevron_right" />
-          <span class="initiative-unit"><QIcon name="pest_control" /> {{ battle.monster.name }}</span>
+        <div class="battle-command-bar">
+          <div class="initiative-ribbon">
+            <span class="initiative-unit initiative-unit--active"><QIcon name="shield" /> {{ playerName }}</span>
+            <QIcon name="chevron_right" />
+            <span class="initiative-unit"><QIcon name="pest_control" /> {{ battle.monster.name }}</span>
+          </div>
+          <div class="turn-standard">
+            <QIcon name="shield" size="18px" />
+            {{ t('fantasy.encounter.tacticalTurn', { turn: battle.turn }) }}
+          </div>
+          <div class="arena-instruction">
+            <QIcon :name="battle.arena.canAttack ? 'sports_martial_arts' : 'ads_click'" />
+            {{
+              battle.arena.canAttack
+                ? t('fantasy.encounter.enemyInRange')
+                : battle.arena.playerHasMoved
+                  ? t('fantasy.encounter.movementComplete')
+                : t('fantasy.encounter.chooseMovement', { range: battle.arena.playerMovement })
+            }}
+          </div>
         </div>
         <div class="hex-arena" aria-label="Tactical battlefield">
           <button
@@ -65,18 +81,6 @@
           <strong>{{ battle.monster.name }}</strong>
           <span>{{ battle.monster.health }} / {{ battle.monster.maxHealth }} HP</span>
           <div><i :style="{ width: `${monsterHealthPercent}%` }" /></div>
-        </div>
-        <div class="turn-standard">
-          <QIcon name="shield" size="19px" />
-          {{ t('fantasy.encounter.tacticalTurn', { turn: battle.turn }) }}
-        </div>
-        <div class="arena-instruction">
-          <QIcon :name="battle.arena.canAttack ? 'sports_martial_arts' : 'ads_click'" />
-          {{
-            battle.arena.canAttack
-              ? t('fantasy.encounter.enemyInRange')
-              : t('fantasy.encounter.chooseMovement', { range: battle.arena.playerMovement })
-          }}
         </div>
       </div>
 
@@ -407,6 +411,7 @@ import type { InventoryItemType } from '@/modules/Inventory/types';
 import { usersApi } from '@/modules/Auth/api/users';
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 import { getBattleEventSubject } from '@/modules/Game/battleEvent';
+import { getBattleMonsterVisual } from '@/modules/Game/monsterVisual';
 import { getRarityTextClass } from '@/modules/Inventory/utils/rarity';
 import type { BattleState, TacticalBattleAction } from '@/modules/Monsters/api';
 
@@ -427,24 +432,40 @@ const itemActions = ref<Record<number, 'dropped' | 'replaced'>>({});
 const replacingItemIndex = ref<number | null>(null);
 const replacingLootItem = ref<NonNullable<BattleState['rewards']>['items'][number] | null>(null);
 const selectedBackpackItem = ref<InventoryItemType | null>(null);
-const monsterImage = '/images/battle/enemy-brute.png';
+const monsterImage = computed(() => getBattleMonsterVisual(props.battle.monsterType, props.battle.monster.name));
 const arenaCells = computed(() => Array.from({ length: props.battle.arena.columns * props.battle.arena.rows }, (_, i) => i));
 const reachableCells = computed(() => new Set(props.battle.arena.reachableCells));
-const cellStyle = (cell: number) => {
+const cellGeometry = (cell: number) => {
   const row = Math.floor(cell / props.battle.arena.columns);
   const column = cell % props.battle.arena.columns;
+  const rowWidth = 62 + row * 6;
+  const cellStep = rowWidth / props.battle.arena.columns;
+  const width = cellStep * 1.12;
+  const left = (100 - rowWidth) / 2 + column * cellStep + (row % 2) * (cellStep / 2);
+  const height = 12 + row * 0.7;
+  const top = 31 + row * 10.8;
+  return { row, width, height, left, top };
+};
+const cellStyle = (cell: number) => {
+  const geometry = cellGeometry(cell);
   return {
-    left: `${6 + column * 11 + (row % 2) * 5.5}%`,
-    top: `${38 + row * 9}%`,
+    left: `${geometry.left}%`,
+    top: `${geometry.top}%`,
+    width: `${geometry.width}%`,
+    height: `${geometry.height}%`,
   };
 };
 const unitStyle = (cell: number) => {
-  const row = Math.floor(cell / props.battle.arena.columns);
-  const column = cell % props.battle.arena.columns;
+  const geometry = cellGeometry(cell);
+  const width = 14 + geometry.row * 0.7;
+  const height = 36 + geometry.row * 3.5;
+  const footPosition = geometry.top + geometry.height * 0.72;
   return {
-    left: `${2 + column * 11 + (row % 2) * 5.5}%`,
-    bottom: `${49 - row * 9}%`,
-    zIndex: 20 + row,
+    left: `${geometry.left + geometry.width / 2 - width / 2}%`,
+    bottom: `${100 - footPosition}%`,
+    width: `${width}%`,
+    height: `${height}%`,
+    zIndex: 20 + geometry.row,
   };
 };
 const moveToCell = (cell: number) => {
@@ -618,35 +639,44 @@ const CombatantCard = defineComponent({
   height: clamp(340px, 48vh, 520px);
   min-height: 340px;
   background:
-    linear-gradient(to bottom, transparent 55%, rgb(4 17 22 / 28%)),
-    url('/images/battle/tactical-battlefield.png') center 58% / cover no-repeat;
+    linear-gradient(to bottom, rgb(4 17 22 / 4%) 35%, rgb(4 17 22 / 18%) 100%),
+    url('/images/battle/tactical-battlefield-v2.png') center / cover no-repeat;
   perspective: 1100px;
 }
 .battle-haze {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 20% 65%, rgb(35 182 150 / 16%), transparent 23%),
-    radial-gradient(circle at 80% 65%, rgb(203 75 49 / 20%), transparent 23%),
-    linear-gradient(to top, rgb(4 13 18 / 42%), transparent 48%);
+    radial-gradient(circle at 16% 65%, rgb(35 182 150 / 10%), transparent 20%),
+    radial-gradient(circle at 84% 65%, rgb(203 75 49 / 12%), transparent 20%),
+    linear-gradient(to top, rgb(4 13 18 / 26%), transparent 42%);
   pointer-events: none;
 }
-.initiative-ribbon {
+.battle-command-bar {
   position: absolute;
-  top: 3.5%;
-  left: 3%;
-  z-index: 35;
+  top: 2.5%;
+  right: 2%;
+  left: 2%;
+  z-index: 40;
   display: flex;
-  max-width: 42%;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.35rem;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 2.6rem;
+  padding: 0.35rem 0.5rem;
   border: 1px solid rgb(239 202 114 / 30%);
-  border-radius: 0.65rem;
+  border-radius: 0.75rem;
   color: rgb(226 236 233 / 72%);
-  background: rgb(5 20 27 / 84%);
+  background: linear-gradient(90deg, rgb(5 20 27 / 90%), rgb(13 35 42 / 84%), rgb(5 20 27 / 90%));
   box-shadow: 0 8px 22px rgb(0 0 0 / 30%);
   backdrop-filter: blur(6px);
+}
+.initiative-ribbon {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 0;
+  align-items: center;
+  gap: 0.25rem;
 }
 .initiative-unit {
   display: flex;
@@ -673,14 +703,13 @@ const CombatantCard = defineComponent({
 }
 .hex-cell {
   position: absolute;
-  width: 11.25%;
-  height: 16%;
   border: 0;
   clip-path: polygon(25% 4%, 75% 4%, 100% 50%, 75% 96%, 25% 96%, 0 50%);
   cursor: default;
-  background: rgb(241 220 159 / 8%);
-  box-shadow: inset 0 0 0 2px rgb(255 239 190 / 20%);
-  transition: filter 0.16s ease, background 0.16s ease;
+  background: rgb(241 220 159 / 3%);
+  box-shadow: inset 0 0 0 1px rgb(255 246 211 / 25%);
+  filter: drop-shadow(0 1px 0 rgb(32 22 12 / 25%));
+  transition: filter 0.16s ease, background 0.16s ease, transform 0.16s ease;
 }
 .hex-cell::after {
   position: absolute;
@@ -691,11 +720,12 @@ const CombatantCard = defineComponent({
 }
 .hex-cell--reachable {
   cursor: pointer;
-  background: rgb(83 214 178 / 30%);
-  box-shadow: inset 0 0 0 2px rgb(121 255 217 / 64%), 0 0 15px rgb(35 218 165 / 25%);
+  background: rgb(31 174 139 / 24%);
+  box-shadow: inset 0 0 0 2px rgb(138 255 220 / 65%), 0 0 12px rgb(35 218 165 / 18%);
 }
 .hex-cell--reachable:hover {
   filter: brightness(1.45);
+  transform: translateY(-2px);
 }
 .hex-cell--player {
   background: rgb(58 179 234 / 34%);
@@ -718,14 +748,13 @@ const CombatantCard = defineComponent({
 }
 .battle-unit {
   position: absolute;
-  width: min(19%, 205px);
-  height: 53%;
   padding: 0;
   border: 0;
   background: transparent;
   transform-origin: 50% 100%;
-  transition: left 0.45s ease, bottom 0.45s ease, filter 0.2s ease;
-  filter: drop-shadow(0 22px 12px rgb(0 0 0 / 48%));
+  transition: left 0.48s cubic-bezier(0.2, 0.75, 0.25, 1), bottom 0.48s cubic-bezier(0.2, 0.75, 0.25, 1),
+    width 0.48s ease, height 0.48s ease, filter 0.2s ease;
+  filter: drop-shadow(0 15px 8px rgb(0 0 0 / 42%));
 }
 .battle-unit img {
   width: 100%;
@@ -754,8 +783,8 @@ const CombatantCard = defineComponent({
 }
 .tactical-stat {
   position: absolute;
-  bottom: 4%;
-  z-index: 5;
+  bottom: 2.5%;
+  z-index: 40;
   display: grid;
   width: min(34%, 260px);
   grid-template-columns: 1fr auto;
@@ -804,42 +833,34 @@ const CombatantCard = defineComponent({
   background: linear-gradient(90deg, #f57555, #b72e2e);
 }
 .turn-standard {
-  position: absolute;
-  top: 4%;
-  left: 50%;
-  z-index: 4;
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 0.4rem;
   padding: 0.45rem 0.75rem;
   border: 1px solid rgb(239 202 114 / 38%);
   border-radius: 999px;
   color: #ffe39a;
-  background: rgb(5 20 27 / 78%);
+  background: rgb(201 157 54 / 14%);
   font-size: 0.65rem;
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  transform: translateX(-50%);
-  backdrop-filter: blur(5px);
 }
 .arena-instruction {
-  position: absolute;
-  right: 3%;
-  top: 4%;
-  z-index: 35;
   display: flex;
+  min-width: 0;
+  flex: 1 1 0;
   align-items: center;
+  justify-content: flex-end;
   gap: 0.4rem;
-  max-width: 32%;
   padding: 0.42rem 0.65rem;
   border-radius: 0.5rem;
   color: #d8e9e4;
-  background: rgb(5 20 27 / 78%);
+  background: transparent;
   font-size: 0.62rem;
   font-weight: 700;
   line-height: 1.2;
-  backdrop-filter: blur(5px);
 }
 .battle-action {
   display: inline-flex;
@@ -931,9 +952,8 @@ const CombatantCard = defineComponent({
   .tactical-battlefield {
     height: 340px;
   }
-  .battle-unit {
-    width: 25%;
-    height: 45%;
+  .battle-command-bar {
+    justify-content: center;
   }
   .tactical-stat {
     width: 43%;

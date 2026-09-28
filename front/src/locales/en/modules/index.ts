@@ -384,6 +384,7 @@ const modules = {
       tacticalTurn: 'Tactical turn {{turn}}',
       chooseMovement: 'Choose a highlighted hex · movement range {{range}}',
       enemyInRange: 'Enemy in melee range · attack now',
+      movementComplete: 'Movement complete · defend to end your turn',
       moveToHex: 'Move to battlefield hex {{hex}}',
       youMove: 'You advance across the battlefield.',
       enemyMoves: 'The enemy advances toward you.',

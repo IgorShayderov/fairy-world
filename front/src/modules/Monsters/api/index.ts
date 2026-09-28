@@ -46,6 +46,7 @@ export interface BattleCombatant {
 
 export interface BattleState {
   id: string;
+  monsterType: string;
   status: 'ACTIVE' | 'VICTORY' | 'DEFEAT';
   turn: number;
   player: BattleCombatant;
@@ -99,6 +100,7 @@ export interface BattleState {
     blockedCells: number[];
     reachableCells: number[];
     canAttack: boolean;
+    playerHasMoved: boolean;
   };
 }
 

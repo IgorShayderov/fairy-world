@@ -416,6 +416,7 @@ describe('MonstersService', () => {
       expect(mockMonsterGenerator.generate).toHaveBeenCalledWith(8, { x: 1400, y: 800 });
       expect(result.monster).toBe(monster);
       expect(result.battle.status).toBe('ACTIVE');
+      expect(result.battle.monsterType).toBe('Dire Wolf');
       expect(result.battle.canRetreat).toBe(false);
     });
 
@@ -480,7 +481,7 @@ describe('MonstersService', () => {
       });
     });
 
-    it('moves both combatants across the tactical arena before melee attacks are available', async () => {
+    it('lets the player move and attack before the monster takes its turn', async () => {
       jest.spyOn(Math, 'random').mockReturnValueOnce(0.01).mockReturnValue(0.99);
       mockUsersService.findCurrentUser.mockResolvedValue(currentUser(5, 500));
       mockMonsterGenerator.generate.mockReturnValue({
@@ -501,19 +502,47 @@ describe('MonstersService', () => {
       const firstTurn = await service.takeTurn(7, encounter.battle.id, 'MOVE', 19);
 
       expect(firstTurn.status).toBe('ACTIVE');
-      expect(firstTurn.turn).toBe(2);
-      expect(firstTurn.events).toHaveLength(2);
+      expect(firstTurn.turn).toBe(1);
+      expect(firstTurn.events).toHaveLength(1);
       expect(firstTurn.events[0]).toMatchObject({ actor: 'PLAYER', action: 'MOVE', fromCell: 16, toCell: 19 });
-      expect(firstTurn.events[1]).toMatchObject({ actor: 'MONSTER', action: 'MOVE', fromCell: 23, toCell: 21 });
-      expect(firstTurn.arena).toMatchObject({ playerPosition: 19, monsterPosition: 21, canAttack: false });
+      expect(firstTurn.arena).toMatchObject({
+        playerPosition: 19,
+        monsterPosition: 23,
+        canAttack: false,
+        playerHasMoved: true,
+      });
       expect(mockPrismaService.gameProfile.update).not.toHaveBeenCalled();
+      await expect(service.takeTurn(7, encounter.battle.id, 'MOVE', 20)).rejects.toThrow(
+        'You have already moved this turn',
+      );
 
       const defended = await service.takeTurn(7, encounter.battle.id, 'DEFEND');
-      expect(defended.turn).toBe(3);
-      expect(defended.events[0]).toMatchObject({ actor: 'PLAYER', action: 'DEFEND', damage: 0 });
-      expect(defended.events[1]).toMatchObject({ actor: 'MONSTER', action: 'MOVE', toCell: 20 });
-      expect(defended.events.at(-1)).toMatchObject({ actor: 'MONSTER' });
-      expect(defended.arena.canAttack).toBe(true);
+      expect(defended.turn).toBe(2);
+      expect(defended.events[0]).toMatchObject({ actor: 'PLAYER', action: 'MOVE', fromCell: 16, toCell: 19 });
+      expect(defended.events[1]).toMatchObject({ actor: 'PLAYER', action: 'DEFEND', damage: 0 });
+      expect(defended.events[2]).toMatchObject({ actor: 'MONSTER', action: 'MOVE', fromCell: 23, toCell: 21 });
+      expect(defended.arena).toMatchObject({
+        playerPosition: 19,
+        monsterPosition: 21,
+        canAttack: false,
+        playerHasMoved: false,
+      });
+
+      const movedIntoRange = await service.takeTurn(7, encounter.battle.id, 'MOVE', 20);
+      expect(movedIntoRange.turn).toBe(2);
+      expect(movedIntoRange.arena).toMatchObject({
+        playerPosition: 20,
+        monsterPosition: 21,
+        canAttack: true,
+        playerHasMoved: true,
+      });
+
+      const attacked = await service.takeTurn(7, encounter.battle.id, 'ATTACK');
+      expect(attacked.turn).toBe(3);
+      expect(attacked.events[0]).toMatchObject({ actor: 'PLAYER', action: 'MOVE', fromCell: 19, toCell: 20 });
+      expect(attacked.events[1]).toMatchObject({ actor: 'PLAYER', action: 'ATTACK' });
+      expect(attacked.events.at(-1)).toMatchObject({ actor: 'MONSTER' });
+      expect(attacked.arena.playerHasMoved).toBe(false);
     });
 
     it('gives tactical power strike a three-turn cooldown', async () => {
@@ -533,11 +562,12 @@ describe('MonstersService', () => {
 
       await service.takeTurn(7, encounter.battle.id, 'MOVE', 19);
       await service.takeTurn(7, encounter.battle.id, 'DEFEND');
+      await service.takeTurn(7, encounter.battle.id, 'MOVE', 20);
       const turn = await service.takeTurn(7, encounter.battle.id, 'POWER_ATTACK');
 
       expect(turn.status).toBe('ACTIVE');
       expect(turn.powerAttackCooldown).toBe(3);
-      expect(turn.events[0]).toMatchObject({ actor: 'PLAYER', action: 'POWER_ATTACK' });
+      expect(turn.events).toContainEqual(expect.objectContaining({ actor: 'PLAYER', action: 'POWER_ATTACK' }));
       await expect(service.takeTurn(7, encounter.battle.id, 'POWER_ATTACK')).rejects.toThrow(
         'Power attack is ready in 3 turn(s)',
       );
