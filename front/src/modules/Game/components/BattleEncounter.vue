@@ -1,5 +1,7 @@
 <template>
-  <div class="absolute inset-0 z-40 flex items-center justify-center overflow-y-auto bg-[#06141d]/85 p-5 backdrop-blur-sm">
+  <div
+    class="absolute inset-0 z-40 flex items-center justify-center overflow-y-auto bg-[#06141d]/85 p-5 backdrop-blur-sm"
+  >
     <section
       class="encounter-panel flex max-h-full min-h-0 w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-[#ddbd6b]/45 text-white shadow-2xl"
     >
@@ -31,7 +33,7 @@
                 ? t('fantasy.encounter.enemyInRange')
                 : battle.arena.playerHasMoved
                   ? t('fantasy.encounter.movementComplete')
-                : t('fantasy.encounter.chooseMovement', { range: battle.arena.playerMovement })
+                  : t('fantasy.encounter.chooseMovement', { range: battle.arena.playerMovement })
             }}
           </div>
         </div>
@@ -55,11 +57,12 @@
             <QIcon v-if="battle.arena.blockedCells.includes(cell)" name="landscape" class="terrain-rock" />
           </button>
         </div>
-        <div
-          class="battle-unit battle-unit--player"
-          :style="unitStyle(battle.arena.playerPosition)"
-        >
-          <img :key="`player-action-${battle.turn}`" src="/images/battle/player-knight.png" alt="" :class="playerAnimationClass" />
+        <div class="battle-unit battle-unit--player" :style="unitStyle(battle.arena.playerPosition)">
+          <BattlePlayerModel
+            :key="`player-action-${animationSequence}`"
+            :equipped-items="currentUserStore.user?.equippedItems"
+            :class="playerAnimationClass"
+          />
         </div>
         <button
           type="button"
@@ -69,7 +72,12 @@
           :disabled="loading || !battle.arena.canAttack"
           @click="attackEnemy"
         >
-          <img :key="`monster-action-${battle.turn}`" :src="monsterImage" alt="" :class="monsterAnimationClass" />
+          <BattleMonsterModel
+            :key="`monster-action-${animationSequence}`"
+            :src="monsterImage"
+            :attacking="!!monsterAnimationClass"
+            :delay="monsterAttackDelay"
+          />
           <span v-if="battle.arena.canAttack" class="melee-target"><QIcon name="gps_fixed" /></span>
         </button>
         <div class="tactical-stat tactical-stat--player">
@@ -114,7 +122,7 @@
           </div>
         </div>
         <p v-else class="mt-2 text-sm text-[#92aaa5]">{{ t('fantasy.encounter.chooseAction') }}</p>
-        <div v-if="battle.rewards" class="mt-3">
+        <div v-if="battle.rewards && !animating" class="mt-3">
           <div class="flex gap-4 font-bold text-[#efca72]">
             <span>+{{ battle.rewards.gold }} {{ t('profile.summary.gold') }}</span>
             <span>+{{ battle.rewards.experience }} {{ t('profile.summary.experience') }}</span>
@@ -201,7 +209,7 @@
             </div>
           </div>
         </div>
-        <p v-if="battle.status === 'DEFEAT'" class="mt-3 text-sm text-amber-200">
+        <p v-if="battle.status === 'DEFEAT' && !animating" class="mt-3 text-sm text-amber-200">
           {{ t('fantasy.encounter.respawn') }}
         </p>
       </div>
@@ -271,7 +279,7 @@
           {{ loading ? t('fantasy.encounter.attacking') : t('fantasy.encounter.attack') }}
         </button>
         <button
-          v-else
+          v-else-if="!animating"
           class="rounded-lg border border-[#dfc16d]/45 bg-[#dfc16d]/10 px-6 py-2.5 text-xs font-bold tracking-wider text-[#ffe69a] uppercase hover:bg-[#dfc16d]/20"
           @click="$emit('close')"
         >
@@ -404,7 +412,7 @@
 <script setup lang="ts">
 import { useTranslation } from 'i18next-vue';
 import { Notify, QIcon } from 'quasar';
-import { computed, defineComponent, h, ref } from 'vue';
+import { computed, defineComponent, h, ref, toRef } from 'vue';
 
 import type { InventoryItemType } from '@/modules/Inventory/types';
 
@@ -412,9 +420,12 @@ import { usersApi } from '@/modules/Auth/api/users';
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 import { getBattleEventSubject } from '@/modules/Game/battleEvent';
 import { getBattleMonsterVisual } from '@/modules/Game/monsterVisual';
+import { useBattleAnimation } from '@/modules/Game/useBattleAnimation';
 import { getRarityTextClass } from '@/modules/Inventory/utils/rarity';
 import type { BattleState, TacticalBattleAction } from '@/modules/Monsters/api';
 
+import BattleMonsterModel from '@/modules/Game/components/BattleMonsterModel.vue';
+import BattlePlayerModel from '@/modules/Game/components/BattlePlayerModel.vue';
 import InventoryItem from '@/modules/Inventory/components/InventoryItem.vue';
 
 const props = defineProps<{ battle: BattleState; playerName: string; loading: boolean }>();
@@ -426,6 +437,8 @@ const emit = defineEmits<{
 }>();
 const { t } = useTranslation();
 const mode = ref<'choose' | 'quick' | 'tactical'>('choose');
+const { animationSequence, animating, monsterAttackDelay } = useBattleAnimation(toRef(props, 'battle'), mode);
+const loading = computed(() => props.loading || animating.value);
 
 const currentUserStore = useCurrentUserStore();
 const itemActions = ref<Record<number, 'dropped' | 'replaced'>>({});
@@ -433,7 +446,9 @@ const replacingItemIndex = ref<number | null>(null);
 const replacingLootItem = ref<NonNullable<BattleState['rewards']>['items'][number] | null>(null);
 const selectedBackpackItem = ref<InventoryItemType | null>(null);
 const monsterImage = computed(() => getBattleMonsterVisual(props.battle.monsterType, props.battle.monster.name));
-const arenaCells = computed(() => Array.from({ length: props.battle.arena.columns * props.battle.arena.rows }, (_, i) => i));
+const arenaCells = computed(() =>
+  Array.from({ length: props.battle.arena.columns * props.battle.arena.rows }, (_, i) => i)
+);
 const reachableCells = computed(() => new Set(props.battle.arena.reachableCells));
 const cellGeometry = (cell: number) => {
   const row = Math.floor(cell / props.battle.arena.columns);
@@ -469,11 +484,11 @@ const unitStyle = (cell: number) => {
   };
 };
 const moveToCell = (cell: number) => {
-  if (props.loading || !reachableCells.value.has(cell)) return;
+  if (loading.value || !reachableCells.value.has(cell)) return;
   emit('tactical-action', { action: 'MOVE', targetCell: cell });
 };
 const attackEnemy = () => {
-  if (props.loading || !props.battle.arena.canAttack) return;
+  if (loading.value || !props.battle.arena.canAttack || props.battle.status !== 'ACTIVE') return;
   emit('tactical-action', { action: 'ATTACK' });
 };
 const playerHealthPercent = computed(() =>
@@ -483,11 +498,11 @@ const monsterHealthPercent = computed(() =>
   Math.max(0, Math.min(100, (props.battle.monster.health / props.battle.monster.maxHealth) * 100))
 );
 const playerAnimationClass = computed(() => {
-  const event = props.battle.events.find((entry) => entry.actor === 'PLAYER');
+  const event = props.battle.events.filter((entry) => entry.actor === 'PLAYER').at(-1);
   if (!event) return '';
   if (event.action === 'MOVE') return '';
   if (event.action === 'DEFEND') return 'unit-defending';
-  return event.dodged || event.blocked ? 'unit-missed' : 'unit-attacking';
+  return 'unit-attacking';
 });
 const monsterAnimationClass = computed(() =>
   props.battle.events.some((entry) => entry.actor === 'MONSTER' && entry.action !== 'MOVE') ? 'unit-attacking' : ''
@@ -574,6 +589,7 @@ const lootInventoryItem = (item: NonNullable<BattleState['rewards']>['items'][nu
 });
 
 const statusTitle = computed(() => {
+  if (animating.value) return t('fantasy.encounter.title');
   if (props.battle.status === 'VICTORY') return t('fantasy.encounter.victory');
   if (props.battle.status === 'DEFEAT') return t('fantasy.encounter.defeat');
   return t('fantasy.encounter.title');
@@ -709,7 +725,10 @@ const CombatantCard = defineComponent({
   background: rgb(241 220 159 / 3%);
   box-shadow: inset 0 0 0 1px rgb(255 246 211 / 25%);
   filter: drop-shadow(0 1px 0 rgb(32 22 12 / 25%));
-  transition: filter 0.16s ease, background 0.16s ease, transform 0.16s ease;
+  transition:
+    filter 0.16s ease,
+    background 0.16s ease,
+    transform 0.16s ease;
 }
 .hex-cell::after {
   position: absolute;
@@ -721,7 +740,9 @@ const CombatantCard = defineComponent({
 .hex-cell--reachable {
   cursor: pointer;
   background: rgb(31 174 139 / 24%);
-  box-shadow: inset 0 0 0 2px rgb(138 255 220 / 65%), 0 0 12px rgb(35 218 165 / 18%);
+  box-shadow:
+    inset 0 0 0 2px rgb(138 255 220 / 65%),
+    0 0 12px rgb(35 218 165 / 18%);
 }
 .hex-cell--reachable:hover {
   filter: brightness(1.45);
@@ -729,11 +750,15 @@ const CombatantCard = defineComponent({
 }
 .hex-cell--player {
   background: rgb(58 179 234 / 34%);
-  box-shadow: inset 0 0 0 2px rgb(147 224 255 / 78%), 0 0 18px rgb(51 184 241 / 33%);
+  box-shadow:
+    inset 0 0 0 2px rgb(147 224 255 / 78%),
+    0 0 18px rgb(51 184 241 / 33%);
 }
 .hex-cell--monster {
   background: rgb(219 74 49 / 36%);
-  box-shadow: inset 0 0 0 2px rgb(255 134 103 / 82%), 0 0 18px rgb(234 63 36 / 36%);
+  box-shadow:
+    inset 0 0 0 2px rgb(255 134 103 / 82%),
+    0 0 18px rgb(234 63 36 / 36%);
 }
 .hex-cell--blocked {
   background: rgb(48 54 45 / 48%);
@@ -752,11 +777,16 @@ const CombatantCard = defineComponent({
   border: 0;
   background: transparent;
   transform-origin: 50% 100%;
-  transition: left 0.48s cubic-bezier(0.2, 0.75, 0.25, 1), bottom 0.48s cubic-bezier(0.2, 0.75, 0.25, 1),
-    width 0.48s ease, height 0.48s ease, filter 0.2s ease;
+  transition:
+    left 0.48s cubic-bezier(0.2, 0.75, 0.25, 1),
+    bottom 0.48s cubic-bezier(0.2, 0.75, 0.25, 1),
+    width 0.48s ease,
+    height 0.48s ease,
+    filter 0.2s ease;
   filter: drop-shadow(0 15px 8px rgb(0 0 0 / 42%));
 }
-.battle-unit img {
+.battle-unit img,
+.battle-unit .battle-player-model {
   width: 100%;
   height: 100%;
   object-fit: contain;
@@ -898,37 +928,68 @@ const CombatantCard = defineComponent({
   cursor: not-allowed;
   opacity: 0.42;
 }
-.battle-unit img.unit-attacking {
+.battle-unit img.unit-attacking,
+.battle-unit .battle-player-model.unit-attacking:not(.battle-player-model--two-handed) {
   animation: tactical-strike 0.55s ease-in-out;
 }
 .battle-unit--monster img.unit-attacking {
   animation-name: tactical-strike-reverse;
+  animation-delay: 0.6s;
 }
-.battle-unit img.unit-defending {
+.battle-unit img.unit-defending,
+.battle-unit .battle-player-model.unit-defending {
   animation: tactical-defend 0.65s ease-in-out;
 }
-.battle-unit img.unit-missed {
+.battle-unit img.unit-missed,
+.battle-unit .battle-player-model.unit-missed {
   animation: tactical-miss 0.55s ease-in-out;
 }
 @keyframes tactical-strike {
-  0%, 100% { transform: translateX(0) rotateY(0); }
-  48% { transform: translateX(34%) rotateY(-8deg) scale(1.05); }
+  0%,
+  100% {
+    transform: translateX(0) rotateY(0);
+  }
+  48% {
+    transform: translateX(34%) rotateY(-8deg) scale(1.05);
+  }
 }
 @keyframes tactical-strike-reverse {
-  0%, 100% { transform: translateX(0) rotateY(0); }
-  48% { transform: translateX(-34%) rotateY(8deg) scale(1.05); }
+  0%,
+  100% {
+    transform: translateX(0) rotateY(0);
+  }
+  48% {
+    transform: translateX(-34%) rotateY(8deg) scale(1.05);
+  }
 }
 @keyframes tactical-defend {
-  0%, 100% { filter: drop-shadow(0 22px 12px rgb(0 0 0 / 48%)); }
-  50% { filter: drop-shadow(0 0 18px rgb(83 197 255 / 88%)); transform: scale(0.96); }
+  0%,
+  100% {
+    filter: drop-shadow(0 22px 12px rgb(0 0 0 / 48%));
+  }
+  50% {
+    filter: drop-shadow(0 0 18px rgb(83 197 255 / 88%));
+    transform: scale(0.96);
+  }
 }
 @keyframes tactical-miss {
-  0%, 100% { transform: translateX(0); }
-  50% { transform: translateX(12%); opacity: 0.72; }
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(12%);
+    opacity: 0.72;
+  }
 }
 @keyframes target-pulse {
-  0%, 100% { transform: translateX(-50%) scale(1); }
-  50% { transform: translateX(-50%) scale(1.15); }
+  0%,
+  100% {
+    transform: translateX(-50%) scale(1);
+  }
+  50% {
+    transform: translateX(-50%) scale(1.15);
+  }
 }
 .combatant {
   display: flex;
