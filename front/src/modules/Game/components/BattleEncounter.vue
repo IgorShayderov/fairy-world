@@ -15,7 +15,18 @@
       </header>
 
       <div v-if="mode === 'tactical'" class="tactical-battlefield relative shrink-0 overflow-hidden">
-        <div class="battle-haze" />
+        <Battlefield3D
+          :battle="battle"
+          :disabled="loading"
+          :hand-mode="getBattlePlayerLoadout(currentUserStore.user?.equippedItems).handMode"
+          @busy="animating = $event"
+          @move="moveToCell"
+          @attack="attackEnemy"
+          @fallback="
+            mode = 'choose';
+            animating = false;
+          "
+        />
         <div class="battle-command-bar">
           <div class="initiative-ribbon">
             <span class="initiative-unit initiative-unit--active"><QIcon name="shield" /> {{ playerName }}</span>
@@ -37,49 +48,6 @@
             }}
           </div>
         </div>
-        <div class="hex-arena" aria-label="Tactical battlefield">
-          <button
-            v-for="cell in arenaCells"
-            :key="cell"
-            type="button"
-            class="hex-cell"
-            :class="{
-              'hex-cell--reachable': reachableCells.has(cell),
-              'hex-cell--player': cell === battle.arena.playerPosition,
-              'hex-cell--monster': cell === battle.arena.monsterPosition,
-              'hex-cell--blocked': battle.arena.blockedCells.includes(cell),
-            }"
-            :style="cellStyle(cell)"
-            :disabled="loading || !reachableCells.has(cell)"
-            :aria-label="t('fantasy.encounter.moveToHex', { hex: cell + 1 })"
-            @click="moveToCell(cell)"
-          >
-            <QIcon v-if="battle.arena.blockedCells.includes(cell)" name="landscape" class="terrain-rock" />
-          </button>
-        </div>
-        <div class="battle-unit battle-unit--player" :style="unitStyle(battle.arena.playerPosition)">
-          <BattlePlayerModel
-            :key="`player-action-${animationSequence}`"
-            :equipped-items="currentUserStore.user?.equippedItems"
-            :class="playerAnimationClass"
-          />
-        </div>
-        <button
-          type="button"
-          class="battle-unit battle-unit--monster"
-          :class="{ 'battle-unit--targetable': battle.arena.canAttack }"
-          :style="unitStyle(battle.arena.monsterPosition)"
-          :disabled="loading || !battle.arena.canAttack"
-          @click="attackEnemy"
-        >
-          <BattleMonsterModel
-            :key="`monster-action-${animationSequence}`"
-            :src="monsterImage"
-            :attacking="!!monsterAnimationClass"
-            :delay="monsterAttackDelay"
-          />
-          <span v-if="battle.arena.canAttack" class="melee-target"><QIcon name="gps_fixed" /></span>
-        </button>
         <div class="tactical-stat tactical-stat--player">
           <strong>{{ playerName }}</strong>
           <span>{{ battle.player.health }} / {{ battle.player.maxHealth }} HP</span>
@@ -412,20 +380,18 @@
 <script setup lang="ts">
 import { useTranslation } from 'i18next-vue';
 import { Notify, QIcon } from 'quasar';
-import { computed, defineComponent, h, ref, toRef } from 'vue';
+import { computed, defineComponent, h, ref } from 'vue';
 
 import type { InventoryItemType } from '@/modules/Inventory/types';
 
 import { usersApi } from '@/modules/Auth/api/users';
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 import { getBattleEventSubject } from '@/modules/Game/battleEvent';
-import { getBattleMonsterVisual } from '@/modules/Game/monsterVisual';
-import { useBattleAnimation } from '@/modules/Game/useBattleAnimation';
+import { getBattlePlayerLoadout } from '@/modules/Game/battlePlayerLoadout';
 import { getRarityTextClass } from '@/modules/Inventory/utils/rarity';
 import type { BattleState, TacticalBattleAction } from '@/modules/Monsters/api';
 
-import BattleMonsterModel from '@/modules/Game/components/BattleMonsterModel.vue';
-import BattlePlayerModel from '@/modules/Game/components/BattlePlayerModel.vue';
+import Battlefield3D from '@/modules/Game/components/Battlefield3D.vue';
 import InventoryItem from '@/modules/Inventory/components/InventoryItem.vue';
 
 const props = defineProps<{ battle: BattleState; playerName: string; loading: boolean }>();
@@ -437,7 +403,7 @@ const emit = defineEmits<{
 }>();
 const { t } = useTranslation();
 const mode = ref<'choose' | 'quick' | 'tactical'>('choose');
-const { animationSequence, animating, monsterAttackDelay } = useBattleAnimation(toRef(props, 'battle'), mode);
+const animating = ref(false);
 const loading = computed(() => props.loading || animating.value);
 
 const currentUserStore = useCurrentUserStore();
@@ -445,44 +411,7 @@ const itemActions = ref<Record<number, 'dropped' | 'replaced'>>({});
 const replacingItemIndex = ref<number | null>(null);
 const replacingLootItem = ref<NonNullable<BattleState['rewards']>['items'][number] | null>(null);
 const selectedBackpackItem = ref<InventoryItemType | null>(null);
-const monsterImage = computed(() => getBattleMonsterVisual(props.battle.monsterType, props.battle.monster.name));
-const arenaCells = computed(() =>
-  Array.from({ length: props.battle.arena.columns * props.battle.arena.rows }, (_, i) => i)
-);
 const reachableCells = computed(() => new Set(props.battle.arena.reachableCells));
-const cellGeometry = (cell: number) => {
-  const row = Math.floor(cell / props.battle.arena.columns);
-  const column = cell % props.battle.arena.columns;
-  const rowWidth = 62 + row * 6;
-  const cellStep = rowWidth / props.battle.arena.columns;
-  const width = cellStep * 1.12;
-  const left = (100 - rowWidth) / 2 + column * cellStep + (row % 2) * (cellStep / 2);
-  const height = 12 + row * 0.7;
-  const top = 31 + row * 10.8;
-  return { row, width, height, left, top };
-};
-const cellStyle = (cell: number) => {
-  const geometry = cellGeometry(cell);
-  return {
-    left: `${geometry.left}%`,
-    top: `${geometry.top}%`,
-    width: `${geometry.width}%`,
-    height: `${geometry.height}%`,
-  };
-};
-const unitStyle = (cell: number) => {
-  const geometry = cellGeometry(cell);
-  const width = 14 + geometry.row * 0.7;
-  const height = 36 + geometry.row * 3.5;
-  const footPosition = geometry.top + geometry.height * 0.72;
-  return {
-    left: `${geometry.left + geometry.width / 2 - width / 2}%`,
-    bottom: `${100 - footPosition}%`,
-    width: `${width}%`,
-    height: `${height}%`,
-    zIndex: 20 + geometry.row,
-  };
-};
 const moveToCell = (cell: number) => {
   if (loading.value || !reachableCells.value.has(cell)) return;
   emit('tactical-action', { action: 'MOVE', targetCell: cell });
@@ -496,16 +425,6 @@ const playerHealthPercent = computed(() =>
 );
 const monsterHealthPercent = computed(() =>
   Math.max(0, Math.min(100, (props.battle.monster.health / props.battle.monster.maxHealth) * 100))
-);
-const playerAnimationClass = computed(() => {
-  const event = props.battle.events.filter((entry) => entry.actor === 'PLAYER').at(-1);
-  if (!event) return '';
-  if (event.action === 'MOVE') return '';
-  if (event.action === 'DEFEND') return 'unit-defending';
-  return 'unit-attacking';
-});
-const monsterAnimationClass = computed(() =>
-  props.battle.events.some((entry) => entry.actor === 'MONSTER' && entry.action !== 'MOVE') ? 'unit-attacking' : ''
 );
 const startQuickBattle = () => {
   mode.value = 'quick';
@@ -654,10 +573,7 @@ const CombatantCard = defineComponent({
 .tactical-battlefield {
   height: clamp(340px, 48vh, 520px);
   min-height: 340px;
-  background:
-    linear-gradient(to bottom, rgb(4 17 22 / 4%) 35%, rgb(4 17 22 / 18%) 100%),
-    url('/images/battle/tactical-battlefield-v2.png') center / cover no-repeat;
-  perspective: 1100px;
+  background: #18292c;
 }
 .battle-haze {
   position: absolute;
