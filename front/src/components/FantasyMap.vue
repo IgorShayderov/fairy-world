@@ -133,6 +133,7 @@
 
     <BattleEncounter
       v-if="activeBattle"
+      :key="activeBattle.id"
       :battle="activeBattle"
       :player-name="currentUserStore.user?.name ?? t('fantasy.encounter.traveler')"
       :loading="battlePending"

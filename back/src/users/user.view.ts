@@ -307,9 +307,7 @@ export class UserView {
       activeBuffs: activeBuffs.map(({ type, value, expiresAt }) => ({ type, value, expiresAt })),
       rewardBonuses: { goldPercent: goldBonusPercent, experiencePercent: experienceBonusPercent },
       activeClanBannerCode: profile?.clanMembership?.clan.activeBannerCode ?? null,
-      activeClanBannerPvpBonusPercent: clanBannerPvpBonusPercent(
-        profile?.clanMembership?.clan.activeBannerCode,
-      ),
+      activeClanBannerPvpBonusPercent: clanBannerPvpBonusPercent(profile?.clanMembership?.clan.activeBannerCode),
       activeClanBanner: activeClanBanner ?? null,
       blockChance,
       craftInventory: (profile?.craftItems ?? []).map(({ craftItem, quantity }) => ({ ...craftItem, quantity })),

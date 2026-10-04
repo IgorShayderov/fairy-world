@@ -22,8 +22,9 @@
           @busy="animating = $event"
           @move="moveToCell"
           @attack="attackEnemy"
+          @quick-battle="startQuickBattle"
           @fallback="
-            mode = 'choose';
+            mode = 'quick';
             animating = false;
           "
         />
@@ -68,6 +69,8 @@
           :max-health="battle.player.maxHealth"
           :damage="battle.player.damage"
           color="player"
+          :equipped-items="currentUserStore.user?.equippedItems"
+          :attacking="loading"
         />
         <div class="font-serif text-2xl font-black text-[#e8c66f]">VS</div>
         <CombatantCard
@@ -77,6 +80,8 @@
           :max-health="battle.monster.maxHealth"
           :damage="battle.monster.damage"
           color="monster"
+          :monster-type="battle.monsterType"
+          :attacking="loading"
         />
       </div>
 
@@ -211,6 +216,15 @@
         </template>
         <template v-else-if="battle.status === 'ACTIVE' && mode === 'tactical'">
           <button
+            type="button"
+            class="rounded-lg border border-[#dfc16d]/45 bg-[#dfc16d]/10 px-4 py-2.5 text-xs font-bold tracking-wider text-[#ffe69a] uppercase hover:bg-[#dfc16d]/20 disabled:opacity-50"
+            :disabled="loading"
+            @click="startQuickBattle"
+          >
+            <QIcon name="fast_forward" size="18px" />
+            {{ t('fantasy.encounter.quickBattle') }}
+          </button>
+          <button
             class="battle-action battle-action--defend"
             :disabled="loading"
             @click="emit('tactical-action', { action: 'DEFEND' })"
@@ -238,14 +252,23 @@
             {{ loading ? t('fantasy.encounter.attacking') : t('fantasy.encounter.attack') }}
           </button>
         </template>
-        <button
-          v-else-if="battle.status === 'ACTIVE'"
-          class="rounded-lg bg-[#bd4938] px-7 py-2.5 text-xs font-bold tracking-wider text-white uppercase shadow-lg hover:bg-[#d15743] disabled:opacity-50"
-          :disabled="loading"
-          @click="startQuickBattle"
-        >
-          {{ loading ? t('fantasy.encounter.attacking') : t('fantasy.encounter.attack') }}
-        </button>
+        <template v-else-if="battle.status === 'ACTIVE'">
+          <button
+            class="rounded-lg border border-[#dfc16d]/45 bg-[#dfc16d]/10 px-5 py-2.5 text-xs font-bold tracking-wider text-[#ffe69a] uppercase hover:bg-[#dfc16d]/20 disabled:opacity-50"
+            :disabled="loading"
+            @click="mode = 'tactical'"
+          >
+            <QIcon name="stadia_controller" size="18px" />
+            {{ t('fantasy.encounter.tacticalBattle') }}
+          </button>
+          <button
+            class="rounded-lg bg-[#bd4938] px-7 py-2.5 text-xs font-bold tracking-wider text-white uppercase shadow-lg hover:bg-[#d15743] disabled:opacity-50"
+            :disabled="loading"
+            @click="startQuickBattle"
+          >
+            {{ loading ? t('fantasy.encounter.attacking') : t('fantasy.encounter.attack') }}
+          </button>
+        </template>
         <button
           v-else-if="!animating"
           class="rounded-lg border border-[#dfc16d]/45 bg-[#dfc16d]/10 px-6 py-2.5 text-xs font-bold tracking-wider text-[#ffe69a] uppercase hover:bg-[#dfc16d]/20"
@@ -380,7 +403,7 @@
 <script setup lang="ts">
 import { useTranslation } from 'i18next-vue';
 import { Notify, QIcon } from 'quasar';
-import { computed, defineComponent, h, ref } from 'vue';
+import { computed, defineComponent, h, ref, watch } from 'vue';
 
 import type { InventoryItemType } from '@/modules/Inventory/types';
 
@@ -388,10 +411,13 @@ import { usersApi } from '@/modules/Auth/api/users';
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 import { getBattleEventSubject } from '@/modules/Game/battleEvent';
 import { getBattlePlayerLoadout } from '@/modules/Game/battlePlayerLoadout';
+import { getBattleMonsterVisual } from '@/modules/Game/monsterVisual';
 import { getRarityTextClass } from '@/modules/Inventory/utils/rarity';
 import type { BattleState, TacticalBattleAction } from '@/modules/Monsters/api';
 
 import Battlefield3D from '@/modules/Game/components/Battlefield3D.vue';
+import BattleMonsterModel from '@/modules/Game/components/BattleMonsterModel.vue';
+import BattlePlayerModel from '@/modules/Game/components/BattlePlayerModel.vue';
 import InventoryItem from '@/modules/Inventory/components/InventoryItem.vue';
 
 const props = defineProps<{ battle: BattleState; playerName: string; loading: boolean }>();
@@ -405,6 +431,14 @@ const { t } = useTranslation();
 const mode = ref<'choose' | 'quick' | 'tactical'>('choose');
 const animating = ref(false);
 const loading = computed(() => props.loading || animating.value);
+
+watch(
+  () => props.battle.id,
+  () => {
+    mode.value = 'choose';
+    animating.value = false;
+  }
+);
 
 const currentUserStore = useCurrentUserStore();
 const itemActions = ref<Record<number, 'dropped' | 'replaced'>>({});
@@ -542,11 +576,32 @@ const CombatantCard = defineComponent({
     maxHealth: { type: Number, required: true },
     damage: { type: Number, required: true },
     color: { type: String, required: true },
+    equippedItems: { type: Array, default: () => [] },
+    monsterType: { type: String, default: '' },
+    attacking: { type: Boolean, default: false },
   },
   setup(card) {
     return () =>
       h('div', { class: 'flex flex-col items-center' }, [
-        h('div', { class: `combatant combatant-${card.color}` }, [h(QIcon, { name: card.icon, size: '46px' })]),
+        h(
+          'div',
+          {
+            class: `combatant combatant-${card.color} relative overflow-hidden flex items-center justify-center p-2 rounded-2xl`,
+          },
+          [
+            card.color === 'player'
+              ? h(BattlePlayerModel, {
+                  equippedItems: card.equippedItems,
+                  class: `w-full h-full object-contain ${card.attacking ? 'unit-attacking' : ''}`,
+                })
+              : h(BattleMonsterModel, {
+                  src: getBattleMonsterVisual(card.monsterType, card.name),
+                  attacking: card.attacking,
+                  delay: 0,
+                  class: 'w-full h-full object-contain',
+                }),
+          ]
+        ),
         h('div', { class: 'mt-3 text-sm font-bold tracking-wide' }, card.name),
         h('div', { class: 'mt-2 h-3 w-full max-w-52 overflow-hidden rounded-full bg-black/40' }, [
           h('div', {
@@ -909,11 +964,11 @@ const CombatantCard = defineComponent({
 }
 .combatant {
   display: flex;
-  width: 92px;
-  height: 92px;
+  width: 108px;
+  height: 108px;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
+  border-radius: 1.25rem;
 }
 .combatant-player {
   color: #9ce2d2;

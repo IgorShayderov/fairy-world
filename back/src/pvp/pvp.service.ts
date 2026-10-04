@@ -63,8 +63,7 @@ const BOT_DODGE_MULTIPLIER = 1.25;
 
 export const applyPvpBannerDamageBonus = (value: number, bonusPercent: number) =>
   Math.round(value * (1 + bonusPercent / 100));
-export const applyPvpBannerDefenseBonus = (value: number, bonusPercent: number) =>
-  Math.round(value + bonusPercent);
+export const applyPvpBannerDefenseBonus = (value: number, bonusPercent: number) => Math.round(value + bonusPercent);
 
 type CachedOpponents = {
   opponents: PvpOpponent[];
