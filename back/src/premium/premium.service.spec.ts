@@ -10,7 +10,7 @@ describe('premium accounts', () => {
     gameProfile: { updateMany: jest.fn(), findUniqueOrThrow: jest.fn() },
     premiumAccount: { findUnique: jest.fn(), upsert: jest.fn(), findFirst: jest.fn(), updateMany: jest.fn() },
   };
-  const prisma = { ...tx, $transaction: jest.fn((fn) => fn(tx)) };
+  const prisma = { ...tx, $transaction: jest.fn((fn: (client: typeof tx) => Promise<unknown>) => fn(tx)) };
   const service = new PremiumService(prisma as unknown as PrismaService);
   beforeEach(() => {
     jest.clearAllMocks();
