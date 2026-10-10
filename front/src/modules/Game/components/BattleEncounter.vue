@@ -24,7 +24,7 @@
           @attack="attackEnemy"
           @quick-battle="startQuickBattle"
           @fallback="
-            mode = 'quick';
+            mode = 'choose';
             animating = false;
           "
         />
@@ -52,11 +52,13 @@
         <div class="tactical-stat tactical-stat--player">
           <strong>{{ playerName }}</strong>
           <span>{{ battle.player.health }} / {{ battle.player.maxHealth }} HP</span>
+          <small>{{ t('profile.propertyNames.MOVEMENT') }}: {{ battle.player.movement }}</small>
           <div><i :style="{ width: `${playerHealthPercent}%` }" /></div>
         </div>
         <div class="tactical-stat tactical-stat--monster">
           <strong>{{ battle.monster.name }}</strong>
           <span>{{ battle.monster.health }} / {{ battle.monster.maxHealth }} HP</span>
+          <small>{{ t('profile.propertyNames.MOVEMENT') }}: {{ battle.monster.movement }}</small>
           <div><i :style="{ width: `${monsterHealthPercent}%` }" /></div>
         </div>
       </div>
@@ -197,7 +199,11 @@
           {{ t('fantasy.encounter.retreat') }}
         </button>
         <template v-if="battle.status === 'ACTIVE' && mode === 'choose'">
+          <span v-if="!canQuickBattle" class="self-center text-xs text-amber-200">{{
+            t('gemStore.premiumRequired')
+          }}</span>
           <button
+            v-if="canQuickBattle"
             class="rounded-lg border border-[#dfc16d]/45 bg-[#dfc16d]/10 px-6 py-2.5 text-xs font-bold tracking-wider text-[#ffe69a] uppercase hover:bg-[#dfc16d]/20 disabled:opacity-50"
             :disabled="loading"
             @click="startQuickBattle"
@@ -216,6 +222,7 @@
         </template>
         <template v-else-if="battle.status === 'ACTIVE' && mode === 'tactical'">
           <button
+            v-if="canQuickBattle"
             type="button"
             class="rounded-lg border border-[#dfc16d]/45 bg-[#dfc16d]/10 px-4 py-2.5 text-xs font-bold tracking-wider text-[#ffe69a] uppercase hover:bg-[#dfc16d]/20 disabled:opacity-50"
             :disabled="loading"
@@ -441,6 +448,7 @@ watch(
 );
 
 const currentUserStore = useCurrentUserStore();
+const canQuickBattle = computed(() => currentUserStore.user?.quickBattleAvailable === true);
 const itemActions = ref<Record<number, 'dropped' | 'replaced'>>({});
 const replacingItemIndex = ref<number | null>(null);
 const replacingLootItem = ref<NonNullable<BattleState['rewards']>['items'][number] | null>(null);
@@ -461,6 +469,7 @@ const monsterHealthPercent = computed(() =>
   Math.max(0, Math.min(100, (props.battle.monster.health / props.battle.monster.maxHealth) * 100))
 );
 const startQuickBattle = () => {
+  if (!canQuickBattle.value || loading.value) return;
   mode.value = 'quick';
   emit('quick-battle');
 };
@@ -814,6 +823,11 @@ const CombatantCard = defineComponent({
 }
 .tactical-stat span {
   color: #c7d8d4;
+}
+.tactical-stat small {
+  grid-column: 1 / -1;
+  color: #79e8d1;
+  font-size: 0.65rem;
 }
 .tactical-stat > div {
   height: 0.4rem;

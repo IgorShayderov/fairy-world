@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { ScheduleModule } from '@nestjs/schedule';
+import { PremiumModule } from './premium/premium.module';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { join } from 'path';
 import { HandlebarsAdapter } from '@nestjs-modules/mailer/adapters/handlebars.adapter';
@@ -19,6 +21,8 @@ import { ClansModule } from './clans/clans.module';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
+    PremiumModule,
     AuthModule,
     UsersModule,
     ChatModule,

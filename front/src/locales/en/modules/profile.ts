@@ -63,13 +63,15 @@ export default {
   },
   attributeDescriptions: {
     STRENGTH: 'Each point increases Damage by 1.',
-    AGILITY: 'Each point adds 1 Dodge and 1 Critical Chance rating. Final percentages scale with your level.',
+    AGILITY:
+      'Each point adds 1 Dodge and 1 Critical Chance rating. Final percentages scale with your level. Every 10 total Agility adds 1 Movement, up to 6 hexes per turn.',
     ENDURANCE: 'Each point increases Health by 10 and Defense by 1.',
     WISDOM: 'Each point increases Mana by 5.',
     CHARISMA:
       'Each point increases Health by 5 and adds 1 Critical Damage rating. Its critical benefit scales with level and diminishing returns.',
   },
   propertyNames: {
+    MOVEMENT: 'Movement',
     HEALTH: 'Health',
     MANA: 'Mana',
     DAMAGE: 'Damage',
@@ -79,6 +81,8 @@ export default {
     CRIT_DAMAGE: 'Critical damage',
   },
   propertyDescriptions: {
+    MOVEMENT:
+      'Hexes you can move per tactical turn: 3 base, +1 per 10 total Agility (including equipment), up to 6. Moving does not consume your attack.',
     HEALTH: 'The maximum amount of damage you can survive before being defeated.',
     MANA: 'The maximum resource available for casting spells and using magical abilities.',
     DAMAGE: 'The base damage dealt by your attacks.',

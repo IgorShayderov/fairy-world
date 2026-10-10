@@ -138,19 +138,33 @@ for key, (path, rig_name, mesh_names, clips, textures) in models.items():
                 mat.node_tree.links.new(node.outputs['Color'], normal_node.inputs['Color'])
                 mat.node_tree.links.new(normal_node.outputs['Normal'], bsdf.inputs['Normal'])
     rig.animation_data_create()
+    exported_actions = []
     for name, action_name, start, end, seconds in clips:
-        action = bpy.data.actions[action_name]
-        track = rig.animation_data.nla_tracks.new()
-        track.name = name
-        strip = track.strips.new(name, 0, action)
-        strip.action_frame_start = start
-        strip.action_frame_end = end
-        strip.scale = seconds * scene.render.fps / (end - start)
-        strip.extrapolation = 'NOTHING'
+        action = bpy.data.actions[action_name].copy()
+        action.name = 'Battle_' + name
+        factor = seconds * scene.render.fps / (end - start)
+        for curve in action.fcurves:
+            for keyframe in curve.keyframe_points:
+                for point in [keyframe.co, keyframe.handle_left, keyframe.handle_right]:
+                    point.x = (point.x - start) * factor
+        action.use_frame_range = True
+        action.frame_start = 0
+        action.frame_end = seconds * scene.render.fps
+        action.use_fake_user = True
+        exported_actions.append((name, action))
+    # Direct action sampling is essential: the legacy NLA export silently
+    # emitted frozen transforms for these files under Blender 4.5.
+    for action in list(bpy.data.actions):
+        if action not in [item[1] for item in exported_actions]:
+            bpy.data.actions.remove(action)
+    for name, action in exported_actions:
+        action.name = name
+    rig.animation_data.action = exported_actions[0][1]
+    rig.animation_data.action_slot = exported_actions[0][1].slots[0]
     scene.frame_set(0)
     bpy.context.view_layer.objects.active = rig
     bpy.ops.export_scene.gltf(filepath=os.path.join(output, key + '.glb'), export_format='GLB',
-        use_selection=True, export_animations=True, export_animation_mode='NLA_TRACKS',
+        use_selection=True, export_animations=True, export_animation_mode='ACTIONS',
         export_skins=True, export_force_sampling=True, export_def_bones=True,
         export_materials='EXPORT', export_yup=True)
     print('EXPORTED', key, flush=True)

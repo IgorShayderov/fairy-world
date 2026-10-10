@@ -51,7 +51,8 @@ export const ATTRIBUTE_EFFECTS: Record<
     properties: { [StatType.DAMAGE]: 1 },
   },
   [AttributeType.AGILITY]: {
-    description: 'Adds 1 Dodge and 1 Critical Chance rating per point. Final percentages scale with level.',
+    description:
+      'Adds 1 Dodge and 1 Critical Chance rating per point. Final percentages scale with level. Every 10 total Agility adds 1 Movement, capped at 6 hexes per turn.',
     properties: { [StatType.DODGE]: 1, [StatType.CRIT]: 1 },
   },
   [AttributeType.ENDURANCE]: {

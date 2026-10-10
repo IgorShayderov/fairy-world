@@ -1,57 +1,24 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { effectScope, nextTick, ref } from 'vue';
+import { describe, expect, it } from 'vitest';
 
-import { useBattleAnimation } from '@/modules/Game/useBattleAnimation';
-import type { BattleState } from '@/modules/Monsters/api';
+import { attackOffset, attackTiming, smoothStep } from '../src/modules/Game/battleAnimation';
 
-const hit = (actor: 'PLAYER' | 'MONSTER'): BattleState['events'][number] => ({
-  actor,
-  damage: 10,
-  critical: false,
-  dodged: false,
-});
-
-describe('battle animation lifecycle', () => {
-  afterEach(() => vi.useRealTimers());
-
-  it('replays a winning strike even when the server turn does not advance', async () => {
-    vi.useFakeTimers();
-    const scope = effectScope();
-    const battle = ref({ turn: 4, status: 'ACTIVE', events: [hit('PLAYER')] });
-    const animation = scope.run(() => useBattleAnimation(battle, ref('tactical')))!;
-    battle.value = { turn: 4, status: 'VICTORY', events: [hit('PLAYER')] };
-    await nextTick();
-    expect(animation.animationSequence.value).toBe(1);
-    expect(animation.animating.value).toBe(true);
-    vi.advanceTimersByTime(949);
-    expect(animation.animating.value).toBe(true);
-    vi.advanceTimersByTime(1);
-    expect(animation.animating.value).toBe(false);
-    scope.stop();
+describe('battle animation pacing', () => {
+  it('winds up, strikes, holds contact and returns exactly home', () => {
+    expect(attackOffset(0)).toBe(0);
+    expect(attackOffset(0.24)).toBeCloseTo(-0.12);
+    expect(attackOffset(0.48)).toBe(1);
+    expect(attackOffset(0.53)).toBe(1);
+    expect(attackOffset(1)).toBe(0);
   });
-
-  it('keeps controls locked through the delayed monster response', async () => {
-    vi.useFakeTimers();
-    const scope = effectScope();
-    const battle = ref({ events: [] as BattleState['events'] });
-    const animation = scope.run(() => useBattleAnimation(battle, ref('tactical')))!;
-    battle.value = { events: [hit('PLAYER'), hit('MONSTER')] };
-    await nextTick();
-    expect(animation.monsterAttackDelay.value).toBe(950);
-    vi.advanceTimersByTime(950);
-    expect(animation.animating.value).toBe(true);
-    vi.advanceTimersByTime(950);
-    expect(animation.animating.value).toBe(false);
-    scope.stop();
+  it('gives heavy and power attacks more weight without stretching ordinary attacks', () => {
+    expect(attackTiming('knight_attack_2_heavy_weapon', false).duration).toBeGreaterThan(
+      attackTiming('Attack', false).duration
+    );
+    expect(attackTiming('Attack', true).duration).toBeGreaterThan(attackTiming('Attack', false).duration);
   });
-
-  it('does not delay quick battle rewards', async () => {
-    const scope = effectScope();
-    const battle = ref({ events: [] as BattleState['events'] });
-    const animation = scope.run(() => useBattleAnimation(battle, ref('quick')))!;
-    battle.value = { events: [hit('PLAYER')] };
-    await nextTick();
-    expect(animation.animating.value).toBe(false);
-    scope.stop();
+  it('clamps smooth turns at their endpoints', () => {
+    expect(smoothStep(-1)).toBe(0);
+    expect(smoothStep(0.5)).toBe(0.5);
+    expect(smoothStep(2)).toBe(1);
   });
 });

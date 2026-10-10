@@ -1,8 +1,10 @@
 <template>
   <div ref="host" class="battle-scene" aria-label="3D tactical battlefield">
+    <div class="camera-hint">Right-drag to orbit · Scroll to zoom</div>
+    <a class="asset-credits" href="/models/battle/ATTRIBUTION.md" target="_blank" rel="noopener">Art credits</a>
     <div v-if="message" class="scene-message" role="status">
       <div>{{ message }}</div>
-      <button v-if="failed" type="button" @click="emit('fallback')">Return to quick battle</button>
+      <button v-if="failed" type="button" @click="emit('fallback')">Return to battle options</button>
     </div>
 
     <!-- Floating 3D Combat Overlay -->
@@ -27,9 +29,11 @@
 
 <script setup lang="ts">
 import * as T from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
+import { attackOffset, attackTiming, smoothStep } from '@/modules/Game/battleAnimation';
 import { battleMonsterModel } from '@/modules/Game/battleMonsterModels';
 import { battleMovementPath } from '@/modules/Game/battleMovementPath';
 import type { BattleHandMode } from '@/modules/Game/battlePlayerLoadout';
@@ -79,13 +83,14 @@ const loader = new GLTFLoader();
 const tiles: T.Mesh<T.CylinderGeometry, T.MeshStandardMaterial>[] = [];
 
 type TileOverlay = {
-  mesh: T.Mesh<T.RingGeometry, T.MeshStandardMaterial>;
-  innerRune: T.Mesh<T.RingGeometry, T.MeshStandardMaterial>;
-  material: T.MeshStandardMaterial;
-  innerMaterial: T.MeshStandardMaterial;
+  mesh: T.Mesh<T.RingGeometry, T.MeshBasicMaterial>;
+  innerRune: T.Mesh<T.RingGeometry, T.MeshBasicMaterial>;
+  material: T.MeshBasicMaterial;
+  innerMaterial: T.MeshBasicMaterial;
   mode: 'neutral' | 'reachable' | 'player' | 'monster' | 'attackable';
 };
 const tileOverlays: TileOverlay[] = [];
+let hoveredCell = -1;
 
 type Brazier = {
   light: T.PointLight;
@@ -112,6 +117,10 @@ type Fighter = {
 let player: Fighter | undefined;
 let enemy: Fighter | undefined;
 let renderer: T.WebGLRenderer | undefined;
+let controls: OrbitControls | undefined;
+let weapon: T.Group | undefined;
+let shield: T.Group | undefined;
+let offhandWeapon: T.Group | undefined;
 let observer: ResizeObserver | undefined;
 let frame = 0;
 let disposed = false;
@@ -135,102 +144,6 @@ function point(cell: number) {
   const { columns, rows } = props.battle.arena;
   const row = Math.floor(cell / columns);
   return new T.Vector3(((cell % columns) + (row % 2) / 2 - columns / 2) * 1.77, 0.12, (row - rows / 2) * 1.53);
-}
-
-function createStoneTextures(): { map: T.CanvasTexture; bump: T.CanvasTexture } {
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 512;
-  const ctx = canvas.getContext('2d')!;
-
-  const bumpCanvas = document.createElement('canvas');
-  bumpCanvas.width = 512;
-  bumpCanvas.height = 512;
-  const bCtx = bumpCanvas.getContext('2d')!;
-
-  // 1. Dark weathered granite base
-  const grad = ctx.createRadialGradient(256, 256, 40, 256, 256, 300);
-  grad.addColorStop(0, '#2c3532');
-  grad.addColorStop(0.6, '#212927');
-  grad.addColorStop(1, '#171e1c');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, 512, 512);
-
-  bCtx.fillStyle = '#808080';
-  bCtx.fillRect(0, 0, 512, 512);
-
-  // 2. Micro stone grain and chisel noise
-  const imgData = ctx.getImageData(0, 0, 512, 512);
-  const bumpData = bCtx.getImageData(0, 0, 512, 512);
-  const data = imgData.data;
-  const bData = bumpData.data;
-
-  let s = 12345;
-  function rnd() {
-    s = (s * 9301 + 49297) % 233280;
-    return s / 233280;
-  }
-
-  for (let i = 0; i < data.length; i += 4) {
-    const n = (rnd() - 0.5) * 26;
-    data[i] = Math.min(255, Math.max(0, data[i] + n));
-    data[i + 1] = Math.min(255, Math.max(0, data[i + 1] + n * 1.05));
-    data[i + 2] = Math.min(255, Math.max(0, data[i + 2] + n * 0.95));
-
-    bData[i] = Math.min(255, Math.max(0, 128 + n * 2.8));
-    bData[i + 1] = bData[i];
-    bData[i + 2] = bData[i];
-  }
-  ctx.putImageData(imgData, 0, 0);
-  bCtx.putImageData(bumpData, 0, 0);
-
-  // 3. Hexagon border bevel lines
-  ctx.save();
-  ctx.translate(256, 256);
-  bCtx.save();
-  bCtx.translate(256, 256);
-
-  function drawHexPath(context: CanvasRenderingContext2D, radius: number) {
-    context.beginPath();
-    for (let a = 0; a < 6; a++) {
-      const angle = (a * Math.PI) / 3;
-      const x = Math.cos(angle) * radius;
-      const y = Math.sin(angle) * radius;
-      if (a === 0) context.moveTo(x, y);
-      else context.lineTo(x, y);
-    }
-    context.closePath();
-  }
-
-  // Outer bevel shadow
-  drawHexPath(ctx, 240);
-  ctx.lineWidth = 14;
-  ctx.strokeStyle = 'rgba(8, 12, 11, 0.65)';
-  ctx.stroke();
-
-  // Inner beveled highlight line
-  drawHexPath(ctx, 226);
-  ctx.lineWidth = 4;
-  ctx.strokeStyle = 'rgba(95, 128, 118, 0.35)';
-  ctx.stroke();
-
-  drawHexPath(bCtx, 235);
-  bCtx.lineWidth = 14;
-  bCtx.strokeStyle = 'rgb(30, 30, 30)';
-  bCtx.stroke();
-
-  ctx.restore();
-  bCtx.restore();
-
-  const map = new T.CanvasTexture(canvas);
-  map.wrapS = T.RepeatWrapping;
-  map.wrapT = T.RepeatWrapping;
-
-  const bump = new T.CanvasTexture(bumpCanvas);
-  bump.wrapS = T.RepeatWrapping;
-  bump.wrapT = T.RepeatWrapping;
-
-  return { map, bump };
 }
 
 function materials(root: T.Object3D, isPlayer = false) {
@@ -270,12 +183,12 @@ function materials(root: T.Object3D, isPlayer = false) {
 }
 
 function createStanceRing(colorHex: string, radius: number): T.Mesh {
-  const geometry = new T.RingGeometry(radius * 0.76, radius, 32);
+  const geometry = new T.RingGeometry(radius * 0.94, radius, 48);
   geometry.rotateX(-Math.PI / 2);
   const material = new T.MeshBasicMaterial({
     color: colorHex,
     transparent: true,
-    opacity: 0.65,
+    opacity: 0.45,
     side: T.DoubleSide,
     depthWrite: false,
   });
@@ -286,8 +199,101 @@ function createStanceRing(colorHex: string, radius: number): T.Mesh {
 
 function resolveModelPath(file: string): string {
   if (file.includes('/')) return file;
-  if (file.startsWith('kaykit-') || file === 'demon' || file === 'ghost') return file;
+  if (file.startsWith('kaykit-') || file === 'solus-knight' || file === 'demon' || file === 'ghost') return file;
   return `creatures/${file}`;
+}
+
+function createSword(twoHanded: boolean) {
+  const sword = new T.Group();
+  const steel = new T.MeshStandardMaterial({ color: '#abb5bb', metalness: 0.9, roughness: 0.28 });
+  const leather = new T.MeshStandardMaterial({ color: '#33271d', roughness: 0.95 });
+  const bladeShape = new T.Shape();
+  const length = twoHanded ? 1.35 : 0.95;
+  bladeShape.moveTo(-0.065, 0.3);
+  bladeShape.lineTo(0.065, 0.3);
+  bladeShape.lineTo(0.045, length);
+  bladeShape.lineTo(0, length + 0.17);
+  bladeShape.lineTo(-0.045, length);
+  bladeShape.closePath();
+  const blade = new T.Mesh(
+    new T.ExtrudeGeometry(bladeShape, {
+      depth: 0.015,
+      bevelEnabled: true,
+      bevelThickness: 0.008,
+      bevelSize: 0.008,
+      bevelSegments: 1,
+      steps: 1,
+    }),
+    steel
+  );
+  blade.position.z = -0.0075;
+  sword.add(blade);
+  const guard = new T.Mesh(new T.BoxGeometry(0.34, 0.038, 0.06), steel);
+  guard.position.y = 0.29;
+  sword.add(guard);
+  const grip = new T.Mesh(new T.CylinderGeometry(0.025, 0.029, 0.32, 10), leather);
+  grip.position.y = 0.105;
+  sword.add(grip);
+  const pommel = new T.Mesh(new T.SphereGeometry(0.047, 12, 8), steel);
+  pommel.position.y = -0.085;
+  sword.add(pommel);
+  sword.traverse((object) => {
+    if (object instanceof T.Mesh) object.castShadow = true;
+  });
+  return sword;
+}
+
+function equipPlayer() {
+  const mode = props.handMode ?? 'TWO_HANDED';
+  if (mode === 'UNARMED') return;
+  weapon = createSword(mode === 'TWO_HANDED');
+  scene.add(weapon);
+  if (mode === 'DUAL') {
+    offhandWeapon = createSword(false);
+    scene.add(offhandWeapon);
+  }
+  if (mode === 'WEAPON_SHIELD') {
+    shield = new T.Group();
+    const body = new T.Mesh(
+      new T.CylinderGeometry(0.35, 0.35, 0.05, 32),
+      new T.MeshStandardMaterial({ color: '#514d40', metalness: 0.65, roughness: 0.5 })
+    );
+    body.rotation.x = Math.PI / 2;
+    body.castShadow = true;
+    shield.add(body);
+    scene.add(shield);
+  }
+}
+
+function updateEquipment() {
+  if (!player || !weapon) return;
+  player.root.updateMatrixWorld(true);
+  const right = player.root.getObjectByName('Rig_hand_R');
+  const left = player.root.getObjectByName('Rig_hand_L');
+  if (!right || !left) return;
+  const rightPosition = right.getWorldPosition(new T.Vector3());
+  const leftPosition = left.getWorldPosition(new T.Vector3());
+  weapon.position.copy(rightPosition);
+  if ((props.handMode ?? 'TWO_HANDED') === 'TWO_HANDED') {
+    // The authored heavy-weapon pose places the left hand nearest the blade.
+    const gripDirection = leftPosition.clone().sub(rightPosition);
+    weapon.scale.y = Math.max(0.8, Math.min(1.6, gripDirection.length() / 0.23));
+    weapon.quaternion.setFromUnitVectors(new T.Vector3(0, 1, 0), gripDirection.normalize());
+  } else {
+    weapon.quaternion
+      .copy(right.getWorldQuaternion(new T.Quaternion()))
+      .multiply(new T.Quaternion().setFromEuler(new T.Euler(Math.PI / 2, 0, 0)));
+  }
+  if (offhandWeapon) {
+    offhandWeapon.position.copy(leftPosition);
+    offhandWeapon.quaternion
+      .copy(left.getWorldQuaternion(new T.Quaternion()))
+      .multiply(new T.Quaternion().setFromEuler(new T.Euler(Math.PI / 2, 0, 0)));
+  }
+  if (shield) {
+    shield.position.copy(leftPosition);
+    shield.quaternion.copy(left.getWorldQuaternion(new T.Quaternion()));
+  }
 }
 
 async function fighter(file: string, height: number, isPlayer = false): Promise<Fighter> {
@@ -299,7 +305,10 @@ async function fighter(file: string, height: number, isPlayer = false): Promise<
   }
   materials(model, isPlayer);
   const mixer = new T.AnimationMixer(model);
-  const idle = gltf.animations.find((animation) => /Idle$/i.test(animation.name)) ?? gltf.animations[0];
+  const idle =
+    gltf.animations.find((animation) => animation.name === 'knight_idle_heavy_weapon') ??
+    gltf.animations.find((animation) => /Idle$/i.test(animation.name)) ??
+    gltf.animations[0];
   if (idle) mixer.clipAction(idle).play();
   mixer.update(0.01);
   model.updateMatrixWorld(true);
@@ -332,18 +341,19 @@ function clip(unit: Fighter, kind: 'idle' | 'walk' | 'attack' | 'death' | 'hit')
   if (unit === player) {
     const mode = props.handMode ?? 'TWO_HANDED';
     const names = {
-      idle: mode === 'TWO_HANDED' ? '2H_Melee_Idle' : mode === 'UNARMED' ? 'Unarmed_Idle' : 'Idle',
-      walk: 'Walking_A',
+      idle:
+        mode === 'TWO_HANDED' ? 'knight_idle_heavy_weapon' : mode === 'DUAL' ? 'knight_idle_2_weapon' : 'knight_idle',
+      walk: 'knight_walk_in_place',
       attack:
         mode === 'TWO_HANDED'
-          ? '2H_Melee_Attack_Slice'
+          ? 'knight_attack_2_heavy_weapon'
           : mode === 'DUAL'
-            ? 'Dualwield_Melee_Attack_Slice'
+            ? 'two_weapon_attack_sequence'
             : mode === 'UNARMED'
-              ? 'Unarmed_Melee_Attack_Punch_A'
-              : '1H_Melee_Attack_Slice_Diagonal',
-      death: 'Death_A',
-      hit: 'Hit_A',
+              ? 'knight_shield_attack'
+              : 'knight_shield_attack',
+      death: 'knight_front_attacked_fall',
+      hit: 'knight_hurt_left',
     };
     return unit.clips.find((entry) => entry.name === names[kind]);
   }
@@ -359,13 +369,18 @@ function clip(unit: Fighter, kind: 'idle' | 'walk' | 'attack' | 'death' | 'hit')
 
 function selectPlayerAttackClip(isPower: boolean): T.AnimationClip | undefined {
   if (!player) return undefined;
+  const heavy = props.handMode === 'TWO_HANDED' || !props.handMode;
+  if (heavy) {
+    const name = isPower || playerAttackCombo++ % 2 ? 'knight_attack_3_heavy_weapon' : 'knight_attack_2_heavy_weapon';
+    return player.clips.find((entry) => entry.name === name) ?? clip(player, 'attack');
+  }
   const mode = props.handMode ?? 'TWO_HANDED';
 
   if (isPower) {
     const powerClip =
       mode === 'TWO_HANDED'
-        ? player.clips.find((c) => /2H_Melee_Attack_Spin/i.test(c.name)) ??
-          player.clips.find((c) => /2H_Melee_Attack_Chop/i.test(c.name))
+        ? (player.clips.find((c) => /2H_Melee_Attack_Spin/i.test(c.name)) ??
+          player.clips.find((c) => /2H_Melee_Attack_Chop/i.test(c.name)))
         : mode === 'DUAL'
           ? player.clips.find((c) => /Dualwield_Melee_Attack_Chop/i.test(c.name))
           : mode === 'UNARMED'
@@ -392,16 +407,20 @@ function selectPlayerAttackClip(isPower: boolean): T.AnimationClip | undefined {
   return player.clips.find((c) => c.name === chosenName) ?? clip(player, 'attack');
 }
 
-function playAction(unit: Fighter, animation: T.AnimationClip | undefined, once = false) {
+function playAction(unit: Fighter, animation: T.AnimationClip | undefined, once = false, duration?: number) {
   if (!animation) return 0.6;
   const action = unit.mixer.clipAction(animation);
-  if (unit.current !== action) unit.current?.fadeOut(0.1);
-  action.reset().setEffectiveTimeScale(1).setEffectiveWeight(1);
+  if (!once && unit.current === action && action.isRunning()) return animation.duration;
+  if (unit.current !== action) unit.current?.fadeOut(0.18);
+  action
+    .reset()
+    .setEffectiveTimeScale(duration ? animation.duration / duration : 1)
+    .setEffectiveWeight(1);
   action.setLoop(once ? T.LoopOnce : T.LoopRepeat, once ? 1 : Infinity);
   action.clampWhenFinished = once;
-  action.fadeIn(0.1).play();
+  action.fadeIn(once ? 0.08 : 0.18).play();
   unit.current = action;
-  return animation.duration;
+  return duration ?? animation.duration;
 }
 
 function play(unit: Fighter, kind: 'idle' | 'walk' | 'attack' | 'death' | 'hit', once = false) {
@@ -542,7 +561,9 @@ function triggerDodgeReaction(target: Fighter, attackDirection: T.Vector3) {
 function triggerBlockReaction(target: Fighter, impactPoint: T.Vector3) {
   if (target === player) {
     const blockClip =
-      target.clips.find((c) => /Block_Hit/i.test(c.name)) ?? target.clips.find((c) => /Block$/i.test(c.name));
+      target.clips.find((c) => c.name === 'knight_shield_block' || c.name === 'knight_block_2_weapon') ??
+      target.clips.find((c) => /Block_Hit/i.test(c.name)) ??
+      target.clips.find((c) => /Block$/i.test(c.name));
     if (blockClip) playAction(target, blockClip, true);
   }
 
@@ -621,10 +642,7 @@ function createBrazier(position: T.Vector3): Brazier {
   group.add(bowl);
 
   // Burning molten coal core
-  const fireCore = new T.Mesh(
-    new T.DodecahedronGeometry(0.38, 1),
-    new T.MeshBasicMaterial({ color: '#ff6611' })
-  );
+  const fireCore = new T.Mesh(new T.DodecahedronGeometry(0.38, 1), new T.MeshBasicMaterial({ color: '#ff6611' }));
   fireCore.position.y = 1.15;
   group.add(fireCore);
 
@@ -677,35 +695,34 @@ function createCraggyBoulder(): T.Group {
 
 function paint() {
   const arena = props.battle.arena;
+  const interactive = !busy && !props.disabled && props.battle.status === 'ACTIVE';
   tileOverlays.forEach((overlay, cell) => {
-    if (cell === arena.monsterPosition) {
-      overlay.mode = arena.canAttack ? 'attackable' : 'monster';
-      overlay.material.opacity = arena.canAttack ? 0.95 : 0.75;
-      overlay.material.emissive.set(arena.canAttack ? '#ef4444' : '#f87171');
-      overlay.material.color.set(arena.canAttack ? '#b91c1c' : '#991b1b');
-      overlay.innerMaterial.opacity = arena.canAttack ? 0.9 : 0.65;
-      overlay.innerMaterial.emissive.set(arena.canAttack ? '#fca5a5' : '#f87171');
-    } else if (cell === arena.playerPosition) {
-      overlay.mode = 'player';
-      overlay.material.opacity = 0.85;
-      overlay.material.emissive.set('#38bdf8');
-      overlay.material.color.set('#0284c7');
-      overlay.innerMaterial.opacity = 0.75;
-      overlay.innerMaterial.emissive.set('#7dd3fc');
-    } else if (!busy && arena.reachableCells.includes(cell)) {
-      overlay.mode = 'reachable';
-      overlay.material.opacity = 0.78;
-      overlay.material.emissive.set('#2dd4bf');
-      overlay.material.color.set('#0d9488');
-      overlay.innerMaterial.opacity = 0.65;
-      overlay.innerMaterial.emissive.set('#5eead4');
-    } else {
-      overlay.mode = 'neutral';
-      overlay.material.opacity = 0;
-      overlay.material.emissive.set('#000000');
-      overlay.innerMaterial.opacity = 0;
-      overlay.innerMaterial.emissive.set('#000000');
-    }
+    const reachable = arena.reachableCells.includes(cell) && !arena.blockedCells.includes(cell);
+    overlay.mode = !interactive
+      ? 'neutral'
+      : cell === arena.monsterPosition
+        ? arena.canAttack
+          ? 'attackable'
+          : 'monster'
+        : cell === arena.playerPosition
+          ? 'player'
+          : reachable
+            ? 'reachable'
+            : 'neutral';
+    const highlighted = cell === hoveredCell && (overlay.mode === 'reachable' || overlay.mode === 'attackable');
+    const color = highlighted
+      ? '#fff1b2'
+      : overlay.mode === 'reachable'
+        ? '#79e8d1'
+        : overlay.mode === 'player'
+          ? '#91cfff'
+          : '#ff8178';
+    overlay.mesh.visible = overlay.mode !== 'neutral';
+    overlay.innerRune.visible = overlay.mode === 'reachable' || overlay.mode === 'attackable';
+    overlay.material.color.set(color);
+    overlay.material.opacity = highlighted ? 1 : 0.85;
+    overlay.innerMaterial.color.set(color);
+    overlay.innerMaterial.opacity = highlighted ? 0.48 : 0.22;
   });
 }
 
@@ -715,7 +732,9 @@ async function replay(next: BattleState) {
   emit('busy', true);
   paint();
 
-  for (const event of next.events) {
+  let deathStarted = false;
+  let deathFinished: Promise<void> | undefined;
+  for (const [eventIndex, event] of next.events.entries()) {
     if (disposed) return;
     const unit = event.actor === 'PLAYER' ? player : enemy;
     const target = event.actor === 'PLAYER' ? enemy : player;
@@ -748,12 +767,15 @@ async function replay(next: BattleState) {
         await wait(moveDuration, (t) => {
           unit.root.position.lerpVectors(origin, step, t);
           const turnProgress = Math.min(1, t / 0.35);
-          unit.root.rotation.y = startAngle + deltaAngle * turnProgress;
+          unit.root.rotation.y = startAngle + deltaAngle * smoothStep(turnProgress);
         });
         unit.root.position.copy(step);
       }
     } else if (event.action === 'DEFEND') {
-      const block = unit.clips.find((entry) => entry.name === 'Block');
+      const block =
+        unit.clips.find(
+          (entry) => entry.name === (props.handMode === 'DUAL' ? 'knight_block_2_weapon' : 'knight_shield_block')
+        ) ?? unit.clips.find((entry) => entry.name === 'Block');
       if (block) {
         unit.current?.fadeOut(0.1);
         unit.current = unit.mixer.clipAction(block).reset().setLoop(T.LoopOnce, 1).play();
@@ -768,26 +790,32 @@ async function replay(next: BattleState) {
       face(unit, target.root.position);
       const isPower = event.action === 'POWER_ATTACK';
       const attackClip = unit === player ? selectPlayerAttackClip(isPower) : clip(unit, 'attack');
-      const duration = playAction(unit, attackClip, true);
+      const timing = attackTiming(attackClip?.name ?? '', isPower);
+      const duration = playAction(unit, attackClip, true, timing.duration);
 
       // Melee combat lunge towards target
       const homePos = unit.root.position.clone();
       const targetPos = target.root.position.clone();
       const toTarget = targetPos.clone().sub(homePos);
       const dist = toTarget.length();
-      const lungeVector = toTarget.normalize().multiplyScalar(Math.min(0.85, dist * 0.44));
+      const lungeVector = toTarget.normalize().multiplyScalar(Math.min(isPower ? 0.52 : 0.32, dist * 0.2));
       const lungePeak = homePos.clone().add(lungeVector);
 
-      const strikePoint = 0.45;
+      const strikePoint = timing.impact;
       await wait(duration * strikePoint, (t) => {
-        const ease = Math.sin(t * Math.PI * 0.5);
-        unit.root.position.lerpVectors(homePos, lungePeak, ease);
+        unit.root.position.copy(homePos).addScaledVector(lungeVector, attackOffset(t * strikePoint, strikePoint));
       });
 
       const impactPoint = lungePeak.clone().add(targetPos).multiplyScalar(0.5);
       impactPoint.y += target.height * 0.5;
 
       const textPos = target.root.position.clone().add(new T.Vector3(0, target.height * 0.85 + 0.35, 0));
+      const killingBlow =
+        eventIndex === next.events.length - 1 &&
+        !event.dodged &&
+        !event.blocked &&
+        (event.damage ?? 0) > 0 &&
+        ((next.status === 'VICTORY' && target === enemy) || (next.status === 'DEFEAT' && target === player));
 
       if (event.dodged) {
         triggerDodgeReaction(target, toTarget);
@@ -796,7 +824,13 @@ async function replay(next: BattleState) {
         triggerBlockReaction(target, impactPoint);
         addFloatingText('BLOCKED!', 'block', textPos);
       } else {
-        triggerHitReaction(target, toTarget, event.critical || isPower);
+        if (killingBlow) {
+          deathStarted = true;
+          deathFinished = wait(play(target, 'death', true));
+          spawnHitSparks(impactPoint, '#fbc879', 12);
+        } else {
+          triggerHitReaction(target, toTarget, event.critical || isPower);
+        }
         const dmg = event.damage ?? 0;
         const text = event.critical ? `CRIT! -${dmg}` : isPower ? `HEAVY! -${dmg}` : `-${dmg}`;
         const type = event.critical || isPower ? 'crit' : 'damage';
@@ -807,12 +841,13 @@ async function replay(next: BattleState) {
       }
 
       await wait(duration * (1 - strikePoint), (t) => {
-        const ease = Math.sin(t * Math.PI * 0.5);
-        unit.root.position.lerpVectors(lungePeak, homePos, ease);
+        unit.root.position
+          .copy(homePos)
+          .addScaledVector(lungeVector, attackOffset(strikePoint + t * (1 - strikePoint), strikePoint));
       });
       unit.root.position.copy(homePos);
 
-      play(target, 'idle');
+      if (!killingBlow) play(target, 'idle');
     }
     play(unit, 'idle');
   }
@@ -822,7 +857,8 @@ async function replay(next: BattleState) {
   face(player, enemy.root.position);
   face(enemy, player.root.position);
 
-  if (next.status !== 'ACTIVE') {
+  if (deathFinished) await deathFinished;
+  if (next.status !== 'ACTIVE' && !deathStarted) {
     const fallen = next.status === 'VICTORY' ? enemy : player;
     await wait(play(fallen, 'death', true));
   }
@@ -844,9 +880,8 @@ watch(
   { flush: 'sync' }
 );
 
-function select(event: PointerEvent) {
-  if (!renderer || busy || props.disabled || props.battle.status !== 'ACTIVE') return;
-  const bounds = renderer.domElement.getBoundingClientRect();
+function pointerRay(event: PointerEvent) {
+  const bounds = renderer!.domElement.getBoundingClientRect();
   const ray = new T.Raycaster();
   ray.setFromCamera(
     new T.Vector2(
@@ -855,6 +890,36 @@ function select(event: PointerEvent) {
     ),
     camera
   );
+  return ray;
+}
+
+function clearHover() {
+  hoveredCell = -1;
+  if (renderer) renderer.domElement.style.cursor = '';
+}
+
+function hover(event: PointerEvent) {
+  clearHover();
+  if (!renderer || event.buttons || busy || props.disabled || props.battle.status !== 'ACTIVE') return;
+  const ray = pointerRay(event);
+  const hit = ray.intersectObjects(tiles)[0];
+  const cell = hit ? tiles.indexOf(hit.object as (typeof tiles)[number]) : -1;
+  const arena = props.battle.arena;
+  if (enemy && arena.canAttack && ray.intersectObject(enemy.root, true).length) {
+    hoveredCell = arena.monsterPosition;
+  } else if (
+    (arena.reachableCells.includes(cell) && !arena.blockedCells.includes(cell)) ||
+    (cell === arena.monsterPosition && arena.canAttack)
+  ) {
+    hoveredCell = cell;
+  }
+  renderer.domElement.style.cursor = hoveredCell >= 0 ? 'pointer' : '';
+}
+
+function select(event: PointerEvent) {
+  if (event.button !== 0) return;
+  if (!renderer || busy || props.disabled || props.battle.status !== 'ACTIVE') return;
+  const ray = pointerRay(event);
   if (enemy && ray.intersectObject(enemy.root, true).length && props.battle.arena.canAttack) {
     emit('attack');
     return;
@@ -876,7 +941,17 @@ onMounted(async () => {
     renderer.toneMapping = T.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.15;
     host.value!.appendChild(renderer.domElement);
+    controls = new OrbitControls(camera, renderer.domElement);
+    controls.enablePan = false;
+    controls.enableDamping = true;
+    controls.minDistance = 8;
+    controls.maxDistance = 35;
+    controls.minPolarAngle = Math.PI / 6;
+    controls.maxPolarAngle = Math.PI / 2.6;
+    controls.mouseButtons = { LEFT: undefined, MIDDLE: T.MOUSE.DOLLY, RIGHT: T.MOUSE.ROTATE };
     renderer.domElement.addEventListener('pointerup', select);
+    renderer.domElement.addEventListener('pointermove', hover);
+    renderer.domElement.addEventListener('pointerleave', clearHover);
 
     // 1. Rich Atmospheric Lighting
     scene.add(new T.HemisphereLight('#829fb0', '#2d281f', 1.8));
@@ -890,7 +965,7 @@ onMounted(async () => {
     scene.add(sun);
 
     // Electric cyan/blue rim light from rear-left to make 3D model silhouettes pop
-    const rimLight = new T.DirectionalLight('#38bdf8', 2.4);
+    const rimLight = new T.DirectionalLight('#b5c3cc', 1.2);
     rimLight.position.set(12, 10, -12);
     scene.add(rimLight);
 
@@ -908,7 +983,9 @@ onMounted(async () => {
     );
     daisMesh.position.set(0, -0.15, 0);
     daisMesh.receiveShadow = true;
-    scene.add(daisMesh);
+    // Continuous terrain replaces the raised tabletop. The tactical grid is an overlay only.
+    daisMesh.geometry.dispose();
+    daisMesh.material.dispose();
 
     // Lower natural rugged terrain
     const terrain = new T.Mesh(
@@ -916,7 +993,7 @@ onMounted(async () => {
       new T.MeshStandardMaterial({ color: '#131b19', roughness: 0.98 })
     );
     terrain.rotation.x = -Math.PI / 2;
-    terrain.position.y = -0.38;
+    terrain.position.y = 0.09;
     terrain.receiveShadow = true;
     scene.add(terrain);
 
@@ -942,20 +1019,41 @@ onMounted(async () => {
       { pos: new T.Vector3(daisWidth * 0.15, -0.15, daisDepth * 0.52 + 1.2), h: 2.7, broken: true },
       { pos: new T.Vector3(daisWidth * 0.42, -0.15, daisDepth * 0.52 + 1.2), h: 3.5, broken: false },
     ];
-    for (const c of columnPositions) {
+    for (const c of columnPositions.filter((column) => column.pos.z < 0)) {
       const col = createRuinColumn(c.h, c.broken);
       col.position.copy(c.pos);
       scene.add(col);
     }
 
-    // 5. Procedural Stone Flagstones and Inlaid Magic Runes
-    const { map: stoneMap, bump: stoneBump } = createStoneTextures();
+    // Natural PBR ground beneath the optional tactical overlays.
+    const groundLoader = new T.TextureLoader();
+    const [groundColor, groundNormal] = await Promise.all([
+      groundLoader.loadAsync('/models/battle/terrain/forest-floor-color.jpg'),
+      groundLoader.loadAsync('/models/battle/terrain/forest-floor-normal.jpg'),
+    ]);
+    if (disposed) {
+      groundColor.dispose();
+      groundNormal.dispose();
+      return;
+    }
+    for (const texture of [groundColor, groundNormal]) {
+      texture.wrapS = texture.wrapT = T.RepeatWrapping;
+      texture.repeat.set(48, 48);
+      texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+    }
+    groundColor.colorSpace = T.SRGBColorSpace;
+    terrain.material.map = groundColor;
+    terrain.material.bumpMap = null;
+    terrain.material.normalMap = groundNormal;
+    terrain.material.normalScale.set(0.6, 0.6);
+    terrain.material.color.set('#b4b2a5');
+    terrain.material.needsUpdate = true;
 
     for (let cell = 0; cell < columns * rows; cell++) {
       const slabMat = new T.MeshStandardMaterial({
-        map: stoneMap,
-        bumpMap: stoneBump,
-        bumpScale: 0.05,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
         roughness: 0.86,
         metalness: 0.08,
       });
@@ -964,21 +1062,19 @@ onMounted(async () => {
       const tile = new T.Mesh(new T.CylinderGeometry(0.98, 1.02, 0.22, 6), slabMat);
       tile.position.copy(point(cell));
       tile.position.y = 0.01;
-      tile.receiveShadow = true;
+      tile.receiveShadow = false;
       tiles.push(tile);
       scene.add(tile);
 
       // Inlaid outer rune border overlay
-      const runeGeo = new T.RingGeometry(0.74, 0.96, 6);
+      const runeGeo = new T.RingGeometry(0.9, 0.98, 6);
       runeGeo.rotateX(-Math.PI / 2);
       runeGeo.rotateY(Math.PI / 6);
-      const runeMat = new T.MeshStandardMaterial({
+      const runeMat = new T.MeshBasicMaterial({
         color: '#2dd4bf',
-        emissive: '#14b8a6',
-        emissiveIntensity: 0,
         transparent: true,
         opacity: 0,
-        roughness: 0.2,
+        toneMapped: false,
         depthWrite: false,
       });
       const runeMesh = new T.Mesh(runeGeo, runeMat);
@@ -987,19 +1083,18 @@ onMounted(async () => {
       scene.add(runeMesh);
 
       // Inlaid inner rune circle
-      const innerGeo = new T.RingGeometry(0.36, 0.44, 6);
+      const innerGeo = new T.RingGeometry(0, 0.9, 6);
       innerGeo.rotateX(-Math.PI / 2);
       innerGeo.rotateY(Math.PI / 6);
-      const innerMat = new T.MeshStandardMaterial({
+      const innerMat = new T.MeshBasicMaterial({
         color: '#5eead4',
-        emissive: '#2dd4bf',
-        emissiveIntensity: 0,
         transparent: true,
         opacity: 0,
-        roughness: 0.2,
+        toneMapped: false,
         depthWrite: false,
       });
       const innerRune = new T.Mesh(innerGeo, innerMat);
+      innerRune.visible = false;
       innerRune.position.copy(point(cell));
       innerRune.position.y = 0.126;
       scene.add(innerRune);
@@ -1056,8 +1151,9 @@ onMounted(async () => {
       renderer.setSize(width, height);
       camera.aspect = width / Math.max(1, height);
       const distance = Math.max((columns * 2.9) / camera.aspect, rows * 2.7, 15);
-      camera.position.set(0, distance * 0.72, distance * 0.88);
-      camera.lookAt(0, 0.4, 0);
+      camera.position.set(distance * 0.08, distance * 0.53, distance * 0.82);
+      controls!.target.set(0, 0.7, 0);
+      controls!.update();
       camera.updateProjectionMatrix();
     };
 
@@ -1086,8 +1182,7 @@ onMounted(async () => {
       // Brazier light flicker & flame core animation
       for (const b of braziers) {
         const flicker =
-          Math.sin(elapsed * b.flickerSpeed + b.phase) * 0.35 +
-          Math.cos(elapsed * (b.flickerSpeed * 0.65)) * 0.22;
+          Math.sin(elapsed * b.flickerSpeed + b.phase) * 0.35 + Math.cos(elapsed * (b.flickerSpeed * 0.65)) * 0.22;
         b.light.intensity = b.baseIntensity + flicker;
         b.fireCore.scale.setScalar(1.0 + flicker * 0.08);
       }
@@ -1111,27 +1206,11 @@ onMounted(async () => {
         emberPoints.geometry.attributes.position.needsUpdate = true;
       }
 
-      // Enchanted tile rune pulse
-      const pulse = (Math.sin(elapsed * 3.8) + 1) * 0.5;
-      for (const overlay of tileOverlays) {
-        if (overlay.mode === 'reachable') {
-          overlay.material.emissiveIntensity = 0.65 + pulse * 0.55;
-          overlay.material.opacity = 0.55 + pulse * 0.28;
-          overlay.innerMaterial.emissiveIntensity = 0.8 + pulse * 0.5;
-          overlay.innerMaterial.opacity = 0.6 + pulse * 0.25;
-        } else if (overlay.mode === 'attackable') {
-          overlay.material.emissiveIntensity = 0.95 + pulse * 0.85;
-          overlay.material.opacity = 0.75 + pulse * 0.25;
-          overlay.innerMaterial.emissiveIntensity = 1.2 + pulse * 0.8;
-          overlay.innerMaterial.opacity = 0.8 + pulse * 0.2;
-        } else if (overlay.mode === 'player') {
-          overlay.material.emissiveIntensity = 0.8 + Math.sin(elapsed * 2.5) * 0.2;
-        } else if (overlay.mode === 'monster') {
-          overlay.material.emissiveIntensity = 0.7 + Math.sin(elapsed * 2.5) * 0.2;
-        }
-      }
+      paint();
+      controls?.update();
 
-      // Camera screen shake on critical hits
+      // Render-only shake: never accumulate offsets into the orbit camera.
+      const cameraPosition = camera.position.clone();
       if (shakeIntensity > 0.005) {
         const ox = (Math.random() - 0.5) * shakeIntensity * 1.4;
         const oy = (Math.random() - 0.5) * shakeIntensity * 1.4;
@@ -1147,6 +1226,7 @@ onMounted(async () => {
           task.resolve();
         }
       }
+      updateEquipment();
 
       // Project floating combat text positions to 2D screen coordinates
       if (host.value && floatingTexts.value.length) {
@@ -1156,8 +1236,8 @@ onMounted(async () => {
           const age = (nowMs - item.startTime) / 1000;
           if (age > 1.2) return false;
           const v = item.worldPos.clone().project(camera);
-          item.x = ((v.x + 1) * 0.5) * width;
-          item.y = ((-v.y + 1) * 0.5) * height;
+          item.x = (v.x + 1) * 0.5 * width;
+          item.y = (-v.y + 1) * 0.5 * height;
           item.offsetY = -age * 48;
           item.opacity = Math.max(0, 1 - Math.pow(age / 1.2, 2));
           if (item.type === 'crit' && age < 0.25) {
@@ -1168,13 +1248,14 @@ onMounted(async () => {
       }
 
       renderer!.render(scene, camera);
+      camera.position.copy(cameraPosition);
       frame = requestAnimationFrame(render);
     };
     frame = requestAnimationFrame(render);
 
     const monsterModel = battleMonsterModel(props.battle.monsterType, props.battle.monster.name);
     [player, enemy] = await Promise.all([
-      fighter('kaykit-knight', 2.5, true),
+      fighter('solus-knight', 2.5, true),
       fighter(monsterModel.file, monsterModel.height, false),
     ]);
     if (disposed) return;
@@ -1192,6 +1273,7 @@ onMounted(async () => {
     player.root.traverse((object) => {
       if (object.name in equipment) object.visible = equipment[object.name]!;
     });
+    equipPlayer();
     enemy.root.children[0]!.rotation.y = monsterModel.facing ?? 0;
 
     player.root.position.copy(point(props.battle.arena.playerPosition));
@@ -1230,12 +1312,15 @@ onBeforeUnmount(() => {
   disposed = true;
   cancelAnimationFrame(frame);
   observer?.disconnect();
+  controls?.dispose();
   for (const task of waits) task.resolve();
   waits.clear();
   player?.mixer.stopAllAction();
   enemy?.mixer.stopAllAction();
   release(scene);
   renderer?.domElement.removeEventListener('pointerup', select);
+  renderer?.domElement.removeEventListener('pointermove', hover);
+  renderer?.domElement.removeEventListener('pointerleave', clearHover);
   renderer?.dispose();
 });
 </script>
@@ -1244,6 +1329,22 @@ onBeforeUnmount(() => {
 .battle-scene {
   position: absolute;
   inset: 0;
+}
+.camera-hint,
+.asset-credits {
+  position: absolute;
+  z-index: 2;
+  bottom: 0.6rem;
+  color: #d4c9b1;
+  font-size: 0.7rem;
+  text-shadow: 0 1px 3px #000;
+}
+.camera-hint {
+  left: 1rem;
+  pointer-events: none;
+}
+.asset-credits {
+  right: 1rem;
 }
 .battle-scene :deep(canvas) {
   display: block;
@@ -1286,21 +1387,29 @@ onBeforeUnmount(() => {
 .floating-combat-text--damage {
   font-size: 1.55rem;
   color: #fca5a5;
-  text-shadow: 0 0 8px rgba(239, 68, 68, 0.85), 0 2px 4px rgba(0, 0, 0, 0.95);
+  text-shadow:
+    0 0 8px rgba(239, 68, 68, 0.85),
+    0 2px 4px rgba(0, 0, 0, 0.95);
 }
 .floating-combat-text--crit {
   font-size: 2rem;
   color: #fef08a;
-  text-shadow: 0 0 16px rgba(234, 179, 8, 1), 0 2px 6px rgba(0, 0, 0, 0.95);
+  text-shadow:
+    0 0 16px rgba(234, 179, 8, 1),
+    0 2px 6px rgba(0, 0, 0, 0.95);
 }
 .floating-combat-text--dodge {
   font-size: 1.45rem;
   color: #67e8f9;
-  text-shadow: 0 0 12px rgba(6, 182, 212, 0.9), 0 2px 4px rgba(0, 0, 0, 0.95);
+  text-shadow:
+    0 0 12px rgba(6, 182, 212, 0.9),
+    0 2px 4px rgba(0, 0, 0, 0.95);
 }
 .floating-combat-text--block {
   font-size: 1.45rem;
   color: #93c5fd;
-  text-shadow: 0 0 12px rgba(59, 130, 246, 0.9), 0 2px 4px rgba(0, 0, 0, 0.95);
+  text-shadow:
+    0 0 12px rgba(59, 130, 246, 0.9),
+    0 2px 4px rgba(0, 0, 0, 0.95);
 }
 </style>

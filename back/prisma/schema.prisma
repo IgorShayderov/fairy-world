@@ -82,6 +82,7 @@ model User {
 
 model GameProfile {
   id Int @id @default(autoincrement())
+  premiumAccount PremiumAccount?
 
   userId Int  @unique
   user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -113,6 +114,18 @@ model GameProfile {
   ledDungeonParties DungeonParty[]       @relation("DungeonPartyLeader")
   dungeonParty      DungeonPartyMember?
   clanMembership    ClanMember?
+}
+
+model PremiumAccount {
+  id Int @id @default(autoincrement())
+  gameProfileId Int @unique
+  gameProfile GameProfile @relation(fields: [gameProfileId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  active Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([active, expiresAt])
 }
 
 model Clan {

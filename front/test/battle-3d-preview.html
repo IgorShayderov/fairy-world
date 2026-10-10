@@ -31,7 +31,7 @@
         status: 'ACTIVE',
         turn: 1,
         player: { health: 100, maxHealth: 100 },
-        monster: { name: 'Demon', health: 100, maxHealth: 100 },
+        monster: { name: new URLSearchParams(location.search).get('enemy') || 'Demon', health: 100, maxHealth: 100 },
         events: [],
         arena: {
           columns: 9,
@@ -67,6 +67,14 @@
                 ],
               };
             },
+            enemyMove() {
+              const fromCell = state.value.arena.monsterPosition;
+              state.value = {
+                ...state.value,
+                arena: { ...state.value.arena, monsterPosition: 22 },
+                events: [{ actor: 'MONSTER', action: 'MOVE', fromCell, toCell: 22 }],
+              };
+            },
             kill() {
               state.value = {
                 ...state.value,
@@ -76,7 +84,7 @@
             },
           };
         },
-        template: `<div class="board"><Battlefield :battle="state" :disabled="false" @busy="busy=$event"/></div><button @click="move" :disabled="busy">Walk</button><button @click="attack" :disabled="busy">Attack exchange</button><button @click="kill" :disabled="busy">Final blow</button><span>{{busy?'Animating':'Ready'}}</span>`,
+        template: `<div class="board"><Battlefield :battle="state" :disabled="false" @busy="busy=$event"/></div><button @click="move" :disabled="busy">Walk</button><button @click="enemyMove" :disabled="busy">Enemy walk</button><button @click="attack" :disabled="busy">Attack exchange</button><button @click="kill" :disabled="busy">Final blow</button><span>{{busy?'Animating':'Ready'}}</span>`,
       }).mount('#app');
     </script>
   </body>

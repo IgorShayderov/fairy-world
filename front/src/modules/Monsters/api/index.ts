@@ -33,6 +33,7 @@ export type GeneratedMonster = Pick<
 };
 
 export interface BattleCombatant {
+  movement: number;
   name: string;
   health: number;
   maxHealth: number;
@@ -97,6 +98,7 @@ export interface BattleState {
     playerPosition: number;
     monsterPosition: number;
     playerMovement: number;
+    monsterMovement: number;
     blockedCells: number[];
     reachableCells: number[];
     canAttack: boolean;

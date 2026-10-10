@@ -81,6 +81,15 @@ const modules = {
     },
   },
   gemStore: {
+    premiumTitle: 'Premium account',
+    premiumDescription:
+      'Unlock quick battles. Each purchase adds 30 days; unused time is preserved. No automatic renewal.',
+    premiumMonth: 'month (30 days)',
+    premiumUntil: 'Active until',
+    premiumBuy: 'Buy premium — 200 gems',
+    premiumExtend: 'Extend by 30 days — 200 gems',
+    premiumError: 'Could not buy premium. Refresh your balance and try again.',
+    premiumRequired: 'Quick battle requires premium. Available in the gems shop.',
     devClaim: 'Development: +100 gems for free',
     devError: 'Start the backend in development mode to claim free gems.',
     title: 'The Gem Treasury',
@@ -198,8 +207,7 @@ const modules = {
     perDungeon: '+{{value}} per dungeon',
     activityHint:
       'Only achievements earned after joining count. Activity is shared; contribution remains on the member record.',
-    bannerShopText:
-      'Permanent banners unlock automatically at clan activity milestones. Activity is never spent.',
+    bannerShopText: 'Permanent banners unlock automatically at clan activity milestones. Activity is never spent.',
     bannerInventory: 'Banner inventory',
     bannerInventoryText: 'Every banner your clan has earned is kept here permanently.',
     bannerPvpBonus: '+{{value}}% damage and defense in PvP',

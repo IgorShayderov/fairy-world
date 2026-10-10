@@ -5,6 +5,9 @@ const BASE_AUTH_PATH = `${BASE_API_PATH}/auth`;
 
 const routes = {
   api: {
+    premium: {
+      purchasePath: () => [BASE_API_PATH, 'premium', 'purchase'].join('/'),
+    },
     crafting: {
       detailsPath: () => [BASE_API_PATH, 'crafting'].join('/'),
       craftPath: (recipeId: number) => [BASE_API_PATH, 'crafting', 'recipes', String(recipeId), 'craft'].join('/'),

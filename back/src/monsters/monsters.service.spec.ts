@@ -481,6 +481,58 @@ describe('MonstersService', () => {
       });
     });
 
+    it.each([
+      ['Stone Golem', 1, 22],
+      ['Dire Wolf', 4, 19],
+    ])('uses %s movement on the server', async (monsterType, movement, destination) => {
+      jest.spyOn(Math, 'random').mockReturnValueOnce(0.01).mockReturnValue(0.99);
+      mockUsersService.findCurrentUser.mockResolvedValue(currentUser(5, 500));
+      mockMonsterGenerator.generate.mockReturnValue({
+        id: 3,
+        name: monsterType,
+        monsterType,
+        level: 5,
+        rewardGold: 20,
+        rewardExperience: 25,
+        attributes: [],
+      });
+      const encounter = await service.rollEncounter(7);
+      if (!encounter.encountered) throw new Error('Expected encounter');
+      expect(encounter.battle.monster.movement).toBe(movement);
+      expect(encounter.battle.arena.playerMovement).toBe(3);
+      await expect(service.takeTurn(7, encounter.battle.id, 'MOVE', 20)).rejects.toThrow('outside your movement range');
+      const turn = await service.takeTurn(7, encounter.battle.id, 'DEFEND');
+      expect(turn.arena.monsterPosition).toBe(destination);
+    });
+
+    it('uses the player Movement stat for reachable hexes and move validation', async () => {
+      jest.spyOn(Math, 'random').mockReturnValueOnce(0.01).mockReturnValue(0.99);
+      const user = currentUser(5, 500);
+      mockUsersService.findCurrentUser.mockResolvedValue({
+        ...user,
+        gameProfile: {
+          ...user.gameProfile,
+          profileAttributes: [{ value: 40, attribute: { name: 'AGILITY', description: null } }],
+        },
+      });
+      mockMonsterGenerator.generate.mockReturnValue({
+        id: 3,
+        name: 'Stone Golem',
+        monsterType: 'Stone Golem',
+        level: 5,
+        rewardGold: 20,
+        rewardExperience: 25,
+        attributes: [],
+      });
+      const encounter = await service.rollEncounter(7);
+      if (!encounter.encountered) throw new Error('Expected encounter');
+      expect(encounter.battle.player.movement).toBe(6);
+      expect(encounter.battle.arena.reachableCells).toContain(20);
+      const moved = await service.takeTurn(7, encounter.battle.id, 'MOVE', 20);
+      expect(moved.arena.playerPosition).toBe(20);
+      expect(moved.arena.reachableCells).toEqual([]);
+    });
+
     it('lets the player move and attack before the monster takes its turn', async () => {
       jest.spyOn(Math, 'random').mockReturnValueOnce(0.01).mockReturnValue(0.99);
       mockUsersService.findCurrentUser.mockResolvedValue(currentUser(5, 500));

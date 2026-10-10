@@ -15,6 +15,7 @@ import type { UpdateMapPositionDto } from '../users/dto/update-map-position.dto'
 import { CRAFTING_MIN_LEVEL, rollCraftMaterialCode } from '../crafting/crafting.catalog';
 import { rollDeathCurse } from './death-curse';
 import { DungeonRunsService } from './dungeon-runs.service';
+import { monsterMovement } from './battle-movement';
 
 export { DEATH_CURSES, rollDeathCurse } from './death-curse';
 
@@ -22,9 +23,8 @@ type BattleStatus = 'ACTIVE' | 'VICTORY' | 'DEFEAT';
 export type BattleAction = 'ATTACK' | 'DEFEND' | 'POWER_ATTACK' | 'MOVE';
 const ARENA_COLUMNS = 8;
 const ARENA_ROWS = 5;
-const PLAYER_MOVEMENT = 3;
-const MONSTER_MOVEMENT = 2;
 type Combatant = {
+  movement: number;
   name: string;
   health: number;
   maxHealth: number;
@@ -405,7 +405,7 @@ export class MonstersService {
       const reachable = this.reachableCells(
         battle.playerPosition,
         battle.monsterPosition,
-        PLAYER_MOVEMENT,
+        battle.player.movement,
         battle.blockedCells,
       );
       if (!reachable.includes(targetCell!)) throw new BadRequestException('That hex is outside your movement range');
@@ -444,7 +444,7 @@ export class MonstersService {
         battle.playerPosition,
         battle.blockedCells,
       );
-      const destination = path[Math.min(MONSTER_MOVEMENT, path.length - 1)];
+      const destination = path[Math.min(battle.monster.movement, path.length - 1)];
       if (destination !== undefined && destination !== battle.monsterPosition) {
         const fromCell = battle.monsterPosition;
         battle.monsterPosition = destination;
@@ -509,6 +509,7 @@ export class MonstersService {
       goldBonusPercent: player.rewardBonuses.goldPercent,
       canRetreat,
       player: {
+        movement: player.properties.find((entry) => entry.name === 'MOVEMENT')?.value ?? 3,
         name: player.name ?? 'Player',
         health: playerHealth,
         maxHealth: playerHealth,
@@ -520,6 +521,7 @@ export class MonstersService {
         criticalDamage: property(StatType.CRIT_DAMAGE),
       },
       monster: {
+        movement: monsterMovement(monster.monsterType),
         id: monster.id,
         name: monster.name,
         level: monster.level,
@@ -570,11 +572,17 @@ export class MonstersService {
         rows: ARENA_ROWS,
         playerPosition: battle.playerPosition,
         monsterPosition: battle.monsterPosition,
-        playerMovement: PLAYER_MOVEMENT,
+        playerMovement: battle.player.movement,
+        monsterMovement: battle.monster.movement,
         blockedCells: battle.blockedCells,
         reachableCells:
           battle.status === 'ACTIVE' && !battle.playerMovedThisTurn
-            ? this.reachableCells(battle.playerPosition, battle.monsterPosition, PLAYER_MOVEMENT, battle.blockedCells)
+            ? this.reachableCells(
+                battle.playerPosition,
+                battle.monsterPosition,
+                battle.player.movement,
+                battle.blockedCells,
+              )
             : [],
         canAttack: battle.status === 'ACTIVE' && this.areAdjacent(battle.playerPosition, battle.monsterPosition),
         playerHasMoved: battle.playerMovedThisTurn,
