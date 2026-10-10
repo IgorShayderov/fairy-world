@@ -11,7 +11,8 @@ import {
 } from '@nestjs/common';
 import { ApiOkResponse, ApiBearerAuth, ApiNotFoundResponse } from '@nestjs/swagger';
 
-import { MonstersService } from './monsters.service';
+import { MonstersService, type BattleAction } from './monsters.service';
+import { QuickBattleGuard } from '../premium/quick-battle.guard';
 import { AuthGuard } from '../auth/auth.guard';
 import type { RequestWithUser } from '../auth/interfaces/request-with-user.interface';
 
@@ -100,8 +101,23 @@ export class MonstersController {
   }
 
   @Post('battle/:battleId/attack')
+  @UseGuards(QuickBattleGuard)
   attack(@Param('battleId') battleId: string, @Request() req: RequestWithUser) {
     return this.monstersService.attack(req.user.sub, battleId);
+  }
+
+  @Get('battle/active')
+  activeForcedBattle(@Request() req: RequestWithUser) {
+    return this.monstersService.activeForcedBattle(req.user.sub);
+  }
+
+  @Post('battle/:battleId/turn')
+  takeTurn(
+    @Param('battleId') battleId: string,
+    @Body() body: { action: BattleAction; targetCell?: number },
+    @Request() req: RequestWithUser,
+  ) {
+    return this.monstersService.takeTurn(req.user.sub, battleId, body.action, body.targetCell);
   }
 
   @Post('battle/:battleId/retreat')

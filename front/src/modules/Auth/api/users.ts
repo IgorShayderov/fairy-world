@@ -10,6 +10,8 @@ export type CurrentUser = {
   email: string;
   gold: number;
   gems: number;
+  premium?: { active: boolean; expiresAt: string | null };
+  quickBattleAvailable?: boolean;
   coinsOfHonour?: number;
   pvpCooldownUntil?: string | null;
   killedMonsters?: number;
@@ -66,6 +68,9 @@ export type LeaderboardEntry = {
 };
 
 export const usersApi = {
+  async buyPremium(): Promise<void> {
+    await api.post(routes.api.premium.purchasePath());
+  },
   async getLeaderboard(): Promise<LeaderboardEntry[]> {
     const { data } = await api.get<LeaderboardEntry[]>(routes.api.users.leaderboardPath());
     return data;

@@ -110,6 +110,7 @@ describe('UsersService', () => {
         include: {
           gameProfile: {
             include: {
+              premiumAccount: true,
               inventory: {
                 include: {
                   item: {

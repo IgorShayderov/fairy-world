@@ -161,6 +161,7 @@
               <span>{{ t('fantasy.dungeonRun.damage') }}: {{ opponent.monster.damage }}</span>
               <span>{{ t('fantasy.dungeonRun.defense') }}: {{ formatNumber(opponent.monster.defense) }}%</span>
               <span>{{ t('fantasy.dungeonRun.critical') }}: {{ formatNumber(opponent.monster.criticalChance) }}%</span>
+              <span>{{ t('fantasy.dungeonRun.dodge') }}: {{ formatNumber(opponent.monster.dodge) }}%</span>
             </div>
             <button
               v-if="battle.status === 'ACTIVE'"

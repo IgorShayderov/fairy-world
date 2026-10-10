@@ -1,4 +1,5 @@
 import { UserModel } from '../../generated/models';
+import { premiumActive, developmentQuickBattle } from '../premium/premium.service';
 import {
   AttributeType,
   CraftItemKind,
@@ -13,6 +14,7 @@ import { CLAN_BANNERS, clanBannerPvpBonusPercent } from '../clans/clan-banners';
 import { ItemView } from '../common/views/item.view';
 import { townAt } from '../locations/towns';
 import { shieldBlockChance } from '../items/shield-block';
+import { playerMovement } from '../monsters/battle-movement';
 import { experienceToNextLevel, MAX_PLAYER_LEVEL } from './level-progression';
 import {
   ATTRIBUTE_EFFECTS,
@@ -22,7 +24,7 @@ import {
   STARTING_PROPERTIES,
 } from './player-defaults';
 
-type CurrentUserModel = Prisma.UserGetPayload<{
+type CurrentUserBase = Prisma.UserGetPayload<{
   include: {
     gameProfile: {
       include: {
@@ -52,6 +54,14 @@ type CurrentUserModel = Prisma.UserGetPayload<{
     };
   };
 }>;
+
+type CurrentUserModel = Omit<CurrentUserBase, 'gameProfile'> & {
+  gameProfile:
+    | (NonNullable<CurrentUserBase['gameProfile']> & {
+        premiumAccount?: { active: boolean; expiresAt: Date } | null;
+      })
+    | null;
+};
 
 type EffectiveModifier = {
   name: string;
@@ -279,6 +289,11 @@ export class UserView {
       ...this.render(user),
       gold: profile?.gold ?? 0,
       gems: profile?.gems ?? 0,
+      premium: {
+        active: premiumActive(profile?.premiumAccount),
+        expiresAt: profile?.premiumAccount?.expiresAt ?? null,
+      },
+      quickBattleAvailable: developmentQuickBattle() || premiumActive(profile?.premiumAccount),
       coinsOfHonour: profile?.coinsOfHonour ?? 0,
       pvpCooldownUntil: profile?.pvpCooldownUntil ? profile.pvpCooldownUntil.toISOString() : null,
       killedMonsters: profile?.killedMonsters ?? 0,
@@ -307,14 +322,24 @@ export class UserView {
       activeBuffs: activeBuffs.map(({ type, value, expiresAt }) => ({ type, value, expiresAt })),
       rewardBonuses: { goldPercent: goldBonusPercent, experiencePercent: experienceBonusPercent },
       activeClanBannerCode: profile?.clanMembership?.clan.activeBannerCode ?? null,
-      activeClanBannerPvpBonusPercent: clanBannerPvpBonusPercent(
-        profile?.clanMembership?.clan.activeBannerCode,
-      ),
+      activeClanBannerPvpBonusPercent: clanBannerPvpBonusPercent(profile?.clanMembership?.clan.activeBannerCode),
       activeClanBanner: activeClanBanner ?? null,
       blockChance,
       craftInventory: (profile?.craftItems ?? []).map(({ craftItem, quantity }) => ({ ...craftItem, quantity })),
       attributes: [...attributes.values()],
-      properties: renderedProperties,
+      properties: [
+        ...renderedProperties,
+        {
+          name: 'MOVEMENT',
+          description: 'Hexes per tactical turn. Base 3, +1 per 10 Agility, maximum 6.',
+          baseValue: 3,
+          attributeBonus: playerMovement(attributes.get(AttributeType.AGILITY)!.baseValue) - 3,
+          equipmentBonus:
+            playerMovement(attributes.get(AttributeType.AGILITY)!.value) -
+            playerMovement(attributes.get(AttributeType.AGILITY)!.baseValue),
+          value: playerMovement(attributes.get(AttributeType.AGILITY)!.value),
+        },
+      ],
       inventory: entries.filter((entry) => !entry.isEquiped).map(renderEntry),
       equippedItems: equippedEntries.map(renderEntry),
     };

@@ -1,0 +1,91 @@
+<html>
+  <head>
+    <style>
+      body {
+        margin: 0;
+        background: #102028;
+        color: white;
+        font-family: sans-serif;
+      }
+      #app {
+        height: 100vh;
+      }
+      .board {
+        position: relative;
+        height: 80vh;
+      }
+      button {
+        padding: 15px;
+        margin: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module">
+      import { createApp, ref } from '/node_modules/vue/dist/vue.esm-bundler.js';
+      import Battlefield from '/src/modules/Game/components/Battlefield3D.vue';
+      const battle = {
+        id: 1,
+        monsterType: new URLSearchParams(location.search).get('enemy') || 'DEMON',
+        status: 'ACTIVE',
+        turn: 1,
+        player: { health: 100, maxHealth: 100 },
+        monster: { name: new URLSearchParams(location.search).get('enemy') || 'Demon', health: 100, maxHealth: 100 },
+        events: [],
+        arena: {
+          columns: 9,
+          rows: 5,
+          playerPosition: 20,
+          monsterPosition: 24,
+          blockedCells: [7, 35],
+          reachableCells: [19, 21, 22],
+          canAttack: true,
+        },
+      };
+      createApp({
+        components: { Battlefield },
+        setup() {
+          const state = ref(battle);
+          const busy = ref(false);
+          return {
+            state,
+            busy,
+            move() {
+              state.value = {
+                ...state.value,
+                arena: { ...state.value.arena, playerPosition: 23 },
+                events: [{ actor: 'PLAYER', action: 'MOVE', fromCell: 20, toCell: 23 }],
+              };
+            },
+            attack() {
+              state.value = {
+                ...state.value,
+                events: [
+                  { actor: 'PLAYER', action: 'ATTACK', damage: 10 },
+                  { actor: 'MONSTER', action: 'ATTACK', damage: 10 },
+                ],
+              };
+            },
+            enemyMove() {
+              const fromCell = state.value.arena.monsterPosition;
+              state.value = {
+                ...state.value,
+                arena: { ...state.value.arena, monsterPosition: 22 },
+                events: [{ actor: 'MONSTER', action: 'MOVE', fromCell, toCell: 22 }],
+              };
+            },
+            kill() {
+              state.value = {
+                ...state.value,
+                status: 'VICTORY',
+                events: [{ actor: 'PLAYER', action: 'ATTACK', damage: 100 }],
+              };
+            },
+          };
+        },
+        template: `<div class="board"><Battlefield :battle="state" :disabled="false" @busy="busy=$event"/></div><button @click="move" :disabled="busy">Walk</button><button @click="enemyMove" :disabled="busy">Enemy walk</button><button @click="attack" :disabled="busy">Attack exchange</button><button @click="kill" :disabled="busy">Final blow</button><span>{{busy?'Animating':'Ready'}}</span>`,
+      }).mount('#app');
+    </script>
+  </body>
+</html>

@@ -39,6 +39,7 @@
     "@quasar/app-vite": "^2.1.0",
     "@tailwindcss/postcss": "^4.1.10",
     "@types/node": "^20.5.9",
+    "@types/three": "^0.160.0",
     "@typescript-eslint/eslint-plugin": "^8.34.0",
     "@vue/eslint-config-prettier": "^10.1.0",
     "@vue/eslint-config-typescript": "^14.4.0",

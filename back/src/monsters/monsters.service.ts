@@ -15,11 +15,16 @@ import type { UpdateMapPositionDto } from '../users/dto/update-map-position.dto'
 import { CRAFTING_MIN_LEVEL, rollCraftMaterialCode } from '../crafting/crafting.catalog';
 import { rollDeathCurse } from './death-curse';
 import { DungeonRunsService } from './dungeon-runs.service';
+import { monsterMovement } from './battle-movement';
 
 export { DEATH_CURSES, rollDeathCurse } from './death-curse';
 
 type BattleStatus = 'ACTIVE' | 'VICTORY' | 'DEFEAT';
+export type BattleAction = 'ATTACK' | 'DEFEND' | 'POWER_ATTACK' | 'MOVE';
+const ARENA_COLUMNS = 8;
+const ARENA_ROWS = 5;
 type Combatant = {
+  movement: number;
   name: string;
   health: number;
   maxHealth: number;
@@ -39,7 +44,21 @@ type Battle = {
   turn: number;
   player: Combatant;
   monster: Combatant & { id: number; level: number; rewardGold: number; rewardExperience: number };
-  events: Array<{ actor: 'PLAYER' | 'MONSTER'; damage: number; critical: boolean; dodged: boolean; blocked?: boolean }>;
+  events: Array<{
+    actor: 'PLAYER' | 'MONSTER';
+    damage: number;
+    critical: boolean;
+    dodged: boolean;
+    blocked?: boolean;
+    action?: BattleAction;
+    fromCell?: number;
+    toCell?: number;
+  }>;
+  powerAttackCooldown: number;
+  playerPosition: number;
+  monsterPosition: number;
+  blockedCells: number[];
+  playerMovedThisTurn: boolean;
   experienceBonusPercent: number;
   goldBonusPercent: number;
   canRetreat: boolean;
@@ -170,6 +189,13 @@ export class MonstersService {
     return this.dungeonRuns.active(userId);
   }
 
+  activeForcedBattle(userId: number) {
+    const battle = [...this.battles.values()].find(
+      (candidate) => candidate.userId === userId && candidate.status === 'ACTIVE' && !candidate.canRetreat,
+    );
+    return battle ? this.renderBattle(battle) : null;
+  }
+
   attackDungeonOpponent(userId: number, runId: string, opponentId: string) {
     return this.dungeonRuns.attack(userId, runId, opponentId);
   }
@@ -193,13 +219,21 @@ export class MonstersService {
     return this.dungeonRuns.reset(userId, name);
   }
 
-  async attack(userId: number, battleId: string) {
+  async attack(userId: number, battleId: string, preserveEvents = false) {
     const battle = this.battles.get(battleId);
     if (!battle || battle.userId !== userId) throw new NotFoundException('Active battle not found');
     if (battle.status !== 'ACTIVE') throw new BadRequestException('Battle has already ended');
 
-    battle.events = [];
+    if (!preserveEvents) battle.events = [];
     while (battle.status === 'ACTIVE') {
+      if (battle.monster.health <= 0) {
+        battle.status = 'VICTORY';
+        break;
+      }
+      if (battle.player.health <= 0) {
+        battle.status = 'DEFEAT';
+        break;
+      }
       this.strike(battle.player, battle.monster, 'PLAYER', battle.events);
       if (battle.monster.health <= 0) {
         battle.status = 'VICTORY';
@@ -344,6 +378,100 @@ export class MonstersService {
     return this.renderBattle(battle);
   }
 
+  async takeTurn(userId: number, battleId: string, action: BattleAction, targetCell?: number) {
+    const battle = this.battles.get(battleId);
+    if (!battle || battle.userId !== userId) throw new NotFoundException('Active battle not found');
+    if (battle.status !== 'ACTIVE') throw new BadRequestException('Battle has already ended');
+    if (!['ATTACK', 'DEFEND', 'POWER_ATTACK', 'MOVE'].includes(action)) {
+      throw new BadRequestException('Unknown battle action');
+    }
+    if (action === 'POWER_ATTACK' && battle.powerAttackCooldown > 0) {
+      throw new BadRequestException(`Power attack is ready in ${battle.powerAttackCooldown} turn(s)`);
+    }
+    if (action === 'MOVE' && battle.playerMovedThisTurn) {
+      throw new BadRequestException('You have already moved this turn');
+    }
+
+    const canAttack = this.areAdjacent(battle.playerPosition, battle.monsterPosition);
+    if ((action === 'ATTACK' || action === 'POWER_ATTACK') && !canAttack) {
+      throw new BadRequestException('Move next to the enemy before attacking');
+    }
+
+    battle.events = battle.playerMovedThisTurn
+      ? battle.events.filter((event) => event.actor === 'PLAYER' && event.action === 'MOVE')
+      : [];
+    if (action === 'MOVE') {
+      if (!Number.isInteger(targetCell)) throw new BadRequestException('Choose a battlefield hex');
+      const reachable = this.reachableCells(
+        battle.playerPosition,
+        battle.monsterPosition,
+        battle.player.movement,
+        battle.blockedCells,
+      );
+      if (!reachable.includes(targetCell!)) throw new BadRequestException('That hex is outside your movement range');
+      const fromCell = battle.playerPosition;
+      battle.playerPosition = targetCell!;
+      battle.events.push({
+        actor: 'PLAYER',
+        damage: 0,
+        critical: false,
+        dodged: false,
+        action: 'MOVE',
+        fromCell,
+        toCell: targetCell,
+      });
+      battle.playerMovedThisTurn = true;
+      return this.renderBattle(battle);
+    } else if (action === 'DEFEND') {
+      battle.events.push({ actor: 'PLAYER', damage: 0, critical: false, dodged: false, action: 'DEFEND' });
+    } else {
+      const originalDamage = battle.player.damage;
+      if (action === 'POWER_ATTACK') battle.player.damage = originalDamage * 1.5;
+      this.strike(battle.player, battle.monster, 'PLAYER', battle.events);
+      battle.events[battle.events.length - 1].action = action;
+      battle.player.damage = originalDamage;
+      if (action === 'POWER_ATTACK') battle.powerAttackCooldown = 3;
+    }
+
+    if (battle.monster.health <= 0) return this.attack(userId, battleId, true);
+
+    const originalDefense = battle.player.defense;
+    if (action === 'DEFEND') battle.player.defense = Math.min(75, originalDefense + 25);
+    if (!this.areAdjacent(battle.playerPosition, battle.monsterPosition)) {
+      const path = this.shortestPath(
+        battle.monsterPosition,
+        battle.playerPosition,
+        battle.playerPosition,
+        battle.blockedCells,
+      );
+      const destination = path[Math.min(battle.monster.movement, path.length - 1)];
+      if (destination !== undefined && destination !== battle.monsterPosition) {
+        const fromCell = battle.monsterPosition;
+        battle.monsterPosition = destination;
+        battle.events.push({
+          actor: 'MONSTER',
+          damage: 0,
+          critical: false,
+          dodged: false,
+          action: 'MOVE',
+          fromCell,
+          toCell: destination,
+        });
+      }
+    }
+    if (this.areAdjacent(battle.playerPosition, battle.monsterPosition)) {
+      this.strike(battle.monster, battle.player, 'MONSTER', battle.events);
+    }
+    battle.player.defense = originalDefense;
+
+    if (battle.player.health <= 0) return this.attack(userId, battleId, true);
+
+    if (action !== 'POWER_ATTACK') battle.powerAttackCooldown = Math.max(0, battle.powerAttackCooldown - 1);
+    battle.playerMovedThisTurn = false;
+    battle.turn++;
+    return this.renderBattle(battle);
+  }
+
   retreat(userId: number, battleId: string) {
     const battle = this.battles.get(battleId);
     if (!battle || battle.userId !== userId) throw new NotFoundException('Active battle not found');
@@ -370,12 +498,18 @@ export class MonstersService {
       status: 'ACTIVE',
       turn: 1,
       events: [],
+      powerAttackCooldown: 0,
+      playerPosition: ARENA_COLUMNS * 2,
+      monsterPosition: ARENA_COLUMNS * 2 + ARENA_COLUMNS - 1,
+      blockedCells: [10, 29],
+      playerMovedThisTurn: false,
       experienceBonusPercent:
         (player.activeBuffs.find(({ type }) => type === PlayerBuffType.EXPERIENCE)?.value ?? 0) +
         player.rewardBonuses.experiencePercent,
       goldBonusPercent: player.rewardBonuses.goldPercent,
       canRetreat,
       player: {
+        movement: player.properties.find((entry) => entry.name === 'MOVEMENT')?.value ?? 3,
         name: player.name ?? 'Player',
         health: playerHealth,
         maxHealth: playerHealth,
@@ -387,6 +521,7 @@ export class MonstersService {
         criticalDamage: property(StatType.CRIT_DAMAGE),
       },
       monster: {
+        movement: monsterMovement(monster.monsterType),
         id: monster.id,
         name: monster.name,
         level: monster.level,
@@ -423,6 +558,7 @@ export class MonstersService {
   private renderBattle(battle: Battle) {
     return {
       id: battle.id,
+      monsterType: battle.monsterType,
       status: battle.status,
       turn: battle.turn,
       player: battle.player,
@@ -430,6 +566,104 @@ export class MonstersService {
       events: battle.events,
       rewards: battle.rewards,
       canRetreat: battle.canRetreat,
+      powerAttackCooldown: battle.powerAttackCooldown,
+      arena: {
+        columns: ARENA_COLUMNS,
+        rows: ARENA_ROWS,
+        playerPosition: battle.playerPosition,
+        monsterPosition: battle.monsterPosition,
+        playerMovement: battle.player.movement,
+        monsterMovement: battle.monster.movement,
+        blockedCells: battle.blockedCells,
+        reachableCells:
+          battle.status === 'ACTIVE' && !battle.playerMovedThisTurn
+            ? this.reachableCells(
+                battle.playerPosition,
+                battle.monsterPosition,
+                battle.player.movement,
+                battle.blockedCells,
+              )
+            : [],
+        canAttack: battle.status === 'ACTIVE' && this.areAdjacent(battle.playerPosition, battle.monsterPosition),
+        playerHasMoved: battle.playerMovedThisTurn,
+      },
     };
+  }
+
+  private arenaNeighbors(cell: number) {
+    const row = Math.floor(cell / ARENA_COLUMNS);
+    const column = cell % ARENA_COLUMNS;
+    const offsets =
+      row % 2 === 0
+        ? [
+            [-1, 0],
+            [1, 0],
+            [-1, -1],
+            [0, -1],
+            [-1, 1],
+            [0, 1],
+          ]
+        : [
+            [-1, 0],
+            [1, 0],
+            [0, -1],
+            [1, -1],
+            [0, 1],
+            [1, 1],
+          ];
+    return offsets
+      .map(([columnOffset, rowOffset]) => ({ column: column + columnOffset, row: row + rowOffset }))
+      .filter(
+        ({ column: nextColumn, row: nextRow }) =>
+          nextColumn >= 0 && nextColumn < ARENA_COLUMNS && nextRow >= 0 && nextRow < ARENA_ROWS,
+      )
+      .map(({ column: nextColumn, row: nextRow }) => nextRow * ARENA_COLUMNS + nextColumn);
+  }
+
+  private areAdjacent(first: number, second: number) {
+    return this.arenaNeighbors(first).includes(second);
+  }
+
+  private reachableCells(start: number, occupied: number, movement: number, blocked: number[] = []) {
+    const distances = new Map<number, number>([[start, 0]]);
+    const queue = [start];
+    while (queue.length) {
+      const current = queue.shift()!;
+      const distance = distances.get(current)!;
+      if (distance >= movement) continue;
+      for (const next of this.arenaNeighbors(current)) {
+        if (next === occupied || blocked.includes(next) || distances.has(next)) continue;
+        distances.set(next, distance + 1);
+        queue.push(next);
+      }
+    }
+    return [...distances.keys()].filter((cell) => cell !== start);
+  }
+
+  private shortestPath(start: number, target: number, occupied: number, blocked: number[] = []) {
+    const previous = new Map<number, number | null>([[start, null]]);
+    const queue = [start];
+    let destination = start;
+    while (queue.length) {
+      const current = queue.shift()!;
+      if (this.areAdjacent(current, target)) {
+        destination = current;
+        break;
+      }
+      for (const next of this.arenaNeighbors(current)) {
+        if (next === occupied || blocked.includes(next) || previous.has(next)) continue;
+        previous.set(next, current);
+        queue.push(next);
+      }
+    }
+    const path = [destination];
+    let current = destination;
+    while (true) {
+      const parent = previous.get(current);
+      if (parent === null || parent === undefined) break;
+      path.unshift(parent);
+      current = parent;
+    }
+    return path;
   }
 }

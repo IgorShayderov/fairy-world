@@ -5,6 +5,9 @@ const BASE_AUTH_PATH = `${BASE_API_PATH}/auth`;
 
 const routes = {
   api: {
+    premium: {
+      purchasePath: () => [BASE_API_PATH, 'premium', 'purchase'].join('/'),
+    },
     crafting: {
       detailsPath: () => [BASE_API_PATH, 'crafting'].join('/'),
       craftPath: (recipeId: number) => [BASE_API_PATH, 'crafting', 'recipes', String(recipeId), 'craft'].join('/'),
@@ -72,6 +75,8 @@ const routes = {
       listPath: () => [BASE_API_PATH, 'monsters'].join('/'),
       byIdPath: (id: number) => [BASE_API_PATH, 'monsters', String(id)].join('/'),
       battleAttackPath: (battleId: string) => [BASE_API_PATH, 'monsters', 'battle', battleId, 'attack'].join('/'),
+      activeBattlePath: () => [BASE_API_PATH, 'monsters', 'battle', 'active'].join('/'),
+      battleTurnPath: (battleId: string) => [BASE_API_PATH, 'monsters', 'battle', battleId, 'turn'].join('/'),
       battleRetreatPath: (battleId: string) => [BASE_API_PATH, 'monsters', 'battle', battleId, 'retreat'].join('/'),
       huntPath: () => [BASE_API_PATH, 'monsters', 'hunt'].join('/'),
     },
