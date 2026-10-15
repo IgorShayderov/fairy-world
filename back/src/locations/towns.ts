@@ -1,7 +1,7 @@
 export const TOWNS = [
   { shopId: 1, name: 'EVERCROSS', x: 1470, y: 960 },
   { shopId: 2, name: 'AURELIA', x: 940, y: 620 },
-  { shopId: 3, name: 'MOONFALL', x: 2060, y: 570 },
+  { shopId: 3, name: 'MOONFALL', x: 2060, y: 690 },
   { shopId: 4, name: 'MOSSKEEP', x: 1720, y: 1640 },
   { shopId: 5, name: 'WESTMERE', x: 520, y: 850 },
   { shopId: 6, name: 'FROSTWATCH', x: 2530, y: 520 },

@@ -75,6 +75,21 @@
                 events: [{ actor: 'MONSTER', action: 'MOVE', fromCell, toCell: 22 }],
               };
             },
+            enemyAttack() {
+              state.value = {
+                ...state.value,
+                events: [{ actor: 'MONSTER', action: 'ATTACK', damage: 10 }],
+              };
+            },
+            defend() {
+              state.value = {
+                ...state.value,
+                events: [
+                  { actor: 'PLAYER', action: 'DEFEND' },
+                  { actor: 'MONSTER', action: 'ATTACK', blocked: true, damage: 0 },
+                ],
+              };
+            },
             kill() {
               state.value = {
                 ...state.value,
@@ -84,7 +99,7 @@
             },
           };
         },
-        template: `<div class="board"><Battlefield :battle="state" :disabled="false" @busy="busy=$event"/></div><button @click="move" :disabled="busy">Walk</button><button @click="enemyMove" :disabled="busy">Enemy walk</button><button @click="attack" :disabled="busy">Attack exchange</button><button @click="kill" :disabled="busy">Final blow</button><span>{{busy?'Animating':'Ready'}}</span>`,
+        template: `<div class="board"><Battlefield :battle="state" :disabled="false" @busy="busy=$event"/></div><button @click="move" :disabled="busy">Walk</button><button @click="enemyMove" :disabled="busy">Enemy walk</button><button @click="enemyAttack" :disabled="busy">Enemy attack</button><button @click="defend" :disabled="busy">Defend</button><button @click="attack" :disabled="busy">Attack exchange</button><button @click="kill" :disabled="busy">Final blow</button><span>{{busy?'Animating':'Ready'}}</span>`,
       }).mount('#app');
     </script>
   </body>

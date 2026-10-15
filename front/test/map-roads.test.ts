@@ -60,6 +60,19 @@ describe('map roads', () => {
     expect(isPointInMountain(1470, 1040)).toBe(false);
   });
 
+  it('keeps Moonfall south of the bridge with clear approaches to the city', () => {
+    const city = landmarks.find(({ name }) => name === 'MOONFALL')!;
+    expect(city).toMatchObject({ x: 2060, y: 690 });
+    const bridge = bridgeCrossings.find(({ x, y }) => Math.hypot(x - city.x, y - city.y) < 260)!;
+    expect(bridge).toBeDefined();
+    expect(city.y - bridge.y).toBeGreaterThan(100);
+    expect(Math.hypot(bridge.x - city.x, bridge.y - city.y)).toBeGreaterThan(110);
+    expect(isPointOnBridge(bridge.x, bridge.y)).toBe(true);
+    expect(isPointInRiver(city.x, city.y)).toBe(false);
+    expect(isPointOnRoute(2060, 630)).toBe(true);
+    expect(isPointOnRoute(2110, 655)).toBe(true);
+  });
+
   it('recognizes bog terrain for movement penalties', () => {
     expect(isPointInBog(420, 1510)).toBe(true);
     expect(isPointInBog(1470, 1040)).toBe(false);

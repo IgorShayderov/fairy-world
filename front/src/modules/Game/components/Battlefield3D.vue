@@ -33,10 +33,27 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
-import { attackOffset, attackTiming, smoothStep } from '@/modules/Game/battleAnimation';
+import {
+  attackOffset,
+  attackTiming,
+  inPlacePlayerClips,
+  safeLungeDistance,
+  skeletonAttackClips,
+  smoothStep,
+  usesReversingIdle,
+} from '@/modules/Game/battleAnimation';
+import {
+  closeGrip,
+  gripRotation,
+  heavyWeaponPose,
+  needsTwoHandedGrip,
+  palmGrip,
+  placeArm,
+} from '@/modules/Game/battleHeavyWeapon';
 import { battleMonsterModel } from '@/modules/Game/battleMonsterModels';
 import { battleMovementPath } from '@/modules/Game/battleMovementPath';
 import type { BattleHandMode } from '@/modules/Game/battlePlayerLoadout';
+import { dressSkeleton, uprightSkeletonClips } from '@/modules/Game/battleSkeleton';
 import type { BattleState } from '@/modules/Monsters/api';
 
 const props = defineProps<{ battle: BattleState; disabled: boolean; handMode?: BattleHandMode }>();
@@ -106,11 +123,14 @@ let emberPositions: Float32Array | undefined;
 let emberVelocities: Float32Array | undefined;
 
 type Fighter = {
+  model: string;
   root: T.Group;
   mixer: T.AnimationMixer;
   clips: T.AnimationClip[];
   current?: T.AnimationAction;
   height: number;
+  bodyRadius: number;
+  reverseIdle: boolean;
   stanceRing?: T.Mesh;
 };
 
@@ -128,6 +148,7 @@ let busy = true;
 let elapsed = 0;
 let shakeIntensity = 0;
 let playerAttackCombo = 0;
+let heavySwing: { progress: number; diagonal: boolean } | undefined;
 
 const waits = new Set<{
   end: number;
@@ -271,13 +292,40 @@ function updateEquipment() {
   const right = player.root.getObjectByName('Rig_hand_R');
   const left = player.root.getObjectByName('Rig_hand_L');
   if (!right || !left) return;
+  const heavy = (props.handMode ?? 'TWO_HANDED') === 'TWO_HANDED';
+  const animationName = player.current?.getClip().name ?? '';
+  if (heavy && needsTwoHandedGrip(animationName, !!heavySwing)) {
+    const pose = heavyWeaponPose(heavySwing?.progress, heavySwing?.diagonal);
+    const direction = pose.direction.transformDirection(player.root.matrixWorld);
+    const grip = player.root.localToWorld(pose.grip);
+    const forward = new T.Vector3(0, 0, 1).transformDirection(player.root.matrixWorld);
+    for (const [side, hand, offset, sign] of [
+      ['R', right, 0, -1],
+      ['L', left, 0.22, 1],
+    ] as const) {
+      const upper = player.root.getObjectByName(`Rig_Upper_Arm_${side}`);
+      const lower = player.root.getObjectByName(`Rig_Lower_Arm_${side}`);
+      if (!upper || !lower) continue;
+      const handRotation = gripRotation(direction, forward, side);
+      const hint = player.root.localToWorld(new T.Vector3(sign * 0.8, 1.35, 0.1));
+      const palmOffset = palmGrip.clone().multiply(hand.getWorldScale(new T.Vector3())).applyQuaternion(handRotation);
+      placeArm(upper, lower, hand, grip.clone().addScaledVector(direction, offset).sub(palmOffset), hint);
+      hand.quaternion.copy(hand.parent!.getWorldQuaternion(new T.Quaternion()).invert().multiply(handRotation));
+      hand.updateMatrixWorld(true);
+      closeGrip(player.root, side);
+    }
+  }
   const rightPosition = right.getWorldPosition(new T.Vector3());
   const leftPosition = left.getWorldPosition(new T.Vector3());
+  if (heavy) {
+    rightPosition.copy(right.localToWorld(palmGrip.clone()));
+    leftPosition.copy(left.localToWorld(palmGrip.clone()));
+  }
   weapon.position.copy(rightPosition);
   if ((props.handMode ?? 'TWO_HANDED') === 'TWO_HANDED') {
     // The authored heavy-weapon pose places the left hand nearest the blade.
     const gripDirection = leftPosition.clone().sub(rightPosition);
-    weapon.scale.y = Math.max(0.8, Math.min(1.6, gripDirection.length() / 0.23));
+    weapon.scale.y = 1;
     weapon.quaternion.setFromUnitVectors(new T.Vector3(0, 1, 0), gripDirection.normalize());
   } else {
     weapon.quaternion
@@ -299,16 +347,19 @@ function updateEquipment() {
 async function fighter(file: string, height: number, isPlayer = false): Promise<Fighter> {
   const gltf = await loader.loadAsync(`/models/battle/${resolveModelPath(file)}.glb`);
   const model = gltf.scene;
+  const sourceClips = file === 'bone-knight' ? uprightSkeletonClips(gltf.animations) : gltf.animations;
+  const animations = isPlayer ? inPlacePlayerClips(sourceClips) : skeletonAttackClips(sourceClips, file);
   if (disposed) {
     release(model);
     throw new Error('Battlefield closed');
   }
   materials(model, isPlayer);
+  if (file === 'bone-knight') dressSkeleton(model);
   const mixer = new T.AnimationMixer(model);
   const idle =
-    gltf.animations.find((animation) => animation.name === 'knight_idle_heavy_weapon') ??
-    gltf.animations.find((animation) => /Idle$/i.test(animation.name)) ??
-    gltf.animations[0];
+    animations.find((animation) => animation.name === 'knight_idle_heavy_weapon') ??
+    animations.find((animation) => /Idle$/i.test(animation.name)) ??
+    animations[0];
   if (idle) mixer.clipAction(idle).play();
   mixer.update(0.01);
   model.updateMatrixWorld(true);
@@ -324,6 +375,7 @@ async function fighter(file: string, height: number, isPlayer = false): Promise<
   model.position.y -= box.min.y * scale;
 
   const root = new T.Group();
+  root.visible = false;
   root.add(model);
 
   // Add glowing ground stance ring
@@ -334,7 +386,18 @@ async function fighter(file: string, height: number, isPlayer = false): Promise<
 
   scene.add(root);
   mixer.stopAllAction();
-  return { root, mixer, clips: gltf.animations, height, stanceRing };
+  const size = box.getSize(new T.Vector3()).multiplyScalar(scale);
+  const bodyRadius = Math.max(0.45, Math.min(1.15, Math.min(size.x, size.z) * 0.45));
+  return {
+    root,
+    mixer,
+    clips: animations,
+    height,
+    stanceRing,
+    bodyRadius,
+    reverseIdle: usesReversingIdle(file),
+    model: file,
+  };
 }
 
 function clip(unit: Fighter, kind: 'idle' | 'walk' | 'attack' | 'death' | 'hit') {
@@ -407,25 +470,36 @@ function selectPlayerAttackClip(isPower: boolean): T.AnimationClip | undefined {
   return player.clips.find((c) => c.name === chosenName) ?? clip(player, 'attack');
 }
 
-function playAction(unit: Fighter, animation: T.AnimationClip | undefined, once = false, duration?: number) {
+function playAction(
+  unit: Fighter,
+  animation: T.AnimationClip | undefined,
+  once = false,
+  duration?: number,
+  blend?: number
+) {
   if (!animation) return 0.6;
   const action = unit.mixer.clipAction(animation);
   if (!once && unit.current === action && action.isRunning()) return animation.duration;
-  if (unit.current !== action) unit.current?.fadeOut(0.18);
+  if (unit.current !== action) unit.current?.fadeOut(blend ?? 0.18);
   action
     .reset()
     .setEffectiveTimeScale(duration ? animation.duration / duration : 1)
     .setEffectiveWeight(1);
   action.setLoop(once ? T.LoopOnce : T.LoopRepeat, once ? 1 : Infinity);
   action.clampWhenFinished = once;
-  action.fadeIn(once ? 0.08 : 0.18).play();
+  action.fadeIn(blend ?? (once ? 0.08 : 0.18)).play();
   unit.current = action;
   return duration ?? animation.duration;
 }
 
 function play(unit: Fighter, kind: 'idle' | 'walk' | 'attack' | 'death' | 'hit', once = false) {
   const animation = clip(unit, kind) ?? clip(unit, 'idle') ?? unit.clips[0];
-  return playAction(unit, animation, once);
+  const duration = playAction(unit, animation, once);
+  if (kind === 'idle' && unit.reverseIdle && unit.current) {
+    // This legacy clip contains only the outward half of its idle cycle.
+    unit.current.setLoop(T.LoopPingPong, Infinity).setEffectiveTimeScale(0.65);
+  }
+  return duration;
 }
 
 function face(unit: Fighter, destination: T.Vector3) {
@@ -790,19 +864,27 @@ async function replay(next: BattleState) {
       face(unit, target.root.position);
       const isPower = event.action === 'POWER_ATTACK';
       const attackClip = unit === player ? selectPlayerAttackClip(isPower) : clip(unit, 'attack');
-      const timing = attackTiming(attackClip?.name ?? '', isPower);
-      const duration = playAction(unit, attackClip, true, timing.duration);
+      const timing = attackTiming(attackClip?.name ?? '', isPower, unit.model);
+      const heavyAttack = unit === player && (props.handMode ?? 'TWO_HANDED') === 'TWO_HANDED';
+      if (heavyAttack) {
+        heavySwing = { progress: 0, diagonal: attackClip?.name === 'knight_attack_3_heavy_weapon' };
+        timing.impact = 0.57;
+      }
+      const duration = playAction(unit, attackClip, true, timing.duration, timing.blend);
 
       // Melee combat lunge towards target
       const homePos = unit.root.position.clone();
       const targetPos = target.root.position.clone();
       const toTarget = targetPos.clone().sub(homePos);
       const dist = toTarget.length();
-      const lungeVector = toTarget.normalize().multiplyScalar(Math.min(isPower ? 0.52 : 0.32, dist * 0.2));
+      const lungeVector = toTarget
+        .normalize()
+        .multiplyScalar(safeLungeDistance(dist, unit.bodyRadius, target.bodyRadius, isPower));
       const lungePeak = homePos.clone().add(lungeVector);
 
       const strikePoint = timing.impact;
       await wait(duration * strikePoint, (t) => {
+        if (heavyAttack && heavySwing) heavySwing.progress = t * strikePoint;
         unit.root.position.copy(homePos).addScaledVector(lungeVector, attackOffset(t * strikePoint, strikePoint));
       });
 
@@ -841,11 +923,13 @@ async function replay(next: BattleState) {
       }
 
       await wait(duration * (1 - strikePoint), (t) => {
+        if (heavyAttack && heavySwing) heavySwing.progress = strikePoint + t * (1 - strikePoint);
         unit.root.position
           .copy(homePos)
           .addScaledVector(lungeVector, attackOffset(strikePoint + t * (1 - strikePoint), strikePoint));
       });
       unit.root.position.copy(homePos);
+      if (heavyAttack) heavySwing = undefined;
 
       if (!killingBlow) play(target, 'idle');
     }
@@ -1284,6 +1368,14 @@ onMounted(async () => {
     play(enemy, 'idle');
 
     if (props.battle.status !== 'ACTIVE') play(props.battle.status === 'VICTORY' ? enemy : player, 'death', true);
+    // Start with a fully weighted pose: fading in from zero exposes the bind pose.
+    player.current?.stopFading().setEffectiveWeight(1);
+    enemy.current?.stopFading().setEffectiveWeight(1);
+    player.mixer.update(0);
+    enemy.mixer.update(0);
+    updateEquipment();
+    player.root.visible = true;
+    enemy.root.visible = true;
     message.value = '';
     busy = false;
     emit('busy', false);
