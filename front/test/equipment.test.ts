@@ -15,6 +15,14 @@ const item = (equipmentType: NonNullable<InventoryItemType['equipmentType']>): I
 });
 
 describe('equipment slot selection', () => {
+  it.each(['Bow', 'Crossbow'])('restricts %s to the first hand even with a translated name', (nameKey) => {
+    expect(getCompatibleEquipmentSlots({ ...item(['WEAPON']), nameKey, name: 'Оружие' })).toEqual(['left-hand']);
+  });
+
+  it('restricts infinite ammunition to the second hand', () => {
+    expect(getCompatibleEquipmentSlots(item(['AMMUNITION']))).toEqual(['right-hand']);
+  });
+
   it('prefers the right hand for shields', () => {
     expect(getCompatibleEquipmentSlots(item(['SHIELD']))).toEqual(['right-hand']);
   });

@@ -163,6 +163,53 @@ describe('UsersService', () => {
   });
 
   describe('equipment', () => {
+    it('rejects ammunition in the primary slot', async () => {
+      mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4, level: 1 });
+      mockPrismaService.inventoryItem.findFirst.mockResolvedValueOnce({
+        item: { name: 'Arrows', level: 1, equipmentType: ['AMMUNITION'] },
+      });
+      await expect(service.equipItem(7, { inventoryItemId: 9, slot: 'left-hand' })).rejects.toThrow(
+        'cannot be equipped',
+      );
+      expect(mockPrismaService.inventoryItem.update).not.toHaveBeenCalled();
+    });
+    it.each([
+      ['Bow', 'Bolts'],
+      ['Crossbow', 'Arrows'],
+      ['Sword', 'Arrows'],
+    ])('rejects %s with %s', async (weapon, ammo) => {
+      mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4, level: 1 });
+      mockPrismaService.inventoryItem.findFirst
+        .mockResolvedValueOnce({ id: 9, item: { name: ammo, level: 1, equipmentType: ['AMMUNITION'] } })
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ item: { name: weapon, equipmentType: ['WEAPON'] } });
+      await expect(service.equipItem(7, { inventoryItemId: 9, slot: 'right-hand' })).rejects.toThrow('matching bow');
+      expect(mockPrismaService.inventoryItem.update).not.toHaveBeenCalled();
+    });
+    it.each([
+      ['Bow', 'Arrows'],
+      ['Crossbow', 'Bolts'],
+    ])('equips %s ammunition as permanent equipment', async (weapon, ammo) => {
+      mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4, level: 1 });
+      mockPrismaService.inventoryItem.findFirst
+        .mockResolvedValueOnce({
+          id: 9,
+          itemId: 2,
+          quantity: 1,
+          isEquiped: false,
+          slot: null,
+          item: { name: ammo, level: 1, equipmentType: ['AMMUNITION'] },
+        })
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ item: { name: weapon, equipmentType: ['WEAPON'] } });
+      await expect(service.equipItem(7, { inventoryItemId: 9, slot: 'right-hand' })).resolves.toEqual({
+        success: true,
+      });
+      expect(mockPrismaService.inventoryItem.update).toHaveBeenCalledWith({
+        where: { id: 9 },
+        data: { quantity: 1, isEquiped: true, slot: 'right-hand' },
+      });
+    });
     it('blocks shields in the left hand', async () => {
       mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4, level: 1 });
       mockPrismaService.inventoryItem.findFirst.mockResolvedValueOnce({

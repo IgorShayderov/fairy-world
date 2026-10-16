@@ -9,7 +9,7 @@ const equipped = (
   name: string,
   equipmentType: EquipmentType[],
   slot: EquipmentSlotId,
-  options: { isTwoHanded?: boolean; rarity?: ItemRarity } = {},
+  options: { isTwoHanded?: boolean; rarity?: ItemRarity } = {}
 ): InventoryEntry => ({
   id,
   item: {
@@ -17,11 +17,7 @@ const equipped = (
     name,
     description: '',
     price: 1,
-    icon: name.includes('Shield')
-      ? 'icon_shield.png'
-      : name.includes('Axe')
-        ? 'icon_axe.png'
-        : 'icon_sword.png',
+    icon: name.includes('Shield') ? 'icon_shield.png' : name.includes('Axe') ? 'icon_axe.png' : 'icon_sword.png',
     rarity: options.rarity ?? 'COMMON',
     equipmentType,
     ...(options.isTwoHanded === undefined ? {} : { isTwoHanded: options.isTwoHanded }),
@@ -34,6 +30,17 @@ const equipped = (
 });
 
 describe('battle player loadout', () => {
+  it.each([
+    ['Bow', 'Arrows', 'BOW'],
+    ['Crossbow', 'Bolts', 'CROSSBOW'],
+  ])('renders %s with matching ammo, not as dual swords', (name, ammo, mode) => {
+    expect(
+      getBattlePlayerLoadout([
+        equipped(1, name!, ['WEAPON'], 'left-hand'),
+        equipped(2, ammo!, ['AMMUNITION'], 'right-hand'),
+      ])
+    ).toMatchObject({ handMode: mode, primaryWeapon: mode, secondaryWeapon: null });
+  });
   it('reads the equipped-items collection returned separately from the backpack', () => {
     const currentUser = {
       inventory: [],
@@ -64,9 +71,10 @@ describe('battle player loadout', () => {
       handMode: 'SINGLE',
       primaryWeapon: 'AXE',
     });
-    expect(
-      getBattlePlayerLoadout([equipped(4, 'Dagger', ['WEAPON'], 'right-hand'), sword]),
-    ).toMatchObject({ handMode: 'DUAL', secondaryWeapon: 'DAGGER' });
+    expect(getBattlePlayerLoadout([equipped(4, 'Dagger', ['WEAPON'], 'right-hand'), sword])).toMatchObject({
+      handMode: 'DUAL',
+      secondaryWeapon: 'DAGGER',
+    });
   });
 
   it('reflects equipped helmet, body armour, and highest visible rarity', () => {

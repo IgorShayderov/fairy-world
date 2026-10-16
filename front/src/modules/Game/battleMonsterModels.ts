@@ -4,7 +4,7 @@ export type MonsterModel = { file: string; height: number; facing?: number };
 export const monsterModels: Record<string, MonsterModel> = {
   'Goblin Raider': { file: 'goblin', height: 2.1 },
   'Dire Wolf': { file: 'wolf', height: 1.8 },
-  'Bone Knight': { file: 'bone-knight', height: 2.7 },
+  'Bone Knight': { file: 'bone-knight', height: 2.35 },
   'Forest Troll': { file: 'bog-lurker', height: 3.2 },
   'Shadow Stalker': { file: 'harpy', height: 2.3 },
   'Storm Harpy': { file: 'harpy', height: 2.5 },

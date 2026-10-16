@@ -7,6 +7,7 @@ describe('ShopService trades', () => {
   const tx = {
     shop: { findUnique: jest.fn(), update: jest.fn(), upsert: jest.fn() },
     shopStock: {
+      findFirst: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(),
       upsert: jest.fn(),
@@ -35,6 +36,7 @@ describe('ShopService trades', () => {
     jest.resetAllMocks();
     prisma.$transaction.mockImplementation((operation: (client: typeof tx) => unknown) => operation(tx));
     tx.shop.upsert.mockResolvedValue({ id: 2 });
+    tx.shopStock.findFirst.mockResolvedValue({ itemId: 42 });
     tx.shop.findUnique.mockResolvedValue({ id: 2, stockLevel: 4, gold: 1000, nextRestockAt: new Date('2099-01-01') });
     tx.gameProfile.findUnique.mockResolvedValue({
       id: 5,
@@ -404,7 +406,7 @@ describe('ShopService trades', () => {
     expect(potionWeightForLevel(20, 20)).toBeGreaterThan(potionWeightForLevel(10, 20));
   });
 
-  it('generates twelve items with levels around the player level when the shop restock is due', async () => {
+  it('generates eighteen items including arrows and bolts when the shop restock is due', async () => {
     const now = new Date('2026-09-11T09:00:00Z');
     const nextRestockAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
     jest.useFakeTimers().setSystemTime(now);
@@ -415,7 +417,7 @@ describe('ShopService trades', () => {
 
     await service.getShop(1, 2);
 
-    expect(itemGenerator.generate).toHaveBeenCalledTimes(10);
+    expect(itemGenerator.generate).toHaveBeenCalledTimes(16);
     expect(itemGenerator.generate).toHaveBeenNthCalledWith(1, { level: 2 }, tx);
     expect(itemGenerator.generate).toHaveBeenNthCalledWith(2, { level: 3 }, tx);
     expect(itemGenerator.generate).toHaveBeenNthCalledWith(3, { level: 4 }, tx);
@@ -423,8 +425,16 @@ describe('ShopService trades', () => {
     expect(itemGenerator.generate).toHaveBeenNthCalledWith(5, { level: 6 }, tx);
     expect(itemGenerator.generate).toHaveBeenNthCalledWith(9, { level: 5, equipmentType: 'GLOVES' }, tx);
     expect(itemGenerator.generate).toHaveBeenNthCalledWith(10, { level: 6, equipmentType: 'LEGS' }, tx);
+    expect(itemGenerator.generate).toHaveBeenCalledWith(
+      { level: 4, equipmentType: 'AMMUNITION', baseItemName: 'Arrows' },
+      tx,
+    );
+    expect(itemGenerator.generate).toHaveBeenCalledWith(
+      { level: 4, equipmentType: 'AMMUNITION', baseItemName: 'Bolts' },
+      tx,
+    );
     expect(tx.shopStock.deleteMany).toHaveBeenCalledWith({ where: { shopId: 2 } });
-    expect(tx.shopStock.upsert).toHaveBeenCalledTimes(12);
+    expect(tx.shopStock.upsert).toHaveBeenCalledTimes(18);
     expect(tx.shopStock.upsert).toHaveBeenCalledWith({
       where: { shopId_itemId: { shopId: 2, itemId: 101 } },
       create: { shopId: 2, itemId: 101, quantity: 1 },
@@ -441,6 +451,50 @@ describe('ShopService trades', () => {
     });
   });
 
+  it('adds missing arrows and bolts to existing stock without a paid refresh', async () => {
+    tx.shopStock.findFirst.mockResolvedValue(null);
+    tx.shop.findUnique.mockResolvedValue({ id: 2, stockLevel: 4, nextRestockAt: new Date('2099-01-01'), stock: [] });
+    itemGenerator.generate.mockResolvedValueOnce({ id: 201 }).mockResolvedValueOnce({ id: 202 });
+
+    await service.getShop(1, 2);
+
+    expect(itemGenerator.generate).toHaveBeenCalledTimes(2);
+    expect(itemGenerator.generate).toHaveBeenCalledWith(
+      { level: 4, equipmentType: 'AMMUNITION', baseItemName: 'Arrows' },
+      tx,
+    );
+    expect(itemGenerator.generate).toHaveBeenCalledWith(
+      { level: 4, equipmentType: 'AMMUNITION', baseItemName: 'Bolts' },
+      tx,
+    );
+    expect(tx.shopStock.upsert).toHaveBeenCalledTimes(2);
+    expect(tx.shopStock.deleteMany).not.toHaveBeenCalledWith({ where: { shopId: 2 } });
+    expect(tx.gameProfile.update).not.toHaveBeenCalled();
+    expect(tx.shop.update).not.toHaveBeenCalled();
+  });
+
+  it('replenishes only sold-out ammunition without duplicating the other type', async () => {
+    tx.shopStock.findFirst.mockResolvedValueOnce({ itemId: 201 }).mockResolvedValueOnce(null);
+    tx.shop.findUnique.mockResolvedValue({ id: 2, stockLevel: 4, nextRestockAt: new Date('2099-01-01'), stock: [] });
+    itemGenerator.generate.mockResolvedValue({ id: 202 });
+
+    await service.getShop(1, 2);
+
+    expect(itemGenerator.generate).toHaveBeenCalledTimes(1);
+    expect(itemGenerator.generate).toHaveBeenCalledWith(
+      { level: 4, equipmentType: 'AMMUNITION', baseItemName: 'Bolts' },
+      tx,
+    );
+    expect(tx.shopStock.findFirst).toHaveBeenCalledWith({
+      where: {
+        shopId: 2,
+        quantity: { gt: 0 },
+        item: { name: 'Bolts', equipmentType: { has: 'AMMUNITION' }, level: { lte: 4 } },
+      },
+      select: { itemId: true },
+    });
+  });
+
   it('spends ten gems and immediately replaces the shop stock', async () => {
     const now = new Date('2026-09-11T09:00:00Z');
     const nextRestockAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
@@ -454,8 +508,8 @@ describe('ShopService trades', () => {
       data: { gems: { decrement: 10 } },
     });
     expect(tx.shopStock.deleteMany).toHaveBeenCalledWith({ where: { shopId: 2 } });
-    expect(itemGenerator.generate).toHaveBeenCalledTimes(10);
-    expect(tx.shopStock.upsert).toHaveBeenCalledTimes(12);
+    expect(itemGenerator.generate).toHaveBeenCalledTimes(16);
+    expect(tx.shopStock.upsert).toHaveBeenCalledTimes(18);
     expect(tx.shop.update).toHaveBeenCalledWith({
       where: { id: 2 },
       data: { nextRestockAt, stockLevel: 4, gold: SHOP_DEFAULT_GOLD },

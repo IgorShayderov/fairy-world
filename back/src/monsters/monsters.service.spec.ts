@@ -482,7 +482,100 @@ describe('MonstersService', () => {
     });
 
     it.each([
+      ['Bow', 6, 'Arrows'],
+      ['Crossbow', 7, 'Bolts'],
+      ['Bow', 1, null],
+      ['Crossbow', 1, null],
+      ['Bow', 1, 'Bolts'],
+      ['Crossbow', 1, 'Arrows'],
+    ])('enforces range %s/%s with ammunition %s', async (weapon, range, ammunition) => {
+      jest.spyOn(Math, 'random').mockReturnValueOnce(0.01).mockReturnValue(0.99);
+      const user = currentUser(5, 500);
+      mockUsersService.findCurrentUser.mockResolvedValue({
+        ...user,
+        gameProfile: {
+          ...user.gameProfile,
+          inventory: [
+            {
+              id: 1,
+              itemId: 1,
+              quantity: 1,
+              isEquiped: true,
+              slot: 'left-hand',
+              item: {
+                id: 1,
+                name: weapon,
+                level: 1,
+                rarity: 'COMMON',
+                equipmentType: ['WEAPON'],
+                stats: [{ value: 94, stat: { name: StatType.DAMAGE, description: null } }],
+                attributes: [],
+              },
+            },
+            ...(ammunition
+              ? [
+                  {
+                    id: 2,
+                    itemId: 2,
+                    quantity: 1,
+                    isEquiped: true,
+                    slot: 'right-hand',
+                    item: {
+                      id: 2,
+                      name: ammunition,
+                      level: 1,
+                      rarity: 'COMMON',
+                      equipmentType: ['AMMUNITION'],
+                      stats: [],
+                      attributes: [],
+                    },
+                  },
+                ]
+              : []),
+          ],
+        },
+      });
+      mockMonsterGenerator.generate.mockReturnValue({
+        id: 3,
+        name: 'Stone Golem',
+        monsterType: 'Stone Golem',
+        level: 5,
+        rewardGold: 20,
+        rewardExperience: 25,
+        attributes: [],
+      });
+      const encounter = await service.rollEncounter(7);
+      if (!encounter.encountered) throw new Error('Expected encounter');
+      expect(encounter.battle.arena.playerAttackRange).toBe(range);
+      expect(encounter.battle.player.missingAmmunition).toBe(range === 1);
+      // Base damage 1 + Strength 5 + weapon 94 = 100; no ammo reduces it to 25.
+      expect(encounter.battle.player.damage).toBe(range === 1 ? 25 : 100);
+      if (range === 1) {
+        await expect(service.takeTurn(7, encounter.battle.id, 'ATTACK')).rejects.toThrow('Move next to the enemy');
+        await service.takeTurn(7, encounter.battle.id, 'MOVE', 19);
+        await service.takeTurn(7, encounter.battle.id, 'DEFEND');
+        await service.takeTurn(7, encounter.battle.id, 'MOVE', 21);
+        const melee = await service.takeTurn(7, encounter.battle.id, 'ATTACK');
+        const strike = melee.events.find((event) => event.actor === 'PLAYER' && event.action === 'ATTACK');
+        expect(strike).toBeDefined();
+        expect(strike!.damage).toBeGreaterThan(0);
+        expect(strike!.damage).toBeLessThanOrEqual(25);
+        return;
+      }
+      if (weapon === 'Bow') {
+        await expect(service.takeTurn(7, encounter.battle.id, 'ATTACK')).rejects.toThrow('outside attack range');
+        await service.takeTurn(7, encounter.battle.id, 'MOVE', 17);
+      }
+      const result = await service.takeTurn(7, encounter.battle.id, 'ATTACK');
+      expect(result.events.some((event) => event.actor === 'PLAYER' && event.action === 'ATTACK')).toBe(true);
+      expect(result.events.some((event) => event.actor === 'MONSTER' && event.action === 'ATTACK')).toBe(false);
+      expect(result.player.health).toBe(encounter.battle.player.health);
+      expect(mockPrismaService.inventoryItem.create).not.toHaveBeenCalled();
+    });
+
+    it.each([
       ['Stone Golem', 1, 22],
+      ['Goblin Raider', 3, 20],
       ['Dire Wolf', 4, 19],
     ])('uses %s movement on the server', async (monsterType, movement, destination) => {
       jest.spyOn(Math, 'random').mockReturnValueOnce(0.01).mockReturnValue(0.99);

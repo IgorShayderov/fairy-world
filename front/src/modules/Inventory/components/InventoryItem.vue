@@ -87,6 +87,9 @@
         {{ $t('profile.twoHanded') }}
       </div>
       <div v-if="tooltipDescription" class="mt-1 text-xs text-gray-200">{{ tooltipDescription }}</div>
+      <div v-if="displayItem.equipmentType?.includes('AMMUNITION')" class="mt-1 text-xs text-amber-200">
+        {{ $t('profile.infiniteAmmunition') }}
+      </div>
       <div v-if="effectiveRequiredPlayerLevel" class="mt-1 text-xs text-amber-200">
         {{ $t('profile.requiredLevel', { level: effectiveRequiredPlayerLevel }) }}
       </div>
@@ -190,6 +193,7 @@ import type { InventoryItemType } from '@/modules/Inventory/types';
 
 import { isTwoHanded } from '@/modules/Inventory/utils/equipment';
 import { getPotionRequiredLevel, isPotion } from '@/modules/Inventory/utils/potions';
+import { rangedItemImage } from '@/modules/Inventory/utils/rangedItemImage';
 import { getRarityBadgeClass, removeRarityPrefix } from '@/modules/Inventory/utils/rarity';
 
 import PotionIcon from './icons/PotionIcon.vue';
@@ -301,6 +305,8 @@ const isAxe = (item: InventoryItemType | null | undefined) => {
 };
 
 const resolveItemImage = (item: InventoryItemType | null | undefined) => {
+  const rangedImage = rangedItemImage(item);
+  if (rangedImage) return rangedImage;
   if (isAxe(item)) {
     if (item?.icon === 'icon_axe_2.png' || item?.icon === 'icon_sword_2.png' || (item?.icon ?? '').includes('_2')) {
       return '/icons/items/icon_axe_2.png';

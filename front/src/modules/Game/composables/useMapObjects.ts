@@ -21,7 +21,7 @@ export const landmarks: Landmark[] = [
   { x: 1770, y: 300, name: 'ICEVAULT', subtitle: 'The Frozen Depths', type: 'dungeon', accent: '#8bcfe8' },
   { x: 450, y: 350, name: 'RAVENCRYPT', subtitle: 'The Forgotten Barrows', type: 'dungeon', accent: '#bb91de' },
   { x: 940, y: 620, name: 'AURELIA', subtitle: 'The Sunlit Citadel', type: 'capital', accent: '#f6cf72' },
-  { x: 2060, y: 570, name: 'MOONFALL', subtitle: 'City of Silver Spires', type: 'city', accent: '#b8d9ff' },
+  { x: 2060, y: 690, name: 'MOONFALL', subtitle: 'City of Silver Spires', type: 'city', accent: '#b8d9ff' },
   { x: 1470, y: 960, name: 'EVERCROSS', subtitle: 'The Wandering Market', type: 'village', accent: '#efbd74' },
   { x: 2470, y: 1370, name: 'EMBERDEEP', subtitle: 'Vault of the First Flame', type: 'dungeon', accent: '#ff8067' },
   {
@@ -73,8 +73,8 @@ export const roads: Point[][] = [
   road('AURELIA', 'SUNSPIRE'),
   road('SUNSPIRE', 'ICEVAULT'),
   road('AURELIA', 'EVERCROSS'),
-  road('EVERCROSS', 'MOONFALL', { x: 1700, y: 885 }, { x: 1880, y: 710 }, { x: 2025, y: 535 }),
-  road('MOONFALL', 'FROSTWATCH', { x: 2250, y: 535 }, { x: 2580, y: 535 }),
+  road('EVERCROSS', 'MOONFALL', { x: 1700, y: 885 }, { x: 1880, y: 710 }, { x: 2025, y: 535 }, { x: 2060, y: 570 }),
+  road('MOONFALL', 'FROSTWATCH', { x: 2160, y: 620 }, { x: 2250, y: 535 }, { x: 2580, y: 535 }),
   road('FROSTWATCH', 'HOLLOWGATE', { x: 2770, y: 600 }, { x: 2850, y: 950 }),
   road('EVERCROSS', 'STARGLEN', { x: 1190, y: 1080 }, { x: 930, y: 1280 }),
   road('STARGLEN', 'LARKHAVEN', { x: 800, y: 1470 }, { x: 880, y: 1550 }),
@@ -1209,18 +1209,23 @@ export function useMapObjects() {
       ctx.lineWidth = 1.75;
       ctx.stroke();
 
+      // Measure with the actual badge font and tracking before sizing its background.
+      ctx.font = '700 8px Inter, Arial, sans-serif';
+      ctx.letterSpacing = '1px';
+      const typeLabel = LANDMARK_VISUALS[landmark.type].label;
+      const typeWidth = Math.max(56, Math.ceil(ctx.measureText(typeLabel).width) + 20);
       ctx.fillStyle = landmark.accent;
       ctx.beginPath();
-      ctx.roundRect(landmark.x - 28, landmark.y - 84, 56, 14, 7);
+      ctx.roundRect(landmark.x - typeWidth / 2, landmark.y - 88, typeWidth, 18, 9);
       ctx.fill();
       ctx.strokeStyle = 'rgba(52, 48, 36, 0.5)';
       ctx.lineWidth = 1;
       ctx.stroke();
-      ctx.font = '700 8px Inter, Arial, sans-serif';
-      ctx.letterSpacing = '1px';
+      ctx.textBaseline = 'middle';
       ctx.fillStyle = '#173039';
-      ctx.fillText(LANDMARK_VISUALS[landmark.type].label, landmark.x, landmark.y - 74);
+      ctx.fillText(typeLabel, landmark.x, landmark.y - 79);
 
+      ctx.textBaseline = 'alphabetic';
       ctx.letterSpacing = '0px';
       ctx.font = '700 24px Georgia, serif';
       ctx.fillStyle = '#29271f';

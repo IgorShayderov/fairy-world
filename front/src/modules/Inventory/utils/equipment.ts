@@ -10,6 +10,7 @@ import { isHealthPotion, isPotion } from './potions';
 
 const EQUIPMENT_TYPE_SLOTS: Record<EquipmentType, EquipmentSlotId[]> = {
   WEAPON: ['left-hand', 'right-hand'],
+  AMMUNITION: ['right-hand'],
   SHIELD: ['right-hand'],
   BODY: ['body'],
   HELMET: ['head'],
@@ -39,6 +40,7 @@ export const isTwoHanded = (item?: { name?: string; nameKey?: string; isTwoHande
 };
 
 export const getCompatibleEquipmentSlots = (item: InventoryItemType): EquipmentSlotId[] => {
+  if (/\b(bow|crossbow)\b/i.test(`${item.name ?? ''} ${item.nameKey ?? ''}`)) return ['left-hand'];
   if (isPotion(item) && !isHealthPotion(item)) return [];
   if (isTwoHanded(item)) return ['left-hand'];
   return getCompatibleEquipmentSlotsForTypes(item.equipmentType ?? item.equipmentTypes ?? []);

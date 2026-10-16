@@ -435,6 +435,7 @@ enum ItemRarity {
 
 enum EquipmentType {
   WEAPON
+  AMMUNITION
   SHIELD
   BODY
   HELMET

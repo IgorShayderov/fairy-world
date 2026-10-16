@@ -39,6 +39,10 @@
             {{ t('fantasy.encounter.tacticalTurn', { turn: battle.turn }) }}
           </div>
           <div class="arena-instruction">
+            <span v-if="battle.player.missingAmmunition">{{ t('fantasy.encounter.missingAmmunition') }} · </span>
+            <span v-if="(battle.arena.playerAttackRange ?? 1) > 1"
+              >{{ t('fantasy.encounter.rangedRange', { range: battle.arena.playerAttackRange }) }} ·
+            </span>
             <QIcon :name="battle.arena.canAttack ? 'sports_martial_arts' : 'ads_click'" />
             {{
               battle.arena.canAttack
