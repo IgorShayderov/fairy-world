@@ -2,20 +2,20 @@ import { Matrix4, Quaternion, Vector3 } from 'three';
 
 import type { Object3D } from 'three';
 
-/** Reactions were authored for separate weapons/shields, not a shared handle. */
+/** Locomotion and reactions were authored without a shared two-handed handle. */
 export function needsTwoHandedGrip(animationName: string, swinging: boolean): boolean {
-  return swinging || animationName === 'knight_idle_heavy_weapon' || /hurt|block|dodge/i.test(animationName);
+  return swinging || animationName === 'knight_idle_heavy_weapon' || /walk|run|hurt|block|dodge/i.test(animationName);
 }
 
 /** Local coordinates: +Z faces the opponent. The hands share one rigid grip. */
 export function heavyWeaponPose(progress: number | undefined, diagonal = false) {
   const poses = [
-    { t: 0, grip: [0, 1.6, 0.38], direction: [0, 1, 0] },
-    { t: 0.32, grip: [diagonal ? 0.35 : 0, 2.12, 0.12], direction: [diagonal ? 1 : 0, 1, -0.35] },
-    { t: 0.43, grip: [diagonal ? 0.35 : 0, 2.12, 0.12], direction: [diagonal ? 1 : 0, 1, -0.35] },
-    { t: 0.57, grip: [0, 1.65, 0.42], direction: [diagonal ? -0.5 : 0, -0.3, 1] },
-    { t: 0.68, grip: [diagonal ? -0.25 : 0, 1.45, 0.3], direction: [diagonal ? -0.8 : 0, -1, 0.6] },
-    { t: 1, grip: [0, 1.6, 0.38], direction: [0, 1, 0] },
+    { t: 0, grip: [0, 1.6, 0.52], direction: [0, 1, 0] },
+    { t: 0.32, grip: [diagonal ? 0.25 : 0, 2.12, 0.52], direction: [diagonal ? 1 : 0, 1, -0.35] },
+    { t: 0.43, grip: [diagonal ? 0.25 : 0, 2.12, 0.52], direction: [diagonal ? 1 : 0, 1, -0.35] },
+    { t: 0.57, grip: [0, 1.65, 0.62], direction: [diagonal ? -0.5 : 0, -0.3, 1] },
+    { t: 0.68, grip: [diagonal ? -0.2 : 0, 1.45, 0.52], direction: [diagonal ? -0.8 : 0, -1, 0.6] },
+    { t: 1, grip: [0, 1.6, 0.52], direction: [0, 1, 0] },
   ];
   const t = Math.max(0, Math.min(1, progress ?? 0));
   const index = Math.max(

@@ -111,11 +111,23 @@ describe('ItemGeneratorService', () => {
     [EquipmentType.AMULET, StatType.MANA, 3],
   ])('gives a level-one common %s an inherent %s property', async (equipmentType, stat, value) => {
     const random = jest.spyOn(Math, 'random').mockReturnValue(0);
-    await service.generate({ level: 1, equipmentType, rarity: ItemRarity.COMMON });
+    await service.generate({
+      level: 1,
+      equipmentType,
+      baseItemName: equipmentType === EquipmentType.WEAPON ? 'Sword' : undefined,
+      rarity: ItemRarity.COMMON,
+    });
     random.mockRestore();
 
     const args = create.mock.calls[0]?.[0] as GeneratedItemCreateArgs;
     expect(args.data.stats.create).toEqual([{ stat: { connect: { name: stat } }, value }]);
+  });
+
+  it.each(['Arrows', 'Bolts'])('caps %s bonuses at high level and rarity', async (baseItemName) => {
+    await service.generate({ level: 100, baseItemName, rarity: ItemRarity.UNIQUE });
+    const args = create.mock.calls[0]?.[0] as GeneratedItemCreateArgs;
+    expect(args.data.stats.create).toEqual([{ stat: { connect: { name: StatType.DAMAGE } }, value: 5 }]);
+    expect(args.data.attributes.create).toEqual([]);
   });
 
   it('scales the inherent ring property with item level', async () => {
@@ -128,11 +140,21 @@ describe('ItemGeneratorService', () => {
   it('keeps the original icon and can select the new variant', async () => {
     const random = jest.spyOn(Math, 'random');
     random.mockReturnValue(0);
-    await service.generate({ level: 1, equipmentType: EquipmentType.WEAPON, rarity: ItemRarity.COMMON });
+    await service.generate({
+      level: 1,
+      baseItemName: 'Sword',
+      equipmentType: EquipmentType.WEAPON,
+      rarity: ItemRarity.COMMON,
+    });
     expect((create.mock.calls[0]?.[0] as GeneratedItemCreateArgs).data.icon).toBe('icon_sword.png');
 
     random.mockReturnValue(0.999);
-    await service.generate({ level: 1, equipmentType: EquipmentType.WEAPON, rarity: ItemRarity.COMMON });
+    await service.generate({
+      level: 1,
+      baseItemName: 'Sword',
+      equipmentType: EquipmentType.WEAPON,
+      rarity: ItemRarity.COMMON,
+    });
     expect((create.mock.calls[1]?.[0] as GeneratedItemCreateArgs).data.icon).toBe('icon_sword_2.png');
     random.mockRestore();
   });

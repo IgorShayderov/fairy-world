@@ -1,0 +1,1 @@
+ALTER TYPE "EquipmentType" ADD VALUE 'AMMUNITION';

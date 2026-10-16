@@ -1,6 +1,7 @@
 export type ItemRarity = 'QUEST' | 'COMMON' | 'MAGIC' | 'RARE' | 'UNIQUE';
 export type EquipmentType =
   | 'WEAPON'
+  | 'AMMUNITION'
   | 'SHIELD'
   | 'BODY'
   | 'HELMET'

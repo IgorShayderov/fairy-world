@@ -11,12 +11,21 @@ describe('two-handed weapon choreography', () => {
       'knight_shield_block',
       'knight_block_2_weapon',
       'knight_idle_heavy_weapon',
+      'knight_walk_in_place',
     ]) {
       expect(needsTwoHandedGrip(name, false), name).toBe(true);
     }
     expect(needsTwoHandedGrip('knight_attack_2_heavy_weapon', true)).toBe(true);
     expect(needsTwoHandedGrip('knight_front_attacked_fall', false)).toBe(false);
-    expect(needsTwoHandedGrip('knight_walk_in_place', false)).toBe(false);
+  });
+  it('keeps both grip targets in front of the chest throughout either strike', () => {
+    for (const diagonal of [false, true]) {
+      for (let step = 0; step <= 100; step++) {
+        const { grip, direction } = heavyWeaponPose(step / 100, diagonal);
+        expect(grip.z).toBeGreaterThanOrEqual(0.5);
+        expect(grip.clone().addScaledVector(direction, 0.22).z).toBeGreaterThan(0.4);
+      }
+    }
   });
   it('holds a vertical sword and returns to the same guard after both swings', () => {
     const guard = heavyWeaponPose(undefined);

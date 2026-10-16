@@ -13,7 +13,7 @@ import { requiredPlayerLevel } from '../users/level-progression';
 import { getPotionRequiredLevel } from '../items/potion-effects';
 
 const SHOP_RESTOCK_INTERVAL_MS = 24 * 60 * 60 * 1000;
-const SHOP_RESTOCK_ITEM_COUNT = 12;
+const SHOP_RESTOCK_ITEM_COUNT = 18;
 const SHOP_RANDOM_EQUIPMENT_COUNT = 8;
 const SHOP_GUARANTEED_EQUIPMENT_TYPES = [EquipmentType.GLOVES, EquipmentType.LEGS] as const;
 const SHOP_ITEM_LEVEL_OFFSETS = [-2, -1, 0, 1, 2] as const;
@@ -91,6 +91,9 @@ export class ShopService implements OnModuleInit {
       const now = new Date();
       if (!shop.nextRestockAt || shop.nextRestockAt <= now || shop.stockLevel !== profile.level) {
         await this.restock(tx, shopId, profile.id, profile.level, now);
+      } else {
+        // Keep both ammunition types available even in existing or sold-out stock.
+        await this.stockAmmunition(tx, shopId, profile.level, true);
       }
 
       const currentShop = await tx.shop.findUnique({
@@ -150,6 +153,36 @@ export class ShopService implements OnModuleInit {
     });
   }
 
+  private async stockAmmunition(
+    tx: Prisma.TransactionClient,
+    shopId: number,
+    playerLevel: number,
+    onlyMissing = false,
+  ) {
+    for (const baseItemName of ['Arrows', 'Bolts']) {
+      if (onlyMissing) {
+        const stocked = await tx.shopStock.findFirst({
+          where: {
+            shopId,
+            quantity: { gt: 0 },
+            item: { name: baseItemName, equipmentType: { has: EquipmentType.AMMUNITION }, level: { lte: playerLevel } },
+          },
+          select: { itemId: true },
+        });
+        if (stocked) continue;
+      }
+      const item = await this.itemGenerator.generate(
+        { level: playerLevel, equipmentType: EquipmentType.AMMUNITION, baseItemName },
+        tx,
+      );
+      await tx.shopStock.upsert({
+        where: { shopId_itemId: { shopId, itemId: item.id } },
+        create: { shopId, itemId: item.id, quantity: 1 },
+        update: { quantity: { increment: 1 } },
+      });
+    }
+  }
+
   private async restock(
     tx: Prisma.TransactionClient,
     shopId: number,
@@ -190,6 +223,9 @@ export class ShopService implements OnModuleInit {
       });
       stockCount++;
     }
+
+    await this.stockAmmunition(tx, shopId, playerLevel);
+    stockCount += 2;
 
     const consumables = await tx.item.findMany({
       where: {

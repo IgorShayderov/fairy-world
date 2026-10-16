@@ -13,6 +13,13 @@ describe('itemIdentity', () => {
       itemIdentity({ ...ring, name: 'Different ring', stats: [...ring.stats, { stat: { name: 'MANA' }, value: 0 }] }),
     );
   });
+  it('never replaces a ranged weapon or ammunition with a different kind that has the same stats', () => {
+    const weapon = { ...ring, name: 'Bow', equipmentType: ['WEAPON'] };
+    expect(itemIdentity(weapon)).not.toBe(itemIdentity({ ...weapon, name: 'Sword' }));
+    expect(itemIdentity(weapon)).not.toBe(itemIdentity({ ...weapon, name: 'Crossbow' }));
+    const ammo = { ...ring, name: 'Arrows', equipmentType: ['AMMUNITION'] };
+    expect(itemIdentity(ammo)).not.toBe(itemIdentity({ ...ammo, name: 'Bolts' }));
+  });
   it('keeps different types, attributes and properties separate', () => {
     for (const different of [
       { ...ring, equipmentType: ['AMULET'] },

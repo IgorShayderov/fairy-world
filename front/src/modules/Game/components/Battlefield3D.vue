@@ -53,6 +53,12 @@ import {
 import { battleMonsterModel } from '@/modules/Game/battleMonsterModels';
 import { battleMovementPath } from '@/modules/Game/battleMovementPath';
 import type { BattleHandMode } from '@/modules/Game/battlePlayerLoadout';
+import {
+  createProjectile,
+  createRangedWeapon,
+  projectileFlightSeconds,
+  updateCrossbowGrip,
+} from '@/modules/Game/battleRangedWeapon';
 import { dressSkeleton, uprightSkeletonClips } from '@/modules/Game/battleSkeleton';
 import type { BattleState } from '@/modules/Monsters/api';
 
@@ -149,6 +155,8 @@ let elapsed = 0;
 let shakeIntensity = 0;
 let playerAttackCombo = 0;
 let heavySwing: { progress: number; diagonal: boolean } | undefined;
+let rangedShotProgress: number | undefined;
+let rangedBashProgress: number | undefined;
 
 const waits = new Set<{
   end: number;
@@ -267,6 +275,11 @@ function createSword(twoHanded: boolean) {
 function equipPlayer() {
   const mode = props.handMode ?? 'TWO_HANDED';
   if (mode === 'UNARMED') return;
+  if (mode === 'BOW' || mode === 'CROSSBOW') {
+    weapon = createRangedWeapon(mode === 'CROSSBOW');
+    scene.add(weapon);
+    return;
+  }
   weapon = createSword(mode === 'TWO_HANDED');
   scene.add(weapon);
   if (mode === 'DUAL') {
@@ -292,6 +305,57 @@ function updateEquipment() {
   const right = player.root.getObjectByName('Rig_hand_R');
   const left = player.root.getObjectByName('Rig_hand_L');
   if (!right || !left) return;
+  if (props.handMode === 'CROSSBOW') {
+    const bash = rangedBashProgress === undefined ? 0 : attackOffset(rangedBashProgress, 0.45) * 0.3;
+    updateCrossbowGrip(player.root, weapon, bash, /fall|death/i.test(player.current?.getClip().name ?? ''));
+    return;
+  }
+  if (props.handMode === 'BOW') {
+    if (/fall|death/i.test(player.current?.getClip().name ?? '')) {
+      weapon.position.copy(left.localToWorld(palmGrip.clone()));
+      weapon.quaternion.copy(left.getWorldQuaternion(new T.Quaternion()));
+      return;
+    }
+    const bash = rangedBashProgress === undefined ? 0 : attackOffset(rangedBashProgress, 0.45) * 0.3;
+    const forward = new T.Vector3(0, 0, 1).transformDirection(player.root.matrixWorld);
+    const up = new T.Vector3(0, 1, 0);
+    const draw =
+      rangedShotProgress === undefined
+        ? 0
+        : rangedShotProgress <= 0.3
+          ? Math.sin(((rangedShotProgress / 0.3) * Math.PI) / 2)
+          : Math.max(0, 1 - (rangedShotProgress - 0.3) / 0.12);
+    for (const [side, hand] of [
+      ['L', left],
+      ['R', right],
+    ] as const) {
+      const upper = player.root.getObjectByName(`Rig_Upper_Arm_${side}`);
+      const lower = player.root.getObjectByName(`Rig_Lower_Arm_${side}`);
+      if (!upper || !lower) continue;
+      const rotation = gripRotation(up, forward, side);
+      const handTarget = player.root.localToWorld(
+        new T.Vector3(side === 'L' ? -0.08 : 0.08, 1.85, (side === 'L' ? 0.5 : 0.3 - draw * 0.3) + bash)
+      );
+      const palmOffset = palmGrip.clone().multiply(hand.getWorldScale(new T.Vector3())).applyQuaternion(rotation);
+      placeArm(
+        upper,
+        lower,
+        hand,
+        handTarget.sub(palmOffset),
+        player.root.localToWorld(new T.Vector3(side === 'L' ? -0.7 : 0.7, 1.7, 0))
+      );
+      hand.quaternion.copy(hand.parent!.getWorldQuaternion(new T.Quaternion()).invert().multiply(rotation));
+      hand.updateMatrixWorld(true);
+      closeGrip(player.root, side);
+    }
+    weapon.position.copy(left.localToWorld(palmGrip.clone()));
+    weapon.quaternion.copy(player.root.getWorldQuaternion(new T.Quaternion()));
+    const string = weapon.getObjectByName('Bowstring') as T.Line;
+    const positions = string.geometry.getAttribute('position') as T.BufferAttribute;
+    positions.setZ(1, -0.16 - draw * 0.3);
+    positions.needsUpdate = true;
+    return;
+  }
   const heavy = (props.handMode ?? 'TWO_HANDED') === 'TWO_HANDED';
   const animationName = player.current?.getClip().name ?? '';
   if (heavy && needsTwoHandedGrip(animationName, !!heavySwing)) {
@@ -307,7 +371,8 @@ function updateEquipment() {
       const lower = player.root.getObjectByName(`Rig_Lower_Arm_${side}`);
       if (!upper || !lower) continue;
       const handRotation = gripRotation(direction, forward, side);
-      const hint = player.root.localToWorld(new T.Vector3(sign * 0.8, 1.35, 0.1));
+      // Keep the elbow outside and in front of the breastplate, including the wind-up.
+      const hint = player.root.localToWorld(new T.Vector3(sign * 0.8, 1.35, 0.5));
       const palmOffset = palmGrip.clone().multiply(hand.getWorldScale(new T.Vector3())).applyQuaternion(handRotation);
       placeArm(upper, lower, hand, grip.clone().addScaledVector(direction, offset).sub(palmOffset), hint);
       hand.quaternion.copy(hand.parent!.getWorldQuaternion(new T.Quaternion()).invert().multiply(handRotation));
@@ -432,6 +497,11 @@ function clip(unit: Fighter, kind: 'idle' | 'walk' | 'attack' | 'death' | 'hit')
 
 function selectPlayerAttackClip(isPower: boolean): T.AnimationClip | undefined {
   if (!player) return undefined;
+  if (props.handMode === 'BOW' || props.handMode === 'CROSSBOW') {
+    return (props.battle.arena.playerAttackRange ?? 1) > 1
+      ? clip(player, 'idle')
+      : player.clips.find((entry) => entry.name === 'knight_shield_attack');
+  }
   const heavy = props.handMode === 'TWO_HANDED' || !props.handMode;
   if (heavy) {
     const name = isPower || playerAttackCombo++ % 2 ? 'knight_attack_3_heavy_weapon' : 'knight_attack_2_heavy_weapon';
@@ -865,6 +935,19 @@ async function replay(next: BattleState) {
       const isPower = event.action === 'POWER_ATTACK';
       const attackClip = unit === player ? selectPlayerAttackClip(isPower) : clip(unit, 'attack');
       const timing = attackTiming(attackClip?.name ?? '', isPower, unit.model);
+      const rangedWeapon = unit === player && (props.handMode === 'BOW' || props.handMode === 'CROSSBOW');
+      const rangedAttack = rangedWeapon && (next.arena.playerAttackRange ?? 1) > 1;
+      const rangedMelee = rangedWeapon && !rangedAttack;
+      if (rangedMelee) {
+        rangedBashProgress = 0;
+        timing.duration = 0.85;
+        timing.impact = 0.45;
+      }
+      if (rangedAttack) {
+        rangedShotProgress = 0;
+        timing.duration = 0.95;
+        timing.impact = 0.6;
+      }
       const heavyAttack = unit === player && (props.handMode ?? 'TWO_HANDED') === 'TWO_HANDED';
       if (heavyAttack) {
         heavySwing = { progress: 0, diagonal: attackClip?.name === 'knight_attack_3_heavy_weapon' };
@@ -879,14 +962,41 @@ async function replay(next: BattleState) {
       const dist = toTarget.length();
       const lungeVector = toTarget
         .normalize()
-        .multiplyScalar(safeLungeDistance(dist, unit.bodyRadius, target.bodyRadius, isPower));
+        .multiplyScalar(rangedAttack ? 0 : safeLungeDistance(dist, unit.bodyRadius, target.bodyRadius, isPower));
       const lungePeak = homePos.clone().add(lungeVector);
 
       const strikePoint = timing.impact;
-      await wait(duration * strikePoint, (t) => {
-        if (heavyAttack && heavySwing) heavySwing.progress = t * strikePoint;
-        unit.root.position.copy(homePos).addScaledVector(lungeVector, attackOffset(t * strikePoint, strikePoint));
-      });
+      const projectile = rangedAttack ? createProjectile(props.handMode === 'CROSSBOW') : undefined;
+      if (projectile) {
+        // Draw/aim first. Flight speed depends on distance, not the attack clip length.
+        await wait(duration * 0.3, (t) => {
+          rangedShotProgress = t * 0.3;
+        });
+        if (disposed) {
+          release(projectile);
+          return;
+        }
+        updateEquipment();
+        const shotStart = weapon?.position.clone() ?? homePos.clone();
+        const shotEnd = targetPos.clone().add(new T.Vector3(0, target.height * 0.6, 0));
+        projectile.position.copy(shotStart);
+        projectile.quaternion.setFromUnitVectors(new T.Vector3(0, 0, 1), shotEnd.clone().sub(shotStart).normalize());
+        scene.add(projectile);
+        const flightSeconds = projectileFlightSeconds(shotStart.distanceTo(shotEnd), props.handMode === 'CROSSBOW');
+        await wait(Math.max(0.001, flightSeconds), (t) => {
+          rangedShotProgress = 0.3 + t * (strikePoint - 0.3);
+          projectile.position.lerpVectors(shotStart, shotEnd, t);
+        });
+        scene.remove(projectile);
+        release(projectile);
+      } else {
+        await wait(duration * strikePoint, (t) => {
+          if (rangedMelee) rangedBashProgress = t * strikePoint;
+          if (heavyAttack && heavySwing) heavySwing.progress = t * strikePoint;
+          unit.root.position.copy(homePos).addScaledVector(lungeVector, attackOffset(t * strikePoint, strikePoint));
+        });
+      }
+      if (disposed) return;
 
       const impactPoint = lungePeak.clone().add(targetPos).multiplyScalar(0.5);
       impactPoint.y += target.height * 0.5;
@@ -923,6 +1033,8 @@ async function replay(next: BattleState) {
       }
 
       await wait(duration * (1 - strikePoint), (t) => {
+        if (rangedAttack) rangedShotProgress = strikePoint + t * (1 - strikePoint);
+        if (rangedMelee) rangedBashProgress = strikePoint + t * (1 - strikePoint);
         if (heavyAttack && heavySwing) heavySwing.progress = strikePoint + t * (1 - strikePoint);
         unit.root.position
           .copy(homePos)
@@ -930,6 +1042,8 @@ async function replay(next: BattleState) {
       });
       unit.root.position.copy(homePos);
       if (heavyAttack) heavySwing = undefined;
+      if (rangedAttack) rangedShotProgress = undefined;
+      if (rangedMelee) rangedBashProgress = undefined;
 
       if (!killingBlow) play(target, 'idle');
     }

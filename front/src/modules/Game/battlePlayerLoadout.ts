@@ -2,8 +2,8 @@ import type { InventoryEntry, ItemRarity } from '@/modules/Inventory/types';
 
 import { isTwoHanded } from '@/modules/Inventory/utils/equipment';
 
-export type BattleWeaponKind = 'SWORD' | 'AXE' | 'DAGGER';
-export type BattleHandMode = 'UNARMED' | 'SINGLE' | 'WEAPON_SHIELD' | 'DUAL' | 'TWO_HANDED';
+export type BattleWeaponKind = 'SWORD' | 'AXE' | 'DAGGER' | 'BOW' | 'CROSSBOW';
+export type BattleHandMode = 'UNARMED' | 'SINGLE' | 'WEAPON_SHIELD' | 'DUAL' | 'TWO_HANDED' | 'BOW' | 'CROSSBOW';
 
 export interface BattlePlayerLoadout {
   handMode: BattleHandMode;
@@ -27,6 +27,8 @@ const RARITY_ACCENTS: Record<ItemRarity, string> = {
 
 const weaponKind = (name: string): BattleWeaponKind => {
   const normalized = name.toLowerCase();
+  if (/\bcrossbow\b/.test(normalized)) return 'CROSSBOW';
+  if (/\bbow\b/.test(normalized)) return 'BOW';
   if (normalized.includes('axe')) return 'AXE';
   if (normalized.includes('dagger')) return 'DAGGER';
   return 'SWORD';
@@ -48,13 +50,15 @@ export const getBattlePlayerLoadout = (inventory: readonly InventoryEntry[] | un
   const twoHanded = primary && weapons.some((entry) => isTwoHanded(entry.item));
 
   let handMode: BattleHandMode = 'UNARMED';
-  if (twoHanded) handMode = 'TWO_HANDED';
+  const kind = weaponKind(primary?.item.name ?? '');
+  if (primary && (kind === 'BOW' || kind === 'CROSSBOW')) handMode = kind;
+  else if (twoHanded) handMode = 'TWO_HANDED';
   else if (weapons.length >= 2) handMode = 'DUAL';
   else if (primary && shield) handMode = 'WEAPON_SHIELD';
   else if (primary) handMode = 'SINGLE';
 
   const visibleEquipment = equipped.filter((entry) =>
-    entry.item.equipmentType.some((type) => ['WEAPON', 'SHIELD', 'BODY', 'HELMET'].includes(type)),
+    entry.item.equipmentType.some((type) => ['WEAPON', 'SHIELD', 'BODY', 'HELMET'].includes(type))
   );
   const highestRarity = visibleEquipment.reduce<ItemRarity>((best, entry) => {
     const order: ItemRarity[] = ['COMMON', 'MAGIC', 'RARE', 'UNIQUE', 'QUEST'];

@@ -14,6 +14,7 @@ import { CLAN_BANNERS, clanBannerPvpBonusPercent } from '../clans/clan-banners';
 import { ItemView } from '../common/views/item.view';
 import { townAt } from '../locations/towns';
 import { shieldBlockChance } from '../items/shield-block';
+import { matchingAmmunition, rangedWeapon } from '../items/weapon-types';
 import { playerMovement } from '../monsters/battle-movement';
 import { experienceToNextLevel, MAX_PLAYER_LEVEL } from './level-progression';
 import {
@@ -89,6 +90,15 @@ export class UserView {
     const playerLevel = profile?.level ?? 1;
     const entries = profile?.inventory ?? [];
     const equippedEntries = entries.filter((entry) => entry.isEquiped);
+    const mainHand = equippedEntries.find((entry) => entry.slot === 'left-hand');
+    const activeEquipment = equippedEntries.filter(
+      (entry) =>
+        !entry.item.equipmentType.includes('AMMUNITION') ||
+        (entry.slot === 'right-hand' && mainHand && matchingAmmunition(mainHand.item.name, entry.item.name)),
+    );
+    const ranged = rangedWeapon(mainHand?.item.name);
+    const missingAmmunition =
+      !!ranged && !activeEquipment.some((entry) => entry.item.equipmentType.includes('AMMUNITION'));
     const blockChance = equippedEntries.reduce((highest, entry) => Math.max(highest, shieldBlockChance(entry.item)), 0);
     const renderEntry = (entry: (typeof entries)[number]) => {
       const catalyst = CRAFT_ITEMS.find(
@@ -164,7 +174,7 @@ export class UserView {
       property.value += bonus;
     }
 
-    for (const { item } of equippedEntries) {
+    for (const { item } of activeEquipment) {
       for (const { attribute, value } of item.attributes) {
         const current = attributes.get(attribute.name) ?? {
           name: attribute.name,
@@ -181,7 +191,7 @@ export class UserView {
 
     let goldBonusPercent = 0;
     let experienceBonusPercent = 0;
-    for (const entry of equippedEntries) {
+    for (const entry of activeEquipment) {
       if (!entry.upgradeType || !entry.upgradeValue) continue;
       if (entry.upgradeType === CraftUpgradeType.GOLD) {
         goldBonusPercent += entry.upgradeValue;
@@ -220,7 +230,7 @@ export class UserView {
       }
     }
 
-    for (const { item } of equippedEntries) {
+    for (const { item } of activeEquipment) {
       for (const { stat, value } of item.stats) {
         const current = properties.get(stat.name) ?? {
           name: stat.name,
@@ -244,6 +254,13 @@ export class UserView {
       if (!property) continue;
       property.buffBonus = (property.buffBonus ?? 0) + buff.value;
       property.value += buff.value;
+    }
+
+    if (missingAmmunition) {
+      const damage = properties.get(StatType.DAMAGE)!;
+      const reducedDamage = Math.max(1, Math.floor(damage.value * 0.25));
+      damage.equipmentBonus -= damage.value - reducedDamage;
+      damage.value = reducedDamage;
     }
 
     const renderedProperties = [...properties.values()].map((property) => {
@@ -325,6 +342,8 @@ export class UserView {
       activeClanBannerPvpBonusPercent: clanBannerPvpBonusPercent(profile?.clanMembership?.clan.activeBannerCode),
       activeClanBanner: activeClanBanner ?? null,
       blockChance,
+      missingAmmunition,
+      attackRange: missingAmmunition || !ranged ? 1 : ranged === 'CROSSBOW' ? 7 : 6,
       craftInventory: (profile?.craftItems ?? []).map(({ craftItem, quantity }) => ({ ...craftItem, quantity })),
       attributes: [...attributes.values()],
       properties: [

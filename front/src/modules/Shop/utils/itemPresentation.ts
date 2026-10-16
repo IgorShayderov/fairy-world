@@ -2,6 +2,7 @@ import type { EquipmentType } from '@/modules/Inventory/types';
 
 const ITEM_TYPE_LOCALE_KEYS: Record<EquipmentType, string> = {
   WEAPON: 'sword',
+  AMMUNITION: 'ammunition',
   SHIELD: 'shield',
   BODY: 'armor',
   HELMET: 'helmet',
@@ -18,6 +19,10 @@ const ITEM_TYPE_LOCALE_KEYS: Record<EquipmentType, string> = {
 
 export const getItemTypeLocaleKey = (equipmentTypes: EquipmentType[], itemName?: string): string => {
   const name = (itemName ?? '').toLowerCase();
+  if (/\bcrossbow\b/.test(name)) return 'profile.items.crossbow';
+  if (/\bbow\b/.test(name)) return 'profile.items.bow';
+  if (/\barrows\b/.test(name)) return 'profile.items.arrows';
+  if (/\bbolts\b/.test(name)) return 'profile.items.bolts';
   if (name.includes('axe')) return 'profile.items.axe';
   if (name.includes('two-handed') || name.includes('two handed')) return 'profile.items.twoHandedSword';
   if (name.includes('dagger')) return 'profile.items.dagger';

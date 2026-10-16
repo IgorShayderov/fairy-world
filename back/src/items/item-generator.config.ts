@@ -29,6 +29,34 @@ export interface BaseItem {
 
 export const BASE_ITEMS: BaseItem[] = [
   {
+    name: 'Bow',
+    equipmentType: EquipmentType.WEAPON,
+    basePrice: 85,
+    icon: 'icon_bow.svg',
+    baseStats: { [StatType.DAMAGE]: 5 },
+  },
+  {
+    name: 'Crossbow',
+    equipmentType: EquipmentType.WEAPON,
+    basePrice: 100,
+    icon: 'icon_crossbow.svg',
+    baseStats: { [StatType.DAMAGE]: 6 },
+  },
+  {
+    name: 'Arrows',
+    equipmentType: EquipmentType.AMMUNITION,
+    basePrice: 25,
+    icon: 'icon_arrows.svg',
+    baseStats: { [StatType.DAMAGE]: 1 },
+  },
+  {
+    name: 'Bolts',
+    equipmentType: EquipmentType.AMMUNITION,
+    basePrice: 25,
+    icon: 'icon_bolts.svg',
+    baseStats: { [StatType.DAMAGE]: 1 },
+  },
+  {
     name: 'Sword',
     equipmentType: EquipmentType.WEAPON,
     basePrice: 50,

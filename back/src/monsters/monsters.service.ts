@@ -16,6 +16,7 @@ import { CRAFTING_MIN_LEVEL, rollCraftMaterialCode } from '../crafting/crafting.
 import { rollDeathCurse } from './death-curse';
 import { DungeonRunsService } from './dungeon-runs.service';
 import { monsterMovement } from './battle-movement';
+import { canShoot } from './battle-range';
 
 export { DEATH_CURSES, rollDeathCurse } from './death-curse';
 
@@ -24,6 +25,8 @@ export type BattleAction = 'ATTACK' | 'DEFEND' | 'POWER_ATTACK' | 'MOVE';
 const ARENA_COLUMNS = 8;
 const ARENA_ROWS = 5;
 type Combatant = {
+  missingAmmunition?: boolean;
+  attackRange?: number;
   movement: number;
   name: string;
   health: number;
@@ -392,9 +395,13 @@ export class MonstersService {
       throw new BadRequestException('You have already moved this turn');
     }
 
-    const canAttack = this.areAdjacent(battle.playerPosition, battle.monsterPosition);
+    const canAttack = this.playerCanAttack(battle);
     if ((action === 'ATTACK' || action === 'POWER_ATTACK') && !canAttack) {
-      throw new BadRequestException('Move next to the enemy before attacking');
+      throw new BadRequestException(
+        (battle.player.attackRange ?? 1) > 1
+          ? 'Enemy is outside attack range or the shot is blocked'
+          : 'Move next to the enemy before attacking',
+      );
     }
 
     battle.events = battle.playerMovedThisTurn
@@ -509,6 +516,8 @@ export class MonstersService {
       goldBonusPercent: player.rewardBonuses.goldPercent,
       canRetreat,
       player: {
+        attackRange: player.attackRange,
+        missingAmmunition: player.missingAmmunition,
         movement: player.properties.find((entry) => entry.name === 'MOVEMENT')?.value ?? 3,
         name: player.name ?? 'Player',
         health: playerHealth,
@@ -584,10 +593,18 @@ export class MonstersService {
                 battle.blockedCells,
               )
             : [],
-        canAttack: battle.status === 'ACTIVE' && this.areAdjacent(battle.playerPosition, battle.monsterPosition),
+        canAttack: battle.status === 'ACTIVE' && this.playerCanAttack(battle),
+        playerAttackRange: battle.player.attackRange ?? 1,
         playerHasMoved: battle.playerMovedThisTurn,
       },
     };
+  }
+
+  private playerCanAttack(battle: Battle) {
+    const range = battle.player.attackRange ?? 1;
+    return range > 1
+      ? canShoot(battle.playerPosition, battle.monsterPosition, ARENA_COLUMNS, range, battle.blockedCells)
+      : this.areAdjacent(battle.playerPosition, battle.monsterPosition);
   }
 
   private arenaNeighbors(cell: number) {

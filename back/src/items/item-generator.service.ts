@@ -52,7 +52,8 @@ export class ItemGeneratorService {
 
     const rarity = options.rarity ?? this.generateRarity();
 
-    const modifiers = this.generateModifiers(baseItem.equipmentType, rarity, level);
+    const ammunition = baseItem.equipmentType === EquipmentType.AMMUNITION;
+    const modifiers = ammunition ? [] : this.generateModifiers(baseItem.equipmentType, rarity, level);
 
     const name = this.generateName(baseItem, rarity, modifiers);
 
@@ -63,7 +64,12 @@ export class ItemGeneratorService {
 
     // Base характеристики предмета
     for (const [stat, value] of Object.entries(baseItem.baseStats ?? {})) {
-      stats.set(stat as StatType, this.scaleBaseValue(value, level));
+      // Quivers are permanent equipment, with modest bonuses rather than weapon-sized scaling.
+      const ammoBonus = Math.min(
+        5,
+        1 + Math.floor((level - 1) / 15) + (rarity === ItemRarity.UNIQUE ? 2 : rarity === ItemRarity.RARE ? 1 : 0),
+      );
+      stats.set(stat as StatType, ammunition ? ammoBonus : this.scaleBaseValue(value, level));
     }
 
     // Random affixes
@@ -267,6 +273,9 @@ export class ItemGeneratorService {
   }
 
   private generateDescription(rarity: ItemRarity, baseItem: BaseItem, level: number): string {
+    if (baseItem.equipmentType === EquipmentType.AMMUNITION) {
+      return `${rarity} level ${level} ${baseItem.name.toLowerCase()}. Second-hand slot only. Infinite ammunition; never consumed. Use with a matching ${baseItem.name === 'Arrows' ? 'bow' : 'crossbow'}.`;
+    }
     return `${rarity} level ${level} ${baseItem.name.toLowerCase()}.`;
   }
 

@@ -10,13 +10,13 @@ import { STARTING_ATTRIBUTE_VALUE } from './player-defaults';
 import { requiredPlayerLevel } from './level-progression';
 import { getPotionEffect, getPotionRequiredLevel, POTION_BUFF_DURATION_MS } from '../items/potion-effects';
 import { CRAFTING_MIN_LEVEL } from '../crafting/crafting.catalog';
-import { isTwoHandedWeapon } from '../items/weapon-types';
+import { isTwoHandedWeapon, matchingAmmunition, rangedWeapon } from '../items/weapon-types';
 
 const SLOT_TYPES: Record<EquipmentSlotId, EquipmentType[]> = {
   head: [EquipmentType.HELMET],
   body: [EquipmentType.BODY],
   'left-hand': [EquipmentType.WEAPON],
-  'right-hand': [EquipmentType.WEAPON, EquipmentType.SHIELD],
+  'right-hand': [EquipmentType.WEAPON, EquipmentType.SHIELD, EquipmentType.AMMUNITION],
   hands: [EquipmentType.GLOVES],
   legs: [EquipmentType.LEGS],
   feet: [EquipmentType.BOOTS],
@@ -149,7 +149,7 @@ export class UsersService {
         if (!source.item.equipmentType.some((type) => SLOT_TYPES[dto.slot].includes(type))) {
           throw new BadRequestException('Item cannot be equipped in this slot');
         }
-        if (isTwoHandedWeapon(source.item.name) && dto.slot !== 'left-hand') {
+        if ((isTwoHandedWeapon(source.item.name) || rangedWeapon(source.item.name)) && dto.slot !== 'left-hand') {
           throw new BadRequestException('Two-handed weapons must be equipped in the left hand');
         }
 
@@ -158,12 +158,19 @@ export class UsersService {
           include: { item: true },
         });
 
-        if (dto.slot === 'left-hand' && isTwoHandedWeapon(source.item.name)) {
+        if (dto.slot === 'left-hand') {
           const rightHand = await tx.inventoryItem.findFirst({
             where: { gameProfileId: profile.id, isEquiped: true, slot: 'right-hand' },
-            select: { id: true, itemId: true, quantity: true },
+            include: { item: true },
           });
-          if (rightHand) {
+          const ammo = rightHand?.item?.equipmentType.includes(EquipmentType.AMMUNITION);
+          if (
+            rightHand &&
+            (isTwoHandedWeapon(source.item.name) ||
+              (rangedWeapon(source.item.name) &&
+                (!ammo || !matchingAmmunition(source.item.name, rightHand.item.name))) ||
+              (ammo && !matchingAmmunition(source.item.name, rightHand.item.name)))
+          ) {
             const backpackEntry = await tx.inventoryItem.findFirst({
               where: { gameProfileId: profile.id, itemId: rightHand.itemId, isEquiped: false },
               select: { id: true },
@@ -188,6 +195,13 @@ export class UsersService {
             where: { gameProfileId: profile.id, isEquiped: true, slot: 'left-hand' },
             include: { item: true },
           });
+          if (source.item.equipmentType.includes(EquipmentType.AMMUNITION)) {
+            if (!leftHand || !matchingAmmunition(leftHand.item.name, source.item.name)) {
+              throw new BadRequestException('Equip a matching bow for arrows or crossbow for bolts first');
+            }
+          } else if (leftHand && rangedWeapon(leftHand.item.name)) {
+            throw new BadRequestException('The second slot of a ranged weapon is reserved for matching ammunition');
+          }
           if (leftHand && isTwoHandedWeapon(leftHand.item.name)) {
             const backpackEntry = await tx.inventoryItem.findFirst({
               where: { gameProfileId: profile.id, itemId: leftHand.itemId, isEquiped: false },

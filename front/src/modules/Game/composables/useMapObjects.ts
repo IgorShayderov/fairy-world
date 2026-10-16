@@ -1209,18 +1209,23 @@ export function useMapObjects() {
       ctx.lineWidth = 1.75;
       ctx.stroke();
 
+      // Measure with the actual badge font and tracking before sizing its background.
+      ctx.font = '700 8px Inter, Arial, sans-serif';
+      ctx.letterSpacing = '1px';
+      const typeLabel = LANDMARK_VISUALS[landmark.type].label;
+      const typeWidth = Math.max(56, Math.ceil(ctx.measureText(typeLabel).width) + 20);
       ctx.fillStyle = landmark.accent;
       ctx.beginPath();
-      ctx.roundRect(landmark.x - 28, landmark.y - 84, 56, 14, 7);
+      ctx.roundRect(landmark.x - typeWidth / 2, landmark.y - 88, typeWidth, 18, 9);
       ctx.fill();
       ctx.strokeStyle = 'rgba(52, 48, 36, 0.5)';
       ctx.lineWidth = 1;
       ctx.stroke();
-      ctx.font = '700 8px Inter, Arial, sans-serif';
-      ctx.letterSpacing = '1px';
+      ctx.textBaseline = 'middle';
       ctx.fillStyle = '#173039';
-      ctx.fillText(LANDMARK_VISUALS[landmark.type].label, landmark.x, landmark.y - 74);
+      ctx.fillText(typeLabel, landmark.x, landmark.y - 79);
 
+      ctx.textBaseline = 'alphabetic';
       ctx.letterSpacing = '0px';
       ctx.font = '700 24px Georgia, serif';
       ctx.fillStyle = '#29271f';

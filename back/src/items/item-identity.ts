@@ -1,4 +1,6 @@
-// Presentation (name, icon, rarity, price, level) does not change equipment bonuses.
+import { rangedWeapon } from './weapon-types';
+
+// Ranged weapon and ammunition kinds affect combat even with identical bonuses.
 // Consumable effects are name-based, so they must never be merged across names.
 export function itemIdentity(item: {
   equipmentType: string[];
@@ -9,6 +11,13 @@ export function itemIdentity(item: {
 }) {
   return JSON.stringify([
     [...item.equipmentType].sort(),
+    item.equipmentType.includes('WEAPON')
+      ? rangedWeapon(item.name)
+      : item.equipmentType.includes('AMMUNITION')
+        ? /\bbolts\b/i.test(item.name)
+          ? 'BOLTS'
+          : 'ARROWS'
+        : null,
     item.isConsumable || item.equipmentType.some((type) => ['POTION', 'SCROLL', 'UNKNOWN'].includes(type))
       ? item.name
       : null,
