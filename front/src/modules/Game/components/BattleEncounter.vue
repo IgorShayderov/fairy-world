@@ -3,7 +3,7 @@
     class="absolute inset-0 z-40 flex items-center justify-center overflow-y-auto bg-[#06141d]/85 p-5 backdrop-blur-sm"
   >
     <section
-      class="encounter-panel flex max-h-full min-h-0 w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-[#ddbd6b]/45 text-white shadow-2xl"
+      class="encounter-panel flex max-h-full min-h-0 w-full max-w-6xl flex-col rounded-2xl border border-[#ddbd6b]/45 text-white shadow-2xl"
     >
       <header class="shrink-0 border-b border-[#ddbd6b]/20 px-6 py-4 text-center">
         <div class="text-[10px] font-bold tracking-[0.34em] text-[#efca72] uppercase">
@@ -19,13 +19,17 @@
           :battle="battle"
           :disabled="loading"
           :hand-mode="getBattlePlayerLoadout(currentUserStore.user?.equippedItems).handMode"
+          :mage-staff="getBattlePlayerLoadout(currentUserStore.user?.equippedItems).primaryWeapon === 'STAFF'"
           @busy="animating = $event"
+          @ready="onBattlefieldReady"
           @move="moveToCell"
           @attack="attackEnemy"
           @quick-battle="startQuickBattle"
           @fallback="
             mode = 'choose';
             animating = false;
+            battlefieldReady = false;
+            queuedSkill = null;
           "
         />
         <div class="battle-command-bar">
@@ -53,11 +57,24 @@
             }}
           </div>
         </div>
-        <div class="tactical-stat tactical-stat--player">
+        <div class="tactical-stat tactical-stat--player" aria-label="Player vitals">
           <strong>{{ playerName }}</strong>
           <span>{{ battle.player.health }} / {{ battle.player.maxHealth }} HP</span>
-          <small>{{ t('profile.propertyNames.MOVEMENT') }}: {{ battle.player.movement }}</small>
           <div><i :style="{ width: `${playerHealthPercent}%` }" /></div>
+          <template v-if="battle.skills">
+            <span class="mana-label">Mana</span>
+            <span class="mana-label">{{ battle.skills.mana }} / {{ battle.skills.maxMana }}</span>
+            <div
+              role="progressbar"
+              aria-label="Mana"
+              :aria-valuenow="battle.skills.mana"
+              :aria-valuemax="battle.skills.maxMana"
+              :aria-valuemin="0"
+            >
+              <i class="mana-fill" :style="{ width: `${manaPercent}%` }" />
+            </div>
+          </template>
+          <small>{{ t('profile.propertyNames.MOVEMENT') }}: {{ battle.player.movement }}</small>
         </div>
         <div class="tactical-stat tactical-stat--monster">
           <strong>{{ battle.monster.name }}</strong>
@@ -74,6 +91,8 @@
           :health="battle.player.health"
           :max-health="battle.player.maxHealth"
           :damage="battle.player.damage"
+          :mana="battle.skills?.mana"
+          :max-mana="battle.skills?.maxMana"
           color="player"
           :equipped-items="currentUserStore.user?.equippedItems"
           :attacking="loading"
@@ -91,7 +110,7 @@
         />
       </div>
 
-      <div class="min-h-0 flex-1 overflow-y-auto border-t border-[#ddbd6b]/15 bg-[#0b2029]/85 px-6 py-4">
+      <div class="encounter-log min-w-0 shrink-0 border-t border-[#ddbd6b]/15 bg-[#0b2029]/85 px-6 py-4">
         <h3 class="text-xs font-bold tracking-[0.16em] text-[#efca72] uppercase">
           {{ t('fantasy.encounter.combatLog') }}
         </h3>
@@ -193,7 +212,33 @@
         </p>
       </div>
 
-      <footer class="flex shrink-0 justify-end gap-3 border-t border-[#ddbd6b]/15 bg-[#081a23] px-6 py-4">
+      <section
+        v-if="mode === 'tactical' && battle.status === 'ACTIVE' && battle.skills?.abilities.length"
+        class="shrink-0 border-t border-[#a58aff]/25 bg-[#0b1c2c] px-6 py-3"
+        aria-label="Combat skills"
+      >
+        <div class="flex gap-3 overflow-x-auto">
+          <button
+            v-for="skill in battle.skills.abilities"
+            :key="skill.id"
+            class="flex min-w-40 items-center gap-3 rounded-xl border border-violet-300/30 bg-violet-300/5 px-4 py-3 text-left text-violet-100 hover:bg-violet-300/15 disabled:opacity-40"
+            :disabled="loading || !!skill.unavailable || battle.status !== 'ACTIVE'"
+            :title="skill.unavailable || skill.description"
+            @click="castSkill(skill.id)"
+          >
+            <QIcon :name="skill.icon" size="26px" /><span
+              ><strong class="block text-sm">{{ skill.name }}</strong
+              ><small class="block text-xs text-sky-200"
+                >{{ skill.manaCost }} mana ·
+                {{ skill.remainingCooldown ? `${skill.remainingCooldown} turns` : `Rank ${skill.rank}` }}</small
+              ></span
+            >
+            <QTooltip>{{ skill.description }}<br />{{ skill.unavailable || 'Ready' }}</QTooltip>
+          </button>
+        </div>
+      </section>
+
+      <footer class="flex shrink-0 flex-wrap justify-end gap-3 border-t border-[#ddbd6b]/15 bg-[#081a23] px-6 py-4">
         <button
           v-if="battle.status === 'ACTIVE' && battle.canRetreat"
           class="rounded-lg border border-white/15 px-5 py-2.5 text-xs font-bold tracking-wider text-[#b8cbc6] uppercase hover:bg-white/5 disabled:opacity-50"
@@ -241,18 +286,6 @@
             @click="emit('tactical-action', { action: 'DEFEND' })"
           >
             <QIcon name="shield" size="19px" />{{ t('fantasy.encounter.defend') }}
-          </button>
-          <button
-            class="battle-action battle-action--power"
-            :disabled="loading || battle.powerAttackCooldown > 0 || !battle.arena.canAttack"
-            @click="emit('tactical-action', { action: 'POWER_ATTACK' })"
-          >
-            <QIcon name="local_fire_department" size="19px" />
-            {{
-              battle.powerAttackCooldown > 0
-                ? t('fantasy.encounter.powerCooldown', { turns: battle.powerAttackCooldown })
-                : t('fantasy.encounter.powerAttack')
-            }}
           </button>
           <button
             class="battle-action battle-action--attack"
@@ -413,7 +446,7 @@
 
 <script setup lang="ts">
 import { useTranslation } from 'i18next-vue';
-import { Notify, QIcon } from 'quasar';
+import { Notify, QIcon, QTooltip } from 'quasar';
 import { computed, defineComponent, h, ref, watch } from 'vue';
 
 import type { InventoryItemType } from '@/modules/Inventory/types';
@@ -441,6 +474,8 @@ const emit = defineEmits<{
 const { t } = useTranslation();
 const mode = ref<'choose' | 'quick' | 'tactical'>('choose');
 const animating = ref(false);
+const battlefieldReady = ref(false);
+const queuedSkill = ref<string | null>(null);
 const loading = computed(() => props.loading || animating.value);
 
 watch(
@@ -448,6 +483,8 @@ watch(
   () => {
     mode.value = 'choose';
     animating.value = false;
+    battlefieldReady.value = false;
+    queuedSkill.value = null;
   }
 );
 
@@ -466,11 +503,32 @@ const attackEnemy = () => {
   if (loading.value || !props.battle.arena.canAttack || props.battle.status !== 'ACTIVE') return;
   emit('tactical-action', { action: 'ATTACK' });
 };
+const castSkill = (skillId: string) => {
+  if (loading.value || props.battle.status !== 'ACTIVE') return;
+  const skill = props.battle.skills?.abilities.find((entry) => entry.id === skillId);
+  if (!skill || skill.unavailable) return;
+  if (mode.value !== 'tactical' || !battlefieldReady.value) {
+    queuedSkill.value = skillId;
+    mode.value = 'tactical';
+    return;
+  }
+  mode.value = 'tactical';
+  emit('tactical-action', { action: 'SKILL', skillId });
+};
+const onBattlefieldReady = () => {
+  battlefieldReady.value = true;
+  const skillId = queuedSkill.value;
+  queuedSkill.value = null;
+  if (skillId) castSkill(skillId);
+};
 const playerHealthPercent = computed(() =>
   Math.max(0, Math.min(100, (props.battle.player.health / props.battle.player.maxHealth) * 100))
 );
 const monsterHealthPercent = computed(() =>
   Math.max(0, Math.min(100, (props.battle.monster.health / props.battle.monster.maxHealth) * 100))
+);
+const manaPercent = computed(() =>
+  Math.max(0, Math.min(100, ((props.battle.skills?.mana ?? 0) / Math.max(1, props.battle.skills?.maxMana ?? 0)) * 100))
 );
 const startQuickBattle = () => {
   if (!canQuickBattle.value || loading.value) return;
@@ -562,6 +620,10 @@ const statusTitle = computed(() => {
 });
 
 const eventText = (event: BattleState['events'][number]) => {
+  if (event.skillName) {
+    if (event.healing !== undefined) return `${event.skillName}: restored ${event.healing} HP.`;
+    return `${event.skillName}: ${event.dodged ? 'enemy dodged.' : event.blocked ? 'enemy blocked.' : `${event.damage} damage${event.critical ? ' (critical)' : ''}.`}`;
+  }
   if (event.action === 'MOVE') {
     return t(event.actor === 'PLAYER' ? 'fantasy.encounter.youMove' : 'fantasy.encounter.enemyMoves');
   }
@@ -588,6 +650,8 @@ const CombatantCard = defineComponent({
     health: { type: Number, required: true },
     maxHealth: { type: Number, required: true },
     damage: { type: Number, required: true },
+    mana: { type: Number, default: undefined },
+    maxMana: { type: Number, default: undefined },
     color: { type: String, required: true },
     equippedItems: { type: Array, default: () => [] },
     monsterType: { type: String, default: '' },
@@ -595,43 +659,84 @@ const CombatantCard = defineComponent({
   },
   setup(card) {
     return () =>
-      h('div', { class: 'flex flex-col items-center' }, [
-        h(
-          'div',
-          {
-            class: `combatant combatant-${card.color} relative overflow-hidden flex items-center justify-center p-2 rounded-2xl`,
-          },
-          [
-            card.color === 'player'
-              ? h(BattlePlayerModel, {
-                  equippedItems: card.equippedItems,
-                  class: `w-full h-full object-contain ${card.attacking ? 'unit-attacking' : ''}`,
-                })
-              : h(BattleMonsterModel, {
-                  src: getBattleMonsterVisual(card.monsterType, card.name),
-                  attacking: card.attacking,
-                  delay: 0,
-                  class: 'w-full h-full object-contain',
-                }),
-          ]
-        ),
-        h('div', { class: 'mt-3 text-sm font-bold tracking-wide' }, card.name),
-        h('div', { class: 'mt-2 h-3 w-full max-w-52 overflow-hidden rounded-full bg-black/40' }, [
-          h('div', {
-            class:
-              card.color === 'player' ? 'h-full bg-emerald-400 transition-all' : 'h-full bg-red-400 transition-all',
-            style: { width: `${Math.max(0, (card.health / card.maxHealth) * 100)}%` },
-          }),
-        ]),
-        h('div', { class: 'mt-1 text-xs text-white/75' }, `${card.health} / ${card.maxHealth} HP · ${card.damage} DMG`),
-      ]);
+      h(
+        'div',
+        {
+          class: 'flex flex-nowrap flex-col items-center',
+          'aria-label': card.color === 'player' ? 'Player vitals' : 'Monster vitals',
+        },
+        [
+          h(
+            'div',
+            {
+              class: `combatant combatant-${card.color} relative overflow-hidden flex items-center justify-center p-2 rounded-2xl`,
+            },
+            [
+              card.color === 'player'
+                ? h(BattlePlayerModel, {
+                    equippedItems: card.equippedItems,
+                    class: `w-full h-full object-contain ${card.attacking ? 'unit-attacking' : ''}`,
+                  })
+                : h(BattleMonsterModel, {
+                    src: getBattleMonsterVisual(card.monsterType, card.name),
+                    attacking: card.attacking,
+                    delay: 0,
+                    class: 'w-full h-full object-contain',
+                  }),
+            ]
+          ),
+          h('div', { class: 'mt-3 text-sm font-bold tracking-wide' }, card.name),
+          h('div', { class: 'mt-2 h-3 w-full max-w-52 overflow-hidden rounded-full bg-black/40' }, [
+            h('div', {
+              class:
+                card.color === 'player' ? 'h-full bg-emerald-400 transition-all' : 'h-full bg-red-400 transition-all',
+              style: { width: `${Math.max(0, (card.health / card.maxHealth) * 100)}%` },
+            }),
+          ]),
+          h(
+            'div',
+            { class: 'mt-1 text-xs text-white/75' },
+            `${card.health} / ${card.maxHealth} HP · ${card.damage} DMG`
+          ),
+          ...(card.mana !== undefined && card.maxMana !== undefined
+            ? [
+                h(
+                  'div',
+                  {
+                    class: 'mt-2 h-1.5 w-full max-w-52 overflow-hidden rounded-full bg-black/40',
+                    role: 'progressbar',
+                    'aria-label': 'Mana',
+                    'aria-valuenow': card.mana,
+                    'aria-valuemax': card.maxMana,
+                    'aria-valuemin': 0,
+                  },
+                  [
+                    h('div', {
+                      class: 'h-full bg-sky-400 transition-all',
+                      style: { width: `${Math.max(0, Math.min(100, (card.mana / Math.max(1, card.maxMana)) * 100))}%` },
+                    }),
+                  ]
+                ),
+                h('div', { class: 'mt-1 text-xs text-sky-200' }, `${card.mana} / ${card.maxMana} Mana`),
+              ]
+            : []),
+        ]
+      );
   },
 });
 </script>
 
 <style scoped>
 .encounter-panel {
+  /* Quasar's .flex wraps by default; a height-constrained column must not wrap loot into a second column. */
+  flex-wrap: nowrap;
+  overflow-x: hidden;
+  overflow-y: auto;
   background: linear-gradient(145deg, rgb(14 38 47 / 98%), rgb(20 28 36 / 98%));
+}
+.encounter-panel > * {
+  flex-shrink: 0;
+  min-width: 0;
 }
 .battlefield-grid {
   background:
@@ -639,8 +744,8 @@ const CombatantCard = defineComponent({
     radial-gradient(circle at 75% 50%, rgb(198 77 59 / 18%), transparent 30%), #102831;
 }
 .tactical-battlefield {
-  height: clamp(340px, 48vh, 520px);
-  min-height: 340px;
+  height: clamp(220px, 42vh, 460px);
+  min-height: 220px;
   background: #18292c;
 }
 .battle-haze {
@@ -850,6 +955,12 @@ const CombatantCard = defineComponent({
 .tactical-stat--monster i {
   margin-left: auto;
   background: linear-gradient(90deg, #f57555, #b72e2e);
+}
+.tactical-stat .mana-fill {
+  background: linear-gradient(90deg, #0284c7, #38bdf8);
+}
+.tactical-stat .mana-label {
+  color: #a5dfff;
 }
 .turn-standard {
   display: flex;

@@ -229,6 +229,7 @@ const modules = {
     error: 'Не удалось выполнить действие клана.',
   },
   menu: {
+    skills: 'Навыки',
     pvp: 'PvP Арена',
     clans: 'Кланы',
     craft: 'Ремесло',

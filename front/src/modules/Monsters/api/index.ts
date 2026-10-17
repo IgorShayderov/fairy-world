@@ -1,5 +1,6 @@
 import type { InventoryEntry } from '@/modules/Inventory/types';
 
+import type { BattleSkills, SkillEffect } from '@/modules/Skills/api';
 import routes from '@/routes';
 import { api } from '@shared/api';
 
@@ -59,6 +60,10 @@ export interface BattleState {
     rewardExperience: number;
   };
   events: Array<{
+    skillId?: string;
+    skillName?: string;
+    effect?: SkillEffect;
+    healing?: number;
     actor: 'PLAYER' | 'MONSTER';
     damage: number;
     critical: boolean;
@@ -93,6 +98,7 @@ export interface BattleState {
   };
   canRetreat: boolean;
   powerAttackCooldown: number;
+  skills?: BattleSkills;
   arena: {
     columns: number;
     rows: number;
@@ -108,10 +114,11 @@ export interface BattleState {
   };
 }
 
-export type BattleAction = 'ATTACK' | 'DEFEND' | 'POWER_ATTACK' | 'MOVE';
+export type BattleAction = 'ATTACK' | 'DEFEND' | 'POWER_ATTACK' | 'MOVE' | 'SKILL';
 export interface TacticalBattleAction {
   action: BattleAction;
   targetCell?: number;
+  skillId?: string;
 }
 
 export type DungeonOpponentStatus = 'AVAILABLE' | 'LOCKED' | 'DEFEATED';
@@ -130,6 +137,7 @@ export interface DungeonOpponent {
 }
 
 export interface DungeonRunState {
+  skills?: BattleSkills;
   id: string;
   dungeon: string;
   status: 'ACTIVE' | 'VICTORY' | 'DEFEAT';
@@ -271,8 +279,8 @@ export const startDungeonParty = async (partyId: string): Promise<DungeonRunStat
   return data;
 };
 
-export const attackDungeonOpponent = async (runId: string, opponentId: string): Promise<DungeonRunState> => {
-  const { data } = await api.post<DungeonRunState>(routes.api.monsters.dungeonOpponentAttackPath(runId, opponentId));
+export const attackDungeonOpponent = async (runId: string, opponentId: string, skillId?: string): Promise<DungeonRunState> => {
+  const { data } = await api.post<DungeonRunState>(routes.api.monsters.dungeonOpponentAttackPath(runId, opponentId), skillId ? { skillId } : {});
   return data;
 };
 

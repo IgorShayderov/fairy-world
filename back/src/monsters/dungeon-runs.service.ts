@@ -15,8 +15,17 @@ import { rollDeathCurse } from './death-curse';
 import type { GeneratedMonster } from './monster-generator.service';
 import { MonsterGeneratorService } from './monster-generator.service';
 import { rollDungeonLootRarity } from './monster-loot';
+import {
+  castDungeonSkill,
+  dungeonSkillSnapshot,
+  dungeonSkillView,
+  finishDungeonSkillTurn,
+  type DungeonSkillState,
+  type SkillEventFields,
+} from '../skills/dungeon-skills';
 
 type Combatant = {
+  skillState?: DungeonSkillState;
   name: string;
   health: number;
   maxHealth: number;
@@ -28,7 +37,7 @@ type Combatant = {
   criticalDamage: number;
 };
 
-type DungeonEvent = {
+type DungeonEvent = SkillEventFields & {
   actor: 'PLAYER' | 'MONSTER';
   damage: number;
   critical: boolean;
@@ -78,6 +87,7 @@ type DungeonPartyLoot = {
   deadlineAt?: string;
 };
 export type DungeonPartyMemberView = {
+  skillState?: DungeonSkillState;
   profileId: number;
   userId: number;
   name: string;
@@ -106,6 +116,7 @@ type PartyWithMembers = Prisma.DungeonPartyGetPayload<{
   include: { members: { include: { gameProfile: { include: { user: true } } } } };
 }>;
 export type DungeonRunState = {
+  skills?: ReturnType<typeof dungeonSkillView>;
   id: string;
   dungeon: string;
   status: 'ACTIVE' | 'VICTORY' | 'DEFEAT';
@@ -422,7 +433,7 @@ export class DungeonRunsService {
     });
   }
 
-  async attack(userId: number, runId: string, opponentId: string): Promise<DungeonRunState> {
+  async attack(userId: number, runId: string, opponentId: string, skillId?: string): Promise<DungeonRunState> {
     return this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${runId}))`;
       const profile = await tx.gameProfile.findUnique({ where: { userId }, include: { dungeonRun: true } });
@@ -433,12 +444,15 @@ export class DungeonRunsService {
         }
         const partyRun = await tx.dungeonRun.findUnique({ where: { id: runId } });
         if (!partyRun) throw new NotFoundException('Active dungeon run not found');
-        return this.attackParty(tx, profile.id, party, this.parseState(partyRun.state), opponentId);
+        const partyState = this.parseState(partyRun.state);
+        await this.hydrateSkills(partyState, userId);
+        return this.attackParty(tx, profile.id, party, partyState, opponentId, skillId);
       }
       if (!profile?.dungeonRun || profile.dungeonRun.id !== runId) {
         throw new NotFoundException('Active dungeon run not found');
       }
       const state = this.parseState(profile.dungeonRun.state);
+      await this.hydrateSkills(state, userId);
       if (state.status !== 'ACTIVE') throw new BadRequestException('Dungeon run has already ended');
       const opponent = state.opponents.find(({ id }) => id === opponentId);
       if (!opponent) throw new NotFoundException('Dungeon opponent not found');
@@ -455,11 +469,25 @@ export class DungeonRunsService {
 
       state.lastBattleResult = null;
       state.lastExperience = 0;
-      this.strike(state.player, opponent.monster, 'PLAYER', state.latestEvents);
+      if (skillId) {
+        castDungeonSkill(
+          state.player.skillState,
+          skillId,
+          state.player,
+          opponent.monster,
+          state.latestEvents,
+          (attacker, target) => this.strike(attacker, target, 'PLAYER', state.latestEvents, state.player.name),
+          state.player.name,
+        );
+      } else {
+        this.strike(state.player, opponent.monster, 'PLAYER', state.latestEvents);
+      }
       if (opponent.monster.health > 0) {
         this.strike(opponent.monster, state.player, 'MONSTER', state.latestEvents);
       }
       state.latestEvents = state.latestEvents.slice(-200);
+      finishDungeonSkillTurn(state.player.skillState);
+      state.skills = dungeonSkillView(state.player.skillState, state.player);
 
       if (state.player.health <= 0) {
         state.lastBattleResult = { winner: 'MONSTER', winnerName: opponent.monster.name };
@@ -727,6 +755,7 @@ export class DungeonRunsService {
     party: { id: string; members: Array<{ gameProfileId: number }> },
     state: DungeonRunState,
     opponentId: string,
+    skillId?: string,
   ): Promise<DungeonRunState> {
     if (state.status !== 'ACTIVE') throw new BadRequestException('Dungeon run has already ended');
     const opponent = state.opponents.find(({ id }) => id === opponentId);
@@ -749,7 +778,22 @@ export class DungeonRunsService {
     }
     state.lastBattleResult = null;
     const attacker = this.partyMemberCombatant(actingMember);
-    this.strike(attacker, opponent.monster, 'PLAYER', state.latestEvents, actingMember.name);
+    if (skillId) {
+      castDungeonSkill(
+        actingMember.skillState,
+        skillId,
+        attacker,
+        opponent.monster,
+        state.latestEvents,
+        (source, target) => this.strike(source, target, 'PLAYER', state.latestEvents, actingMember.name),
+        actingMember.name,
+      );
+      actingMember.health = attacker.health;
+    } else {
+      this.strike(attacker, opponent.monster, 'PLAYER', state.latestEvents, actingMember.name);
+    }
+    finishDungeonSkillTurn(actingMember.skillState);
+    if (actingMember.skillState) actingMember.mana = actingMember.skillState.mana;
 
     if (opponent.monster.health > 0) {
       const members = state.party!.members;
@@ -950,6 +994,8 @@ export class DungeonRunsService {
       if (!run) return null;
       const state = this.parseState(run.state);
       let changed = await this.hydratePartyCombatState(state);
+      const profile = await tx.gameProfile.findUnique({ where: { id: profileId }, select: { userId: true } });
+      if (profile && (await this.hydrateSkills(state, profile.userId))) changed = true;
       if (state.partyLoot?.status === 'CHOOSING' && !state.partyLoot.deadlineAt) {
         state.partyLoot.deadlineAt = new Date(Date.now() + 60_000).toISOString();
         changed = true;
@@ -994,6 +1040,7 @@ export class DungeonRunsService {
         player.rewardBonuses.experiencePercent,
       goldBonusPercent: player.rewardBonuses.goldPercent,
       player: {
+        skillState: dungeonSkillSnapshot(player),
         name: player.name ?? `Player ${userId}`,
         health,
         maxHealth: health,
@@ -1005,6 +1052,7 @@ export class DungeonRunsService {
         criticalDamage: property(StatType.CRIT_DAMAGE),
       },
       opponents,
+      skills: dungeonSkillView(dungeonSkillSnapshot(player), { health, maxHealth: health, damage: 0, defense: 0 }),
     };
   }
 
@@ -1059,6 +1107,7 @@ export class DungeonRunsService {
       const mana = Math.max(0, property(player, StatType.MANA));
       return {
         profileId: profile.id,
+        skillState: dungeonSkillSnapshot(player),
         userId: profile.userId,
         name: profile.user.name,
         level: profile.level,
@@ -1207,8 +1256,27 @@ export class DungeonRunsService {
   }
 
   private renderPartyRun(state: DungeonRunState, profileId: number): DungeonRunState {
-    if (!state.party) return state;
-    return { ...state, rewards: state.partyRewards?.[String(profileId)] ?? null };
+    if (!state.party) return { ...state, skills: dungeonSkillView(state.player.skillState, state.player) };
+    const member = state.party.members.find((entry) => entry.profileId === profileId);
+    return {
+      ...state,
+      skills: member ? dungeonSkillView(member.skillState, this.partyMemberCombatant(member)) : undefined,
+      rewards: state.partyRewards?.[String(profileId)] ?? null,
+    };
+  }
+
+  private async hydrateSkills(state: DungeonRunState, userId: number) {
+    const fighter = state.party ? state.party.members.find((member) => member.userId === userId) : state.player;
+    if (!fighter || fighter.skillState) return false;
+    const user = await this.usersService.findCurrentUser(userId);
+    if (!user?.gameProfile) return false;
+    fighter.skillState = dungeonSkillSnapshot(UserView.renderCurrent(user));
+    if (state.party && 'mana' in fighter && fighter.mana !== undefined) fighter.skillState.mana = fighter.mana;
+    state.skills = dungeonSkillView(
+      fighter.skillState,
+      state.party ? this.partyMemberCombatant(fighter as DungeonPartyMemberView) : state.player,
+    );
+    return true;
   }
 
   private async assertCanJoinParty(

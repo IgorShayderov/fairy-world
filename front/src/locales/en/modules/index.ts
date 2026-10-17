@@ -228,6 +228,7 @@ const modules = {
     error: 'The clan action could not be completed.',
   },
   menu: {
+    skills: 'Skills',
     pvp: 'PvP Arena',
     clans: 'Clans',
     craft: 'Craft',

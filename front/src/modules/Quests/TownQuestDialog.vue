@@ -7,55 +7,61 @@
       }
     "
   >
-    <div class="w-full max-w-2xl rounded-xl bg-white p-5 text-gray-800">
-      <div class="mb-4 flex items-center justify-between gap-4">
-        <h2 class="text-lg font-semibold">{{ t('menu.quests') }} — {{ townName }}</h2>
-        <button class="text-sm text-blue-700 underline" @click="emit('close')">
+    <div class="quest-board quest-theme w-full max-w-2xl rounded-2xl p-6">
+      <div class="mb-5 flex items-center justify-between gap-4 border-b border-[#d9bb65]/25 pb-5">
+        <h2 class="flex items-center gap-3 font-serif text-2xl text-[#fff0bd]">
+          <QIcon name="assignment" class="text-[#efca72]" />{{ t('menu.quests') }} — {{ townName }}
+        </h2>
+        <button class="quest-button quest-button--secondary shrink-0" @click="emit('close')">
           {{ t('fantasy.landmark.leave') }}
         </button>
       </div>
-      <p v-if="error" role="alert" class="mb-3 text-sm text-red-700">
+      <p v-if="error" role="alert" class="mb-3 text-sm text-red-300">
         {{ error }} <button class="underline" :disabled="pending" @click="load">{{ t('quests.retry') }}</button>
       </p>
       <p v-if="loading" role="status" class="text-sm">{{ t('shop.loading') }}</p>
       <template v-else-if="journal">
         <p v-if="!journal.town" class="text-sm">{{ t('quests.visitTown') }}</p>
         <template v-else>
-          <p class="mb-4 text-xs text-gray-500">{{ t('quests.dailyBoard') }}</p>
+          <p class="mb-5 text-sm leading-relaxed text-[#9fb9bc]">{{ t('quests.dailyBoard') }}</p>
           <div class="mb-4 flex items-center justify-between gap-3 text-xs">
-            <span>{{ t('quests.boardTimer', { time: remaining }) }}</span>
+            <span class="text-[#9fb9bc]"
+              ><QIcon name="schedule" /> {{ t('quests.boardTimer', { time: remaining }) }}</span
+            >
             <button
-              class="rounded bg-violet-700 px-3 py-2 text-white disabled:opacity-50"
+              class="quest-button quest-button--secondary"
               :disabled="pending || (store.user?.gems ?? 0) < 30"
               @click="refresh"
             >
               {{ t('quests.refresh') }}
             </button>
           </div>
-          <p class="mb-3 text-xs">{{ t('quests.activeLimit', { count: journal.active.length }) }}</p>
-          <p v-if="!offers.length" class="text-sm text-gray-500">{{ t('quests.noOffers') }}</p>
-          <article
-            v-for="quest in offers"
-            :key="quest.id"
-            class="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-xs"
-          >
-            <h3 class="text-sm leading-snug font-semibold">{{ title(quest) }}</h3>
+          <p class="mb-4 text-xs font-semibold tracking-wide text-[#efca72]">
+            {{ t('quests.activeLimit', { count: journal.active.length }) }}
+          </p>
+          <p v-if="!offers.length" class="text-sm text-[#9fb9bc]">{{ t('quests.noOffers') }}</p>
+          <article v-for="quest in offers" :key="quest.id" class="quest-card mb-4 rounded-xl p-5 text-sm">
+            <h3 class="flex items-center gap-2 font-serif text-lg leading-snug text-[#fff0bd]">
+              <QIcon :name="quest.destinationTownId ? 'mail_outline' : 'my_location'" class="text-[#efca72]" />{{
+                title(quest)
+              }}
+            </h3>
             <p class="mt-2">{{ description(quest) }}</p>
-            <p v-if="quest.huntingLocation" class="mt-2 text-blue-700">{{ huntingLocation(quest) }}</p>
-            <p class="mt-2 text-amber-800">
+            <p v-if="quest.huntingLocation" class="mt-3 text-[#84c8cf]">{{ huntingLocation(quest) }}</p>
+            <p class="mt-4 font-semibold text-[#efca72]">
               {{ t('quests.reward', { gold: quest.rewardGold, experience: quest.rewardExperience ?? 0 }) }}
             </p>
-            <p v-if="!quest.destinationTownId" class="mt-1">{{ t('quests.itemChance') }}</p>
+            <p v-if="!quest.destinationTownId" class="mt-2 text-xs text-[#9fb9bc]">{{ t('quests.itemChance') }}</p>
             <div class="mt-3 flex gap-3">
               <button
-                class="rounded bg-blue-600 px-3 py-2 text-white disabled:opacity-50"
+                class="quest-button quest-button--primary"
                 :disabled="pending || journal.active.length >= 5"
                 @click="accept(quest.id)"
               >
                 {{ t('quests.accept') }}
               </button>
               <button
-                class="rounded border border-gray-300 px-3 py-2 disabled:opacity-50"
+                class="quest-button quest-button--secondary"
                 :disabled="pending"
                 @click="dismissed.push(quest.id)"
               >
@@ -65,7 +71,7 @@
           </article>
           <button
             v-if="dismissed.length"
-            class="text-xs text-blue-700 underline"
+            class="quest-button quest-button--secondary text-xs"
             :disabled="pending"
             @click="dismissed = []"
           >
@@ -79,7 +85,8 @@
 
 <script setup lang="ts">
 import { useTranslation } from 'i18next-vue';
-import { QDialog } from 'quasar';
+import { QDialog, QIcon } from 'quasar';
+import './quest-theme.css';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import type { Quest, QuestJournal } from './api';

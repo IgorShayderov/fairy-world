@@ -16,6 +16,8 @@ import { townAt } from '../locations/towns';
 import { shieldBlockChance } from '../items/shield-block';
 import { matchingAmmunition, rangedWeapon } from '../items/weapon-types';
 import { playerMovement } from '../monsters/battle-movement';
+import { SKILLS, skillRanks, skillPoints } from '../skills/skills.catalog';
+import { robeManaReduction } from '../items/mage-equipment';
 import { experienceToNextLevel, MAX_PLAYER_LEVEL } from './level-progression';
 import {
   ATTRIBUTE_EFFECTS,
@@ -60,6 +62,7 @@ type CurrentUserModel = Omit<CurrentUserBase, 'gameProfile'> & {
   gameProfile:
     | (NonNullable<CurrentUserBase['gameProfile']> & {
         premiumAccount?: { active: boolean; expiresAt: Date } | null;
+        skillTree?: { class: string; ranks: unknown } | null;
       })
     | null;
 };
@@ -88,6 +91,7 @@ export class UserView {
       (banner) => banner.code === profile?.clanMembership?.clan.activeBannerCode,
     );
     const playerLevel = profile?.level ?? 1;
+    const ranks = skillRanks(profile?.skillTree?.class, profile?.skillTree?.ranks);
     const entries = profile?.inventory ?? [];
     const equippedEntries = entries.filter((entry) => entry.isEquiped);
     const mainHand = equippedEntries.find((entry) => entry.slot === 'left-hand');
@@ -100,6 +104,12 @@ export class UserView {
     const missingAmmunition =
       !!ranged && !activeEquipment.some((entry) => entry.item.equipmentType.includes('AMMUNITION'));
     const blockChance = equippedEntries.reduce((highest, entry) => Math.max(highest, shieldBlockChance(entry.item)), 0);
+    const manaCostReduction = Math.min(
+      40,
+      activeEquipment
+        .filter((entry) => entry.slot === 'body' && entry.item.equipmentType.includes('BODY'))
+        .reduce((sum, entry) => sum + robeManaReduction(entry.item), 0),
+    );
     const renderEntry = (entry: (typeof entries)[number]) => {
       const catalyst = CRAFT_ITEMS.find(
         (definition) => definition.kind === CraftItemKind.UPGRADE && definition.name === entry.item.name,
@@ -256,6 +266,17 @@ export class UserView {
       property.value += buff.value;
     }
 
+    for (const skill of SKILLS) {
+      if (!skill.stat || !ranks[skill.id]) continue;
+      if (skill.id === 'scout-precision' && (!ranged || missingAmmunition)) continue;
+      const property = properties.get(skill.stat);
+      if (property) {
+        const bonus = Math.round((property.value * (skill.percentPerRank ?? 0) * ranks[skill.id]) / 100);
+        property.buffBonus = (property.buffBonus ?? 0) + bonus;
+        property.value += bonus;
+      }
+    }
+
     if (missingAmmunition) {
       const damage = properties.get(StatType.DAMAGE)!;
       const reducedDamage = Math.max(1, Math.floor(damage.value * 0.25));
@@ -331,6 +352,12 @@ export class UserView {
         !!profile?.dungeonRun || (!!profile?.dungeonParty && profile.dungeonParty.party.status !== 'WAITING'),
       dungeonCooldowns: (profile?.dungeonVisits ?? []).map(({ dungeon, nextEntryAt }) => ({ dungeon, nextEntryAt })),
       level: playerLevel,
+      skills: { class: profile?.skillTree?.class ?? null, ranks, points: skillPoints(playerLevel, ranks) },
+      manaCostReduction,
+      spellPower: Math.round(
+        (10 + playerLevel * 2 + (attributes.get(AttributeType.WISDOM)?.value ?? 0) * 2) *
+          (1 + (ranks['mage-focus'] ?? 0) * 0.03),
+      ),
       freeAttributes: profile?.freeAttributes ?? 0,
       mapPosition: {
         x: profile?.mapPositionX ?? 1470,
@@ -348,6 +375,14 @@ export class UserView {
       attributes: [...attributes.values()],
       properties: [
         ...renderedProperties,
+        {
+          name: 'MANA_COST_REDUCTION',
+          description: 'Reduces Mage spell mana costs (%).',
+          baseValue: 0,
+          attributeBonus: 0,
+          equipmentBonus: manaCostReduction,
+          value: manaCostReduction,
+        },
         {
           name: 'MOVEMENT',
           description: 'Hexes per tactical turn. Base 3, +1 per 10 Agility, maximum 6.',

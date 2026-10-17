@@ -3,6 +3,7 @@ import { AttributeType, EquipmentType, ItemRarity, StatType, type Prisma } from 
 import { PrismaService } from '../prisma.service';
 import { BASE_ITEMS, BaseItem, Modifier, PREFIXES, RARITY_WEIGHTS, SUFFIXES } from './item-generator.config';
 import { itemIdentity } from './item-identity';
+import { isMageEquipment } from './mage-equipment';
 
 interface GenerateItemOptions {
   baseItemName?: string;
@@ -53,7 +54,9 @@ export class ItemGeneratorService {
     const rarity = options.rarity ?? this.generateRarity();
 
     const ammunition = baseItem.equipmentType === EquipmentType.AMMUNITION;
-    const modifiers = ammunition ? [] : this.generateModifiers(baseItem.equipmentType, rarity, level);
+    const modifiers = ammunition
+      ? []
+      : this.generateModifiers(baseItem.equipmentType, rarity, level, isMageEquipment(baseItem.name));
 
     const name = this.generateName(baseItem, rarity, modifiers);
 
@@ -72,6 +75,10 @@ export class ItemGeneratorService {
       stats.set(stat as StatType, ammunition ? ammoBonus : this.scaleBaseValue(value, level));
     }
 
+    for (const [attribute, value] of Object.entries(baseItem.baseAttributes ?? {})) {
+      attributes.set(attribute as AttributeType, this.scaleBaseValue(value, level));
+    }
+
     // Random affixes
     for (const { modifier, value } of modifiers) {
       if (modifier.kind === 'stat') {
@@ -85,6 +92,7 @@ export class ItemGeneratorService {
       equipmentType: [baseItem.equipmentType],
       isConsumable: false,
       name,
+      rarity,
       stats: [...stats].map(([name, value]) => ({ stat: { name }, value })),
       attributes: [...attributes].map(([name, value]) => ({ attribute: { name }, value })),
     });
@@ -192,7 +200,12 @@ export class ItemGeneratorService {
     return ItemRarity.COMMON;
   }
 
-  private generateModifiers(equipmentType: EquipmentType, rarity: ItemRarity, level: number): GeneratedModifier[] {
+  private generateModifiers(
+    equipmentType: EquipmentType,
+    rarity: ItemRarity,
+    level: number,
+    mageEquipment = false,
+  ): GeneratedModifier[] {
     if (rarity === ItemRarity.COMMON) {
       return [];
     }
@@ -206,7 +219,14 @@ export class ItemGeneratorService {
             ? this.randomInt(4, 5)
             : 0;
 
-    const available = [...PREFIXES, ...SUFFIXES].filter((modifier) => modifier.equipmentTypes.includes(equipmentType));
+    const available = [...PREFIXES, ...SUFFIXES].filter(
+      (modifier) =>
+        modifier.equipmentTypes.includes(equipmentType) &&
+        (!mageEquipment ||
+          (modifier.kind === 'attribute'
+            ? modifier.attribute !== AttributeType.STRENGTH
+            : modifier.stat !== StatType.DAMAGE && modifier.stat !== StatType.DEFENSE)),
+    );
 
     const selected: GeneratedModifier[] = [];
     const pool = [...available];

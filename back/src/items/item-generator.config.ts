@@ -25,9 +25,26 @@ export interface BaseItem {
   icon: string;
   iconVariants?: string[];
   baseStats?: Partial<Record<StatType, number>>;
+  baseAttributes?: Partial<Record<AttributeType, number>>;
 }
 
 export const BASE_ITEMS: BaseItem[] = [
+  {
+    name: 'Two-handed Staff',
+    equipmentType: EquipmentType.WEAPON,
+    basePrice: 100,
+    icon: 'icon_staff.svg',
+    baseStats: { [StatType.DAMAGE]: 1, [StatType.MANA]: 12 },
+    baseAttributes: { [AttributeType.WISDOM]: 3 },
+  },
+  {
+    name: 'Mage Robe',
+    equipmentType: EquipmentType.BODY,
+    basePrice: 100,
+    icon: 'icon_robe.svg',
+    baseStats: { [StatType.DEFENSE]: 1, [StatType.MANA]: 8 },
+    baseAttributes: { [AttributeType.WISDOM]: 2 },
+  },
   {
     name: 'Bow',
     equipmentType: EquipmentType.WEAPON,

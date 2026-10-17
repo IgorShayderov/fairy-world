@@ -17,11 +17,13 @@ import { rollDeathCurse } from './death-curse';
 import { DungeonRunsService } from './dungeon-runs.service';
 import { monsterMovement } from './battle-movement';
 import { canShoot } from './battle-range';
+import { SKILLS, type SkillDefinition, type SkillEffect } from '../skills/skills.catalog';
+import { magicSkillManaCost } from '../items/mage-equipment';
 
 export { DEATH_CURSES, rollDeathCurse } from './death-curse';
 
 type BattleStatus = 'ACTIVE' | 'VICTORY' | 'DEFEAT';
-export type BattleAction = 'ATTACK' | 'DEFEND' | 'POWER_ATTACK' | 'MOVE';
+export type BattleAction = 'ATTACK' | 'DEFEND' | 'POWER_ATTACK' | 'MOVE' | 'SKILL';
 const ARENA_COLUMNS = 8;
 const ARENA_ROWS = 5;
 type Combatant = {
@@ -48,6 +50,10 @@ type Battle = {
   player: Combatant;
   monster: Combatant & { id: number; level: number; rewardGold: number; rewardExperience: number };
   events: Array<{
+    skillId?: string;
+    skillName?: string;
+    effect?: SkillEffect;
+    healing?: number;
     actor: 'PLAYER' | 'MONSTER';
     damage: number;
     critical: boolean;
@@ -58,6 +64,15 @@ type Battle = {
     toCell?: number;
   }>;
   powerAttackCooldown: number;
+  skills?: {
+    class: string | null;
+    ranks: Record<string, number>;
+    mana: number;
+    maxMana: number;
+    spellPower: number;
+    manaCostReduction?: number;
+    readyOnTurn: Record<string, number>;
+  };
   playerPosition: number;
   monsterPosition: number;
   blockedCells: number[];
@@ -97,6 +112,10 @@ export class MonstersService {
   ) {}
 
   private readonly battles = new Map<string, Battle>();
+
+  hasActiveBattle(userId: number) {
+    return [...this.battles.values()].some((battle) => battle.userId === userId && battle.status === 'ACTIVE');
+  }
 
   findAll() {
     return this.prisma.monster.findMany({
@@ -199,8 +218,8 @@ export class MonstersService {
     return battle ? this.renderBattle(battle) : null;
   }
 
-  attackDungeonOpponent(userId: number, runId: string, opponentId: string) {
-    return this.dungeonRuns.attack(userId, runId, opponentId);
+  attackDungeonOpponent(userId: number, runId: string, opponentId: string, skillId?: string) {
+    return this.dungeonRuns.attack(userId, runId, opponentId, skillId);
   }
 
   leaveDungeon(userId: number, runId: string) {
@@ -381,22 +400,28 @@ export class MonstersService {
     return this.renderBattle(battle);
   }
 
-  async takeTurn(userId: number, battleId: string, action: BattleAction, targetCell?: number) {
+  async takeTurn(userId: number, battleId: string, action: BattleAction, targetCell?: number, skillId?: string) {
     const battle = this.battles.get(battleId);
     if (!battle || battle.userId !== userId) throw new NotFoundException('Active battle not found');
     if (battle.status !== 'ACTIVE') throw new BadRequestException('Battle has already ended');
-    if (!['ATTACK', 'DEFEND', 'POWER_ATTACK', 'MOVE'].includes(action)) {
-      throw new BadRequestException('Unknown battle action');
+    // POWER_ATTACK remains an event type for old battle logs, not a free combat ability.
+    if (action === 'POWER_ATTACK') {
+      throw new BadRequestException('Power Strike is not a learned skill. Use a learned combat ability');
     }
-    if (action === 'POWER_ATTACK' && battle.powerAttackCooldown > 0) {
-      throw new BadRequestException(`Power attack is ready in ${battle.powerAttackCooldown} turn(s)`);
+    if (!['ATTACK', 'DEFEND', 'MOVE', 'SKILL'].includes(action)) {
+      throw new BadRequestException('Unknown battle action');
     }
     if (action === 'MOVE' && battle.playerMovedThisTurn) {
       throw new BadRequestException('You have already moved this turn');
     }
 
     const canAttack = this.playerCanAttack(battle);
-    if ((action === 'ATTACK' || action === 'POWER_ATTACK') && !canAttack) {
+    const skill = action === 'SKILL' ? SKILLS.find((entry) => entry.id === skillId && entry.effect) : undefined;
+    if (action === 'SKILL') {
+      const error = this.skillUnavailable(battle, skill);
+      if (error) throw new BadRequestException(error);
+    }
+    if (action === 'ATTACK' && !canAttack) {
       throw new BadRequestException(
         (battle.player.attackRange ?? 1) > 1
           ? 'Enemy is outside attack range or the shot is blocked'
@@ -431,13 +456,54 @@ export class MonstersService {
       return this.renderBattle(battle);
     } else if (action === 'DEFEND') {
       battle.events.push({ actor: 'PLAYER', damage: 0, critical: false, dodged: false, action: 'DEFEND' });
+    } else if (skill && battle.skills) {
+      const state = battle.skills;
+      const rank = state.ranks[skill.id];
+      state.mana -= magicSkillManaCost(skill.manaCost ?? 0, skill.class, state.manaCostReduction ?? 0);
+      state.readyOnTurn[skill.id] = battle.turn + (skill.cooldown ?? 0) + 1;
+      if (skill.effect === 'heal') {
+        const healing = Math.min(
+          battle.player.maxHealth - battle.player.health,
+          Math.round(battle.player.maxHealth * (0.15 + (rank - 1) * 0.01)),
+        );
+        battle.player.health += healing;
+        battle.events.push({
+          actor: 'PLAYER',
+          action: 'SKILL',
+          skillId: skill.id,
+          skillName: skill.name,
+          effect: skill.effect,
+          healing,
+          damage: 0,
+          critical: false,
+          dodged: false,
+        });
+      } else {
+        const originalDefense = battle.monster.defense;
+        if (skill.effect === 'pierce' || skill.effect === 'arcane') battle.monster.defense *= 0.5;
+        this.strike(
+          {
+            ...battle.player,
+            criticalChance: skill.canCrit ? battle.player.criticalChance : 0,
+            damage:
+              (skill.class === 'MAGE' ? state.spellPower : battle.player.damage) *
+              ((skill.multiplier ?? 1) + (rank - 1) * 0.04),
+          },
+          battle.monster,
+          'PLAYER',
+          battle.events,
+        );
+        battle.monster.defense = originalDefense;
+        Object.assign(battle.events[battle.events.length - 1], {
+          action: 'SKILL',
+          skillId: skill.id,
+          skillName: skill.name,
+          effect: skill.effect,
+        });
+      }
     } else {
-      const originalDamage = battle.player.damage;
-      if (action === 'POWER_ATTACK') battle.player.damage = originalDamage * 1.5;
       this.strike(battle.player, battle.monster, 'PLAYER', battle.events);
       battle.events[battle.events.length - 1].action = action;
-      battle.player.damage = originalDamage;
-      if (action === 'POWER_ATTACK') battle.powerAttackCooldown = 3;
     }
 
     if (battle.monster.health <= 0) return this.attack(userId, battleId, true);
@@ -451,7 +517,10 @@ export class MonstersService {
         battle.playerPosition,
         battle.blockedCells,
       );
-      const destination = path[Math.min(battle.monster.movement, path.length - 1)];
+      const slowed =
+        skill?.effect === 'ice' && battle.events.some((event) => event.skillId === skill.id && event.damage > 0);
+      const movement = slowed ? Math.max(1, battle.monster.movement - 2) : battle.monster.movement;
+      const destination = path[Math.min(movement, path.length - 1)];
       if (destination !== undefined && destination !== battle.monsterPosition) {
         const fromCell = battle.monsterPosition;
         battle.monsterPosition = destination;
@@ -473,9 +542,9 @@ export class MonstersService {
 
     if (battle.player.health <= 0) return this.attack(userId, battleId, true);
 
-    if (action !== 'POWER_ATTACK') battle.powerAttackCooldown = Math.max(0, battle.powerAttackCooldown - 1);
     battle.playerMovedThisTurn = false;
     battle.turn++;
+    if (battle.skills) battle.skills.mana = Math.min(battle.skills.maxMana, battle.skills.mana + 3);
     return this.renderBattle(battle);
   }
 
@@ -506,6 +575,15 @@ export class MonstersService {
       turn: 1,
       events: [],
       powerAttackCooldown: 0,
+      skills: {
+        class: player.skills?.class ?? null,
+        ranks: { ...player.skills?.ranks },
+        mana: property(StatType.MANA),
+        maxMana: property(StatType.MANA),
+        spellPower: player.spellPower ?? 10,
+        manaCostReduction: player.manaCostReduction ?? 0,
+        readyOnTurn: {},
+      },
       playerPosition: ARENA_COLUMNS * 2,
       monsterPosition: ARENA_COLUMNS * 2 + ARENA_COLUMNS - 1,
       blockedCells: [10, 29],
@@ -576,6 +654,19 @@ export class MonstersService {
       rewards: battle.rewards,
       canRetreat: battle.canRetreat,
       powerAttackCooldown: battle.powerAttackCooldown,
+      skills: battle.skills
+        ? {
+            mana: battle.skills.mana,
+            maxMana: battle.skills.maxMana,
+            abilities: SKILLS.filter((skill) => skill.effect && battle.skills!.ranks[skill.id] > 0).map((skill) => ({
+              ...skill,
+              manaCost: magicSkillManaCost(skill.manaCost ?? 0, skill.class, battle.skills!.manaCostReduction ?? 0),
+              rank: battle.skills!.ranks[skill.id],
+              remainingCooldown: Math.max(0, (battle.skills!.readyOnTurn[skill.id] ?? 0) - battle.turn),
+              unavailable: this.skillUnavailable(battle, skill),
+            })),
+          }
+        : undefined,
       arena: {
         columns: ARENA_COLUMNS,
         rows: ARENA_ROWS,
@@ -605,6 +696,26 @@ export class MonstersService {
     return range > 1
       ? canShoot(battle.playerPosition, battle.monsterPosition, ARENA_COLUMNS, range, battle.blockedCells)
       : this.areAdjacent(battle.playerPosition, battle.monsterPosition);
+  }
+
+  private skillUnavailable(battle: Battle, skill: SkillDefinition | undefined): string | null {
+    const state = battle.skills;
+    if (!skill?.effect || !state || skill.class !== state.class || !state.ranks[skill.id])
+      return 'Skill has not been learned';
+    if (battle.status !== 'ACTIVE') return 'Battle has ended';
+    if ((state.readyOnTurn[skill.id] ?? 0) > battle.turn) return 'Skill is on cooldown';
+    if (state.mana < magicSkillManaCost(skill.manaCost ?? 0, skill.class, state.manaCostReduction ?? 0))
+      return 'Not enough mana';
+    if (skill.effect === 'heal')
+      return battle.player.health >= battle.player.maxHealth ? 'Health is already full' : null;
+    if (skill.class === 'SCOUT' && (battle.player.missingAmmunition || (battle.player.attackRange ?? 1) <= 1))
+      return 'Equip a bow or crossbow and matching ammunition';
+    const range = skill.range ?? battle.player.attackRange ?? 1;
+    const inRange =
+      range > 1
+        ? canShoot(battle.playerPosition, battle.monsterPosition, ARENA_COLUMNS, range, battle.blockedCells)
+        : this.areAdjacent(battle.playerPosition, battle.monsterPosition);
+    return inRange ? null : 'Enemy is out of range or line of sight is blocked';
   }
 
   private arenaNeighbors(cell: number) {

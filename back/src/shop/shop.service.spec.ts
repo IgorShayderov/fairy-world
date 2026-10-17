@@ -423,8 +423,16 @@ describe('ShopService trades', () => {
     expect(itemGenerator.generate).toHaveBeenNthCalledWith(3, { level: 4 }, tx);
     expect(itemGenerator.generate).toHaveBeenNthCalledWith(4, { level: 5 }, tx);
     expect(itemGenerator.generate).toHaveBeenNthCalledWith(5, { level: 6 }, tx);
-    expect(itemGenerator.generate).toHaveBeenNthCalledWith(9, { level: 5, equipmentType: 'GLOVES' }, tx);
-    expect(itemGenerator.generate).toHaveBeenNthCalledWith(10, { level: 6, equipmentType: 'LEGS' }, tx);
+    expect(itemGenerator.generate).toHaveBeenNthCalledWith(7, { level: 3, equipmentType: 'GLOVES' }, tx);
+    expect(itemGenerator.generate).toHaveBeenNthCalledWith(8, { level: 4, equipmentType: 'LEGS' }, tx);
+    expect(itemGenerator.generate).toHaveBeenCalledWith(
+      { level: 4, equipmentType: 'WEAPON', baseItemName: 'Two-handed Staff' },
+      tx,
+    );
+    expect(itemGenerator.generate).toHaveBeenCalledWith(
+      { level: 4, equipmentType: 'BODY', baseItemName: 'Mage Robe' },
+      tx,
+    );
     expect(itemGenerator.generate).toHaveBeenCalledWith(
       { level: 4, equipmentType: 'AMMUNITION', baseItemName: 'Arrows' },
       tx,
@@ -451,14 +459,18 @@ describe('ShopService trades', () => {
     });
   });
 
-  it('adds missing arrows and bolts to existing stock without a paid refresh', async () => {
+  it('adds missing ammunition and mage gear to existing stock without a paid refresh', async () => {
     tx.shopStock.findFirst.mockResolvedValue(null);
     tx.shop.findUnique.mockResolvedValue({ id: 2, stockLevel: 4, nextRestockAt: new Date('2099-01-01'), stock: [] });
-    itemGenerator.generate.mockResolvedValueOnce({ id: 201 }).mockResolvedValueOnce({ id: 202 });
+    itemGenerator.generate
+      .mockResolvedValueOnce({ id: 201 })
+      .mockResolvedValueOnce({ id: 202 })
+      .mockResolvedValueOnce({ id: 203 })
+      .mockResolvedValueOnce({ id: 204 });
 
     await service.getShop(1, 2);
 
-    expect(itemGenerator.generate).toHaveBeenCalledTimes(2);
+    expect(itemGenerator.generate).toHaveBeenCalledTimes(4);
     expect(itemGenerator.generate).toHaveBeenCalledWith(
       { level: 4, equipmentType: 'AMMUNITION', baseItemName: 'Arrows' },
       tx,
@@ -467,7 +479,7 @@ describe('ShopService trades', () => {
       { level: 4, equipmentType: 'AMMUNITION', baseItemName: 'Bolts' },
       tx,
     );
-    expect(tx.shopStock.upsert).toHaveBeenCalledTimes(2);
+    expect(tx.shopStock.upsert).toHaveBeenCalledTimes(4);
     expect(tx.shopStock.deleteMany).not.toHaveBeenCalledWith({ where: { shopId: 2 } });
     expect(tx.gameProfile.update).not.toHaveBeenCalled();
     expect(tx.shop.update).not.toHaveBeenCalled();

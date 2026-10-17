@@ -1,0 +1,76 @@
+.quest-theme {
+  color: #d6e1de;
+}
+.quest-board {
+  background: linear-gradient(145deg, #102d37, #081b25);
+  border: 1px solid #9e894f88;
+  box-shadow: 0 24px 80px #0009;
+}
+.quest-theme .quest-card {
+  background: #0b222c;
+  border: 1px solid #48616a;
+  box-shadow: inset 0 2px #d9bb6525;
+}
+.quest-theme .quest-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1rem;
+  border-radius: 0.6rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition:
+    background 160ms,
+    border-color 160ms;
+}
+.quest-theme .quest-button--primary {
+  background: #dfbe67;
+  color: #092330;
+  border: 1px solid #dfbe67;
+}
+.quest-theme .quest-button--primary:hover:not(:disabled) {
+  background: #efd68e;
+}
+.quest-theme .quest-button--secondary {
+  background: #102b35;
+  color: #edcf83;
+  border: 1px solid #8e7d4b99;
+}
+.quest-theme .quest-button--secondary:hover:not(:disabled) {
+  background: #1b3d46;
+  border-color: #c4aa62;
+}
+.quest-theme .quest-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.quest-theme .quest-button:focus-visible {
+  outline: 2px solid #f1d283;
+  outline-offset: 3px;
+}
+.quest-theme progress {
+  accent-color: #d8b861;
+  border: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #04151e;
+}
+.quest-theme progress::-webkit-progress-bar {
+  background: #04151e;
+}
+.quest-theme progress::-webkit-progress-value {
+  background: linear-gradient(90deg, #987b3d, #efd68e);
+  border-radius: 8px;
+}
+.quest-theme progress::-moz-progress-bar {
+  background: #d8b861;
+}
+@media (max-width: 600px) {
+  .quest-board {
+    padding: 1rem;
+  }
+  .quest-board h2 {
+    font-size: 1.2rem;
+  }
+}

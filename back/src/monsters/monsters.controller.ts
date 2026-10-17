@@ -73,8 +73,9 @@ export class MonstersController {
     @Param('runId') runId: string,
     @Param('opponentId') opponentId: string,
     @Request() req: RequestWithUser,
+    @Body() body: { skillId?: string } = {},
   ) {
-    return this.monstersService.attackDungeonOpponent(req.user.sub, runId, opponentId);
+    return this.monstersService.attackDungeonOpponent(req.user.sub, runId, opponentId, body?.skillId);
   }
 
   @Post('dungeon/run/:runId/leave')
@@ -114,10 +115,10 @@ export class MonstersController {
   @Post('battle/:battleId/turn')
   takeTurn(
     @Param('battleId') battleId: string,
-    @Body() body: { action: BattleAction; targetCell?: number },
+    @Body() body: { action: BattleAction; targetCell?: number; skillId?: string },
     @Request() req: RequestWithUser,
   ) {
-    return this.monstersService.takeTurn(req.user.sub, battleId, body.action, body.targetCell);
+    return this.monstersService.takeTurn(req.user.sub, battleId, body.action, body.targetCell, body.skillId);
   }
 
   @Post('battle/:battleId/retreat')

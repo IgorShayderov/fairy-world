@@ -114,6 +114,96 @@ describe('MonstersService', () => {
     expect(service).toBeDefined();
   });
 
+  describe('class combat skills', () => {
+    async function encounterFor(playerClass = 'MAGE', ranks: Record<string, number> = { 'mage-fireball': 1 }) {
+      jest.spyOn(Math, 'random').mockReturnValueOnce(0).mockReturnValue(0.99);
+      const user = currentUser(20, 2000);
+      mockUsersService.findCurrentUser.mockResolvedValue({
+        ...user,
+        gameProfile: { ...user.gameProfile, skillTree: { class: playerClass, ranks } },
+      });
+      mockMonsterGenerator.generate.mockReturnValue({
+        id: 3,
+        name: 'Stone Golem',
+        monsterType: 'Stone Golem',
+        level: 30,
+        rewardGold: 20,
+        rewardExperience: 25,
+        attributes: [],
+      });
+      const encounter = await service.rollEncounter(7);
+      if (!encounter.encountered) throw new Error('Expected battle');
+      return service['battles'].get(encounter.battle.id)!;
+    }
+
+    it('rejects unlearned skills, blocked range and insufficient mana without spending it', async () => {
+      const battle = await encounterFor();
+      await expect(service.takeTurn(7, battle.id, 'SKILL', undefined, 'mage-nova')).rejects.toThrow('not been learned');
+      await expect(service.takeTurn(7, battle.id, 'SKILL', undefined, 'mage-fireball')).rejects.toThrow('out of range');
+      battle.playerPosition = 17;
+      battle.skills!.mana = 0;
+      await expect(service.takeTurn(7, battle.id, 'SKILL', undefined, 'mage-fireball')).rejects.toThrow(
+        'Not enough mana',
+      );
+      expect(battle.turn).toBe(1);
+      expect(battle.monster.health).toBe(battle.monster.maxHealth);
+    });
+
+    it('casts a spell, consumes mana, emits effect data, and enforces its cooldown', async () => {
+      const battle = await encounterFor();
+      battle.playerPosition = 17;
+      const mana = battle.skills!.mana;
+      const result = await service.takeTurn(7, battle.id, 'SKILL', undefined, 'mage-fireball');
+      expect(result.events[0]).toMatchObject({ action: 'SKILL', effect: 'fire', skillName: 'Fireball' });
+      expect(result.events[0].damage).toBeGreaterThan(0);
+      expect(result.skills!.mana).toBe(mana - 20 + 3);
+      expect(result.skills!.abilities[0].remainingCooldown).toBe(1);
+      await expect(service.takeTurn(7, battle.id, 'SKILL', undefined, 'mage-fireball')).rejects.toThrow('cooldown');
+      await service.takeTurn(7, battle.id, 'DEFEND');
+      expect((await service.takeTurn(7, battle.id, 'SKILL', undefined, 'mage-fireball')).events[0].effect).toBe('fire');
+    });
+
+    it('requires a loaded ranged weapon for Scout skills', async () => {
+      const battle = await encounterFor('SCOUT', { 'scout-aim': 1 });
+      await expect(service.takeTurn(7, battle.id, 'SKILL', undefined, 'scout-aim')).rejects.toThrow(
+        'matching ammunition',
+      );
+    });
+
+    it.each([
+      ['MAGE', 'mage-fireball', false],
+      ['MAGE', 'mage-frost', false],
+      ['MAGE', 'mage-nova', false],
+      ['SCOUT', 'scout-volley', false],
+      ['WARRIOR', 'warrior-slam', false],
+      ['WARRIOR', 'warrior-cleave', true],
+      ['SCOUT', 'scout-aim', true],
+      ['SCOUT', 'scout-pierce', true],
+    ] as const)('%s %s only crits when it enhances a weapon attack', async (playerClass, skillId, canCrit) => {
+      const battle = await encounterFor(playerClass, { [skillId]: 1 });
+      battle.playerPosition = 20;
+      battle.monsterPosition = 21;
+      battle.player.attackRange = 7;
+      battle.player.criticalChance = 100;
+      battle.player.damage = 10;
+      battle.monster.health = 10000;
+      battle.monster.maxHealth = 10000;
+      battle.monster.dodge = 0;
+      battle.monster.blockChance = 0;
+      const result = await service.takeTurn(7, battle.id, 'SKILL', undefined, skillId);
+      expect(result.events[0]).toMatchObject({ action: 'SKILL', critical: canCrit });
+    });
+
+    it('heals without damaging the monster and does not exceed maximum health', async () => {
+      const battle = await encounterFor('WARRIOR', { 'warrior-recovery': 1 });
+      battle.player.health -= 10;
+      const result = await service.takeTurn(7, battle.id, 'SKILL', undefined, 'warrior-recovery');
+      expect(result.events[0]).toMatchObject({ effect: 'heal', healing: 10, damage: 0 });
+      expect(result.player.health).toBe(result.player.maxHealth);
+      expect(result.monster.health).toBe(result.monster.maxHealth);
+    });
+  });
+
   it('respawns in Evercross and clears all buffs on defeat without awarding a kill', async () => {
     jest.spyOn(Math, 'random').mockReturnValueOnce(0).mockReturnValue(0.99);
     mockUsersService.findCurrentUser.mockResolvedValue(currentUser(1));
@@ -242,7 +332,7 @@ describe('MonstersService', () => {
     });
     await expect(service.resetDungeon(7, 'EMBERDEEP')).resolves.toEqual({ success: true, cost: 10 });
     expect(mockDungeonRuns.enter).toHaveBeenCalledWith(7, 'EMBERDEEP');
-    expect(mockDungeonRuns.attack).toHaveBeenCalledWith(7, 'run-1', 'enemy-1');
+    expect(mockDungeonRuns.attack).toHaveBeenCalledWith(7, 'run-1', 'enemy-1', undefined);
   });
 
   describe('findAll', () => {
@@ -690,7 +780,7 @@ describe('MonstersService', () => {
       expect(attacked.arena.playerHasMoved).toBe(false);
     });
 
-    it('gives tactical power strike a three-turn cooldown', async () => {
+    it('rejects the legacy unlearned power strike without consuming the normal attack', async () => {
       jest.spyOn(Math, 'random').mockReturnValueOnce(0.01).mockReturnValue(0.99);
       mockUsersService.findCurrentUser.mockResolvedValue(currentUser(5, 500));
       mockMonsterGenerator.generate.mockReturnValue({
@@ -708,14 +798,13 @@ describe('MonstersService', () => {
       await service.takeTurn(7, encounter.battle.id, 'MOVE', 19);
       await service.takeTurn(7, encounter.battle.id, 'DEFEND');
       await service.takeTurn(7, encounter.battle.id, 'MOVE', 20);
-      const turn = await service.takeTurn(7, encounter.battle.id, 'POWER_ATTACK');
-
-      expect(turn.status).toBe('ACTIVE');
-      expect(turn.powerAttackCooldown).toBe(3);
-      expect(turn.events).toContainEqual(expect.objectContaining({ actor: 'PLAYER', action: 'POWER_ATTACK' }));
       await expect(service.takeTurn(7, encounter.battle.id, 'POWER_ATTACK')).rejects.toThrow(
-        'Power attack is ready in 3 turn(s)',
+        'Power Strike is not a learned skill',
       );
+      const turn = await service.takeTurn(7, encounter.battle.id, 'ATTACK');
+      expect(turn.status).toBe('ACTIVE');
+      expect(turn.turn).toBe(3);
+      expect(turn.events).toContainEqual(expect.objectContaining({ actor: 'PLAYER', action: 'ATTACK' }));
     });
 
     it('adds a generated rarity-weighted item drop to inventory on victory', async () => {

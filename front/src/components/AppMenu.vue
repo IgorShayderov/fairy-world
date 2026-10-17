@@ -117,6 +117,12 @@ const menuItems = computed(() => [
     icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z',
   },
   {
+    id: 'skills',
+    nameKey: 'menu.skills',
+    route: routes.skillsPath(),
+    icon: 'M12 3v6m0 0H5v6m7-6h7v6M5 19v2m14-2v2M3 15h4v4H3zM17 15h4v4h-4zM10 3h4v4h-4z',
+  },
+  {
     id: 'pvp',
     nameKey: 'menu.pvp',
     route: routes.pvpPath(),
