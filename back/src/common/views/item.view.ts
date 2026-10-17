@@ -3,6 +3,7 @@ import { requiredPlayerLevel } from '../../users/level-progression';
 import { isTwoHandedWeapon } from '../../items/weapon-types';
 import { getPotionRequiredLevel } from '../../items/potion-effects';
 import { shieldBlockChance } from '../../items/shield-block';
+import { robeManaReduction } from '../../items/mage-equipment';
 
 export type DetailedItem = Prisma.ItemGetPayload<{
   include: {
@@ -28,11 +29,22 @@ export class ItemView {
         description: attribute.description,
         value,
       })),
-      properties: stats.map(({ stat, value }) => ({
-        name: stat.name,
-        description: stat.description,
-        value,
-      })),
+      properties: [
+        ...stats.map(({ stat, value }) => ({
+          name: stat.name,
+          description: stat.description,
+          value,
+        })),
+        ...(robeManaReduction(item)
+          ? [
+              {
+                name: 'MANA_COST_REDUCTION',
+                value: robeManaReduction(item),
+                description: 'Reduces Mage spell mana costs by this percentage. Minimum spell cost: 1 mana.',
+              },
+            ]
+          : []),
+      ],
     };
   }
 }

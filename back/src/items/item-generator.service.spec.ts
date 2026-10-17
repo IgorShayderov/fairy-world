@@ -114,7 +114,8 @@ describe('ItemGeneratorService', () => {
     await service.generate({
       level: 1,
       equipmentType,
-      baseItemName: equipmentType === EquipmentType.WEAPON ? 'Sword' : undefined,
+      baseItemName:
+        equipmentType === EquipmentType.WEAPON ? 'Sword' : equipmentType === EquipmentType.BODY ? 'Armor' : undefined,
       rarity: ItemRarity.COMMON,
     });
     random.mockRestore();
@@ -129,6 +130,22 @@ describe('ItemGeneratorService', () => {
     expect(args.data.stats.create).toEqual([{ stat: { connect: { name: StatType.DAMAGE } }, value: 5 }]);
     expect(args.data.attributes.create).toEqual([]);
   });
+
+  it.each(['Two-handed Staff', 'Mage Robe'])(
+    'generates %s with inherent caster stats even at Common rarity',
+    async (baseItemName) => {
+      await service.generate({ level: 20, baseItemName, rarity: ItemRarity.COMMON });
+      const args = create.mock.calls[0]?.[0] as GeneratedItemCreateArgs;
+      expect(args.data.attributes.create).toContainEqual({
+        attribute: { connect: { name: 'WISDOM' } },
+        value: baseItemName.includes('Staff') ? 14 : 10,
+      });
+      expect(args.data.stats.create.some(({ stat, value }) => stat.connect.name === StatType.MANA && value > 0)).toBe(
+        true,
+      );
+      expect(args.data.icon).toBe(baseItemName.includes('Staff') ? 'icon_staff.svg' : 'icon_robe.svg');
+    },
+  );
 
   it('scales the inherent ring property with item level', async () => {
     await service.generate({ level: 100, equipmentType: EquipmentType.RING, rarity: ItemRarity.COMMON });

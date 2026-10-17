@@ -30,6 +30,9 @@ const equipped = (
 });
 
 describe('battle player loadout', () => {
+  it('recognizes a two-handed staff as a staff, not a sword or dual weapon', () => {
+    expect(getBattlePlayerLoadout([equipped(1, 'Two-handed Staff', ['WEAPON'], 'left-hand')])).toMatchObject({ handMode: 'TWO_HANDED', primaryWeapon: 'STAFF', secondaryWeapon: null });
+  });
   it.each([
     ['Bow', 'Arrows', 'BOW'],
     ['Crossbow', 'Bolts', 'CROSSBOW'],

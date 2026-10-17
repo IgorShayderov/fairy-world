@@ -1,8 +1,8 @@
 <template>
-  <div class="realm-page h-full min-h-0 w-full overflow-y-auto p-6">
+  <div class="realm-page quest-theme h-full min-h-0 w-full overflow-y-auto p-6">
     <div class="mx-auto max-w-5xl space-y-8">
       <header>
-        <h1 class="text-3xl font-bold">{{ t('quests.title') }}</h1>
+        <h1 class="font-serif text-3xl font-semibold">{{ t('quests.title') }}</h1>
         <p class="mt-2 text-gray-500">{{ t('quests.intro') }}</p>
       </header>
       <p v-if="error" role="alert" class="rounded-lg bg-red-50 p-4 text-red-700">
@@ -18,11 +18,7 @@
           <QTabPanel name="active" class="p-0">
             <p v-if="!journal.active.length" class="text-gray-500">{{ t('quests.noActive') }}</p>
             <div class="grid gap-4 md:grid-cols-2">
-              <article
-                v-for="entry in journal.active"
-                :key="entry.questId"
-                class="rounded-xl border border-blue-100 bg-white p-5 shadow-sm"
-              >
+              <article v-for="entry in journal.active" :key="entry.questId" class="quest-card rounded-xl p-5">
                 <h3 class="text-sm leading-snug font-semibold">{{ title(entry.quest) }}</h3>
                 <p class="mt-2 text-sm text-gray-600">{{ description(entry.quest) }}</p>
                 <p v-if="entry.quest.huntingLocation" class="mt-2 text-sm text-blue-700">
@@ -33,7 +29,7 @@
                   ><span>{{ entry.progress }} / {{ entry.quest.target }}</span>
                 </div>
                 <progress
-                  class="mt-2 h-3 w-full accent-blue-600"
+                  class="mt-2 h-3 w-full accent-[#d8b861]"
                   :value="entry.progress"
                   :max="entry.quest.target"
                   :aria-label="title(entry.quest)"
@@ -49,7 +45,7 @@
                 <template v-if="!entry.quest.isPrimary">
                   <button
                     v-if="entry.quest.destinationTownId"
-                    class="mt-3 block text-sm text-blue-600 underline"
+                    class="quest-button quest-button--primary mt-3"
                     :disabled="pending !== null || journal.town?.id !== entry.quest.destinationTownId"
                     @click="deliver(entry.questId)"
                   >
@@ -85,11 +81,7 @@
           <QTabPanel name="completed" class="p-0">
             <p v-if="!journal.completed.length" class="text-gray-500">{{ t('quests.noCompleted') }}</p>
             <div class="grid gap-4 md:grid-cols-2">
-              <article
-                v-for="entry in journal.completed"
-                :key="entry.questId"
-                class="rounded-xl border border-green-200 bg-green-50 p-5"
-              >
+              <article v-for="entry in journal.completed" :key="entry.questId" class="quest-card rounded-xl p-5">
                 <h3 class="text-sm leading-snug font-semibold">✓ {{ title(entry.quest) }}</h3>
                 <p class="mt-2 text-sm">
                   {{ description(entry.quest) }} — {{ entry.progress }} / {{ entry.quest.target }}
@@ -114,6 +106,7 @@
 
 <script setup lang="ts">
 import '@/css/realm-pages.css';
+import '@/modules/Quests/quest-theme.css';
 import { useTranslation } from 'i18next-vue';
 import { QTab, QTabs, QTabPanel, QTabPanels } from 'quasar';
 import { onMounted, ref } from 'vue';

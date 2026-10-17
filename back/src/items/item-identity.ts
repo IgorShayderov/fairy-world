@@ -6,18 +6,23 @@ export function itemIdentity(item: {
   equipmentType: string[];
   isConsumable: boolean;
   name: string;
+  rarity?: string;
   stats: Array<{ stat: { name: string }; value: number }>;
   attributes: Array<{ attribute: { name: string }; value: number }>;
 }) {
   return JSON.stringify([
     [...item.equipmentType].sort(),
     item.equipmentType.includes('WEAPON')
-      ? rangedWeapon(item.name)
+      ? /\bstaff\b/i.test(item.name)
+        ? 'STAFF'
+        : rangedWeapon(item.name)
       : item.equipmentType.includes('AMMUNITION')
         ? /\bbolts\b/i.test(item.name)
           ? 'BOLTS'
           : 'ARROWS'
-        : null,
+        : /\brobe\b/i.test(item.name)
+          ? `ROBE:${item.rarity ?? 'COMMON'}`
+          : null,
     item.isConsumable || item.equipmentType.some((type) => ['POTION', 'SCROLL', 'UNKNOWN'].includes(type))
       ? item.name
       : null,

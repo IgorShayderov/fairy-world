@@ -89,6 +89,33 @@
         </span>
       </section>
 
+      <section
+        v-if="battle.skills && battle.status === 'ACTIVE'"
+        class="mt-4 overflow-hidden rounded-xl border border-violet-300/25"
+      >
+        <label class="flex items-center gap-3 bg-[#0a1d2d] px-5 pt-3 text-sm text-slate-300"
+          >Skill target
+          <select
+            v-model="skillTarget"
+            class="rounded border border-slate-500 bg-[#102e3c] px-3 py-1 text-white"
+            :disabled="loading"
+          >
+            <option
+              v-for="opponent in battle.opponents.filter((entry) => entry.status === 'AVAILABLE')"
+              :key="opponent.id"
+              :value="opponent.id"
+            >
+              {{ opponent.monster.name }}
+            </option>
+          </select>
+        </label>
+        <CombatSkills
+          :skills="battle.skills"
+          :disabled="loading || currentMemberDefeated || !skillTarget"
+          @cast="castSkill"
+        />
+      </section>
+
       <section class="mt-5 flex h-50 flex-col rounded-xl border border-[#35515b] bg-[#0b2029]/90 px-5 py-4 shadow-xl">
         <h3 class="text-xs font-bold tracking-[0.16em] text-[#efca72] uppercase">
           {{ t('fantasy.encounter.combatLog') }}
@@ -386,10 +413,11 @@ import type { DungeonOpponentStatus, DungeonPartyMember, DungeonRunState } from 
 
 import PotionIcon from '@/modules/Inventory/components/icons/PotionIcon.vue';
 import InventoryItem from '@/modules/Inventory/components/InventoryItem.vue';
+import CombatSkills from '@/modules/Skills/CombatSkills.vue';
 
 const props = defineProps<{ battle: DungeonRunState; playerName: string; loading: boolean }>();
 const emit = defineEmits<{
-  (event: 'attack', opponentId: string): void;
+  (event: 'attack', opponentId: string, skillId?: string): void;
   (event: 'use-potion', inventoryItemId: number): void;
   (event: 'leave'): void;
   (event: 'close'): void;
@@ -398,6 +426,19 @@ const emit = defineEmits<{
 
 const { t } = useTranslation();
 const currentUserStore = useCurrentUserStore();
+const skillTarget = ref('');
+watch(
+  () => props.battle.opponents,
+  (opponents) => {
+    if (!opponents.some((opponent) => opponent.id === skillTarget.value && opponent.status === 'AVAILABLE')) {
+      skillTarget.value = opponents.find((opponent) => opponent.status === 'AVAILABLE')?.id ?? '';
+    }
+  },
+  { immediate: true }
+);
+const castSkill = (skillId: string) => {
+  if (!props.loading && skillTarget.value && !currentMemberDefeated.value) emit('attack', skillTarget.value, skillId);
+};
 type DungeonLootItem =
   NonNullable<DungeonRunState['rewards']>['items'][number] | NonNullable<DungeonRunState['partyLoot']>['items'][number];
 const lootInventoryItem = (item: DungeonLootItem): InventoryItemType => ({
@@ -508,6 +549,8 @@ const memberManaPercent = (member: DungeonPartyMember) => percentage(member.mana
 const monsterHealthPercent = (opponent: DungeonRunState['opponents'][number]) =>
   Math.max(0, Math.min(100, (opponent.monster.health / opponent.monster.maxHealth) * 100));
 const eventText = (event: DungeonRunState['latestEvents'][number]) => {
+  if (event.skillName)
+    return `${event.actorName ?? props.playerName} — ${event.skillName}: ${event.healing !== undefined ? `+${event.healing} HP` : event.dodged ? 'dodged' : event.blocked ? 'blocked' : `${event.damage} damage`}.`;
   if (props.battle.party) {
     if (event.dodged) {
       const subject = event.actor === 'MONSTER' && event.targetName ? event.targetName : t('fantasy.encounter.enemy');

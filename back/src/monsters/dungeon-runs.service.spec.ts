@@ -190,6 +190,26 @@ describe('DungeonRunsService', () => {
     });
   });
 
+  it('casts learned dungeon skills, persists mana and cooldowns, and rejects unlearned spells', async () => {
+    const mage = {
+      ...user,
+      gameProfile: { ...user.gameProfile, skillTree: { class: 'MAGE', ranks: { 'mage-fireball': 1 } } },
+    };
+    usersService.findCurrentUser.mockResolvedValue(mage);
+    const run = await service.enter(7, 'EMBERDEEP');
+    jest.spyOn(Math, 'random').mockReturnValue(0.99);
+    const target = run.opponents[0];
+    target.monster.health = 10000;
+    target.monster.maxHealth = 10000;
+    const result = await service.attack(7, run.id, target.id, 'mage-fireball');
+    expect(result.latestEvents[0]).toMatchObject({ action: 'SKILL', effect: 'fire', actorName: 'Hero' });
+    expect(result.skills?.mana).toBe((run.player.skillState?.maxMana ?? 0) - 20 + 3);
+    await expect(service.attack(7, run.id, target.id, 'mage-fireball')).rejects.toThrow('cooldown');
+    await expect(service.attack(7, run.id, target.id, 'mage-nova')).rejects.toThrow('not been learned');
+    const reloaded = await service.active(7);
+    expect(reloaded?.skills?.abilities[0]?.remainingCooldown).toBe(1);
+  });
+
   it('awards only experience for guardians, unlocks the boss, then guarantees final gold and Rare loot', async () => {
     jest.spyOn(Math, 'random').mockReturnValue(0.1);
     const run = await service.enter(7, 'EMBERDEEP');

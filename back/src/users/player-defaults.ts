@@ -60,7 +60,7 @@ export const ATTRIBUTE_EFFECTS: Record<
     properties: { [StatType.HEALTH]: 10, [StatType.DEFENSE]: 1 },
   },
   [AttributeType.WISDOM]: {
-    description: 'Increases Mana by 5 per point.',
+    description: 'Increases Mana by 5 and Mage spell power by 2 per point.',
     properties: { [StatType.MANA]: 5 },
   },
   [AttributeType.CHARISMA]: {

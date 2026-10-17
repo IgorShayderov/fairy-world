@@ -219,7 +219,7 @@ describe('UserView.renderCurrent', () => {
       equipmentBonus: 1,
       value: 3,
     });
-    expect(result.properties).toHaveLength(8);
+    expect(result.properties).toHaveLength(9);
     expect(result.properties).toContainEqual(expect.objectContaining({ name: 'MOVEMENT', value: 3 }));
     expect(result.premium).toEqual({ active: false, expiresAt: null });
     expect(result.properties).toContainEqual({

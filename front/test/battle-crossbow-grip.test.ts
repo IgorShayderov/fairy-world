@@ -24,6 +24,32 @@ function rig() {
 }
 
 describe('rigid crossbow grip', () => {
+  it('inherits torso movement instead of pinning the hands to the actor root', () => {
+    const root = rig();
+    const chest = new Bone();
+    chest.name = 'Rig_Chest';
+    for (const arm of [...root.children]) chest.add(arm);
+    root.add(chest);
+    const weapon = new Group();
+    updateCrossbowGrip(root, weapon);
+    const initialPosition = weapon.position.clone();
+    const initialRotation = weapon.quaternion.clone();
+    chest.position.set(0.06, 0.08, -0.04);
+    chest.rotation.set(0.1, 0.2, -0.06);
+    updateCrossbowGrip(root, weapon);
+    expect(weapon.position.distanceTo(initialPosition.clone().applyMatrix4(chest.matrixWorld))).toBeLessThan(0.0001);
+    expect(weapon.quaternion.angleTo(chest.quaternion.clone().multiply(initialRotation))).toBeLessThan(0.0001);
+    for (const [side, socket] of [
+      ['R', CROSSBOW_RIGHT_GRIP],
+      ['L', CROSSBOW_LEFT_GRIP],
+    ] as const) {
+      const palm = root.getObjectByName(`Rig_hand_${side}`)!.localToWorld(palmGrip.clone());
+      expect(palm.distanceTo(weapon.localToWorld(socket.clone()))).toBeLessThan(0.0001);
+    }
+    const stablePosition = weapon.position.clone();
+    updateCrossbowGrip(root, weapon);
+    expect(weapon.position.distanceTo(stablePosition)).toBeLessThan(0.0001);
+  });
   it.each([0, 0.7, -1.3])('keeps both palms on their sockets while turning by %s', (angle) => {
     const root = rig();
     const weapon = new Group();

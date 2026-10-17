@@ -1,6 +1,8 @@
 import type { InventoryItemType } from '@/modules/Inventory/types';
 
 const RANGED_IMAGES = {
+  staff: 'icon_staff.svg',
+  robe: 'icon_robe.svg',
   crossbow: 'icon_crossbow.svg',
   bow: 'icon_bow.svg',
   arrows: 'icon_arrows.svg',

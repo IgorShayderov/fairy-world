@@ -48,6 +48,7 @@ it('keeps the crossbow attached across the actual knight animation poses', async
   const root = new Group();
   root.add(model);
   const weapon = new Group();
+  updateCrossbowGrip(root, weapon);
   for (const name of [
     'knight_idle',
     'knight_walk_in_place',
@@ -57,11 +58,13 @@ it('keeps the crossbow attached across the actual knight animation poses', async
   ]) {
     const clip = clips.find((entry) => entry.name === name)!;
     expect(clip, name).toBeDefined();
-    for (const fraction of [0, 0.25, 0.5, 0.75, 0.99]) {
+    const positions: Vector3[] = [];
+    for (const fraction of Array.from({ length: 21 }, (_, i) => Math.min(i / 20, 0.99))) {
       mixer.stopAllAction();
       mixer.clipAction(clip).reset().play();
       mixer.update(clip.duration * fraction);
       updateCrossbowGrip(root, weapon, name === 'knight_shield_attack' ? attackOffset(fraction, 0.45) * 0.3 : 0);
+      positions.push(weapon.position.clone());
       for (const [side, socket] of [
         ['R', CROSSBOW_RIGHT_GRIP],
         ['L', CROSSBOW_LEFT_GRIP],
@@ -71,6 +74,9 @@ it('keeps the crossbow attached across the actual knight animation poses', async
           .soft(palm.distanceTo(weapon.localToWorld(socket.clone())), `${name} ${fraction} ${side}`)
           .toBeLessThan(0.015);
       }
+    }
+    if (name === 'knight_walk_in_place') {
+      expect(new Box3().setFromPoints(positions).getSize(new Vector3()).length()).toBeGreaterThan(0.02);
     }
   }
 });

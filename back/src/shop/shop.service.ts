@@ -14,7 +14,7 @@ import { getPotionRequiredLevel } from '../items/potion-effects';
 
 const SHOP_RESTOCK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const SHOP_RESTOCK_ITEM_COUNT = 18;
-const SHOP_RANDOM_EQUIPMENT_COUNT = 8;
+const SHOP_RANDOM_EQUIPMENT_COUNT = 6;
 const SHOP_GUARANTEED_EQUIPMENT_TYPES = [EquipmentType.GLOVES, EquipmentType.LEGS] as const;
 const SHOP_ITEM_LEVEL_OFFSETS = [-2, -1, 0, 1, 2] as const;
 export const SHOP_REFRESH_GEM_COST = 10;
@@ -94,6 +94,7 @@ export class ShopService implements OnModuleInit {
       } else {
         // Keep both ammunition types available even in existing or sold-out stock.
         await this.stockAmmunition(tx, shopId, profile.level, true);
+        await this.stockMageEquipment(tx, shopId, profile.level, true);
       }
 
       const currentShop = await tx.shop.findUnique({
@@ -183,6 +184,28 @@ export class ShopService implements OnModuleInit {
     }
   }
 
+  private async stockMageEquipment(tx: Prisma.TransactionClient, shopId: number, level: number, onlyMissing = false) {
+    for (const [baseItemName, equipmentType] of [
+      ['Two-handed Staff', EquipmentType.WEAPON],
+      ['Mage Robe', EquipmentType.BODY],
+    ] as const) {
+      if (
+        onlyMissing &&
+        (await tx.shopStock.findFirst({
+          where: { shopId, quantity: { gt: 0 }, item: { name: { contains: baseItemName }, level: { lte: level } } },
+          select: { itemId: true },
+        }))
+      )
+        continue;
+      const item = await this.itemGenerator.generate({ level, equipmentType, baseItemName }, tx);
+      await tx.shopStock.upsert({
+        where: { shopId_itemId: { shopId, itemId: item.id } },
+        create: { shopId, itemId: item.id, quantity: 1 },
+        update: { quantity: { increment: 1 } },
+      });
+    }
+  }
+
   private async restock(
     tx: Prisma.TransactionClient,
     shopId: number,
@@ -225,6 +248,8 @@ export class ShopService implements OnModuleInit {
     }
 
     await this.stockAmmunition(tx, shopId, playerLevel);
+    stockCount += 2;
+    await this.stockMageEquipment(tx, shopId, playerLevel);
     stockCount += 2;
 
     const consumables = await tx.item.findMany({

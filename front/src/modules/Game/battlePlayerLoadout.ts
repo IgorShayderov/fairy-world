@@ -2,7 +2,7 @@ import type { InventoryEntry, ItemRarity } from '@/modules/Inventory/types';
 
 import { isTwoHanded } from '@/modules/Inventory/utils/equipment';
 
-export type BattleWeaponKind = 'SWORD' | 'AXE' | 'DAGGER' | 'BOW' | 'CROSSBOW';
+export type BattleWeaponKind = 'SWORD' | 'AXE' | 'DAGGER' | 'BOW' | 'CROSSBOW' | 'STAFF';
 export type BattleHandMode = 'UNARMED' | 'SINGLE' | 'WEAPON_SHIELD' | 'DUAL' | 'TWO_HANDED' | 'BOW' | 'CROSSBOW';
 
 export interface BattlePlayerLoadout {
@@ -27,6 +27,7 @@ const RARITY_ACCENTS: Record<ItemRarity, string> = {
 
 const weaponKind = (name: string): BattleWeaponKind => {
   const normalized = name.toLowerCase();
+  if (/\bstaff\b/.test(normalized)) return 'STAFF';
   if (/\bcrossbow\b/.test(normalized)) return 'CROSSBOW';
   if (/\bbow\b/.test(normalized)) return 'BOW';
   if (normalized.includes('axe')) return 'AXE';

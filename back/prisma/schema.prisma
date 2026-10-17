@@ -81,6 +81,7 @@ model User {
 }
 
 model GameProfile {
+  skillTree GameProfileSkillTree?
   id Int @id @default(autoincrement())
   premiumAccount PremiumAccount?
 
@@ -114,6 +115,14 @@ model GameProfile {
   ledDungeonParties DungeonParty[]       @relation("DungeonPartyLeader")
   dungeonParty      DungeonPartyMember?
   clanMembership    ClanMember?
+}
+
+model GameProfileSkillTree {
+  profileId Int @id
+  profile GameProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  class String
+  ranks Json @default("{}")
+  version Int @default(0)
 }
 
 model PremiumAccount {

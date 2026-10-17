@@ -506,11 +506,11 @@ const handlePlayerDefeat = () => {
   draw();
 };
 
-const handleDungeonAttack = async (opponentId: string) => {
+const handleDungeonAttack = async (opponentId: string, skillId?: string) => {
   if (!activeDungeonRun.value || battlePending.value) return;
   battlePending.value = true;
   try {
-    activeDungeonRun.value = await attackDungeonOpponent(activeDungeonRun.value.id, opponentId);
+    activeDungeonRun.value = await attackDungeonOpponent(activeDungeonRun.value.id, opponentId, skillId);
     if (activeDungeonRun.value.status === 'DEFEAT') {
       handlePlayerDefeat();
     }

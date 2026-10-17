@@ -5,6 +5,12 @@ const BASE_AUTH_PATH = `${BASE_API_PATH}/auth`;
 
 const routes = {
   api: {
+    skills: {
+      path: () => `${BASE_API_PATH}/skills`,
+      classPath: () => `${BASE_API_PATH}/skills/class`,
+      resetPath: () => `${BASE_API_PATH}/skills/reset`,
+      upgradePath: (id: string) => `${BASE_API_PATH}/skills/${encodeURIComponent(id)}/upgrade`,
+    },
     premium: {
       purchasePath: () => [BASE_API_PATH, 'premium', 'purchase'].join('/'),
     },
@@ -117,6 +123,7 @@ const routes = {
   craftPath: () => '/craft',
   pvpPath: () => '/pvp',
   clansPath: () => '/clans',
+  skillsPath: () => '/skills',
   questsPath: () => '/quests',
   loginPath: () => '/login',
   profilePath: () => '/profile',

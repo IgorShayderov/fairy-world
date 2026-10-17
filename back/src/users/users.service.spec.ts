@@ -111,6 +111,7 @@ describe('UsersService', () => {
           gameProfile: {
             include: {
               premiumAccount: true,
+              skillTree: true,
               inventory: {
                 include: {
                   item: {

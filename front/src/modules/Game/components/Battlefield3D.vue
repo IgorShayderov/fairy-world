@@ -42,6 +42,8 @@ import {
   smoothStep,
   usesReversingIdle,
 } from '@/modules/Game/battleAnimation';
+import { applyCastingGesture, castingWeaponPose } from '@/modules/Game/battleCastingPose';
+import { CROSSBOW_MUZZLE, updateCrossbowMechanism } from '@/modules/Game/battleCrossbowModel';
 import {
   closeGrip,
   gripRotation,
@@ -50,6 +52,7 @@ import {
   palmGrip,
   placeArm,
 } from '@/modules/Game/battleHeavyWeapon';
+import { createMageStaff } from '@/modules/Game/battleMageStaff';
 import { battleMonsterModel } from '@/modules/Game/battleMonsterModels';
 import { battleMovementPath } from '@/modules/Game/battleMovementPath';
 import type { BattleHandMode } from '@/modules/Game/battlePlayerLoadout';
@@ -60,10 +63,12 @@ import {
   updateCrossbowGrip,
 } from '@/modules/Game/battleRangedWeapon';
 import { dressSkeleton, uprightSkeletonClips } from '@/modules/Game/battleSkeleton';
+import { createSkillEffect, SKILL_IMPACT, SKILL_RELEASE } from '@/modules/Game/battleSkillEffects';
 import type { BattleState } from '@/modules/Monsters/api';
+import type { SkillEffect } from '@/modules/Skills/api';
 
-const props = defineProps<{ battle: BattleState; disabled: boolean; handMode?: BattleHandMode }>();
-const emit = defineEmits<{ busy: [value: boolean]; move: [cell: number]; attack: []; fallback: [] }>();
+const props = defineProps<{ battle: BattleState; disabled: boolean; handMode?: BattleHandMode; mageStaff?: boolean }>();
+const emit = defineEmits<{ busy: [value: boolean]; ready: []; move: [cell: number]; attack: []; fallback: [] }>();
 
 const host = ref<HTMLDivElement>();
 const message = ref('Loading animated battlefield…');
@@ -156,6 +161,7 @@ let shakeIntensity = 0;
 let playerAttackCombo = 0;
 let heavySwing: { progress: number; diagonal: boolean } | undefined;
 let rangedShotProgress: number | undefined;
+let castingProgress: number | undefined;
 let rangedBashProgress: number | undefined;
 
 const waits = new Set<{
@@ -280,7 +286,7 @@ function equipPlayer() {
     scene.add(weapon);
     return;
   }
-  weapon = createSword(mode === 'TWO_HANDED');
+  weapon = props.mageStaff ? createMageStaff() : createSword(mode === 'TWO_HANDED');
   scene.add(weapon);
   if (mode === 'DUAL') {
     offhandWeapon = createSword(false);
@@ -300,6 +306,9 @@ function equipPlayer() {
 }
 
 function updateEquipment() {
+  if (player && castingProgress !== undefined && ['UNARMED', 'SINGLE'].includes(props.handMode ?? '')) {
+    applyCastingGesture(player.root, castingProgress);
+  }
   if (!player || !weapon) return;
   player.root.updateMatrixWorld(true);
   const right = player.root.getObjectByName('Rig_hand_R');
@@ -308,6 +317,7 @@ function updateEquipment() {
   if (props.handMode === 'CROSSBOW') {
     const bash = rangedBashProgress === undefined ? 0 : attackOffset(rangedBashProgress, 0.45) * 0.3;
     updateCrossbowGrip(player.root, weapon, bash, /fall|death/i.test(player.current?.getClip().name ?? ''));
+    updateCrossbowMechanism(weapon, rangedShotProgress, !props.battle.player.missingAmmunition);
     return;
   }
   if (props.handMode === 'BOW') {
@@ -358,8 +368,11 @@ function updateEquipment() {
   }
   const heavy = (props.handMode ?? 'TWO_HANDED') === 'TWO_HANDED';
   const animationName = player.current?.getClip().name ?? '';
-  if (heavy && needsTwoHandedGrip(animationName, !!heavySwing)) {
-    const pose = heavyWeaponPose(heavySwing?.progress, heavySwing?.diagonal);
+  if (heavy && (castingProgress !== undefined || needsTwoHandedGrip(animationName, !!heavySwing))) {
+    const pose =
+      castingProgress !== undefined
+        ? castingWeaponPose(castingProgress)
+        : heavyWeaponPose(heavySwing?.progress, heavySwing?.diagonal);
     const direction = pose.direction.transformDirection(player.root.matrixWorld);
     const grip = player.root.localToWorld(pose.grip);
     const forward = new T.Vector3(0, 0, 1).transformDirection(player.root.matrixWorld);
@@ -870,6 +883,21 @@ function paint() {
   });
 }
 
+async function skillVisual(effect: SkillEffect, from: T.Vector3, to: T.Vector3, seconds: number, gesture = false) {
+  if (disposed) return;
+  const visual = createSkillEffect(effect, from, to);
+  scene.add(visual.root);
+  try {
+    await wait(seconds, (t) => {
+      if (gesture) castingProgress = t;
+      visual.update(t);
+    });
+  } finally {
+    if (gesture) castingProgress = undefined;
+    visual.dispose();
+  }
+}
+
 async function replay(next: BattleState) {
   if (!player || !enemy || disposed) return;
   busy = true;
@@ -915,6 +943,11 @@ async function replay(next: BattleState) {
         });
         unit.root.position.copy(step);
       }
+    } else if (event.effect === 'heal') {
+      const center = unit.root.position.clone().add(new T.Vector3(0, unit.height * 0.5, 0));
+      addFloatingText(`+${event.healing ?? 0} HP`, 'block', center);
+      play(unit, 'idle');
+      await skillVisual('heal', center, center, 0.9, unit === player);
     } else if (event.action === 'DEFEND') {
       const block =
         unit.clips.find(
@@ -932,10 +965,15 @@ async function replay(next: BattleState) {
       await wait(0.35);
     } else {
       face(unit, target.root.position);
-      const isPower = event.action === 'POWER_ATTACK';
-      const attackClip = unit === player ? selectPlayerAttackClip(isPower) : clip(unit, 'attack');
+      const spell = event.effect && ['fire', 'ice', 'arcane'].includes(event.effect);
+      const isPower = event.action === 'POWER_ATTACK' || event.effect === 'shockwave';
+      const attackClip = spell
+        ? clip(unit, 'idle')
+        : unit === player
+          ? selectPlayerAttackClip(isPower)
+          : clip(unit, 'attack');
       const timing = attackTiming(attackClip?.name ?? '', isPower, unit.model);
-      const rangedWeapon = unit === player && (props.handMode === 'BOW' || props.handMode === 'CROSSBOW');
+      const rangedWeapon = !spell && unit === player && (props.handMode === 'BOW' || props.handMode === 'CROSSBOW');
       const rangedAttack = rangedWeapon && (next.arena.playerAttackRange ?? 1) > 1;
       const rangedMelee = rangedWeapon && !rangedAttack;
       if (rangedMelee) {
@@ -948,12 +986,13 @@ async function replay(next: BattleState) {
         timing.duration = 0.95;
         timing.impact = 0.6;
       }
-      const heavyAttack = unit === player && (props.handMode ?? 'TWO_HANDED') === 'TWO_HANDED';
+      const heavyAttack = !spell && unit === player && (props.handMode ?? 'TWO_HANDED') === 'TWO_HANDED';
       if (heavyAttack) {
         heavySwing = { progress: 0, diagonal: attackClip?.name === 'knight_attack_3_heavy_weapon' };
         timing.impact = 0.57;
       }
       const duration = playAction(unit, attackClip, true, timing.duration, timing.blend);
+      if (spell) castingProgress = 0;
 
       // Melee combat lunge towards target
       const homePos = unit.root.position.clone();
@@ -962,41 +1001,86 @@ async function replay(next: BattleState) {
       const dist = toTarget.length();
       const lungeVector = toTarget
         .normalize()
-        .multiplyScalar(rangedAttack ? 0 : safeLungeDistance(dist, unit.bodyRadius, target.bodyRadius, isPower));
+        .multiplyScalar(
+          rangedAttack || spell ? 0 : safeLungeDistance(dist, unit.bodyRadius, target.bodyRadius, isPower)
+        );
       const lungePeak = homePos.clone().add(lungeVector);
 
       const strikePoint = timing.impact;
-      const projectile = rangedAttack ? createProjectile(props.handMode === 'CROSSBOW') : undefined;
-      if (projectile) {
+      updateEquipment();
+      const spellOrigin = () => {
+        if (unit === player && props.mageStaff && weapon) {
+          return weapon.localToWorld(new T.Vector3(0, 1.9, 0));
+        }
+        const hand = unit.root.getObjectByName('Rig_hand_L');
+        return hand ? hand.localToWorld(palmGrip.clone()) : homePos.clone().add(new T.Vector3(0, unit.height * 0.7, 0));
+      };
+      const visualFrom = spell
+        ? spellOrigin()
+        : weapon && rangedAttack
+          ? weapon.localToWorld(props.handMode === 'CROSSBOW' ? CROSSBOW_MUZZLE.clone() : new T.Vector3(0, 0, 0.2))
+          : homePos.clone().add(new T.Vector3(0, unit.height * 0.7, 0.5));
+      const visualTo = targetPos.clone().add(new T.Vector3(0, target.height * 0.55, 0));
+      const visual = event.effect ? createSkillEffect(event.effect, visualFrom, visualTo, homePos) : undefined;
+      if (visual) scene.add(visual.root);
+      const projectile = rangedAttack && !visual ? createProjectile(props.handMode === 'CROSSBOW') : undefined;
+      if (spell) {
+        await wait(0.42, (t) => {
+          castingProgress = t * SKILL_RELEASE;
+          updateEquipment();
+          visualFrom.copy(spellOrigin());
+          visual?.update(t * SKILL_RELEASE);
+        });
+        await wait(Math.max(0.16, visualFrom.distanceTo(visualTo) / 14), (t) => {
+          castingProgress = SKILL_RELEASE + t * (SKILL_IMPACT - SKILL_RELEASE);
+          visual?.update(castingProgress);
+        });
+      } else if (rangedAttack) {
         // Draw/aim first. Flight speed depends on distance, not the attack clip length.
         await wait(duration * 0.3, (t) => {
           rangedShotProgress = t * 0.3;
+          visual?.update(t * SKILL_RELEASE);
         });
         if (disposed) {
-          release(projectile);
+          if (projectile) release(projectile);
+          visual?.dispose();
           return;
         }
         updateEquipment();
-        const shotStart = weapon?.position.clone() ?? homePos.clone();
+        const shotStart = weapon
+          ? weapon.localToWorld(props.handMode === 'CROSSBOW' ? CROSSBOW_MUZZLE.clone() : new T.Vector3(0, 0, 0.2))
+          : homePos.clone();
         const shotEnd = targetPos.clone().add(new T.Vector3(0, target.height * 0.6, 0));
-        projectile.position.copy(shotStart);
-        projectile.quaternion.setFromUnitVectors(new T.Vector3(0, 0, 1), shotEnd.clone().sub(shotStart).normalize());
-        scene.add(projectile);
+        visualFrom.copy(shotStart);
+        if (projectile) {
+          projectile.position.copy(shotStart);
+          projectile.quaternion.setFromUnitVectors(new T.Vector3(0, 0, 1), shotEnd.clone().sub(shotStart).normalize());
+          scene.add(projectile);
+        }
         const flightSeconds = projectileFlightSeconds(shotStart.distanceTo(shotEnd), props.handMode === 'CROSSBOW');
         await wait(Math.max(0.001, flightSeconds), (t) => {
           rangedShotProgress = 0.3 + t * (strikePoint - 0.3);
-          projectile.position.lerpVectors(shotStart, shotEnd, t);
+          projectile?.position.lerpVectors(shotStart, shotEnd, t);
+          visual?.update(SKILL_RELEASE + t * (SKILL_IMPACT - SKILL_RELEASE));
         });
-        scene.remove(projectile);
-        release(projectile);
+        if (projectile) {
+          scene.remove(projectile);
+          release(projectile);
+        }
       } else {
         await wait(duration * strikePoint, (t) => {
           if (rangedMelee) rangedBashProgress = t * strikePoint;
           if (heavyAttack && heavySwing) heavySwing.progress = t * strikePoint;
+          visual?.update(t * SKILL_IMPACT);
           unit.root.position.copy(homePos).addScaledVector(lungeVector, attackOffset(t * strikePoint, strikePoint));
         });
       }
-      if (disposed) return;
+      if (disposed) {
+        visual?.dispose();
+        return;
+      }
+      // Contact happens now, not after the effect has already faded away.
+      visual?.update(SKILL_IMPACT);
 
       const impactPoint = lungePeak.clone().add(targetPos).multiplyScalar(0.5);
       impactPoint.y += target.height * 0.5;
@@ -1033,6 +1117,8 @@ async function replay(next: BattleState) {
       }
 
       await wait(duration * (1 - strikePoint), (t) => {
+        visual?.update(SKILL_IMPACT + t * (1 - SKILL_IMPACT));
+        if (spell) castingProgress = SKILL_IMPACT + t * (1 - SKILL_IMPACT);
         if (rangedAttack) rangedShotProgress = strikePoint + t * (1 - strikePoint);
         if (rangedMelee) rangedBashProgress = strikePoint + t * (1 - strikePoint);
         if (heavyAttack && heavySwing) heavySwing.progress = strikePoint + t * (1 - strikePoint);
@@ -1041,6 +1127,8 @@ async function replay(next: BattleState) {
           .addScaledVector(lungeVector, attackOffset(strikePoint + t * (1 - strikePoint), strikePoint));
       });
       unit.root.position.copy(homePos);
+      visual?.dispose();
+      castingProgress = undefined;
       if (heavyAttack) heavySwing = undefined;
       if (rangedAttack) rangedShotProgress = undefined;
       if (rangedMelee) rangedBashProgress = undefined;
@@ -1462,7 +1550,7 @@ onMounted(async () => {
     const equipment: Record<string, boolean> = {
       '1H_Sword': ['SINGLE', 'DUAL', 'WEAPON_SHIELD'].includes(mode),
       '1H_Sword_Offhand': mode === 'DUAL',
-      '2H_Sword': mode === 'TWO_HANDED',
+      '2H_Sword': mode === 'TWO_HANDED' && !props.mageStaff,
       Badge_Shield: mode === 'WEAPON_SHIELD',
       Rectangle_Shield: false,
       Round_Shield: false,
@@ -1493,6 +1581,7 @@ onMounted(async () => {
     message.value = '';
     busy = false;
     emit('busy', false);
+    emit('ready');
     paint();
   } catch (error) {
     if (disposed) return;
