@@ -5,6 +5,15 @@ const BASE_AUTH_PATH = `${BASE_API_PATH}/auth`;
 
 const routes = {
   api: {
+    gemPricesPath: () => `${BASE_API_PATH}/game/gem-prices`,
+    auction: {
+      path: () => `${BASE_API_PATH}/auction`,
+      buyPath: (id: string) => `${BASE_API_PATH}/auction/${encodeURIComponent(id)}/buy`,
+      notificationsPath: () => `${BASE_API_PATH}/notifications`,
+      summaryPath: () => `${BASE_API_PATH}/notifications/summary`,
+      claimPath: (id: string) => `${BASE_API_PATH}/notifications/${encodeURIComponent(id)}/claim`,
+      readPath: (id: string) => `${BASE_API_PATH}/notifications/${encodeURIComponent(id)}/read`,
+    },
     skills: {
       path: () => `${BASE_API_PATH}/skills`,
       classPath: () => `${BASE_API_PATH}/skills/class`,
@@ -118,6 +127,8 @@ const routes = {
     },
   },
   rootPath: () => '/',
+  auctionPath: () => '/auction',
+  notificationsPath: () => '/notifications',
   settingsPath: () => '/settings',
   leaderboardPath: () => '/leaderboard',
   craftPath: () => '/craft',

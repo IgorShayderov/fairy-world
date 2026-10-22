@@ -7,6 +7,7 @@ describe('premium accounts', () => {
   const now = new Date('2026-10-10T12:00:00Z');
   const originalEnv = process.env.NODE_ENV;
   const tx = {
+    gemActionPrice: { findUnique: jest.fn() },
     gameProfile: { updateMany: jest.fn(), findUniqueOrThrow: jest.fn() },
     premiumAccount: { findUnique: jest.fn(), upsert: jest.fn(), findFirst: jest.fn(), updateMany: jest.fn() },
   };
@@ -14,6 +15,7 @@ describe('premium accounts', () => {
   const service = new PremiumService(prisma as unknown as PrismaService);
   beforeEach(() => {
     jest.clearAllMocks();
+    tx.gemActionPrice.findUnique.mockResolvedValue(null);
     jest.useFakeTimers().setSystemTime(now);
     process.env.NODE_ENV = 'production';
     tx.gameProfile.updateMany.mockResolvedValue({ count: 1 });
@@ -42,6 +44,27 @@ describe('premium accounts', () => {
     const end = new Date(now.getTime() + 5 * 86400000);
     tx.premiumAccount.findUnique.mockResolvedValue({ active: true, expiresAt: end });
     expect((await service.buy(1)).expiresAt.getTime()).toBe(end.getTime() + PREMIUM_DURATION_MS);
+  });
+  it.each([0, 350])('charges configured premium price %i for the same 30 days', async (cost) => {
+    tx.gemActionPrice.findUnique.mockResolvedValue({ cost });
+    const result = await service.buy(1, cost);
+    expect(result.expiresAt.getTime()).toBe(now.getTime() + PREMIUM_DURATION_MS);
+    expect(tx.gameProfile.updateMany).toHaveBeenCalledWith({
+      where: { userId: 1, gems: { gte: cost } },
+      data: { gems: { decrement: cost } },
+    });
+  });
+  it('rejects stale premium quotes without charging or extending membership', async () => {
+    tx.gemActionPrice.findUnique.mockResolvedValue({ cost: 350 });
+    await expect(service.buy(1, 200)).rejects.toThrow('price has changed');
+    expect(tx.gameProfile.updateMany).not.toHaveBeenCalled();
+    expect(tx.premiumAccount.upsert).not.toHaveBeenCalled();
+  });
+  it('reports the configured price when the balance is insufficient', async () => {
+    tx.gemActionPrice.findUnique.mockResolvedValue({ cost: 350 });
+    tx.gameProfile.updateMany.mockResolvedValue({ count: 0 });
+    await expect(service.buy(1, 350)).rejects.toThrow('350 gems');
+    expect(tx.premiumAccount.upsert).not.toHaveBeenCalled();
   });
   it('restarts an expired membership from now', async () => {
     tx.premiumAccount.findUnique.mockResolvedValue({ active: false, expiresAt: new Date('2026-01-01') });

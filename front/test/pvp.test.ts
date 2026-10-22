@@ -28,9 +28,9 @@ describe('PvP module and routes', () => {
     expect(api.get).toHaveBeenCalledWith(routes.api.pvp.opponentsPath());
 
     vi.spyOn(api, 'post').mockResolvedValueOnce({ data: mockOpponents, meta: {} } as never);
-    const refreshed = await pvpApi.refreshOpponents();
+    const refreshed = await pvpApi.refreshOpponents(17);
     expect(refreshed).toEqual(mockOpponents);
-    expect(api.post).toHaveBeenCalledWith(routes.api.pvp.refreshOpponentsPath());
+    expect(api.post).toHaveBeenCalledWith(routes.api.pvp.refreshOpponentsPath(), { expectedCost: 17 });
 
     vi.spyOn(api, 'post').mockResolvedValueOnce({ data: mockDuelResult, meta: {} } as never);
     const duelRes = await pvpApi.duel('opp-easy-1');
@@ -38,9 +38,9 @@ describe('PvP module and routes', () => {
     expect(api.post).toHaveBeenCalledWith(routes.api.pvp.duelPath(), { opponentId: 'opp-easy-1' });
 
     vi.spyOn(api, 'post').mockResolvedValueOnce({ data: mockReset, meta: {} } as never);
-    const resetRes = await pvpApi.resetCooldown();
+    const resetRes = await pvpApi.resetCooldown(4);
     expect(resetRes).toEqual(mockReset);
-    expect(api.post).toHaveBeenCalledWith(routes.api.pvp.resetCooldownPath());
+    expect(api.post).toHaveBeenCalledWith(routes.api.pvp.resetCooldownPath(), { expectedCost: 4 });
 
     vi.mocked(api.get).mockResolvedValueOnce({ data: { coinsOfHonour: 3, offers: [] }, meta: {} });
     await pvpApi.getShop();

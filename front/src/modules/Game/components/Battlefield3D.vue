@@ -34,12 +34,15 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 import {
+  attackMotion,
   attackOffset,
   attackTiming,
   inPlacePlayerClips,
+  movementProgress,
   safeLungeDistance,
   skeletonAttackClips,
   smoothStep,
+  transitionBattleAction,
   usesReversingIdle,
 } from '@/modules/Game/battleAnimation';
 import { applyCastingGesture, castingWeaponPose } from '@/modules/Game/battleCastingPose';
@@ -62,8 +65,10 @@ import {
   projectileFlightSeconds,
   updateCrossbowGrip,
 } from '@/modules/Game/battleRangedWeapon';
+import { releaseBattleResources as release } from '@/modules/Game/battleResources';
 import { dressSkeleton, uprightSkeletonClips } from '@/modules/Game/battleSkeleton';
 import { createSkillEffect, SKILL_IMPACT, SKILL_RELEASE } from '@/modules/Game/battleSkillEffects';
+import { BattleTimeline, dampShake } from '@/modules/Game/battleTimeline';
 import type { BattleState } from '@/modules/Monsters/api';
 import type { SkillEffect } from '@/modules/Skills/api';
 
@@ -100,7 +105,7 @@ function addFloatingText(text: string, type: FloatingText['type'], worldPos: T.V
     offsetY: 0,
     opacity: 1,
     scale: type === 'crit' ? 1.4 : 1.0,
-    startTime: performance.now(),
+    startTime: elapsed,
   });
 }
 
@@ -164,15 +169,10 @@ let rangedShotProgress: number | undefined;
 let castingProgress: number | undefined;
 let rangedBashProgress: number | undefined;
 
-const waits = new Set<{
-  end: number;
-  resolve: () => void;
-  tick: ((progress: number) => void) | undefined;
-  start: number;
-}>();
+const timeline = new BattleTimeline();
 
 function wait(seconds: number, tick?: (progress: number) => void) {
-  return new Promise<void>((resolve) => waits.add({ end: elapsed + seconds, start: elapsed, resolve, tick }));
+  return timeline.wait(seconds, tick);
 }
 
 function point(cell: number) {
@@ -524,19 +524,15 @@ function selectPlayerAttackClip(isPower: boolean): T.AnimationClip | undefined {
 
   if (isPower) {
     const powerClip =
-      mode === 'TWO_HANDED'
-        ? (player.clips.find((c) => /2H_Melee_Attack_Spin/i.test(c.name)) ??
-          player.clips.find((c) => /2H_Melee_Attack_Chop/i.test(c.name)))
-        : mode === 'DUAL'
-          ? player.clips.find((c) => /Dualwield_Melee_Attack_Chop/i.test(c.name))
-          : mode === 'UNARMED'
-            ? player.clips.find((c) => /Unarmed_Melee_Attack_Kick/i.test(c.name))
-            : player.clips.find((c) => /1H_Melee_Attack_Chop/i.test(c.name));
+      mode === 'DUAL'
+        ? player.clips.find((c) => /Dualwield_Melee_Attack_Chop/i.test(c.name))
+        : mode === 'UNARMED'
+          ? player.clips.find((c) => /Unarmed_Melee_Attack_Kick/i.test(c.name))
+          : player.clips.find((c) => /1H_Melee_Attack_Chop/i.test(c.name));
     if (powerClip) return powerClip;
   }
 
-  const comboPools: Record<string, string[]> = {
-    TWO_HANDED: ['2H_Melee_Attack_Slice', '2H_Melee_Attack_Chop', '2H_Melee_Attack_Stab'],
+  const comboPools = {
     DUAL: ['Dualwield_Melee_Attack_Slice', 'Dualwield_Melee_Attack_Chop', 'Dualwield_Melee_Attack_Stab'],
     UNARMED: ['Unarmed_Melee_Attack_Punch_A', 'Unarmed_Melee_Attack_Punch_B', 'Unarmed_Melee_Attack_Kick'],
     SINGLE: [
@@ -547,7 +543,7 @@ function selectPlayerAttackClip(isPower: boolean): T.AnimationClip | undefined {
     ],
   };
 
-  const pool = comboPools[mode] ?? comboPools.SINGLE;
+  const pool = mode === 'WEAPON_SHIELD' ? comboPools.SINGLE : comboPools[mode];
   const chosenName = pool[playerAttackCombo % pool.length];
   playerAttackCombo++;
   return player.clips.find((c) => c.name === chosenName) ?? clip(player, 'attack');
@@ -561,17 +557,7 @@ function playAction(
   blend?: number
 ) {
   if (!animation) return 0.6;
-  const action = unit.mixer.clipAction(animation);
-  if (!once && unit.current === action && action.isRunning()) return animation.duration;
-  if (unit.current !== action) unit.current?.fadeOut(blend ?? 0.18);
-  action
-    .reset()
-    .setEffectiveTimeScale(duration ? animation.duration / duration : 1)
-    .setEffectiveWeight(1);
-  action.setLoop(once ? T.LoopOnce : T.LoopRepeat, once ? 1 : Infinity);
-  action.clampWhenFinished = once;
-  action.fadeIn(blend ?? (once ? 0.08 : 0.18)).play();
-  unit.current = action;
+  unit.current = transitionBattleAction(unit.mixer, unit.current, animation, once, duration, blend);
   return duration ?? animation.duration;
 }
 
@@ -618,30 +604,24 @@ function spawnHitSparks(position: T.Vector3, colorHex: string, count = 12) {
 
   scene.add(sparkGroup);
 
-  const startTime = elapsed;
   const sparkDuration = 0.32;
-  const tick = () => {
-    const age = elapsed - startTime;
-    const progress = age / sparkDuration;
-    if (progress >= 1 || disposed) {
+  void timeline.wait(
+    sparkDuration,
+    (progress) => {
+      const age = progress * sparkDuration;
+      for (const p of particles) {
+        p.mesh.position.copy(p.velocity).multiplyScalar(age);
+        p.mesh.position.y -= 0.5 * 8.5 * age * age;
+        (p.mesh.material as T.MeshBasicMaterial).opacity = 1 - progress;
+        p.mesh.scale.setScalar(Math.max(0.01, 1 - progress));
+      }
+    },
+    () => {
       scene.remove(sparkGroup);
-      sparkGroup.traverse((o) => {
-        if (o instanceof T.Mesh) {
-          o.geometry.dispose();
-          o.material.dispose();
-        }
-      });
-      return;
+      sparkGeo.dispose();
+      for (const p of particles) (p.mesh.material as T.Material).dispose();
     }
-    for (const p of particles) {
-      p.mesh.position.addScaledVector(p.velocity, 0.016);
-      p.velocity.y -= 8.5 * 0.016;
-      (p.mesh.material as T.MeshBasicMaterial).opacity = 1 - progress;
-      p.mesh.scale.setScalar(Math.max(0.01, 1 - progress));
-    }
-    requestAnimationFrame(tick);
-  };
-  requestAnimationFrame(tick);
+  );
 }
 
 function spawnBlockBarrier(position: T.Vector3) {
@@ -658,22 +638,18 @@ function spawnBlockBarrier(position: T.Vector3) {
   barrier.lookAt(camera.position);
   scene.add(barrier);
 
-  const startTime = elapsed;
-  const duration = 0.28;
-  const tick = () => {
-    const age = elapsed - startTime;
-    const progress = age / duration;
-    if (progress >= 1 || disposed) {
+  void timeline.wait(
+    0.28,
+    (progress) => {
+      barrier.scale.setScalar(1 + progress * 0.5);
+      barrierMat.opacity = (1 - progress) * 0.85;
+    },
+    () => {
       scene.remove(barrier);
       barrierGeo.dispose();
       barrierMat.dispose();
-      return;
     }
-    barrier.scale.setScalar(1 + progress * 0.5);
-    barrierMat.opacity = (1 - progress) * 0.85;
-    requestAnimationFrame(tick);
-  };
-  requestAnimationFrame(tick);
+  );
 }
 
 function triggerHitReaction(target: Fighter, hitDirection: T.Vector3, isCrit = false) {
@@ -687,7 +663,7 @@ function triggerHitReaction(target: Fighter, hitDirection: T.Vector3, isCrit = f
 
   const staggerDuration = isCrit ? 0.26 : 0.18;
   void wait(staggerDuration, (t) => {
-    const progress = t < 0.35 ? t / 0.35 : 1 - (t - 0.35) / 0.65;
+    const progress = t < 0.35 ? smoothStep(t / 0.35) : 1 - smoothStep((t - 0.35) / 0.65);
     target.root.position.lerpVectors(startPos, recoilPos, progress);
   });
 
@@ -715,7 +691,7 @@ function triggerDodgeReaction(target: Fighter, attackDirection: T.Vector3) {
   });
 }
 
-function triggerBlockReaction(target: Fighter, impactPoint: T.Vector3) {
+function triggerBlockReaction(target: Fighter, impactPoint: T.Vector3, attackDirection: T.Vector3) {
   if (target === player) {
     const blockClip =
       target.clips.find((c) => c.name === 'knight_shield_block' || c.name === 'knight_block_2_weapon') ??
@@ -727,7 +703,7 @@ function triggerBlockReaction(target: Fighter, impactPoint: T.Vector3) {
   spawnBlockBarrier(impactPoint);
 
   const startPos = target.root.position.clone();
-  const recoilPos = startPos.clone().add(new T.Vector3(0, 0, 0.12));
+  const recoilPos = startPos.clone().addScaledVector(attackDirection, 0.12);
   void wait(0.2, (t) => {
     const progress = Math.sin(t * Math.PI);
     target.root.position.lerpVectors(startPos, recoilPos, progress);
@@ -852,7 +828,7 @@ function createCraggyBoulder(): T.Group {
 
 function paint() {
   const arena = props.battle.arena;
-  const interactive = !busy && !props.disabled && props.battle.status === 'ACTIVE';
+  const interactive = !busy && !failed.value && !props.disabled && props.battle.status === 'ACTIVE';
   tileOverlays.forEach((overlay, cell) => {
     const reachable = arena.reachableCells.includes(cell) && !arena.blockedCells.includes(cell);
     overlay.mode = !interactive
@@ -905,7 +881,7 @@ async function replay(next: BattleState) {
   paint();
 
   let deathStarted = false;
-  let deathFinished: Promise<void> | undefined;
+  let deathFinished: Promise<boolean> | undefined;
   for (const [eventIndex, event] of next.events.entries()) {
     if (disposed) return;
     const unit = event.actor === 'PLAYER' ? player : enemy;
@@ -923,7 +899,7 @@ async function replay(next: BattleState) {
           ? [event.toCell]
           : battleMovementPath(from, event.toCell, next.arena.columns, next.arena.rows, next.arena.blockedCells);
 
-      for (const cell of path) {
+      for (const [stepIndex, cell] of path.entries()) {
         if (disposed) return;
         const step = point(cell);
         const origin = unit.root.position.clone();
@@ -937,10 +913,15 @@ async function replay(next: BattleState) {
 
         const moveDuration = Math.max(0.22, origin.distanceTo(step) / 3.9);
         await wait(moveDuration, (t) => {
-          unit.root.position.lerpVectors(origin, step, t);
+          unit.root.position.lerpVectors(
+            origin,
+            step,
+            movementProgress(t, stepIndex === 0, stepIndex === path.length - 1)
+          );
           const turnProgress = Math.min(1, t / 0.35);
           unit.root.rotation.y = startAngle + deltaAngle * smoothStep(turnProgress);
         });
+        if (disposed) return;
         unit.root.position.copy(step);
       }
     } else if (event.effect === 'heal') {
@@ -953,10 +934,7 @@ async function replay(next: BattleState) {
         unit.clips.find(
           (entry) => entry.name === (props.handMode === 'DUAL' ? 'knight_block_2_weapon' : 'knight_shield_block')
         ) ?? unit.clips.find((entry) => entry.name === 'Block');
-      if (block) {
-        unit.current?.fadeOut(0.1);
-        unit.current = unit.mixer.clipAction(block).reset().setLoop(T.LoopOnce, 1).play();
-      }
+      if (block) playAction(unit, block, true, undefined, 0.1);
       addFloatingText(
         'DEFENDING',
         'block',
@@ -999,11 +977,13 @@ async function replay(next: BattleState) {
       const targetPos = target.root.position.clone();
       const toTarget = targetPos.clone().sub(homePos);
       const dist = toTarget.length();
-      const lungeVector = toTarget
-        .normalize()
-        .multiplyScalar(
-          rangedAttack || spell ? 0 : safeLungeDistance(dist, unit.bodyRadius, target.bodyRadius, isPower)
-        );
+      const motion = attackMotion(
+        homePos,
+        targetPos,
+        rangedAttack || spell ? 0 : safeLungeDistance(dist, unit.bodyRadius, target.bodyRadius, isPower)
+      );
+      const attackDirection = new T.Vector3(motion.direction.x, 0, motion.direction.z);
+      const lungeVector = new T.Vector3(motion.lunge.x, 0, motion.lunge.z);
       const lungePeak = homePos.clone().add(lungeVector);
 
       const strikePoint = timing.impact;
@@ -1031,6 +1011,10 @@ async function replay(next: BattleState) {
           visualFrom.copy(spellOrigin());
           visual?.update(t * SKILL_RELEASE);
         });
+        if (disposed) {
+          visual?.dispose();
+          return;
+        }
         await wait(Math.max(0.16, visualFrom.distanceTo(visualTo) / 14), (t) => {
           castingProgress = SKILL_RELEASE + t * (SKILL_IMPACT - SKILL_RELEASE);
           visual?.update(castingProgress);
@@ -1094,10 +1078,10 @@ async function replay(next: BattleState) {
         ((next.status === 'VICTORY' && target === enemy) || (next.status === 'DEFEAT' && target === player));
 
       if (event.dodged) {
-        triggerDodgeReaction(target, toTarget);
+        triggerDodgeReaction(target, attackDirection);
         addFloatingText('DODGED!', 'dodge', textPos);
       } else if (event.blocked) {
-        triggerBlockReaction(target, impactPoint);
+        triggerBlockReaction(target, impactPoint, attackDirection);
         addFloatingText('BLOCKED!', 'block', textPos);
       } else {
         if (killingBlow) {
@@ -1105,7 +1089,7 @@ async function replay(next: BattleState) {
           deathFinished = wait(play(target, 'death', true));
           spawnHitSparks(impactPoint, '#fbc879', 12);
         } else {
-          triggerHitReaction(target, toTarget, event.critical || isPower);
+          triggerHitReaction(target, attackDirection, event.critical || isPower);
         }
         const dmg = event.damage ?? 0;
         const text = event.critical ? `CRIT! -${dmg}` : isPower ? `HEAVY! -${dmg}` : `-${dmg}`;
@@ -1126,8 +1110,9 @@ async function replay(next: BattleState) {
           .copy(homePos)
           .addScaledVector(lungeVector, attackOffset(strikePoint + t * (1 - strikePoint), strikePoint));
       });
-      unit.root.position.copy(homePos);
       visual?.dispose();
+      if (disposed) return;
+      unit.root.position.copy(homePos);
       castingProgress = undefined;
       if (heavyAttack) heavySwing = undefined;
       if (rangedAttack) rangedShotProgress = undefined;
@@ -1135,13 +1120,18 @@ async function replay(next: BattleState) {
 
       if (!killingBlow) play(target, 'idle');
     }
-    play(unit, 'idle');
+    if (disposed) return;
+    // Blend directly from locomotion into the same actor's next action, rather
+    // than starting an idle fade and immediately interrupting it with an attack.
+    const following = next.events[eventIndex + 1];
+    if (event.action !== 'MOVE' || following?.actor !== event.actor) play(unit, 'idle');
   }
 
   player.root.position.copy(point(next.arena.playerPosition));
   enemy.root.position.copy(point(next.arena.monsterPosition));
-  face(player, enemy.root.position);
-  face(enemy, player.root.position);
+  // Do not rotate a body halfway through its death clip.
+  if (next.status !== 'DEFEAT') face(player, enemy.root.position);
+  if (next.status !== 'VICTORY') face(enemy, player.root.position);
 
   if (deathFinished) await deathFinished;
   if (next.status !== 'ACTIVE' && !deathStarted) {
@@ -1159,9 +1149,19 @@ let sequence = Promise.resolve();
 watch(
   () => props.battle,
   (next) => {
+    if (failed.value) return;
     busy = true;
     emit('busy', true);
-    sequence = sequence.then(() => replay(next));
+    sequence = sequence
+      .then(() => replay(next))
+      .catch((error: unknown) => {
+        if (disposed) return;
+        console.error('3D battle animation failed', error);
+        failed.value = true;
+        message.value = 'The battle animation could not finish. Return to battle options to continue.';
+        busy = false;
+        emit('busy', false);
+      });
   },
   { flush: 'sync' }
 );
@@ -1186,7 +1186,7 @@ function clearHover() {
 
 function hover(event: PointerEvent) {
   clearHover();
-  if (!renderer || event.buttons || busy || props.disabled || props.battle.status !== 'ACTIVE') return;
+  if (!renderer || event.buttons || busy || failed.value || props.disabled || props.battle.status !== 'ACTIVE') return;
   const ray = pointerRay(event);
   const hit = ray.intersectObjects(tiles)[0];
   const cell = hit ? tiles.indexOf(hit.object as (typeof tiles)[number]) : -1;
@@ -1204,7 +1204,7 @@ function hover(event: PointerEvent) {
 
 function select(event: PointerEvent) {
   if (event.button !== 0) return;
-  if (!renderer || busy || props.disabled || props.battle.status !== 'ACTIVE') return;
+  if (!renderer || busy || failed.value || props.disabled || props.battle.status !== 'ACTIVE') return;
   const ray = pointerRay(event);
   if (enemy && ray.intersectObject(enemy.root, true).length && props.battle.arena.canAttack) {
     emit('attack');
@@ -1260,19 +1260,9 @@ onMounted(async () => {
 
     const { columns, rows, blockedCells } = props.battle.arena;
 
-    // 2. Multi-tiered Arena Terrain & Elevated Stone Dais
+    // 2. Arena dimensions and continuous terrain beneath the tactical grid
     const daisWidth = columns * 1.85 + 4;
     const daisDepth = rows * 1.6 + 4;
-    const daisMesh = new T.Mesh(
-      new T.BoxGeometry(daisWidth, 0.45, daisDepth),
-      new T.MeshStandardMaterial({ color: '#252e2b', roughness: 0.95, metalness: 0.05 })
-    );
-    daisMesh.position.set(0, -0.15, 0);
-    daisMesh.receiveShadow = true;
-    // Continuous terrain replaces the raised tabletop. The tactical grid is an overlay only.
-    daisMesh.geometry.dispose();
-    daisMesh.material.dispose();
-
     // Lower natural rugged terrain
     const terrain = new T.Mesh(
       new T.PlaneGeometry(160, 160, 24, 24),
@@ -1410,7 +1400,7 @@ onMounted(async () => {
 
     for (let i = 0; i < emberCount; i++) {
       const bIdx = i % 4;
-      const bCenter = brazierPositions[bIdx];
+      const bCenter = brazierPositions[bIdx]!;
       emberPositions[i * 3] = bCenter.x + (Math.random() - 0.5) * 1.8;
       emberPositions[i * 3 + 1] = 1.0 + Math.random() * 4.5;
       emberPositions[i * 3 + 2] = bCenter.z + (Math.random() - 0.5) * 1.8;
@@ -1476,20 +1466,21 @@ onMounted(async () => {
       // Rising embers particle movement
       if (emberPositions && emberVelocities && emberPoints) {
         for (let i = 0; i < emberCount; i++) {
-          emberPositions[i * 3] += emberVelocities[i * 3] * delta;
-          emberPositions[i * 3 + 1] += emberVelocities[i * 3 + 1] * delta;
-          emberPositions[i * 3 + 2] += emberVelocities[i * 3 + 2] * delta;
+          for (let axis = 0; axis < 3; axis++) {
+            const offset = i * 3 + axis;
+            emberPositions[offset] = emberPositions[offset]! + emberVelocities[offset]! * delta;
+          }
 
           // Recycle ember when it drifts too high
-          if (emberPositions[i * 3 + 1] > 6.0) {
+          if (emberPositions[i * 3 + 1]! > 6.0) {
             const bIdx = i % 4;
-            const bCenter = brazierPositions[bIdx];
+            const bCenter = brazierPositions[bIdx]!;
             emberPositions[i * 3] = bCenter.x + (Math.random() - 0.5) * 1.4;
             emberPositions[i * 3 + 1] = 1.1;
             emberPositions[i * 3 + 2] = bCenter.z + (Math.random() - 0.5) * 1.4;
           }
         }
-        emberPoints.geometry.attributes.position.needsUpdate = true;
+        emberPoints.geometry.getAttribute('position').needsUpdate = true;
       }
 
       paint();
@@ -1502,24 +1493,17 @@ onMounted(async () => {
         const oy = (Math.random() - 0.5) * shakeIntensity * 1.4;
         camera.position.x += ox;
         camera.position.y += oy;
-        shakeIntensity *= 0.82;
+        shakeIntensity = dampShake(shakeIntensity, delta);
       }
 
-      for (const task of waits) {
-        task.tick?.(Math.min(1, (elapsed - task.start) / (task.end - task.start)));
-        if (elapsed >= task.end) {
-          waits.delete(task);
-          task.resolve();
-        }
-      }
+      timeline.advance(delta);
       updateEquipment();
 
       // Project floating combat text positions to 2D screen coordinates
       if (host.value && floatingTexts.value.length) {
         const { width, height } = host.value.getBoundingClientRect();
-        const nowMs = performance.now();
         floatingTexts.value = floatingTexts.value.filter((item) => {
-          const age = (nowMs - item.startTime) / 1000;
+          const age = elapsed - item.startTime;
           if (age > 1.2) return false;
           const v = item.worldPos.clone().project(camera);
           item.x = (v.x + 1) * 0.5 * width;
@@ -1592,24 +1576,12 @@ onMounted(async () => {
   }
 });
 
-function release(root: T.Object3D) {
-  root.traverse((object) => {
-    if (!(object instanceof T.Mesh)) return;
-    object.geometry.dispose();
-    for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
-      for (const value of Object.values(material)) if (value instanceof T.Texture) value.dispose();
-      material.dispose();
-    }
-  });
-}
-
 onBeforeUnmount(() => {
   disposed = true;
   cancelAnimationFrame(frame);
   observer?.disconnect();
   controls?.dispose();
-  for (const task of waits) task.resolve();
-  waits.clear();
+  timeline.dispose();
   player?.mixer.stopAllAction();
   enemy?.mixer.stopAllAction();
   release(scene);

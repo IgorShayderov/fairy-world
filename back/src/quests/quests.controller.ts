@@ -1,4 +1,5 @@
-import { Controller, Get, Param, ParseIntPipe, Post, Request, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseIntPipe, Post, Request, UseGuards } from '@nestjs/common';
+import { GemPurchaseDto } from '../gem-prices/gem-prices.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from '../auth/auth.guard';
 import type { RequestWithUser } from '../auth/interfaces/request-with-user.interface';
@@ -22,8 +23,8 @@ export class QuestsController {
   }
 
   @Post('refresh')
-  refresh(@Request() req: RequestWithUser) {
-    return this.quests.refresh(req.user.sub);
+  refresh(@Request() req: RequestWithUser, @Body() dto: GemPurchaseDto = {}) {
+    return this.quests.refresh(req.user.sub, dto.expectedCost);
   }
 
   @Post(':id/deliver')

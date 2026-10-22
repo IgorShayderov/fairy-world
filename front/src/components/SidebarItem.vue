@@ -10,10 +10,16 @@
     :aria-current="isActive ? 'page' : undefined"
   >
     <div class="flex h-10 flex-nowrap items-center overflow-hidden">
-      <div class="flex w-[34px] shrink-0 items-center justify-center">
+      <div class="relative flex w-[34px] shrink-0 items-center justify-center">
         <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="item.icon" />
         </svg>
+        <span
+          v-if="item.badge"
+          class="absolute -top-2 -right-1 rounded-full bg-[#d9b961] px-1 text-[10px] font-bold text-[#0b2530]"
+          :aria-label="`${item.badge} notifications`"
+          >{{ item.badge > 99 ? '99+' : item.badge }}</span
+        >
       </div>
 
       <div
@@ -33,7 +39,7 @@ import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 const props = defineProps<{
-  item: { id: string; nameKey: string; route: string; icon: string };
+  item: { id: string; nameKey: string; route: string; icon: string; badge?: number };
   isExpanded: boolean;
 }>();
 

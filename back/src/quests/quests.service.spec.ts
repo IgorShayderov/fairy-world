@@ -19,6 +19,7 @@ describe('QuestsService', () => {
     isPrimary: false,
   };
   const prisma = {
+    gemActionPrice: { findUnique: jest.fn() },
     inventoryItem: { create: jest.fn() },
     $transaction: jest.fn(),
     questBoard: { findUnique: jest.fn(), upsert: jest.fn() },
@@ -138,6 +139,20 @@ describe('QuestsService', () => {
       }),
     );
     expect(prisma.playerQuest.update).not.toHaveBeenCalled();
+  });
+
+  it.each([0, 43])('charges the configured quest refresh price %i', async (cost) => {
+    prisma.gemActionPrice.findUnique.mockResolvedValue({ cost });
+    await service.refresh(7, cost);
+    expect(prisma.gameProfile.update).toHaveBeenCalledWith({ where: { id: 5 }, data: { gems: { decrement: cost } } });
+    expect((await service.list(7)).refreshCost).toBe(cost);
+  });
+
+  it('rejects old quest quotes before charging or rerolling', async () => {
+    prisma.gemActionPrice.findUnique.mockResolvedValue({ cost: 43 });
+    await expect(service.refresh(7, 30)).rejects.toThrow('price has changed');
+    expect(prisma.questBoard.upsert).not.toHaveBeenCalled();
+    expect(prisma.gameProfile.update).toHaveBeenCalledTimes(1); // profile lock only
   });
 
   it('does not charge or reroll when gems are insufficient', async () => {

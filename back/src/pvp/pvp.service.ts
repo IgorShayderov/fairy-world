@@ -7,6 +7,7 @@ import { UsersService } from '../users/users.service';
 import { UserView } from '../users/user.view';
 import { progressionAfterExperience } from '../users/level-progression';
 import type { PvpBattleEvent, PvpCombatant, PvpDifficulty, PvpDuelResult, PvpOpponent } from './pvp.types';
+import { gemActionCost, GEM_ACTIONS } from '../gem-prices/gem-prices';
 
 const BOT_NAMES = [
   'Valerius',
@@ -54,8 +55,8 @@ const BOT_TITLES = [
   'Duskwarden',
 ];
 
-export const PVP_REFRESH_GEMS_COST = 30;
-export const PVP_RESET_COOLDOWN_GEMS_COST = 10;
+export const PVP_REFRESH_GEMS_COST = GEM_ACTIONS.PVP_REFRESH.defaultCost;
+export const PVP_RESET_COOLDOWN_GEMS_COST = GEM_ACTIONS.PVP_COOLDOWN.defaultCost;
 export const PVP_ATTACK_COOLDOWN_MS = 15 * 60 * 1000; // 15 minutes
 const BOT_HEALTH_MULTIPLIER = 1.4;
 const BOT_DEFENSE_MULTIPLIER = 1.3;
@@ -119,18 +120,20 @@ export class PvpService implements OnModuleInit, OnModuleDestroy {
     return this.generateOpponents(userId);
   }
 
-  async refreshOpponents(userId: number): Promise<PvpOpponent[]> {
+  async refreshOpponents(userId: number, expectedCost?: number): Promise<PvpOpponent[]> {
     const user = await this.usersService.findCurrentUser(userId);
     if (!user?.gameProfile) throw new NotFoundException('Game profile not found');
 
-    if (user.gameProfile.gems < PVP_REFRESH_GEMS_COST) {
+    const cost = await gemActionCost(this.prisma, 'PVP_REFRESH', expectedCost);
+    if (user.gameProfile.gems < cost) {
       throw new BadRequestException('Not enough gems to refresh opponents');
     }
 
-    await this.prisma.gameProfile.update({
-      where: { id: user.gameProfile.id },
-      data: { gems: { decrement: PVP_REFRESH_GEMS_COST } },
+    const paid = await this.prisma.gameProfile.updateMany({
+      where: { id: user.gameProfile.id, gems: { gte: cost } },
+      data: { gems: { decrement: cost } },
     });
+    if (paid.count !== 1) throw new BadRequestException('Not enough gems to refresh opponents');
 
     return this.generateOpponents(userId);
   }
@@ -144,21 +147,23 @@ export class PvpService implements OnModuleInit, OnModuleDestroy {
     if (s) s.dayKey = dayKey;
   }
 
-  async resetCooldown(userId: number): Promise<{ success: boolean; pvpCooldownUntil: null }> {
+  async resetCooldown(userId: number, expectedCost?: number): Promise<{ success: boolean; pvpCooldownUntil: null }> {
     const user = await this.usersService.findCurrentUser(userId);
     if (!user?.gameProfile) throw new NotFoundException('Game profile not found');
 
-    if (user.gameProfile.gems < PVP_RESET_COOLDOWN_GEMS_COST) {
+    const cost = await gemActionCost(this.prisma, 'PVP_COOLDOWN', expectedCost);
+    if (user.gameProfile.gems < cost) {
       throw new BadRequestException('Not enough gems to reset attack timer');
     }
 
-    await this.prisma.gameProfile.update({
-      where: { id: user.gameProfile.id },
+    const paid = await this.prisma.gameProfile.updateMany({
+      where: { id: user.gameProfile.id, gems: { gte: cost }, pvpCooldownUntil: { gt: new Date() } },
       data: {
-        gems: { decrement: PVP_RESET_COOLDOWN_GEMS_COST },
+        gems: { decrement: cost },
         pvpCooldownUntil: null,
       },
     });
+    if (paid.count !== 1) throw new BadRequestException('Not enough gems or the attack timer is already ready');
 
     return { success: true, pvpCooldownUntil: null };
   }
@@ -410,7 +415,7 @@ export class PvpService implements OnModuleInit, OnModuleDestroy {
     if (user.gameProfile.pvpCooldownUntil && user.gameProfile.pvpCooldownUntil.getTime() > Date.now()) {
       const remainingMinutes = Math.ceil((user.gameProfile.pvpCooldownUntil.getTime() - Date.now()) / (60 * 1000));
       throw new BadRequestException(
-        `Attack is on cooldown for ${remainingMinutes} more minute(s). Wait or reset for 10 gems.`,
+        `Attack is on cooldown for ${remainingMinutes} more minute(s). Wait or use the cooldown reset.`,
       );
     }
 

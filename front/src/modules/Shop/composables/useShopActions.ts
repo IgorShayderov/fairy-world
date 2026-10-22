@@ -197,7 +197,7 @@ export function useShopActions() {
 
     loading.value = true;
     try {
-      const result = await refreshShop(shopId.value);
+      const result = await refreshShop(shopId.value, refreshCost.value);
       if (!result.success) throw new Error('Shop refresh failed');
 
       cart.value = {};
@@ -205,6 +205,7 @@ export function useShopActions() {
       await loadData(true);
     } catch {
       $q.notify({ type: 'negative', message: t('shop.refreshError') });
+      await loadData();
     } finally {
       loading.value = false;
     }

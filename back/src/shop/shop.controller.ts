@@ -5,6 +5,7 @@ import { SellDto } from './dto/sell.dto';
 import { SellManyDto } from './dto/sell-many.dto';
 import { BuyDto } from './dto/buy.dto';
 import { AuthGuard } from '../auth/auth.guard';
+import { GemPurchaseDto } from '../gem-prices/gem-prices.dto';
 
 export interface ShopRequest extends Request {
   user: { sub: number };
@@ -38,8 +39,8 @@ export class ShopController {
   }
 
   @Post(':shopId/refresh')
-  @ApiOkResponse({ description: 'Refreshes shop stock immediately for 10 gems' })
-  refresh(@Param('shopId', ParseIntPipe) shopId: number, @Req() req: ShopRequest) {
-    return this.shopService.refresh(req.user.sub, shopId);
+  @ApiOkResponse({ description: 'Refreshes shop stock for the configured gem price' })
+  refresh(@Param('shopId', ParseIntPipe) shopId: number, @Req() req: ShopRequest, @Body() dto: GemPurchaseDto = {}) {
+    return this.shopService.refresh(req.user.sub, shopId, dto.expectedCost);
   }
 }

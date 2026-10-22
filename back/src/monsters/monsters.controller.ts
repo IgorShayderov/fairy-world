@@ -14,6 +14,7 @@ import { ApiOkResponse, ApiBearerAuth, ApiNotFoundResponse } from '@nestjs/swagg
 import { MonstersService, type BattleAction } from './monsters.service';
 import { QuickBattleGuard } from '../premium/quick-battle.guard';
 import { AuthGuard } from '../auth/auth.guard';
+import { GemPurchaseDto } from '../gem-prices/gem-prices.dto';
 import type { RequestWithUser } from '../auth/interfaces/request-with-user.interface';
 
 @Controller('monsters')
@@ -59,8 +60,8 @@ export class MonstersController {
   }
 
   @Post('dungeon/:name/reset')
-  resetDungeon(@Param('name') name: string, @Request() req: RequestWithUser) {
-    return this.monstersService.resetDungeon(req.user.sub, name);
+  resetDungeon(@Param('name') name: string, @Request() req: RequestWithUser, @Body() dto: GemPurchaseDto = {}) {
+    return this.monstersService.resetDungeon(req.user.sub, name, dto.expectedCost);
   }
 
   @Get('dungeon/active')

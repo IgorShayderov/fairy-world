@@ -8,6 +8,7 @@ import { ItemGeneratorService } from '../items/item-generator.service';
 import { getPotionEffect, getPotionRequiredLevel } from '../items/potion-effects';
 import { requireLandmark } from '../locations/landmarks';
 import { PrismaService } from '../prisma.service';
+import { gemActionCost } from '../gem-prices/gem-prices';
 import { progressionAfterExperience, requiredPlayerLevel } from '../users/level-progression';
 import { UserView } from '../users/user.view';
 import { UsersService } from '../users/users.service';
@@ -724,7 +725,7 @@ export class DungeonRunsService {
     });
   }
 
-  async reset(userId: number, name: string) {
+  async reset(userId: number, name: string, expectedCost?: number) {
     return this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(${userId})`;
       const profile = await tx.gameProfile.findUnique({
@@ -739,13 +740,14 @@ export class DungeonRunsService {
       const where = { gameProfileId_dungeon: { gameProfileId: profile.id, dungeon: name } };
       const visit = await tx.dungeonVisit.findUnique({ where });
       if (!visit || visit.nextEntryAt <= new Date()) throw new BadRequestException('Dungeon is already available');
+      const cost = await gemActionCost(tx, 'DUNGEON_COOLDOWN', expectedCost);
       const paid = await tx.gameProfile.updateMany({
-        where: { id: profile.id, gems: { gte: 10 } },
-        data: { gems: { decrement: 10 } },
+        where: { id: profile.id, gems: { gte: cost } },
+        data: { gems: { decrement: cost } },
       });
       if (paid.count !== 1) throw new BadRequestException('Not enough gems');
       await tx.dungeonVisit.delete({ where });
-      return { success: true, cost: 10 };
+      return { success: true, cost };
     });
   }
 

@@ -68,8 +68,8 @@ export type LeaderboardEntry = {
 };
 
 export const usersApi = {
-  async buyPremium(): Promise<void> {
-    await api.post(routes.api.premium.purchasePath());
+  async buyPremium(expectedCost?: number): Promise<void> {
+    await api.post(routes.api.premium.purchasePath(), { expectedCost });
   },
   async getLeaderboard(): Promise<LeaderboardEntry[]> {
     const { data } = await api.get<LeaderboardEntry[]>(routes.api.users.leaderboardPath());

@@ -30,10 +30,10 @@
             >
             <button
               class="quest-button quest-button--secondary"
-              :disabled="pending || (store.user?.gems ?? 0) < 30"
+              :disabled="pending || journal.refreshCost === undefined || (store.user?.gems ?? 0) < journal.refreshCost"
               @click="refresh"
             >
-              {{ t('quests.refresh') }}
+              {{ t('quests.refresh', { cost: journal.refreshCost ?? '…' }) }}
             </button>
           </div>
           <p class="mb-4 text-xs font-semibold tracking-wide text-[#efca72]">
@@ -169,14 +169,15 @@ watch(remaining, (value) => {
   if (value === '0:00:00' && journal.value?.nextRefreshAt && !pending.value && !loading.value) void load();
 });
 const refresh = async () => {
-  if (pending.value) return;
+  if (pending.value || journal.value?.refreshCost === undefined) return;
   pending.value = true;
   try {
-    await refreshQuests();
+    await refreshQuests(journal.value.refreshCost);
     await store.fetchCurrentUser(true);
     dismissed.value = [];
     await load();
   } catch {
+    await load();
     error.value = t('quests.refreshError');
   } finally {
     pending.value = false;

@@ -31,10 +31,10 @@
         <button
           v-if="coolingDown && kind === 'dungeon'"
           class="rounded-lg border border-violet-300 px-4 py-2 text-violet-200 disabled:opacity-50"
-          :disabled="pending || gems < 10"
-          @click="$emit('reset-dungeon')"
+          :disabled="pending || prices.DUNGEON_COOLDOWN === undefined || gems < prices.DUNGEON_COOLDOWN"
+          @click="prices.DUNGEON_COOLDOWN !== undefined && $emit('reset-dungeon', prices.DUNGEON_COOLDOWN)"
         >
-          {{ t('fantasy.landmark.resetDungeon') }}
+          {{ t('fantasy.landmark.resetDungeon', { cost: prices.DUNGEON_COOLDOWN ?? '…' }) }}
         </button>
         <button
           class="rounded-lg border border-white/20 px-4 py-2 disabled:opacity-50"
@@ -52,6 +52,14 @@
           {{ t('menu.quests') }}
         </button>
         <button
+          v-if="kind === 'village'"
+          class="rounded-lg border border-[#d8bd75]/55 px-4 py-2 font-semibold text-[#fff0bd] disabled:opacity-50"
+          :disabled="pending"
+          @click="$emit('auction')"
+        >
+          <QIcon name="gavel" class="mr-1" /> {{ t('menu.auction') }}
+        </button>
+        <button
           v-if="kind === 'dungeon'"
           class="rounded-lg border border-[#d8bd75]/55 px-4 py-2 font-semibold text-[#fff0bd] disabled:opacity-50"
           :disabled="pending || coolingDown"
@@ -64,6 +72,7 @@
           :disabled="pending || coolingDown"
           @click="requestAction"
         >
+          <QIcon v-if="kind === 'village'" name="storefront" class="mr-1" />
           {{ pending ? t('shop.loading') : t(`fantasy.landmark.${kind}.action`) }}
         </button>
       </div>
@@ -95,9 +104,11 @@
 
 <script setup lang="ts">
 import { useTranslation } from 'i18next-vue';
-import { computed, ref, onMounted, onUnmounted } from 'vue';
+import { QIcon } from 'quasar';
+import { computed, ref, onMounted, onUnmounted, watch } from 'vue';
 
 import type { Landmark } from '@/modules/Game/composables/useMapObjects';
+import { useGemPrices } from '@/modules/GemPrices/useGemPrices';
 
 const props = defineProps<{
   landmark: Landmark;
@@ -107,6 +118,13 @@ const props = defineProps<{
   nextEntryAt?: string | undefined;
 }>();
 const now = ref(Date.now());
+const { prices, loadPrices } = useGemPrices(props.landmark.type === 'dungeon');
+watch(
+  () => props.pending,
+  (pending) => {
+    if (!pending && props.landmark.type === 'dungeon') void loadPrices();
+  }
+);
 const coolingDown = computed(() => !!props.nextEntryAt && Date.parse(props.nextEntryAt) > now.value);
 const showDungeonWarning = ref(false);
 let timer: ReturnType<typeof setInterval>;
@@ -120,8 +138,9 @@ const emit = defineEmits<{
   (event: 'close'): void;
   (event: 'action'): void;
   (event: 'quests'): void;
+  (event: 'auction'): void;
   (event: 'party'): void;
-  (event: 'reset-dungeon'): void;
+  (event: 'reset-dungeon', expectedCost: number): void;
 }>();
 const { t } = useTranslation();
 const kind = computed(() =>

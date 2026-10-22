@@ -33,6 +33,12 @@ export interface QuestJournal {
 }
 export const getQuests = async () => (await api.get<QuestJournal>(routes.api.quests.listPath())).data;
 export const acceptQuest = async (id: number) => (await api.post<PlayerQuest>(routes.api.quests.acceptPath(id))).data;
-export const cancelQuest = async (id: number) => { await api.post(routes.api.quests.cancelPath(id)); };
-export const refreshQuests = async () => { await api.post(routes.api.quests.refreshPath()); };
-export const deliverQuest = async (id: number) => { await api.post(routes.api.quests.deliverPath(id)); };
+export const cancelQuest = async (id: number) => {
+  await api.post(routes.api.quests.cancelPath(id));
+};
+export const refreshQuests = async (expectedCost?: number) => {
+  await api.post(routes.api.quests.refreshPath(), { expectedCost });
+};
+export const deliverQuest = async (id: number) => {
+  await api.post(routes.api.quests.deliverPath(id));
+};

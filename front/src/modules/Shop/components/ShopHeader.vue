@@ -55,7 +55,10 @@ const emit = defineEmits<{
 
 const { t } = useTranslation();
 const isSelling = computed(() => props.sellTotal > 0);
-const submitTrade = () => emit(isSelling.value ? 'sell' : 'buy');
+const submitTrade = () => {
+  if (isSelling.value) emit('sell');
+  else emit('buy');
+};
 const now = ref(Date.now());
 let timer: ReturnType<typeof setInterval> | undefined;
 let dueEmitted = false;

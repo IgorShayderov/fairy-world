@@ -13,12 +13,15 @@ describe('PvpService', () => {
   let pvpService: PvpService;
   const mockUserFindMany = jest.fn();
   const mockGameProfileUpdate = jest.fn();
+  const mockGameProfileUpdateMany = jest.fn();
+  const mockGemPrice = jest.fn();
   const mockTransaction = jest.fn();
   const mockFindCurrentUser = jest.fn();
 
   const mockPrisma = {
     user: { findMany: mockUserFindMany },
-    gameProfile: { update: mockGameProfileUpdate },
+    gameProfile: { update: mockGameProfileUpdate, updateMany: mockGameProfileUpdateMany },
+    gemActionPrice: { findUnique: mockGemPrice },
     $transaction: mockTransaction,
   } as unknown as PrismaService;
 
@@ -61,6 +64,8 @@ describe('PvpService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGemPrice.mockResolvedValue(null);
+    mockGameProfileUpdateMany.mockResolvedValue({ count: 1 });
 
     mockUserFindMany.mockResolvedValue([]);
     mockGameProfileUpdate.mockResolvedValue({ id: 10, level: 10, experience: 1200, gems: 20 });
@@ -161,8 +166,8 @@ describe('PvpService', () => {
       const opponents = await pvpService.refreshOpponents(1);
 
       expect(opponents).toHaveLength(3);
-      expect(mockGameProfileUpdate).toHaveBeenCalled();
-      const calls = mockGameProfileUpdate.mock.calls as Array<
+      expect(mockGameProfileUpdateMany).toHaveBeenCalled();
+      const calls = mockGameProfileUpdateMany.mock.calls as Array<
         [{ where: { id: number }; data: { gems: { decrement: number } } }]
       >;
       expect(calls[0][0].data.gems.decrement).toBe(PVP_REFRESH_GEMS_COST);
@@ -178,7 +183,7 @@ describe('PvpService', () => {
       });
 
       await expect(pvpService.refreshOpponents(1)).rejects.toThrow();
-      expect(mockGameProfileUpdate).not.toHaveBeenCalled();
+      expect(mockGameProfileUpdateMany).not.toHaveBeenCalled();
     });
   });
 
@@ -188,8 +193,8 @@ describe('PvpService', () => {
 
       expect(result.success).toBe(true);
       expect(result.pvpCooldownUntil).toBeNull();
-      expect(mockGameProfileUpdate).toHaveBeenCalled();
-      const calls = mockGameProfileUpdate.mock.calls as Array<
+      expect(mockGameProfileUpdateMany).toHaveBeenCalled();
+      const calls = mockGameProfileUpdateMany.mock.calls as Array<
         [{ where: { id: number }; data: { gems: { decrement: number }; pvpCooldownUntil: null } }]
       >;
       expect(calls[0][0].data.gems.decrement).toBe(PVP_RESET_COOLDOWN_GEMS_COST);
@@ -206,6 +211,28 @@ describe('PvpService', () => {
       });
 
       await expect(pvpService.resetCooldown(1)).rejects.toThrow();
+    });
+  });
+
+  describe.each(['refreshOpponents', 'resetCooldown'] as const)('configured %s prices', (action) => {
+    it.each([0, 47])('charges %i gems with a guarded debit', async (cost) => {
+      mockGemPrice.mockResolvedValue({ cost });
+      await pvpService[action](1, cost);
+      expect(mockGameProfileUpdateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ id: 10, gems: { gte: cost } }) as unknown,
+          data: expect.objectContaining({ gems: { decrement: cost } }) as unknown,
+        }),
+      );
+    });
+    it('rejects old quotes without a debit', async () => {
+      mockGemPrice.mockResolvedValue({ cost: 47 });
+      await expect(pvpService[action](1, 10)).rejects.toThrow('price has changed');
+      expect(mockGameProfileUpdateMany).not.toHaveBeenCalled();
+    });
+    it('rejects a failed atomic debit', async () => {
+      mockGameProfileUpdateMany.mockResolvedValue({ count: 0 });
+      await expect(pvpService[action](1)).rejects.toThrow();
     });
   });
 

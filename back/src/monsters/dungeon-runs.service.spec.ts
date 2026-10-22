@@ -7,6 +7,7 @@ describe('DungeonRunsService', () => {
   let service: DungeonRunsService;
 
   const prisma = {
+    gemActionPrice: { findUnique: jest.fn() },
     $executeRaw: jest.fn(),
     $transaction: jest.fn(),
     dungeonRun: {
@@ -62,6 +63,7 @@ describe('DungeonRunsService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    prisma.gemActionPrice.findUnique.mockResolvedValue(null);
     storedRun = null;
     user.gameProfile.level = 5;
     prisma.$transaction.mockImplementation((operation: (client: typeof prisma) => unknown) => operation(prisma));
@@ -130,6 +132,26 @@ describe('DungeonRunsService', () => {
       usersService as never,
       itemGenerator as never,
     );
+  });
+
+  it.each([0, 23])('charges the configured dungeon cooldown price %i', async (cost) => {
+    prisma.dungeonVisit.findUnique.mockResolvedValue({ nextEntryAt: new Date('2099-01-01') });
+    prisma.gemActionPrice.findUnique.mockResolvedValue({ cost });
+    prisma.gameProfile.updateMany.mockResolvedValue({ count: 1 });
+    await expect(service.reset(7, 'EMBERDEEP', cost)).resolves.toEqual({ success: true, cost });
+    expect(prisma.gameProfile.updateMany).toHaveBeenCalledWith({
+      where: { id: 5, gems: { gte: cost } },
+      data: { gems: { decrement: cost } },
+    });
+    expect(prisma.dungeonVisit.delete).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not clear or charge the dungeon cooldown with an old quote', async () => {
+    prisma.dungeonVisit.findUnique.mockResolvedValue({ nextEntryAt: new Date('2099-01-01') });
+    prisma.gemActionPrice.findUnique.mockResolvedValue({ cost: 23 });
+    await expect(service.reset(7, 'EMBERDEEP', 10)).rejects.toThrow('price has changed');
+    expect(prisma.gameProfile.updateMany).not.toHaveBeenCalled();
+    expect(prisma.dungeonVisit.delete).not.toHaveBeenCalled();
   });
 
   it('creates a waiting dungeon party with the creator as leader', async () => {

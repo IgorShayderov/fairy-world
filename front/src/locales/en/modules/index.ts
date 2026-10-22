@@ -86,8 +86,8 @@ const modules = {
       'Unlock quick battles. Each purchase adds 30 days; unused time is preserved. No automatic renewal.',
     premiumMonth: 'month (30 days)',
     premiumUntil: 'Active until',
-    premiumBuy: 'Buy premium — 200 gems',
-    premiumExtend: 'Extend by 30 days — 200 gems',
+    premiumBuy: 'Buy premium — {{cost}} gems',
+    premiumExtend: 'Extend by 30 days — {{cost}} gems',
     premiumError: 'Could not buy premium. Refresh your balance and try again.',
     premiumRequired: 'Quick battle requires premium. Available in the gems shop.',
     devClaim: 'Development: +100 gems for free',
@@ -154,6 +154,7 @@ const modules = {
     shopBuy: 'Buy',
     shopBuying: 'Buying...',
     shopPurchased: '{{item}} was added to your inventory.',
+    actionError: 'The action could not be completed. Please try again.',
     bannerBonus: 'Banner: +{{value}}% damage & defense',
   },
   clans: {
@@ -227,7 +228,16 @@ const modules = {
     bannerEquipped: '{{name}} equipped.',
     error: 'The clan action could not be completed.',
   },
+  feedback: { button: 'Feedback' },
+  notificationDrawer: {
+    kicker: 'Your courier inbox',
+    close: 'Close notifications',
+    description: 'Sales, purchases and returned items. Claim waiting items within seven days.',
+    attention: '{{count}} notifications need attention',
+  },
   menu: {
+    auction: 'Auction house',
+    notifications: 'Notifications',
     skills: 'Skills',
     pvp: 'PvP Arena',
     clans: 'Clans',
@@ -243,7 +253,7 @@ const modules = {
   },
   fantasy: {
     landmark: {
-      resetDungeon: 'Reset cooldown (10 💎)',
+      resetDungeon: 'Reset cooldown ({{cost}} 💎)',
       resetDone: 'The dungeon is ready to enter again.',
       blessings: {
         STARGLEN: '+10 Defense rating for 4 hours. Preserves an active defense effect.',

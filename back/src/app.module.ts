@@ -19,6 +19,9 @@ import { CraftingModule } from './crafting/crafting.module';
 import { PvpModule } from './pvp/pvp.module';
 import { ClansModule } from './clans/clans.module';
 import { SkillsModule } from './skills/skills.module';
+import { AuctionModule } from './auction/auction.module';
+import { FeedbackModule } from './feedback/feedback.module';
+import { AdminUsersModule } from './admin-users/admin-users.module';
 
 @Module({
   imports: [
@@ -36,6 +39,9 @@ import { SkillsModule } from './skills/skills.module';
     PvpModule,
     ClansModule,
     SkillsModule,
+    AuctionModule,
+    FeedbackModule,
+    AdminUsersModule,
     MailerModule.forRoot({
       transport: {
         host: process.env.SMTP_HOST,

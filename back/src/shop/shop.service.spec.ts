@@ -5,6 +5,7 @@ import { ItemGeneratorService } from '../items/item-generator.service';
 
 describe('ShopService trades', () => {
   const tx = {
+    gemActionPrice: { findUnique: jest.fn() },
     shop: { findUnique: jest.fn(), update: jest.fn(), upsert: jest.fn() },
     shopStock: {
       findFirst: jest.fn(),
@@ -526,6 +527,20 @@ describe('ShopService trades', () => {
       where: { id: 2 },
       data: { nextRestockAt, stockLevel: 4, gold: SHOP_DEFAULT_GOLD },
     });
+  });
+
+  it.each([0, 17])('charges the configured shop refresh price %i', async (cost) => {
+    tx.gemActionPrice.findUnique.mockResolvedValue({ cost });
+    itemGenerator.generate.mockResolvedValue({ id: 42 });
+    await expect(service.refresh(1, 2, cost)).resolves.toMatchObject({ success: true, cost });
+    expect(tx.gameProfile.update).toHaveBeenCalledWith({ where: { id: 5 }, data: { gems: { decrement: cost } } });
+  });
+
+  it('rejects an old shop quote before changing stock or charging', async () => {
+    tx.gemActionPrice.findUnique.mockResolvedValue({ cost: 19 });
+    await expect(service.refresh(1, 2, 10)).rejects.toThrow('price has changed');
+    expect(tx.gameProfile.update).not.toHaveBeenCalled();
+    expect(tx.shopStock.deleteMany).not.toHaveBeenCalled();
   });
 
   it('does not refresh stock when the player has fewer than ten gems', async () => {
