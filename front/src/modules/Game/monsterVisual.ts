@@ -35,6 +35,6 @@ export const getBattleMonsterVisual = (monsterType: string | undefined, monsterN
   return (
     findMatch(typeIdentity) ??
     findMatch(nameIdentity) ??
-    BATTLE_MONSTER_ASSETS[stableIndex(`${typeIdentity} ${nameIdentity}`, BATTLE_MONSTER_ASSETS.length)]
+    BATTLE_MONSTER_ASSETS[stableIndex(`${typeIdentity} ${nameIdentity}`, BATTLE_MONSTER_ASSETS.length)]!
   );
 };

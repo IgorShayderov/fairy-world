@@ -1,0 +1,3 @@
+ALTER TABLE "GemActionPrice" DROP CONSTRAINT "GemActionPrice_key_check";
+ALTER TABLE "GemActionPrice" ADD CONSTRAINT "GemActionPrice_key_check"
+  CHECK ("key" IN ('SHOP_REFRESH', 'QUEST_REFRESH', 'PVP_REFRESH', 'PVP_COOLDOWN', 'DUNGEON_COOLDOWN', 'PREMIUM_ACCOUNT'));

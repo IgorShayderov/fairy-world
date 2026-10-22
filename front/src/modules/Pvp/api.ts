@@ -94,8 +94,8 @@ export const pvpApi = {
     return data;
   },
 
-  async refreshOpponents(): Promise<PvpOpponent[]> {
-    const { data } = await api.post<PvpOpponent[]>(routes.api.pvp.refreshOpponentsPath());
+  async refreshOpponents(expectedCost?: number): Promise<PvpOpponent[]> {
+    const { data } = await api.post<PvpOpponent[]>(routes.api.pvp.refreshOpponentsPath(), { expectedCost });
     return data;
   },
 
@@ -104,8 +104,10 @@ export const pvpApi = {
     return data;
   },
 
-  async resetCooldown(): Promise<{ success: boolean; pvpCooldownUntil: null }> {
-    const { data } = await api.post<{ success: boolean; pvpCooldownUntil: null }>(routes.api.pvp.resetCooldownPath());
+  async resetCooldown(expectedCost?: number): Promise<{ success: boolean; pvpCooldownUntil: null }> {
+    const { data } = await api.post<{ success: boolean; pvpCooldownUntil: null }>(routes.api.pvp.resetCooldownPath(), {
+      expectedCost,
+    });
     return data;
   },
   async getShop(): Promise<PvpShop> {

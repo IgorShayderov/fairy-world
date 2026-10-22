@@ -32,7 +32,10 @@
               <div class="text-sm font-semibold text-white">
                 {{ t('profile.summary.level') }} {{ currentUserStore.user?.level ?? 1 }}
               </div>
-              <div v-if="currentUserStore.user?.activeClanBannerPvpBonusPercent" class="mt-0.5 text-[10px] text-emerald-300">
+              <div
+                v-if="currentUserStore.user?.activeClanBannerPvpBonusPercent"
+                class="mt-0.5 text-[10px] text-emerald-300"
+              >
                 {{ t('pvp.bannerBonus', { value: currentUserStore.user.activeClanBannerPvpBonusPercent }) }}
               </div>
             </div>
@@ -48,15 +51,22 @@
               </div>
             </div>
 
-            <!-- Refresh Button (Costs 30 Gems) -->
+            <!-- Server-configured refresh price -->
             <button
               type="button"
               class="flex h-11 min-w-[220px] items-center justify-center gap-2 rounded-xl border border-[#d8bd75]/40 bg-[#0d2934] px-4 text-xs font-bold tracking-wider text-[#f0d68a] uppercase shadow-md transition hover:border-[#f0d68a] hover:bg-[#133744] disabled:opacity-50"
-              :disabled="loading || dueling || (currentUserStore.user?.gems ?? 0) < 30"
+              :disabled="
+                loading ||
+                dueling ||
+                prices.PVP_REFRESH === undefined ||
+                (currentUserStore.user?.gems ?? 0) < prices.PVP_REFRESH
+              "
               @click="handleRefresh"
             >
               <QIcon name="refresh" size="18px" :class="{ 'animate-spin': loading }" />
-              <span>{{ loading ? t('pvp.refreshing') : t('pvp.refreshWithCost', { cost: 30 }) }}</span>
+              <span>{{
+                loading ? t('pvp.refreshing') : t('pvp.refreshWithCost', { cost: prices.PVP_REFRESH ?? '…' })
+              }}</span>
             </button>
           </div>
         </div>
@@ -99,11 +109,15 @@
           <button
             type="button"
             class="flex h-9 items-center justify-center gap-2 rounded-xl border border-[#d8bd75]/30 bg-[#bd4938] px-4 text-xs font-bold tracking-wider text-white uppercase shadow transition hover:bg-[#d15743] disabled:opacity-50"
-            :disabled="resettingCooldown || (currentUserStore.user?.gems ?? 0) < 10"
+            :disabled="
+              resettingCooldown ||
+              prices.PVP_COOLDOWN === undefined ||
+              (currentUserStore.user?.gems ?? 0) < prices.PVP_COOLDOWN
+            "
             @click="handleResetCooldown"
           >
             <QIcon name="flash_on" size="16px" />
-            <span>{{ t('pvp.resetCooldown', { cost: 10 }) }}</span>
+            <span>{{ t('pvp.resetCooldown', { cost: prices.PVP_COOLDOWN ?? '…' }) }}</span>
           </button>
         </div>
 
@@ -353,6 +367,7 @@ import { Notify, QIcon } from 'quasar';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
+import { useGemPrices } from '@/modules/GemPrices/useGemPrices';
 import {
   pvpApi,
   type PvpBattleEvent,
@@ -366,6 +381,7 @@ import PvpShop from '@/modules/Pvp/components/PvpShop.vue';
 
 const { t } = useTranslation();
 const currentUserStore = useCurrentUserStore();
+const { prices, loadPrices } = useGemPrices();
 
 const opponents = ref<PvpOpponent[]>([]);
 const loading = ref(false);
@@ -410,29 +426,33 @@ const fetchOpponents = async () => {
 };
 
 const handleRefresh = async () => {
+  if (prices.value.PVP_REFRESH === undefined) return;
   loading.value = true;
   error.value = null;
   try {
-    opponents.value = await pvpApi.refreshOpponents();
+    opponents.value = await pvpApi.refreshOpponents(prices.value.PVP_REFRESH);
     await currentUserStore.fetchCurrentUser(true);
     Notify.create({ type: 'info', message: t('pvp.opponentsTitle') });
   } catch (err: unknown) {
     error.value = getApiErrorMessage(err);
   } finally {
     loading.value = false;
+    await loadPrices();
   }
 };
 
 const handleResetCooldown = async () => {
+  if (prices.value.PVP_COOLDOWN === undefined) return;
   resettingCooldown.value = true;
   try {
-    await pvpApi.resetCooldown();
+    await pvpApi.resetCooldown(prices.value.PVP_COOLDOWN);
     await currentUserStore.fetchCurrentUser(true);
     Notify.create({ type: 'positive', message: t('pvp.cooldownReady') });
   } catch (err: unknown) {
-    Notify.create({ type: 'negative', message: getApiErrorMessage(err) });
+    Notify.create({ type: 'negative', message: getApiErrorMessage(err) ?? t('pvp.actionError') });
   } finally {
     resettingCooldown.value = false;
+    await loadPrices();
   }
 };
 
@@ -454,7 +474,7 @@ const handleDuel = async (opponentId: string) => {
       Notify.create({ type: 'negative', message: t('pvp.defeat') });
     }
   } catch (err: unknown) {
-    Notify.create({ type: 'negative', message: getApiErrorMessage(err) });
+    Notify.create({ type: 'negative', message: getApiErrorMessage(err) ?? t('pvp.actionError') });
   } finally {
     dueling.value = false;
     selectedOpponentId.value = null;

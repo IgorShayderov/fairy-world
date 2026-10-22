@@ -91,10 +91,9 @@
           :health="battle.player.health"
           :max-health="battle.player.maxHealth"
           :damage="battle.player.damage"
-          :mana="battle.skills?.mana"
-          :max-mana="battle.skills?.maxMana"
+          v-bind="battle.skills ? { mana: battle.skills.mana, maxMana: battle.skills.maxMana } : {}"
           color="player"
-          :equipped-items="currentUserStore.user?.equippedItems"
+          :equipped-items="currentUserStore.user?.equippedItems ?? []"
           :attacking="loading"
         />
         <div class="font-serif text-2xl font-black text-[#e8c66f]">VS</div>
@@ -447,9 +446,9 @@
 <script setup lang="ts">
 import { useTranslation } from 'i18next-vue';
 import { Notify, QIcon, QTooltip } from 'quasar';
-import { computed, defineComponent, h, ref, watch } from 'vue';
+import { computed, defineComponent, h, ref, watch, type PropType } from 'vue';
 
-import type { InventoryItemType } from '@/modules/Inventory/types';
+import type { InventoryEntry, InventoryItemType } from '@/modules/Inventory/types';
 
 import { usersApi } from '@/modules/Auth/api/users';
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
@@ -653,7 +652,7 @@ const CombatantCard = defineComponent({
     mana: { type: Number, default: undefined },
     maxMana: { type: Number, default: undefined },
     color: { type: String, required: true },
-    equippedItems: { type: Array, default: () => [] },
+    equippedItems: { type: Array as PropType<InventoryEntry[]>, default: () => [] },
     monsterType: { type: String, default: '' },
     attacking: { type: Boolean, default: false },
   },

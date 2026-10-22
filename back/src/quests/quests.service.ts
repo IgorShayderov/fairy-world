@@ -6,6 +6,7 @@ import { habitatForMonster } from '../monsters/monster-habitats';
 import type { Quest, Prisma } from '../../generated/client';
 import { progressionAfterExperience } from '../users/level-progression';
 import { clanBuildingBonus } from '../clans/clan-buildings';
+import { gemActionCost } from '../gem-prices/gem-prices';
 
 const renderQuest = (quest: Quest) => ({
   ...quest,
@@ -77,7 +78,7 @@ export class QuestsService {
       return {
         town: town ? { id: town.shopId, name: town.name } : null,
         nextRefreshAt: board?.nextRefreshAt ?? null,
-        refreshCost: 30,
+        refreshCost: await gemActionCost(tx, 'QUEST_REFRESH'),
         maxActive: 5,
         available: available.map(renderQuest),
         active: quests
@@ -136,15 +137,16 @@ export class QuestsService {
     return board;
   }
 
-  async refresh(userId: number) {
+  async refresh(userId: number, expectedCost?: number) {
     return this.prisma.$transaction(async (tx) => {
       const profile = await tx.gameProfile.update({ where: { userId }, data: { gold: { increment: 0 } } });
       const town = townAt(profile);
       if (!town) throw new BadRequestException('Visit a town to refresh quests');
-      if (profile.gems < 30) throw new BadRequestException('Not enough gems');
-      await tx.gameProfile.update({ where: { id: profile.id }, data: { gems: { decrement: 30 } } });
+      const cost = await gemActionCost(tx, 'QUEST_REFRESH', expectedCost);
+      if (profile.gems < cost) throw new BadRequestException('Not enough gems');
+      await tx.gameProfile.update({ where: { id: profile.id }, data: { gems: { decrement: cost } } });
       const board = await this.ensureBoard(tx, profile.id, town, true, profile.level);
-      return { nextRefreshAt: board.nextRefreshAt, cost: 30 };
+      return { nextRefreshAt: board.nextRefreshAt, cost };
     });
   }
 

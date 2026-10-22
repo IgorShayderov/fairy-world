@@ -11,13 +11,14 @@ import { CRAFTING_MIN_LEVEL } from '../crafting/crafting.catalog';
 import { townAt } from '../locations/towns';
 import { requiredPlayerLevel } from '../users/level-progression';
 import { getPotionRequiredLevel } from '../items/potion-effects';
+import { gemActionCost, GEM_ACTIONS } from '../gem-prices/gem-prices';
 
 const SHOP_RESTOCK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const SHOP_RESTOCK_ITEM_COUNT = 18;
 const SHOP_RANDOM_EQUIPMENT_COUNT = 6;
 const SHOP_GUARANTEED_EQUIPMENT_TYPES = [EquipmentType.GLOVES, EquipmentType.LEGS] as const;
 const SHOP_ITEM_LEVEL_OFFSETS = [-2, -1, 0, 1, 2] as const;
-export const SHOP_REFRESH_GEM_COST = 10;
+export const SHOP_REFRESH_GEM_COST = GEM_ACTIONS.SHOP_REFRESH.defaultCost;
 export const SHOP_DEFAULT_GOLD = 1_000_000;
 export const SHOP_FREE_ATTRIBUTE_POTION_CHANCE = 0.03;
 export const SHOP_RECIPE_CHANCE = 0.25;
@@ -121,7 +122,7 @@ export class ShopService implements OnModuleInit {
         name: details.name,
         gold: details.gold,
         nextRestockAt: details.nextRestockAt,
-        refreshCost: SHOP_REFRESH_GEM_COST,
+        refreshCost: await gemActionCost(tx, 'SHOP_REFRESH'),
         items: stock
           .filter(({ item }) => {
             const req = item.isConsumable
@@ -134,7 +135,7 @@ export class ShopService implements OnModuleInit {
     });
   }
 
-  async refresh(userId: number, shopId: number) {
+  async refresh(userId: number, shopId: number, expectedCost?: number) {
     return this.trade(userId, shopId, async (tx, shopId) => {
       const [shop, profile] = await Promise.all([
         tx.shop.findUnique({ where: { id: shopId }, select: { id: true } }),
@@ -142,15 +143,16 @@ export class ShopService implements OnModuleInit {
       ]);
       if (!shop) throw new NotFoundException('Shop not found');
       if (!profile) throw new NotFoundException('Game profile not found');
-      if (profile.gems < SHOP_REFRESH_GEM_COST) throw new BadRequestException('Not enough gems');
+      const cost = await gemActionCost(tx, 'SHOP_REFRESH', expectedCost);
+      if (profile.gems < cost) throw new BadRequestException('Not enough gems');
 
       await tx.gameProfile.update({
         where: { id: profile.id },
-        data: { gems: { decrement: SHOP_REFRESH_GEM_COST } },
+        data: { gems: { decrement: cost } },
       });
       const nextRestockAt = await this.restock(tx, shopId, profile.id, profile.level, new Date());
 
-      return { success: true, cost: SHOP_REFRESH_GEM_COST, nextRestockAt };
+      return { success: true, cost, nextRestockAt };
     });
   }
 

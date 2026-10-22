@@ -4,6 +4,7 @@ import { AuthGuard } from '../auth/auth.guard';
 import type { RequestWithUser } from '../auth/interfaces/request-with-user.interface';
 import { DuelDto } from './dto/duel.dto';
 import { PvpService } from './pvp.service';
+import { GemPurchaseDto } from '../gem-prices/gem-prices.dto';
 
 @ApiTags('PvP')
 @ApiBearerAuth()
@@ -20,10 +21,10 @@ export class PvpController {
   }
 
   @Post('opponents/refresh')
-  @ApiOperation({ summary: 'Обновить список соперников для PvP за 30 самоцветов' })
+  @ApiOperation({ summary: 'Refresh PvP opponents for the configured gem price' })
   @ApiResponse({ status: 200, description: 'Новый список из 3 соперников' })
-  refreshOpponents(@Req() req: RequestWithUser) {
-    return this.pvpService.refreshOpponents(req.user.sub);
+  refreshOpponents(@Req() req: RequestWithUser, @Body() dto: GemPurchaseDto = {}) {
+    return this.pvpService.refreshOpponents(req.user.sub, dto.expectedCost);
   }
 
   @Post('duel')
@@ -34,9 +35,9 @@ export class PvpController {
   }
 
   @Post('cooldown/reset')
-  @ApiOperation({ summary: 'Сбросить таймер перезарядки атаки за 10 самоцветов' })
+  @ApiOperation({ summary: 'Skip the attack timer for the configured gem price' })
   @ApiResponse({ status: 200, description: 'Успешный сброс перезарядки' })
-  resetCooldown(@Req() req: RequestWithUser) {
-    return this.pvpService.resetCooldown(req.user.sub);
+  resetCooldown(@Req() req: RequestWithUser, @Body() dto: GemPurchaseDto = {}) {
+    return this.pvpService.resetCooldown(req.user.sub, dto.expectedCost);
   }
 }

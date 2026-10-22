@@ -234,11 +234,11 @@ export class MonstersService {
     return this.dungeonRuns.submitPartyLoot(userId, runId, itemIds);
   }
 
-  async resetDungeon(userId: number, name: string) {
+  async resetDungeon(userId: number, name: string, expectedCost?: number) {
     if ([...this.battles.values()].some((battle) => battle.userId === userId && battle.status === 'ACTIVE')) {
       throw new BadRequestException('Finish the active battle first');
     }
-    return this.dungeonRuns.reset(userId, name);
+    return this.dungeonRuns.reset(userId, name, expectedCost);
   }
 
   async attack(userId: number, battleId: string, preserveEvents = false) {

@@ -1,4 +1,29 @@
-import type { AnimationClip } from 'three';
+import { type AnimationAction, type AnimationClip, type AnimationMixer, LoopOnce, LoopRepeat } from 'three';
+
+/** Reusing an idle clip for aiming/casting must not fade that same pose to zero. */
+export function transitionBattleAction(
+  mixer: AnimationMixer,
+  current: AnimationAction | undefined,
+  animation: AnimationClip,
+  once = false,
+  duration?: number,
+  blend = once ? 0.08 : 0.18
+): AnimationAction {
+  const action = mixer.clipAction(animation);
+  if (!once && current === action && action.isRunning() && action.loop !== LoopOnce) return action;
+  const samePose = current === action;
+  if (!samePose) current?.fadeOut(blend);
+  action
+    .reset()
+    .setEffectiveTimeScale(duration ? animation.duration / duration : 1)
+    .setEffectiveWeight(1);
+  action.setLoop(once ? LoopOnce : LoopRepeat, once ? 1 : Infinity);
+  action.clampWhenFinished = once;
+  // A new scene also needs a fully weighted initial pose, never the bind pose.
+  if (current && !samePose) action.fadeIn(blend);
+  else action.stopFading();
+  return action.play();
+}
 
 /** These legacy exports contain one half of an idle cycle, not a closed loop. */
 export function usesReversingIdle(model: string): boolean {
@@ -8,6 +33,24 @@ export function usesReversingIdle(model: string): boolean {
 export function smoothStep(value: number): number {
   const t = Math.max(0, Math.min(1, value));
   return t * t * (3 - 2 * t);
+}
+
+/** Ease only the ends of a route: interior hexes must not cause stop/start motion. */
+export function movementProgress(progress: number, first: boolean, last: boolean): number {
+  const t = Math.max(0, Math.min(1, progress));
+  if (first && last) return smoothStep(t);
+  if (first) return t * t * (2 - t);
+  if (last) return t + t * t - t * t * t;
+  return t;
+}
+
+/** Keep the contact direction independent of whether the attacker can physically lunge. */
+export function attackMotion(from: { x: number; z: number }, to: { x: number; z: number }, lungeDistance: number) {
+  const dx = to.x - from.x,
+    dz = to.z - from.z;
+  const length = Math.hypot(dx, dz);
+  const direction = length > 0.0001 ? { x: dx / length, z: dz / length } : { x: 0, z: 0 };
+  return { direction, lunge: { x: direction.x * lungeDistance, z: direction.z * lungeDistance } };
 }
 
 /** Wind-up, contact, brief follow-through, then recovery. */

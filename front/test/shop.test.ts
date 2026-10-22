@@ -120,7 +120,7 @@ describe('shop quantity requests', () => {
 
     await shop.refreshStock();
 
-    expect(mocks.post).toHaveBeenCalledWith(expect.stringMatching(/\/shop\/1\/refresh$/));
+    expect(mocks.post).toHaveBeenCalledWith(expect.stringMatching(/\/shop\/1\/refresh$/), { expectedCost: 10 });
     expect(mocks.notify).toHaveBeenCalledWith({ type: 'positive', message: 'shop.refreshSuccess' });
   });
 

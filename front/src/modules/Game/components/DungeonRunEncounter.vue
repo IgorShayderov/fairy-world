@@ -443,8 +443,8 @@ type DungeonLootItem =
   NonNullable<DungeonRunState['rewards']>['items'][number] | NonNullable<DungeonRunState['partyLoot']>['items'][number];
 const lootInventoryItem = (item: DungeonLootItem): InventoryItemType => ({
   id: item.id,
-  level: item.level,
-  requiredPlayerLevel: item.requiredPlayerLevel,
+  ...(item.level !== undefined ? { level: item.level } : {}),
+  ...(item.requiredPlayerLevel !== undefined ? { requiredPlayerLevel: item.requiredPlayerLevel } : {}),
   nameKey: item.name,
   name: item.name,
   tooltipName: item.name,
@@ -454,7 +454,7 @@ const lootInventoryItem = (item: DungeonLootItem): InventoryItemType => ({
   rarity: t(`profile.rarity.${item.rarity.toLowerCase()}`),
   rarityKey: item.rarity,
   equipmentType: item.equipmentType,
-  isTwoHanded: item.isTwoHanded,
+  ...(item.isTwoHanded !== undefined ? { isTwoHanded: item.isTwoHanded } : {}),
   attributes: item.attributes,
   properties: item.properties,
   quantity: item.quantity,

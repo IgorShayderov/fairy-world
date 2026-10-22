@@ -49,10 +49,12 @@ export const sellItems = async (
 };
 
 export const refreshShop = async (
-  shopId: number
+  shopId: number,
+  expectedCost?: number
 ): Promise<{ success: boolean; cost: number; nextRestockAt: string }> => {
   const { data } = await api.post<{ success: boolean; cost: number; nextRestockAt: string }>(
-    routes.api.shop.refreshPath(shopId)
+    routes.api.shop.refreshPath(shopId),
+    { expectedCost }
   );
   return data;
 };

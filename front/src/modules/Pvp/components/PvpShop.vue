@@ -134,7 +134,7 @@ const toInventoryItem = (offer: PvpShopOffer): InventoryItemType => ({
   name: offer.item.name,
   tooltipName: offer.item.name,
   level: offer.item.level,
-  requiredPlayerLevel: offer.item.requiredPlayerLevel,
+  ...(offer.item.requiredPlayerLevel !== undefined ? { requiredPlayerLevel: offer.item.requiredPlayerLevel } : {}),
   icon: offer.item.icon,
   description: offer.item.description,
   rarity: t(`profile.rarity.${offer.item.rarity.toLowerCase()}`),
@@ -142,7 +142,7 @@ const toInventoryItem = (offer: PvpShopOffer): InventoryItemType => ({
   equipmentType: offer.item.equipmentType,
   attributes: offer.item.attributes,
   properties: offer.item.properties,
-  blockChance: offer.item.blockChance,
+  ...(offer.item.blockChance !== undefined ? { blockChance: offer.item.blockChance } : {}),
   upgradeType: offer.upgradeType,
   upgradeValue: offer.upgradeValue,
 });
@@ -160,7 +160,7 @@ const buyOffer = async (offer: PvpShopOffer) => {
     await currentUserStore.fetchCurrentUser(true);
     Notify.create({ type: 'positive', message: t('pvp.shopPurchased', { item: offer.item.name }) });
   } catch (err: unknown) {
-    Notify.create({ type: 'negative', message: getApiErrorMessage(err) });
+    Notify.create({ type: 'negative', message: getApiErrorMessage(err) ?? t('pvp.actionError') });
   } finally {
     buyingOfferId.value = null;
   }

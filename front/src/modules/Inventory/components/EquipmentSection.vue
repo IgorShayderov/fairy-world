@@ -51,7 +51,7 @@
               >
                 <div class="font-semibold">{{ activeClanBanner?.name ?? t('profile.slots.banner') }}</div>
                 <div class="mt-1 inline-flex rounded bg-amber-900/60 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-amber-200 uppercase">
-                  {{ t('clans.bannerLevel', { level: activeClanBanner?.level ?? activeClanBannerBonusPercent / 5 }) }}
+                  {{ t('clans.bannerLevel', { level: activeClanBanner?.level ?? (activeClanBannerBonusPercent ?? 0) / 5 }) }}
                 </div>
                 <div v-if="activeClanBanner?.description" class="mt-1 text-xs text-gray-200">
                   {{ activeClanBanner.description }}

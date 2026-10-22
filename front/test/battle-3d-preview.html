@@ -55,15 +55,28 @@
         setup() {
           const state = ref(battle);
           const busy = ref(false);
+          const visible = ref(true);
           return {
             mageStaff: new URLSearchParams(location.search).has('staff'),
             handMode: new URLSearchParams(location.search).get('weapon') || 'TWO_HANDED',
             state,
             busy,
+            visible,
             effects: ['slash', 'shockwave', 'heal', 'arrow', 'pierce', 'volley', 'fire', 'ice', 'arcane'],
             skill(effect) {
-              state.value = { ...state.value, events: [{ actor: 'PLAYER', action: 'SKILL', effect,
-                skillName: effect, damage: effect === 'heal' ? 0 : 10, healing: effect === 'heal' ? 20 : undefined }] };
+              state.value = {
+                ...state.value,
+                events: [
+                  {
+                    actor: 'PLAYER',
+                    action: 'SKILL',
+                    effect,
+                    skillName: effect,
+                    damage: effect === 'heal' ? 0 : 10,
+                    healing: effect === 'heal' ? 20 : undefined,
+                  },
+                ],
+              };
             },
             move() {
               state.value = {
@@ -78,6 +91,27 @@
                 events: [
                   { actor: 'PLAYER', action: 'ATTACK', damage: 10 },
                   { actor: 'MONSTER', action: 'ATTACK', damage: 10 },
+                ],
+              };
+            },
+            advance() {
+              const fromCell = state.value.arena.playerPosition;
+              state.value = {
+                ...state.value,
+                arena: { ...state.value.arena, playerPosition: 23 },
+                events: [
+                  { actor: 'PLAYER', action: 'MOVE', fromCell, toCell: 23 },
+                  { actor: 'PLAYER', action: 'ATTACK', damage: 10 },
+                  { actor: 'MONSTER', action: 'ATTACK', damage: 10 },
+                ],
+              };
+            },
+            dodge() {
+              state.value = {
+                ...state.value,
+                events: [
+                  { actor: 'PLAYER', action: 'ATTACK', dodged: true, damage: 0 },
+                  { actor: 'MONSTER', action: 'ATTACK', dodged: true, damage: 0 },
                 ],
               };
             },
@@ -113,7 +147,7 @@
             },
           };
         },
-        template: `<div class="board"><Battlefield :battle="state" :hand-mode="handMode" :mage-staff="mageStaff" :disabled="false" @busy="busy=$event"/></div><button @click="move" :disabled="busy">Walk</button><button @click="enemyMove" :disabled="busy">Enemy walk</button><button @click="enemyAttack" :disabled="busy">Enemy attack</button><button @click="defend" :disabled="busy">Defend</button><button @click="attack" :disabled="busy">Attack exchange</button><button @click="kill" :disabled="busy">Final blow</button><button v-for="effect in effects" @click="skill(effect)" :disabled="busy">Skill {{effect}}</button><span>{{busy?'Animating':'Ready'}}</span>`,
+        template: `<div class="board"><Battlefield v-if="visible" :battle="state" :hand-mode="handMode" :mage-staff="mageStaff" :disabled="false" @busy="busy=$event"/></div><button @click="move" :disabled="busy">Walk</button><button @click="advance" :disabled="busy">Advance and strike</button><button @click="dodge" :disabled="busy">Dodge exchange</button><button @click="enemyMove" :disabled="busy">Enemy walk</button><button @click="enemyAttack" :disabled="busy">Enemy attack</button><button @click="defend" :disabled="busy">Defend</button><button @click="attack" :disabled="busy">Attack exchange</button><button @click="kill" :disabled="busy">Final blow</button><button v-for="effect in effects" @click="skill(effect)" :disabled="busy">Skill {{effect}}</button><button @click="visible=!visible">Toggle scene</button><span>{{busy?'Animating':'Ready'}}</span>`,
       }).mount('#app');
     </script>
   </body>

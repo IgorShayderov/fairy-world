@@ -6,8 +6,8 @@ export const receiveBlessing = async (id: number, coordinates: { x: number; y: n
   await api.post(routes.api.locations.blessingPath(id), coordinates);
 };
 
-export const resetDungeon = async (name: string): Promise<void> => {
-  await api.post(routes.api.monsters.dungeonResetPath(name));
+export const resetDungeon = async (name: string, expectedCost?: number): Promise<void> => {
+  await api.post(routes.api.monsters.dungeonResetPath(name), { expectedCost });
 };
 
 export const enterDungeon = async (name: string): Promise<DungeonRunState> => {

@@ -45,10 +45,10 @@ describe('PvpController', () => {
     const mockOpponents = [{ id: 'opp-4' }, { id: 'opp-5' }, { id: 'opp-6' }];
     mockPvpService.refreshOpponents.mockResolvedValue(mockOpponents);
 
-    const result = await controller.refreshOpponents({ user: { sub: 42 } } as never);
+    const result = await controller.refreshOpponents({ user: { sub: 42 } } as never, { expectedCost: 17 });
 
     expect(result).toBe(mockOpponents);
-    expect(mockPvpService.refreshOpponents).toHaveBeenCalledWith(42);
+    expect(mockPvpService.refreshOpponents).toHaveBeenCalledWith(42, 17);
   });
 
   it('initiates a duel with the selected opponent', async () => {
@@ -65,9 +65,9 @@ describe('PvpController', () => {
     const mockReset = { success: true, pvpCooldownUntil: null };
     mockPvpService.resetCooldown.mockResolvedValue(mockReset);
 
-    const result = await controller.resetCooldown({ user: { sub: 42 } } as never);
+    const result = await controller.resetCooldown({ user: { sub: 42 } } as never, { expectedCost: 4 });
 
     expect(result).toBe(mockReset);
-    expect(mockPvpService.resetCooldown).toHaveBeenCalledWith(42);
+    expect(mockPvpService.resetCooldown).toHaveBeenCalledWith(42, 4);
   });
 });

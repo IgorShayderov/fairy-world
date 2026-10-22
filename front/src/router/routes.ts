@@ -3,6 +3,7 @@ import type { RouteRecordRaw } from 'vue-router';
 import routes from '@/routes';
 
 const appRoutes: RouteRecordRaw[] = [
+  { path: '/admin', name: 'AdminPage', component: () => import('@pages/AdminPage.vue'), meta: { layout: 'AuthLayout' } },
   { path: '/:path(.*)', redirect: routes.rootPath() },
   {
     path: routes.rootPath(),
@@ -13,6 +14,8 @@ const appRoutes: RouteRecordRaw[] = [
         path: '',
         component: () => import('@pages/RootPage.vue'),
         children: [
+          { path: routes.auctionPath(), name: 'AuctionPage', component: () => import('@pages/AuctionPage.vue') },
+          { path: routes.notificationsPath(), name: 'NotificationsPage', component: () => import('@pages/NotificationsPage.vue') },
           {
             path: routes.leaderboardPath(),
             name: 'LeaderboardPage',

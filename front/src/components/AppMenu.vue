@@ -65,7 +65,6 @@ import { useRouter } from 'vue-router';
 import { signOut } from '@/modules/Auth/api';
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 import { CRAFTING_MIN_LEVEL } from '@/modules/Crafting/api';
-import { landmarks } from '@/modules/Game/composables/useMapObjects';
 import routes from '@/routes';
 import { StorageService } from '@services/storage.service';
 
@@ -92,17 +91,6 @@ const handleLogout = async () => {
   }
 };
 
-const inTown = computed(() => {
-  const position = currentUser.user?.mapPosition;
-  return (
-    !!position &&
-    landmarks.some(
-      (landmark) =>
-        ['city', 'capital', 'village'].includes(landmark.type) &&
-        Math.hypot(position.x - landmark.x, position.y - landmark.y) <= 70
-    )
-  );
-});
 const menuItems = computed(() => [
   {
     id: 'home',
@@ -135,16 +123,6 @@ const menuItems = computed(() => [
           nameKey: 'menu.clans',
           route: routes.clansPath(),
           icon: 'M4 21V4m0 1c4-2.5 7 2.5 12 0v9c-5 2.5-8-2.5-12 0m5 7v-5m6 5v-5M7 21h11',
-        },
-      ]
-    : []),
-  ...(currentUser.user?.currentShopId && inTown.value
-    ? [
-        {
-          id: 'shop',
-          nameKey: 'menu.shop',
-          route: routes.shopPath(),
-          icon: 'M3 3h2l2 10h10l4-8H5M9 17a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm8 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z',
         },
       ]
     : []),

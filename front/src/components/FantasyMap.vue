@@ -103,6 +103,7 @@
       @close="activeLandmark = null"
       @action="handleLandmarkAction"
       @quests="openQuests"
+      @auction="openAuction"
       @party="showPartyLobby = true"
     />
 
@@ -227,11 +228,11 @@ const startPromptDrag = (event: PointerEvent) => {
   window.addEventListener('pointerup', stopPromptDrag);
   window.addEventListener('pointercancel', stopPromptDrag);
 };
-const handleDungeonReset = async () => {
+const handleDungeonReset = async (expectedCost: number) => {
   if (!activeLandmark.value || landmarkPending.value) return;
   landmarkPending.value = true;
   try {
-    await resetDungeon(activeLandmark.value.name);
+    await resetDungeon(activeLandmark.value.name, expectedCost);
     await currentUserStore.fetchCurrentUser(true);
     landmarkMessage.value = t('fantasy.landmark.resetDone');
   } catch {
@@ -305,6 +306,24 @@ const handleLandmarkAction = async () => {
     } else {
       await router.push(routes.shopPath());
     }
+  } catch {
+    landmarkMessage.value = t('fantasy.landmark.error');
+  } finally {
+    landmarkPending.value = false;
+  }
+};
+const openAuction = async () => {
+  if (
+    !activeLandmark.value ||
+    !['city', 'capital', 'village'].includes(activeLandmark.value.type) ||
+    landmarkPending.value
+  )
+    return;
+  landmarkPending.value = true;
+  try {
+    await usersApi.updateMapPosition({ x: Math.round(position.x), y: Math.round(position.y) });
+    await currentUserStore.fetchCurrentUser(true);
+    await router.push(routes.auctionPath());
   } catch {
     landmarkMessage.value = t('fantasy.landmark.error');
   } finally {

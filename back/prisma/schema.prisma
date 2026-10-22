@@ -78,6 +78,83 @@ model User {
   updatedAt            DateTime       @default(now()) @updatedAt
   gameProfile          GameProfile?
   userLocation         UsersLocation?
+  feedback             Feedback[]       @relation("FeedbackAuthor")
+  feedbackReplies      FeedbackReply[]  @relation("FeedbackReplyAuthor")
+  adminSessions        AdminSession[]
+  adminActions         AdminUserAudit[] @relation("AdminUserAuditActor")
+  adminChanges         AdminUserAudit[] @relation("AdminUserAuditTarget")
+}
+
+model AdminUserAudit {
+  id String @id @default(uuid())
+  adminId Int
+  userId Int
+  action String
+  reason String
+  before Json?
+  after Json
+  createdAt DateTime @default(now())
+  admin User @relation("AdminUserAuditActor", fields: [adminId], references: [id], onDelete: Restrict)
+  user User @relation("AdminUserAuditTarget", fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, createdAt])
+}
+
+enum FeedbackCategory {
+  EXPERIENCE
+  BUG
+  IDEA
+}
+
+enum FeedbackStatus {
+  OPEN
+  REPLIED
+  CLOSED
+}
+
+model Feedback {
+  id        String           @id @default(uuid())
+  userId    Int
+  user      User             @relation("FeedbackAuthor", fields: [userId], references: [id], onDelete: Cascade)
+  category  FeedbackCategory @default(EXPERIENCE)
+  rating    Int?
+  message   String
+  status    FeedbackStatus   @default(OPEN)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @default(now()) @updatedAt
+  replies   FeedbackReply[]
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+}
+
+model FeedbackReply {
+  id         String   @id @default(uuid())
+  feedbackId String
+  feedback   Feedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+  adminId    Int
+  admin      User     @relation("FeedbackReplyAuthor", fields: [adminId], references: [id], onDelete: Restrict)
+  message    String
+  createdAt  DateTime @default(now())
+
+  @@index([feedbackId, createdAt])
+}
+
+model GemActionPrice {
+  key       String   @id
+  cost      Int
+  updatedAt DateTime @updatedAt
+}
+
+model AdminSession {
+  id        String   @id @default(uuid())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([expiresAt])
 }
 
 model GameProfile {
@@ -115,6 +192,9 @@ model GameProfile {
   ledDungeonParties DungeonParty[]       @relation("DungeonPartyLeader")
   dungeonParty      DungeonPartyMember?
   clanMembership    ClanMember?
+  auctionSales      AuctionListing[] @relation("AuctionSeller")
+  auctionPurchases  AuctionListing[] @relation("AuctionBuyer")
+  notifications    PlayerNotification[]
 }
 
 model GameProfileSkillTree {
@@ -406,6 +486,61 @@ model Item {
   inventoryItem InventoryItem[]
   shopStock     ShopStock[]
   craftRecipe   CraftRecipe?
+  auctionListings AuctionListing[]
+}
+
+enum AuctionStatus {
+  ACTIVE
+  SOLD
+  RETURNED
+  RETURN_PENDING
+  FORFEITED
+}
+
+enum NotificationKind {
+  AUCTION_SOLD
+  AUCTION_BOUGHT
+  AUCTION_RETURNED
+  AUCTION_RETURN_PENDING
+  AUCTION_RETURN_EXPIRED
+}
+
+model AuctionListing {
+  id String @id @default(uuid())
+  sellerId Int
+  buyerId Int?
+  itemId Int
+  quantity Int
+  price Int
+  upgradeType CraftUpgradeType?
+  upgradeValue Float?
+  status AuctionStatus @default(ACTIVE)
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  completedAt DateTime?
+  claimExpiresAt DateTime?
+  seller GameProfile @relation("AuctionSeller", fields: [sellerId], references: [id], onDelete: Cascade)
+  buyer GameProfile? @relation("AuctionBuyer", fields: [buyerId], references: [id], onDelete: SetNull)
+  item Item @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  notifications PlayerNotification[]
+
+  @@index([status, expiresAt])
+  @@index([status, claimExpiresAt])
+  @@index([sellerId, createdAt])
+}
+
+model PlayerNotification {
+  id String @id @default(uuid())
+  gameProfileId Int
+  listingId String
+  kind NotificationKind
+  createdAt DateTime @default(now())
+  readAt DateTime?
+  gameProfile GameProfile @relation(fields: [gameProfileId], references: [id], onDelete: Cascade)
+  listing AuctionListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@unique([gameProfileId, listingId])
+  @@index([gameProfileId, readAt, createdAt])
 }
 
 model Shop {
