@@ -1,364 +1,257 @@
 <template>
-  <div class="absolute inset-0 z-40 overflow-y-auto bg-[#06141d]/96 p-3 text-slate-100 backdrop-blur-sm sm:p-4">
-    <div class="mx-auto max-w-7xl">
-      <header class="flex flex-wrap items-center justify-between gap-3 border-b border-[#806f43]/60 pb-3">
-        <div class="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-          <p class="text-xs font-bold tracking-[0.24em] text-[#efca72] uppercase">
-            {{ t('fantasy.dungeonRun.eyebrow') }}
-          </p>
-          <h2 class="font-serif text-2xl font-semibold text-[#fff0bd] sm:text-3xl">{{ battle.dungeon }}</h2>
-        </div>
-        <div class="flex flex-wrap items-center justify-end gap-3">
-          <p class="rounded-full border border-[#35515b] bg-[#0d2934] px-3 py-1.5 text-xs text-[#a9bfba]">
-            {{ t('fantasy.dungeonRun.progress', { defeated: defeatedCount, total: 4 }) }}
-          </p>
-          <div v-if="battle.party" class="flex flex-wrap justify-end gap-2">
-            <div
-              v-for="member in battle.party.members"
-              :key="member.profileId"
-              class="min-w-48 rounded-xl border border-[#35515b] bg-[#0d2934] px-3 py-2 text-[11px] text-[#d6e1de]"
-            >
-              <div class="flex justify-between gap-3">
-                <strong>{{ member.name }}</strong>
-                <span class="text-[#a9bfba]">{{ t('fantasy.encounter.level', { level: member.level }) }}</span>
-              </div>
-              <div class="mt-1 flex justify-between text-[#a9bfba]">
-                <span>HP</span><span>{{ member.health ?? 0 }} / {{ member.maxHealth ?? 0 }}</span>
-              </div>
-              <div class="mt-1 h-1.5 overflow-hidden rounded-full bg-[#06151d]">
-                <div class="h-full bg-emerald-500" :style="{ width: `${memberHealthPercent(member)}%` }" />
-              </div>
-              <div class="mt-1.5 flex justify-between text-[#8fbce5]">
-                <span>{{ t('fantasy.dungeonRun.mana') }}</span
-                ><span>{{ member.mana ?? 0 }} / {{ member.maxMana ?? 0 }}</span>
-              </div>
-              <div class="mt-1 h-1.5 overflow-hidden rounded-full bg-[#06151d]">
-                <div class="h-full bg-sky-500" :style="{ width: `${memberManaPercent(member)}%` }" />
-              </div>
-            </div>
-          </div>
-          <div v-else class="min-w-56 rounded-xl border border-[#35515b] bg-[#0d2934] px-4 py-2.5">
-            <div class="flex justify-between text-xs text-[#a9bfba]">
-              <span>{{ playerName }}</span>
-              <span>{{ battle.player.health }} / {{ battle.player.maxHealth }} HP</span>
-            </div>
-            <div class="mt-2 h-2 overflow-hidden rounded-full bg-[#06151d]">
-              <div
-                class="h-full bg-gradient-to-r from-emerald-700 to-emerald-400 transition-all"
-                :style="{ width: `${playerHealthPercent}%` }"
-              />
-            </div>
-          </div>
-          <button
-            v-if="battle.status === 'ACTIVE'"
-            type="button"
-            class="rounded-lg border border-red-400/45 bg-red-950/40 px-4 py-2 text-xs font-bold tracking-wide text-red-200 uppercase transition hover:bg-red-900/60 disabled:opacity-40"
-            :disabled="loading"
-            @click="showLeaveConfirmation = true"
-          >
-            {{ t('fantasy.dungeonRun.leave') }}
-          </button>
-        </div>
+  <div class="dungeon-shell absolute inset-0 z-40 bg-[#06141d]/96 p-2 text-slate-100">
+    <div class="dungeon-panel">
+      <header class="dungeon-heading">
+        <h2>{{ battle.dungeon }}</h2>
+        <span>Wave {{ Math.min(defeatedCount + 1, 4) }} / 4 · Turn {{ battle.tactical?.turn ?? 1 }}</span>
+        <button v-if="battle.status === 'ACTIVE'" :disabled="loading" @click="showLeaveConfirmation = true">
+          Leave dungeon
+        </button>
       </header>
-
-      <section
-        class="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-red-400/20 bg-red-950/20 px-4 py-3"
-      >
-        <div class="mr-auto">
-          <div class="text-xs font-bold tracking-[0.14em] text-red-200 uppercase">
-            {{ t('fantasy.dungeonRun.healthPotions') }}
-          </div>
-          <p class="mt-0.5 text-xs text-[#a9bfba]">{{ t('fantasy.dungeonRun.healthDoesNotRestore') }}</p>
-        </div>
-        <button
-          v-for="entry in healthPotions"
-          :key="entry.id"
-          type="button"
-          class="flex items-center gap-2 rounded-lg border border-red-300/30 bg-[#0d2934] px-3 py-2 text-left text-xs text-[#f4d9d5] transition hover:border-red-300/60 hover:bg-red-950/45 disabled:cursor-not-allowed disabled:opacity-35"
-          :disabled="loading || currentMemberHealthFull"
-          @click="$emit('use-potion', entry.id)"
-        >
-          <PotionIcon :name="entry.item.name" class="h-8 w-8 shrink-0" />
-          <span>
-            <strong class="block">{{ entry.item.name }} ×{{ entry.quantity }}</strong>
-            <span class="text-red-200">+{{ getHealthPotionRestore(entry.item.name) }} HP</span>
-          </span>
-        </button>
-        <span v-if="!healthPotions.length" class="text-xs text-[#92aaa5] italic">
-          {{ t('fantasy.dungeonRun.noHealthPotions') }}
-        </span>
-      </section>
-
-      <section
-        v-if="battle.skills && battle.status === 'ACTIVE'"
-        class="mt-4 overflow-hidden rounded-xl border border-violet-300/25"
-      >
-        <label class="flex items-center gap-3 bg-[#0a1d2d] px-5 pt-3 text-sm text-slate-300"
-          >Skill target
-          <select
-            v-model="skillTarget"
-            class="rounded border border-slate-500 bg-[#102e3c] px-3 py-1 text-white"
-            :disabled="loading"
-          >
-            <option
-              v-for="opponent in battle.opponents.filter((entry) => entry.status === 'AVAILABLE')"
-              :key="opponent.id"
-              :value="opponent.id"
-            >
-              {{ opponent.monster.name }}
-            </option>
-          </select>
-        </label>
-        <CombatSkills
-          :skills="battle.skills"
-          :disabled="loading || currentMemberDefeated || !skillTarget"
-          @cast="castSkill"
+      <div class="dungeon-field relative min-h-0 flex-1 overflow-hidden">
+        <Battlefield3D
+          :battle="sceneBattle"
+          :disabled="loading || currentMemberDefeated || battle.status !== 'ACTIVE'"
+          :hand-mode="loadout.handMode"
+          :mage-staff="loadout.primaryWeapon === 'STAFF'"
+          @busy="onSceneBusy"
+          @move="act({ action: 'MOVE', targetCell: $event })"
+          @ready="sceneReady = true"
+          @attack="act({ action: 'ATTACK' })"
+          @fallback="
+            sceneFailed = true;
+            sceneReady = true;
+            animating = false;
+          "
         />
-      </section>
-
-      <section class="mt-5 flex h-50 flex-col rounded-xl border border-[#35515b] bg-[#0b2029]/90 px-5 py-4 shadow-xl">
-        <h3 class="text-xs font-bold tracking-[0.16em] text-[#efca72] uppercase">
-          {{ t('fantasy.encounter.combatLog') }}
-        </h3>
-        <div ref="combatLogRef" class="mt-2 min-h-0 flex-1 space-y-1 overflow-y-auto text-sm text-[#d6e1de]">
-          <div v-for="(event, index) in battle.latestEvents" :key="index">
-            {{ eventText(event) }}
-          </div>
-          <p v-if="!battle.latestEvents.length" class="text-[#92aaa5]">{{ t('fantasy.encounter.chooseAction') }}</p>
-        </div>
-        <div
-          v-if="battle.lastBattleResult"
-          class="mt-3 border-t border-[#35515b] pt-3 text-sm font-bold"
-          :class="battle.lastBattleResult.winner === 'PLAYER' ? 'text-emerald-300' : 'text-red-300'"
-        >
-          {{ t('fantasy.dungeonRun.battleWinner', { winner: battle.lastBattleResult.winnerName }) }}
-        </div>
-      </section>
-
-      <div class="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <article
-          v-for="opponent in battle.opponents"
-          :key="opponent.id"
-          class="group relative overflow-hidden rounded-xl border bg-[#0b2530] shadow-xl transition"
-          :class="cardClass(opponent.status, opponent.isBoss)"
-        >
-          <div class="relative aspect-[4/3] overflow-hidden bg-[#071923]">
-            <img
-              :src="opponent.image"
-              :alt="opponent.monster.name"
-              class="h-full w-full object-cover object-top transition duration-300 group-hover:scale-[1.03]"
-              :class="opponent.status === 'DEFEATED' ? 'grayscale' : ''"
-            />
-            <div class="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-[#071923] to-transparent" />
-            <span
-              v-if="opponent.isBoss"
-              class="absolute top-3 left-3 rounded-full border border-amber-300/50 bg-[#251807]/90 px-2.5 py-1 text-[10px] font-bold tracking-wider text-amber-200 uppercase"
+        <div class="dungeon-vitals">
+          <div>
+            <strong>{{ playerName }}</strong
+            ><span>{{ controlsBattle.player.health }} / {{ controlsBattle.player.maxHealth }} HP</span>
+            <progress :value="controlsBattle.player.health" :max="controlsBattle.player.maxHealth" />
+            <span class="text-[#efca72]"
+              >Attack range: {{ (controlsBattle.arena.playerAttackRange ?? 1) > 1 ? 'unlimited' : '1 hex' }}</span
             >
-              {{ t('fantasy.dungeonRun.boss') }}
-            </span>
-            <div
-              v-if="opponent.status !== 'AVAILABLE'"
-              class="absolute inset-0 flex items-center justify-center bg-[#02080d]/60 text-center font-bold tracking-widest uppercase"
-              :class="opponent.status === 'DEFEATED' ? 'text-emerald-300' : 'text-amber-200'"
-            >
-              {{ t(`fantasy.dungeonRun.${opponent.status.toLowerCase()}`) }}
-            </div>
+            <template v-if="battle.skills"
+              ><span class="text-sky-200">Mana {{ battle.skills.mana }} / {{ battle.skills.maxMana }}</span
+              ><progress class="mana" :value="battle.skills.mana" :max="battle.skills.maxMana"
+            /></template>
           </div>
-
-          <div class="p-4">
-            <div class="flex items-start justify-between gap-3">
-              <h3 class="font-serif text-lg leading-tight font-semibold text-[#fff0bd]">{{ opponent.monster.name }}</h3>
-              <span class="shrink-0 text-xs text-[#efca72]">{{
-                t('fantasy.encounter.level', { level: opponent.monster.level })
-              }}</span>
-            </div>
-            <div class="mt-3">
-              <div class="flex items-center justify-between text-xs text-[#c4d2cf]">
-                <span>{{ t('fantasy.dungeonRun.health') }}</span>
-                <span>{{ opponent.monster.health }} / {{ opponent.monster.maxHealth }} HP</span>
-              </div>
-              <div class="mt-1.5 h-2 overflow-hidden rounded-full bg-[#06151d]">
-                <div
-                  class="h-full bg-gradient-to-r from-red-800 to-red-400 transition-[width] duration-300"
-                  :style="{ width: `${monsterHealthPercent(opponent)}%` }"
-                />
-              </div>
-            </div>
-            <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-[#a9bfba]">
-              <span>{{ t('fantasy.dungeonRun.damage') }}: {{ opponent.monster.damage }}</span>
-              <span>{{ t('fantasy.dungeonRun.defense') }}: {{ formatNumber(opponent.monster.defense) }}%</span>
-              <span>{{ t('fantasy.dungeonRun.critical') }}: {{ formatNumber(opponent.monster.criticalChance) }}%</span>
-              <span>{{ t('fantasy.dungeonRun.dodge') }}: {{ formatNumber(opponent.monster.dodge) }}%</span>
-            </div>
-            <button
-              v-if="battle.status === 'ACTIVE'"
-              type="button"
-              class="mt-4 w-full rounded-lg bg-[#c5963e] px-4 py-2 text-sm font-bold text-[#081820] transition hover:bg-[#e1bb65] disabled:cursor-not-allowed disabled:opacity-35"
-              :disabled="loading || opponent.status !== 'AVAILABLE' || currentMemberDefeated"
-              @click="$emit('attack', opponent.id)"
-            >
-              {{ loading ? t('fantasy.encounter.attacking') : t('fantasy.dungeonRun.fight') }}
-            </button>
-          </div>
-        </article>
-      </div>
-
-      <p v-if="battle.status === 'ACTIVE' && currentMemberDefeated" class="mt-4 text-sm font-semibold text-red-300">
-        {{ t('fantasy.dungeonRun.cannotAttackWithoutHealth') }}
-      </p>
-
-      <div
-        v-if="battle.lastExperience > 0 && battle.status === 'ACTIVE'"
-        class="mt-4 rounded-lg border border-sky-400/25 bg-sky-950/35 px-4 py-3 text-sm text-sky-200"
-      >
-        {{ t('fantasy.dungeonRun.experienceEarned', { experience: battle.lastExperience }) }}
-      </div>
-
-      <section
-        v-if="battle.status === 'DEFEAT'"
-        class="mt-5 flex flex-wrap items-center gap-4 rounded-xl border border-red-400/40 bg-red-950/35 p-5"
-      >
-        <div class="mr-auto">
-          <p class="text-xs font-bold tracking-[0.2em] text-red-300 uppercase">
-            {{ t('fantasy.dungeonRun.defeatedTitle') }}
-          </p>
-          <p class="mt-2 text-sm text-[#d6e1de]">{{ t('fantasy.dungeonRun.defeatedMessage') }}</p>
-        </div>
-        <button
-          type="button"
-          class="rounded-lg border border-red-300/45 bg-red-950/40 px-5 py-2.5 text-sm font-bold text-red-100 hover:bg-red-900/55"
-          @click="$emit('close')"
-        >
-          {{ t('fantasy.encounter.returnToMap') }}
-        </button>
-      </section>
-
-      <section
-        v-if="battle.status === 'VICTORY' && battle.rewards"
-        ref="rewardSectionRef"
-        class="mt-5 rounded-xl border border-[#d8bd75]/40 bg-[#102d35] p-5"
-      >
-        <p class="text-xs font-bold tracking-[0.2em] text-[#efca72] uppercase">
-          {{ t('fantasy.dungeonRun.completed') }}
-        </p>
-        <div class="mt-3 flex flex-wrap items-center gap-5">
-          <div class="min-w-48">
-            <strong class="block text-xl text-[#fff0bd]">
+          <div>
+            <strong>{{ controlsBattle.monster.name }}</strong
+            ><span>{{ controlsBattle.monster.health }} / {{ controlsBattle.monster.maxHealth }} HP</span
+            ><progress class="enemy" :value="controlsBattle.monster.health" :max="controlsBattle.monster.maxHealth" />
+            <span>Movement: {{ controlsBattle.monster.movement }}</span>
+            <span v-if="controlsBattle.monster.attackStyle === 'RANGED'">Ranged attacks</span>
+            <span v-if="controlsBattle.monster.rangedSkill"
+              >{{ controlsBattle.monster.rangedSkill.name }} ·
               {{
-                t(battle.party ? 'fantasy.dungeonRun.goldShare' : 'fantasy.dungeonRun.goldReward', {
-                  gold: battle.rewards.gold,
-                })
-              }}
-            </strong>
-            <span class="mt-1 block text-sm text-sky-200">
-              {{ t('fantasy.dungeonRun.totalExperienceReward', { experience: battle.rewards.experience }) }}
-            </span>
-          </div>
-          <template v-if="battle.partyLoot">
-            <button
-              v-for="item in battle.partyLoot.items"
-              :key="item.id"
-              type="button"
-              class="relative flex items-center gap-3 rounded-lg border bg-[#071923] p-3 text-left transition"
-              :class="isLootSelected(item.id) ? 'border-emerald-400 ring-1 ring-emerald-400/50' : 'border-[#806f43]/50'"
-              :disabled="lootSubmitted || battle.partyLoot.status === 'RESOLVED'"
-              @click="toggleLoot(item.id)"
+                controlsBattle.monster.rangedSkill.cooldown
+                  ? `in ${controlsBattle.monster.rangedSkill.cooldown} turns`
+                  : 'ready'
+              }}</span
             >
-              <span
-                v-if="isLootSelected(item.id)"
-                class="absolute top-1.5 right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-xs font-black text-[#06141d]"
-                >✓</span
-              >
-              <InventoryItem
-                :item="lootInventoryItem(item)"
-                :comparison-item="equippedItemForLoot(item)"
-                :slot-id="''"
-                class="h-14 w-14 shrink-0 !border-0 !bg-transparent !p-0 !shadow-none"
-              />
-              <span>
-                <span class="block font-semibold text-[#fff0bd]">{{ item.name }}</span>
-                <span class="text-xs font-bold uppercase" :class="rarityClass(item.rarity)">{{ item.rarity }}</span>
-                <span v-if="item.winnerName" class="mt-1 block text-xs text-emerald-300">
-                  {{ t('fantasy.dungeonRun.lootWonBy', { player: item.winnerName }) }}
-                </span>
-              </span>
+            <CombatStatusBadges :statuses="controlsBattle.monster.statuses" />
+          </div>
+        </div>
+        <details class="dungeon-scores" aria-label="Dungeon damage contributions">
+          <summary>Damage dealt</summary>
+          <div v-for="score in damageScores" :key="score.id">
+            <span>{{ score.name }}</span
+            ><strong>{{ score.damage }}</strong>
+          </div>
+        </details>
+        <div v-if="battle.status === 'ACTIVE'" class="combat-hud">
+          <div class="combat-hud-log" aria-live="polite">
+            <div v-for="(event, index) in battle.latestEvents.slice(-2)" :key="index">{{ eventText(event) }}</div>
+          </div>
+          <div class="combat-hud-tools">
+            <PotionQuickSlots
+              :used-this-turn="battle.potionUsedThisTurn"
+              :disabled="loading || currentMemberHealthFull || currentMemberDefeated"
+              @drink="$emit('use-potion', $event)"
+            />
+            <BattleSkillBar
+              v-if="battle.skills?.abilities.length"
+              :skills="battle.skills"
+              :disabled="loading || currentMemberDefeated"
+              @cast="castSkill"
+            />
+          </div>
+        </div>
+        <div v-if="battle.status !== 'ACTIVE' && !animating" class="dungeon-results">
+          <section
+            v-if="battle.status === 'DEFEAT'"
+            class="mt-5 flex flex-wrap items-center gap-4 rounded-xl border border-red-400/40 bg-red-950/35 p-5"
+          >
+            <div class="mr-auto">
+              <p class="text-xs font-bold tracking-[0.2em] text-red-300 uppercase">
+                {{ t('fantasy.dungeonRun.defeatedTitle') }}
+              </p>
+              <p class="mt-2 text-sm text-[#d6e1de]">{{ t('fantasy.dungeonRun.defeatedMessage') }}</p>
+            </div>
+            <button
+              type="button"
+              class="rounded-lg border border-red-300/45 bg-red-950/40 px-5 py-2.5 text-sm font-bold text-red-100 hover:bg-red-900/55"
+              @click="$emit('close')"
+            >
+              {{ t('fantasy.encounter.returnToMap') }}
             </button>
-            <div v-if="battle.partyLoot.status === 'CHOOSING'" class="basis-full rounded-lg bg-[#071923]/70 p-3">
-              <p class="text-sm text-[#c7d6d2]">
-                {{
-                  lootSecondsLeft <= 0
-                    ? t('fantasy.dungeonRun.resolvingLoot')
-                    : lootSubmitted
-                      ? t('fantasy.dungeonRun.waitingForLoot')
-                      : t('fantasy.dungeonRun.chooseLoot')
-                }}
+          </section>
+
+          <section
+            v-if="battle.status === 'VICTORY' && battle.rewards"
+            class="mt-5 rounded-xl border border-[#d8bd75]/40 bg-[#102d35] p-5"
+          >
+            <p class="text-xs font-bold tracking-[0.2em] text-[#efca72] uppercase">
+              {{ t('fantasy.dungeonRun.completed') }}
+            </p>
+            <div class="mt-3 flex flex-wrap items-center gap-5">
+              <div class="min-w-48">
+                <strong class="block text-xl text-[#fff0bd]">
+                  {{
+                    t(battle.party ? 'fantasy.dungeonRun.goldShare' : 'fantasy.dungeonRun.goldReward', {
+                      gold: battle.rewards.gold,
+                    })
+                  }}
+                </strong>
+                <span class="mt-1 block text-sm text-sky-200">
+                  {{ t('fantasy.dungeonRun.totalExperienceReward', { experience: battle.rewards.experience }) }}
+                </span>
+              </div>
+              <template v-if="battle.partyLoot">
+                <button
+                  v-for="item in battle.partyLoot.items"
+                  :key="item.id"
+                  type="button"
+                  class="relative flex items-center gap-3 rounded-lg border bg-[#071923] p-3 text-left transition"
+                  :class="
+                    isLootSelected(item.id) ? 'border-emerald-400 ring-1 ring-emerald-400/50' : 'border-[#806f43]/50'
+                  "
+                  :disabled="lootSubmitted || battle.partyLoot.status === 'RESOLVED'"
+                  @click="toggleLoot(item.id)"
+                >
+                  <span
+                    v-if="isLootSelected(item.id)"
+                    class="absolute top-1.5 right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-xs font-black text-[#06141d]"
+                    >✓</span
+                  >
+                  <InventoryItem
+                    :item="lootInventoryItem(item)"
+                    :comparison-item="equippedItemForLoot(item)"
+                    :slot-id="''"
+                    class="h-14 w-14 shrink-0 !border-0 !bg-transparent !p-0 !shadow-none"
+                  />
+                  <span>
+                    <span class="block font-semibold text-[#fff0bd]">{{ item.name }}</span>
+                    <span class="text-xs font-bold uppercase" :class="rarityClass(item.rarity)">{{ item.rarity }}</span>
+                    <span v-if="item.winnerName" class="mt-1 block text-xs text-emerald-300">
+                      {{ t('fantasy.dungeonRun.lootWonBy', { player: item.winnerName }) }}
+                    </span>
+                  </span>
+                </button>
+                <div v-if="battle.partyLoot.status === 'CHOOSING'" class="basis-full rounded-lg bg-[#071923]/70 p-3">
+                  <p class="text-sm text-[#c7d6d2]">
+                    {{
+                      lootSecondsLeft <= 0
+                        ? t('fantasy.dungeonRun.resolvingLoot')
+                        : lootSubmitted
+                          ? t('fantasy.dungeonRun.waitingForLoot')
+                          : t('fantasy.dungeonRun.chooseLoot')
+                    }}
+                  </p>
+                  <p class="mt-2 text-xs font-bold text-[#efca72]">
+                    {{ t('fantasy.dungeonRun.lootTimeLeft', { seconds: lootSecondsLeft }) }}
+                  </p>
+                  <button
+                    v-if="!lootSubmitted"
+                    type="button"
+                    class="mt-3 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-500 disabled:opacity-40"
+                    :disabled="loading || lootSecondsLeft <= 0"
+                    @click="$emit('submit-loot', selectedLootIds)"
+                  >
+                    {{ t('fantasy.dungeonRun.confirmLoot') }}
+                  </button>
+                </div>
+              </template>
+              <template v-else>
+                <div
+                  v-for="item in battle.rewards.items"
+                  :key="item.inventoryItemId ?? item.id"
+                  class="flex items-center gap-3 rounded-lg border border-[#806f43]/50 bg-[#071923] p-3"
+                >
+                  <InventoryItem
+                    :item="lootInventoryItem(item)"
+                    :comparison-item="equippedItemForLoot(item)"
+                    :slot-id="''"
+                    class="h-14 w-14 shrink-0 !border-0 !bg-transparent !p-0 !shadow-none"
+                  />
+                  <div>
+                    <div class="font-semibold text-[#fff0bd]">{{ item.name }}</div>
+                    <div class="text-xs font-bold uppercase" :class="rarityClass(item.rarity)">{{ item.rarity }}</div>
+                    <div v-if="item.inventoryFull" class="mt-1 text-xs text-red-300">
+                      {{ t('fantasy.encounter.inventoryFullLootNotice') }}
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </div>
+            <section v-if="battle.rewards.craftItems.length" class="mt-5 border-t border-[#806f43]/35 pt-4">
+              <p class="text-xs font-bold tracking-[0.16em] text-[#efca72] uppercase">
+                {{ t('fantasy.dungeonRun.craftingMaterials') }}
               </p>
-              <p class="mt-2 text-xs font-bold text-[#efca72]">
-                {{ t('fantasy.dungeonRun.lootTimeLeft', { seconds: lootSecondsLeft }) }}
-              </p>
+              <div class="mt-3 flex flex-wrap gap-4">
+                <div
+                  v-for="material in battle.rewards.craftItems"
+                  :key="material.id"
+                  class="flex items-center gap-2 rounded-lg border border-[#806f43]/50 bg-[#071923] p-3"
+                >
+                  <img :src="`/icons/items/${material.icon}`" alt="" class="h-12 w-12 object-contain" />
+                  <div>
+                    <div class="text-[10px] font-bold tracking-wider text-[#efca72] uppercase">
+                      {{ t('crafting.materialDrop') }}
+                    </div>
+                    <div class="text-sm font-semibold text-[#fff0bd]">{{ material.name }} ×{{ material.quantity }}</div>
+                  </div>
+                </div>
+              </div>
+            </section>
+            <div class="mt-5 flex justify-end">
               <button
-                v-if="!lootSubmitted"
-                type="button"
-                class="mt-3 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-500 disabled:opacity-40"
-                :disabled="loading || lootSecondsLeft <= 0"
-                @click="$emit('submit-loot', selectedLootIds)"
+                v-if="battle.partyLoot?.status !== 'CHOOSING'"
+                class="rounded-lg border border-[#d8bd75]/50 px-4 py-2 text-sm text-[#fff0bd] hover:bg-white/5"
+                @click="$emit('close')"
               >
-                {{ t('fantasy.dungeonRun.confirmLoot') }}
+                {{ t('fantasy.encounter.returnToMap') }}
               </button>
             </div>
-          </template>
-          <template v-else>
-            <div
-              v-for="item in battle.rewards.items"
-              :key="item.inventoryItemId ?? item.id"
-              class="flex items-center gap-3 rounded-lg border border-[#806f43]/50 bg-[#071923] p-3"
-            >
-              <InventoryItem
-                :item="lootInventoryItem(item)"
-                :comparison-item="equippedItemForLoot(item)"
-                :slot-id="''"
-                class="h-14 w-14 shrink-0 !border-0 !bg-transparent !p-0 !shadow-none"
-              />
-              <div>
-                <div class="font-semibold text-[#fff0bd]">{{ item.name }}</div>
-                <div class="text-xs font-bold uppercase" :class="rarityClass(item.rarity)">{{ item.rarity }}</div>
-                <div v-if="item.inventoryFull" class="mt-1 text-xs text-red-300">
-                  {{ t('fantasy.encounter.inventoryFullLootNotice') }}
-                </div>
-              </div>
-            </div>
-          </template>
+          </section>
         </div>
-        <section v-if="battle.rewards.craftItems.length" class="mt-5 border-t border-[#806f43]/35 pt-4">
-          <p class="text-xs font-bold tracking-[0.16em] text-[#efca72] uppercase">
-            {{ t('fantasy.dungeonRun.craftingMaterials') }}
-          </p>
-          <div class="mt-3 flex flex-wrap gap-4">
-            <div
-              v-for="material in battle.rewards.craftItems"
-              :key="material.id"
-              class="flex items-center gap-2 rounded-lg border border-[#806f43]/50 bg-[#071923] p-3"
-            >
-              <img :src="`/icons/items/${material.icon}`" alt="" class="h-12 w-12 object-contain" />
-              <div>
-                <div class="text-[10px] font-bold tracking-wider text-[#efca72] uppercase">
-                  {{ t('crafting.materialDrop') }}
-                </div>
-                <div class="text-sm font-semibold text-[#fff0bd]">{{ material.name }} ×{{ material.quantity }}</div>
-              </div>
-            </div>
-          </div>
-        </section>
-        <div class="mt-5 flex justify-end">
-          <button
-            v-if="battle.partyLoot?.status !== 'CHOOSING'"
-            class="rounded-lg border border-[#d8bd75]/50 px-4 py-2 text-sm text-[#fff0bd] hover:bg-white/5"
-            @click="$emit('close')"
-          >
-            {{ t('fantasy.encounter.returnToMap') }}
-          </button>
-        </div>
-      </section>
+      </div>
+      <footer v-if="battle.status === 'ACTIVE'" class="dungeon-actions">
+        <span id="dungeon-attack-range">{{ dungeonAttackHint(controlsBattle) }}</span>
+        <select
+          v-if="sceneFailed"
+          aria-label="Move to hex"
+          :disabled="loading"
+          @change="act({ action: 'MOVE', targetCell: Number(($event.target as HTMLSelectElement).value) })"
+        >
+          <option>Choose destination</option>
+          <option v-for="cell in controlsBattle.arena.reachableCells" :key="cell" :value="cell">Hex {{ cell }}</option>
+        </select>
+        <button :disabled="loading || currentMemberDefeated" @click="act({ action: 'DEFEND' })">
+          Defend / End turn
+        </button>
+        <button
+          class="attack-button"
+          :title="dungeonAttackHint(controlsBattle)"
+          aria-describedby="dungeon-attack-range"
+          :disabled="loading || !controlsBattle.arena.canAttack || currentMemberDefeated"
+          @click="act({ action: 'ATTACK' })"
+        >
+          Attack
+        </button>
+      </footer>
     </div>
 
     <div
@@ -401,23 +294,29 @@
 
 <script setup lang="ts">
 import { useTranslation } from 'i18next-vue';
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import type { InventoryItemType } from '@/modules/Inventory/types';
 
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 import { getBattleEventSubject } from '@/modules/Game/battleEvent';
 import { findEquippedItemForEntries } from '@/modules/Inventory/utils/equipment';
-import { getHealthPotionRestore } from '@/modules/Inventory/utils/potions';
-import type { DungeonOpponentStatus, DungeonPartyMember, DungeonRunState } from '@/modules/Monsters/api';
+import type { DungeonRunState, TacticalBattleAction } from '@/modules/Monsters/api';
 
-import PotionIcon from '@/modules/Inventory/components/icons/PotionIcon.vue';
+import Battlefield3D from './Battlefield3D.vue';
+import BattleSkillBar from './BattleSkillBar.vue';
+import CombatStatusBadges from './CombatStatusBadges.vue';
+import PotionQuickSlots from './PotionQuickSlots.vue';
+
+import { getBattlePlayerLoadout } from '../battlePlayerLoadout';
+import { dungeonAttackHint, dungeonBattle, dungeonReplay } from '../dungeonBattle';
+
 import InventoryItem from '@/modules/Inventory/components/InventoryItem.vue';
-import CombatSkills from '@/modules/Skills/CombatSkills.vue';
+import './combatHud.css';
 
 const props = defineProps<{ battle: DungeonRunState; playerName: string; loading: boolean }>();
 const emit = defineEmits<{
-  (event: 'attack', opponentId: string, skillId?: string): void;
+  (event: 'attack', opponentId: string, skillId?: string, command?: TacticalBattleAction): void;
   (event: 'use-potion', inventoryItemId: number): void;
   (event: 'leave'): void;
   (event: 'close'): void;
@@ -426,18 +325,57 @@ const emit = defineEmits<{
 
 const { t } = useTranslation();
 const currentUserStore = useCurrentUserStore();
-const skillTarget = ref('');
+const animating = ref(false);
+const sceneFailed = ref(false);
+const sceneReady = ref(false);
+const loading = computed(() => props.loading || animating.value || !sceneReady.value);
+const loadout = computed(() => getBattlePlayerLoadout(currentUserStore.user?.equippedItems));
+const controlsBattle = computed(() => dungeonBattle(props.battle, currentUserStore.user?.id));
+const sceneBattle = ref(dungeonBattle(props.battle, currentUserStore.user?.id));
+let showingExchange = false;
 watch(
-  () => props.battle.opponents,
-  (opponents) => {
-    if (!opponents.some((opponent) => opponent.id === skillTarget.value && opponent.status === 'AVAILABLE')) {
-      skillTarget.value = opponents.find((opponent) => opponent.status === 'AVAILABLE')?.id ?? '';
-    }
-  },
-  { immediate: true }
+  () => props.battle,
+  (next, previous) => {
+    if (
+      next.status !== 'ACTIVE' &&
+      previous.status === next.status &&
+      next.tactical?.revision === previous.tactical?.revision
+    )
+      return;
+    const replay = dungeonReplay(next, previous, currentUserStore.user?.id);
+    if (replay) {
+      showingExchange = true;
+      sceneBattle.value = replay;
+    } else if (!animating.value) sceneBattle.value = dungeonBattle(next, currentUserStore.user?.id);
+  }
 );
+function onSceneBusy(value: boolean) {
+  animating.value = value;
+  if (!value && showingExchange) {
+    showingExchange = false;
+    if (props.battle.status === 'ACTIVE') sceneBattle.value = controlsBattle.value;
+  }
+}
+function act(command: TacticalBattleAction) {
+  if (loading.value || props.battle.status !== 'ACTIVE' || currentMemberDefeated.value) return;
+  const opponentId =
+    props.battle.tactical?.opponentId ?? props.battle.opponents.find((o) => o.status === 'AVAILABLE')?.id;
+  if (opponentId) emit('attack', opponentId, command.skillId, command);
+}
+const damageScores = computed(() => {
+  const scores = props.battle.damageDealt ?? {};
+  return (
+    props.battle.party?.members.map((member) => ({
+      id: member.profileId,
+      name: member.name,
+      damage: scores[String(member.profileId)]?.damage ?? 0,
+    })) ?? [
+      { id: 0, name: props.playerName, damage: Object.values(scores).reduce((sum, score) => sum + score.damage, 0) },
+    ]
+  );
+});
 const castSkill = (skillId: string) => {
-  if (!props.loading && skillTarget.value && !currentMemberDefeated.value) emit('attack', skillTarget.value, skillId);
+  act({ action: 'SKILL', skillId });
 };
 type DungeonLootItem =
   NonNullable<DungeonRunState['rewards']>['items'][number] | NonNullable<DungeonRunState['partyLoot']>['items'][number];
@@ -466,12 +404,7 @@ const equippedItemForLoot = (item: DungeonLootItem) =>
     undefined,
     (rarity) => t(`profile.rarity.${rarity.toLowerCase()}`)
   );
-const healthPotions = computed(() =>
-  (currentUserStore.user?.inventory ?? []).filter(({ item }) => item.name.includes('Health Potion'))
-);
 const showLeaveConfirmation = ref(false);
-const combatLogRef = ref<HTMLElement | null>(null);
-const rewardSectionRef = ref<HTMLElement | null>(null);
 const selectedLootIds = ref<number[]>([]);
 const lootSecondsLeft = ref(0);
 let lootCountdownTimer: ReturnType<typeof setInterval> | undefined;
@@ -479,40 +412,19 @@ const updateLootCountdown = () => {
   const deadline = props.battle.partyLoot?.deadlineAt;
   lootSecondsLeft.value = deadline ? Math.max(0, Math.ceil((new Date(deadline).getTime() - Date.now()) / 1000)) : 0;
 };
-const scrollCombatLogToLatest = async () => {
-  await nextTick();
-  requestAnimationFrame(() => {
-    const log = combatLogRef.value;
-    if (log) log.scrollTop = log.scrollHeight;
-  });
-};
-onMounted(async () => {
+onMounted(() => {
   updateLootCountdown();
   lootCountdownTimer = setInterval(updateLootCountdown, 250);
-  await scrollCombatLogToLatest();
 });
 onUnmounted(() => {
   if (lootCountdownTimer) clearInterval(lootCountdownTimer);
 });
 watch(() => props.battle.partyLoot?.deadlineAt, updateLootCountdown);
-const scrollToRewards = () => rewardSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-watch(() => props.battle.latestEvents, scrollCombatLogToLatest, { deep: true, flush: 'post' });
-watch(
-  () => props.battle.status,
-  async (status, previousStatus) => {
-    if (status !== 'VICTORY' || previousStatus === 'VICTORY') return;
-    await nextTick();
-    scrollToRewards();
-  }
-);
 const confirmLeave = () => {
   showLeaveConfirmation.value = false;
   emit('leave');
 };
 const defeatedCount = computed(() => props.battle.opponents.filter(({ status }) => status === 'DEFEATED').length);
-const playerHealthPercent = computed(() =>
-  Math.max(0, Math.min(100, (props.battle.player.health / props.battle.player.maxHealth) * 100))
-);
 const currentPartyMember = computed(() =>
   props.battle.party?.members.find(({ userId }) => userId === currentUserStore.user?.id)
 );
@@ -542,13 +454,13 @@ const currentMemberHealthFull = computed(() => {
 const currentMemberDefeated = computed(() =>
   currentPartyMember.value ? (currentPartyMember.value.health ?? 0) <= 0 : props.battle.player.health <= 0
 );
-const percentage = (value: number | undefined, maximum: number | undefined) =>
-  maximum ? Math.max(0, Math.min(100, ((value ?? 0) / maximum) * 100)) : 0;
-const memberHealthPercent = (member: DungeonPartyMember) => percentage(member.health, member.maxHealth);
-const memberManaPercent = (member: DungeonPartyMember) => percentage(member.mana, member.maxMana);
-const monsterHealthPercent = (opponent: DungeonRunState['opponents'][number]) =>
-  Math.max(0, Math.min(100, (opponent.monster.health / opponent.monster.maxHealth) * 100));
 const eventText = (event: DungeonRunState['latestEvents'][number]) => {
+  if (event.effect === 'empower') return `${event.actorName ?? 'Enemy'} — ${event.skillName}: ${event.statusText}`;
+  if (event.statusText)
+    return `${event.skillName ? `${event.skillName}: ${event.damage} damage. ` : ''}${event.statusText}`;
+  if (event.action === 'MOVE')
+    return `${event.actorName ?? (event.actor === 'PLAYER' ? props.playerName : 'Enemy')} moves to hex ${event.toCell}.`;
+  if (event.action === 'DEFEND') return `${event.actorName ?? props.playerName} takes a defensive stance.`;
   if (event.skillName)
     return `${event.actorName ?? props.playerName} — ${event.skillName}: ${event.healing !== undefined ? `+${event.healing} HP` : event.dodged ? 'dodged' : event.blocked ? 'blocked' : `${event.damage} damage`}.`;
   if (props.battle.party) {
@@ -582,11 +494,182 @@ const eventText = (event: DungeonRunState['latestEvents'][number]) => {
     damage: event.damage,
   });
 };
-const formatNumber = (value: number) => Math.round(value * 10) / 10;
-const cardClass = (status: DungeonOpponentStatus, isBoss: boolean) => ({
-  'border-amber-300/45': isBoss && status !== 'DEFEATED',
-  'border-[#35515b]': !isBoss && status !== 'DEFEATED',
-  'border-emerald-500/35 opacity-75': status === 'DEFEATED',
-});
 const rarityClass = (rarity: string) => (rarity === 'UNIQUE' ? 'text-orange-300' : 'text-violet-300');
 </script>
+
+<style scoped>
+.dungeon-shell {
+  overflow: hidden;
+}
+.dungeon-panel {
+  height: 100%;
+  max-width: 1800px;
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #806f43;
+  border-radius: 14px;
+  overflow: hidden;
+}
+.dungeon-heading {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 16px;
+  background: #102831;
+  flex-shrink: 0;
+}
+.dungeon-heading h2 {
+  font-family: Georgia, serif;
+  font-size: 20px;
+  color: #fff0bd;
+  margin: 0;
+  line-height: 1.3;
+}
+.dungeon-heading span {
+  font-size: 12px;
+  color: #cfb77c;
+}
+.dungeon-heading button {
+  margin-left: auto;
+  color: #dfb9ac;
+  font-size: 12px;
+}
+.dungeon-field {
+  background: #172724;
+}
+.dungeon-vitals {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  pointer-events: none;
+}
+.dungeon-vitals > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  background: #071a22e8;
+  border: 1px solid #7d704e;
+  border-radius: 9px;
+  padding: 8px 12px;
+  width: min(36%, 300px);
+  font-size: 12px;
+}
+.dungeon-vitals strong {
+  color: #f5e4b5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+progress {
+  width: 100%;
+  height: 5px;
+  appearance: none;
+  border: 0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+progress::-webkit-progress-bar {
+  background: #020e12;
+}
+progress::-webkit-progress-value {
+  background: #22c89f;
+}
+progress::-moz-progress-bar {
+  background: #22c89f;
+}
+progress.mana::-webkit-progress-value {
+  background: #17baff;
+}
+progress.enemy::-webkit-progress-value {
+  background: #e15a49;
+}
+.dungeon-scores {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #071a22e8;
+  border: 1px solid #7d704e;
+  border-radius: 8px;
+  padding: 8px;
+  font-size: 11px;
+  color: #e7d297;
+}
+.dungeon-scores summary {
+  cursor: pointer;
+}
+.dungeon-scores div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 6px;
+}
+.dungeon-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #0b2029;
+  flex-shrink: 0;
+}
+.dungeon-actions > span {
+  flex: 1;
+  color: #b5ceca;
+  font-size: 12px;
+}
+.dungeon-actions button {
+  border: 1px solid #477a8a;
+  border-radius: 7px;
+  padding: 9px 14px;
+  background: #153744;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.dungeon-actions .attack-button {
+  background: #b74835;
+  border-color: #cf755d;
+}
+button:disabled {
+  opacity: 0.4;
+}
+.dungeon-results {
+  position: absolute;
+  inset: 12px;
+  z-index: 30;
+  background: #081b25f2;
+  border-radius: 12px;
+  overflow-y: auto;
+  padding: 10px;
+}
+@media (max-width: 650px) {
+  .dungeon-heading {
+    gap: 8px;
+    padding: 8px;
+  }
+  .dungeon-heading h2 {
+    font-size: 15px;
+  }
+  .dungeon-heading span {
+    font-size: 10px;
+  }
+  .dungeon-actions > span {
+    display: none;
+  }
+  .dungeon-actions {
+    justify-content: flex-end;
+  }
+  .dungeon-vitals > div {
+    width: 44%;
+    font-size: 10px;
+    padding: 6px;
+  }
+  .dungeon-scores {
+    top: 112px;
+  }
+}
+</style>

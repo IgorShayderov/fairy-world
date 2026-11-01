@@ -34,6 +34,15 @@ export type GeneratedMonster = Pick<
 };
 
 export interface BattleCombatant {
+  attackStyle?: 'MELEE' | 'RANGED';
+  rangedSkill?: { name: string; cooldown: number };
+  statuses?: {
+    slow?: { turns: number; reduction: number };
+    armorBreak?: { hits: number; percent: number };
+    petrify?: { turns: number };
+    empower?: { hits: number; percent: number };
+  };
+  attackRange?: number;
   missingAmmunition?: boolean;
   movement: number;
   name: string;
@@ -48,6 +57,7 @@ export interface BattleCombatant {
 }
 
 export interface BattleState {
+  potionUsedThisTurn?: boolean;
   id: string;
   monsterType: string;
   status: 'ACTIVE' | 'VICTORY' | 'DEFEAT';
@@ -64,6 +74,7 @@ export interface BattleState {
     skillName?: string;
     effect?: SkillEffect;
     healing?: number;
+    statusText?: string;
     actor: 'PLAYER' | 'MONSTER';
     damage: number;
     critical: boolean;
@@ -137,6 +148,24 @@ export interface DungeonOpponent {
 }
 
 export interface DungeonRunState {
+  potionUsedThisTurn?: boolean;
+  tactical?: {
+    turn: number;
+    revision: number;
+    opponentId: string;
+    playerPosition: number;
+    monsterPosition: number;
+    moved: boolean;
+    movingProfileId?: number;
+  };
+  exchange?: {
+    opponentId: string;
+    events: BattleState['events'];
+    playerPosition: number;
+    monsterPosition: number;
+    actorProfileId?: number;
+  };
+  damageDealt?: Record<string, { name: string; damage: number }>;
   skills?: BattleSkills;
   id: string;
   dungeon: string;
@@ -188,6 +217,14 @@ export interface DungeonRunState {
 }
 
 export interface DungeonPartyMember {
+  movement?: number;
+  attackRange?: number;
+  damage?: number;
+  defense?: number;
+  dodge?: number;
+  blockChance?: number;
+  criticalChance?: number;
+  criticalDamage?: number;
   profileId: number;
   userId: number;
   name: string;
@@ -279,8 +316,16 @@ export const startDungeonParty = async (partyId: string): Promise<DungeonRunStat
   return data;
 };
 
-export const attackDungeonOpponent = async (runId: string, opponentId: string, skillId?: string): Promise<DungeonRunState> => {
-  const { data } = await api.post<DungeonRunState>(routes.api.monsters.dungeonOpponentAttackPath(runId, opponentId), skillId ? { skillId } : {});
+export const attackDungeonOpponent = async (
+  runId: string,
+  opponentId: string,
+  skillId?: string,
+  command?: TacticalBattleAction
+): Promise<DungeonRunState> => {
+  const { data } = await api.post<DungeonRunState>(routes.api.monsters.dungeonOpponentAttackPath(runId, opponentId), {
+    skillId,
+    ...command,
+  });
   return data;
 };
 
@@ -294,6 +339,16 @@ export const useDungeonHealthPotion = async (
 ): Promise<{ run: DungeonRunState; healed: number }> => {
   const { data } = await api.post<{ run: DungeonRunState; healed: number }>(
     routes.api.monsters.dungeonHealthPotionPath(runId, inventoryItemId)
+  );
+  return data;
+};
+
+export const useBattleHealthPotion = async (
+  battleId: string,
+  inventoryItemId: number
+): Promise<{ battle: BattleState; healed: number }> => {
+  const { data } = await api.post<{ battle: BattleState; healed: number }>(
+    routes.api.monsters.battleHealthPotionPath(battleId, inventoryItemId)
   );
   return data;
 };

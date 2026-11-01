@@ -2,6 +2,7 @@ import { BadRequestException } from '@nestjs/common';
 import { SKILLS, type SkillDefinition, type SkillEffect } from './skills.catalog';
 import type { UserView } from '../users/user.view';
 import { magicSkillManaCost } from '../items/mage-equipment';
+import { applyRangerStatus, type CombatStatuses } from './combat-status';
 
 export type DungeonSkillState = {
   class: string | null;
@@ -14,13 +15,21 @@ export type DungeonSkillState = {
   turn: number;
   readyOnTurn: Record<string, number>;
 };
-type Fighter = { health: number; maxHealth: number; damage: number; defense: number; criticalChance?: number };
+type Fighter = {
+  health: number;
+  maxHealth: number;
+  damage: number;
+  defense: number;
+  criticalChance?: number;
+  statuses?: CombatStatuses;
+};
 export type SkillEventFields = {
-  action?: 'SKILL';
+  action?: 'SKILL' | 'MOVE' | 'DEFEND' | 'ATTACK';
   skillId?: string;
   skillName?: string;
   effect?: SkillEffect;
   healing?: number;
+  statusText?: string;
 };
 type Event = SkillEventFields & {
   actor: 'PLAYER' | 'MONSTER';
@@ -82,7 +91,7 @@ export function castDungeonSkill<T extends Fighter>(
   attacker: T,
   target: T,
   events: Event[],
-  strike: (attacker: T, target: T) => void,
+  strike: (attacker: T, target: T, ignoresDefense: boolean) => void,
   actorName: string,
 ) {
   const skill = SKILLS.find((entry) => entry.id === skillId);
@@ -100,24 +109,20 @@ export function castDungeonSkill<T extends Fighter>(
     attacker.health += healing;
     events.push({ actor: 'PLAYER', actorName, damage: 0, critical: false, dodged: false, healing });
   } else {
-    const defense = target.defense;
-    if (skill.effect === 'pierce' || skill.effect === 'arcane') target.defense *= 0.5;
-    try {
-      strike(
-        {
-          ...attacker,
-          criticalChance: skill.canCrit ? (attacker.criticalChance ?? 0) : 0,
-          damage:
-            (skill.class === 'MAGE' ? state.spellPower : attacker.damage) *
-            ((skill.multiplier ?? 1) + (rank - 1) * 0.04),
-        },
-        target,
-      );
-    } finally {
-      target.defense = defense;
-    }
+    strike(
+      {
+        ...attacker,
+        criticalChance: skill.canCrit ? (attacker.criticalChance ?? 0) : 0,
+        damage:
+          (skill.class === 'MAGE' ? state.spellPower : attacker.damage) *
+          ((skill.multiplier ?? 1) + (skill.class === 'SCOUT' ? 0 : (rank - 1) * 0.04)),
+      },
+      target,
+      skill.class === 'MAGE',
+    );
   }
   Object.assign(events[events.length - 1], { action: 'SKILL', skillId, skillName: skill.name, effect: skill.effect });
+  if (skill.class === 'SCOUT') applyRangerStatus(target, skill.id, rank, events[events.length - 1]);
 }
 
 export function finishDungeonSkillTurn(state: DungeonSkillState | undefined) {

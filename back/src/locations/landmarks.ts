@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 
 export const encounterLandmarks = {
+  BLACKSMITH: { x: 1490, y: 740, type: 'blacksmith' },
   ICEVAULT: { x: 1770, y: 300, type: 'dungeon' },
   RAVENCRYPT: { x: 450, y: 350, type: 'dungeon' },
   SUNSPIRE: { x: 1200, y: 330, type: 'sanctum' },
@@ -12,7 +13,7 @@ export const encounterLandmarks = {
 
 export function requireLandmark(
   name: string,
-  type: 'dungeon' | 'sanctum',
+  type: 'dungeon' | 'sanctum' | 'blacksmith',
   profile: { mapPositionX: number; mapPositionY: number },
 ) {
   const landmark = encounterLandmarks[name as keyof typeof encounterLandmarks];

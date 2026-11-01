@@ -82,6 +82,7 @@ describe('UserView.renderCurrent', () => {
           role: 'MEMBER' as const,
           contributedActivity: 0,
           contributedGold: 0,
+          contributedGems: 0,
           trackedKilledMonsters: 0,
           trackedDungeonsCleared: 0,
           trackedQuestsCompleted: 0,

@@ -83,4 +83,31 @@ describe('profile inventory hydration', () => {
     expect(store.inventory).toEqual([]);
     expect(store.equipmentSlots.find((slot) => slot.id === 'left-hand')?.item?.name).toBe('Sword');
   });
+
+  it.each([10, 15, 20])('preserves %i%% shield block chance in backpack and equipment tooltips', (blockChance) => {
+    const store = useInventoryStore();
+    const shield: InventoryEntry = {
+      id: 11,
+      quantity: 1,
+      slot: null,
+      isEquiped: false,
+      item: {
+        id: 2,
+        name: 'Shield',
+        description: '',
+        price: 50,
+        icon: '',
+        rarity: 'COMMON',
+        equipmentType: ['SHIELD'],
+        attributes: [],
+        properties: [],
+        blockChance,
+      },
+    };
+
+    store.hydrateInventory([shield], [{ ...shield, id: 12, slot: 'right-hand', isEquiped: true }]);
+
+    expect(store.inventory[0]?.blockChance).toBe(blockChance);
+    expect(store.equipmentSlots.find((slot) => slot.id === 'right-hand')?.item?.blockChance).toBe(blockChance);
+  });
 });

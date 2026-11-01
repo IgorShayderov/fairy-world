@@ -1,9 +1,10 @@
 <template>
-  <div class="realm-page flex min-h-0 flex-1 flex-col overflow-auto p-6">
-    <div class="mx-auto flex w-max min-w-full flex-col gap-6">
-      <div class="flex flex-row items-start justify-center gap-8">
+  <div class="realm-page profile-page">
+    <div class="profile-layout">
+      <ActiveBuffs class="profile-buffs" :buffs="currentUserStore.user?.activeBuffs ?? []" />
+      <div class="profile-panels">
         <EquipmentSection
-          class="shrink-0"
+          class="profile-equipment"
           :equipment-slots="equipmentSlots"
           :hovered-slot="isHoveredSlot"
           :player-attributes="currentUserStore.user?.attributes ?? []"
@@ -33,7 +34,7 @@
         />
 
         <InventorySection
-          class="w-fit shrink-0"
+          class="profile-inventory"
           :inventory="inventory"
           :equipment-slots="equipmentSlots"
           :drag-index="dragItemIndex"
@@ -46,7 +47,14 @@
           @item-double-click="equipFromInventory"
         />
       </div>
-      <ActiveBuffs class="w-full shrink-0" :buffs="currentUserStore.user?.activeBuffs ?? []" />
+      <section
+        class="profile-potions"
+        aria-labelledby="potion-slots-title"
+      >
+        <h2 id="potion-slots-title" class="text-lg font-semibold">{{ t('potionSlots.title') }}</h2>
+        <p class="mt-2 mb-4 text-sm text-[#a9bec8]">{{ t('potionSlots.hint') }}</p>
+        <PotionQuickSlots manage :drag-inventory-item-id="dragItem?.inventoryItemId" @changed="syncPotionInventory" />
+      </section>
     </div>
   </div>
 </template>
@@ -68,11 +76,14 @@ import { getCompatibleEquipmentSlots, isTwoHanded } from '@/modules/Inventory/ut
 import { getPotionRequiredLevel, isHealthPotion, isPotion } from '@/modules/Inventory/utils/potions';
 
 import ActiveBuffs from '@/modules/Game/components/ActiveBuffs.vue';
+import PotionQuickSlots from '@/modules/Game/components/PotionQuickSlots.vue';
 import EquipmentSection from '@modules/Inventory/components/EquipmentSection.vue';
 import InventorySection from '@modules/Inventory/components/InventorySection.vue';
 
 const inventoryStore = useInventoryStore();
 const currentUserStore = useCurrentUserStore();
+const syncPotionInventory = () =>
+  inventoryStore.hydrateInventory(currentUserStore.user?.inventory ?? [], currentUserStore.user?.equippedItems ?? []);
 const { t } = useTranslation();
 const $q = useQuasar();
 const canEquip = (item: InventoryItemType) => {
@@ -272,3 +283,92 @@ const equipFromInventory = async (inventoryIndex: number) => {
   await refreshInventory();
 };
 </script>
+
+<style scoped>
+.profile-page {
+  --profile-slot-size: 88px;
+  --profile-grid-height: 400px;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px;
+  container-type: inline-size;
+}
+.profile-layout {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 832px);
+  gap: 16px;
+  align-items: start;
+  justify-content: center;
+  max-width: 100%;
+  margin: 0 auto;
+}
+.profile-buffs {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  min-width: 0;
+}
+.profile-buffs :deep(h2) {
+  font-size: 14px;
+  line-height: 20px;
+  margin: 0 0 12px;
+  font-weight: 700;
+}
+.profile-panels {
+  grid-column: 2;
+  display: flex;
+  gap: 16px;
+  align-items: start;
+  min-width: 0;
+}
+.profile-equipment,
+.profile-inventory {
+  flex: 1;
+  min-width: 0;
+  width: 400px;
+  padding: 16px;
+}
+.profile-panels :deep(h2) {
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 600;
+  margin: 0;
+}
+.profile-potions {
+  grid-column: 2;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #39525c;
+  border-radius: 12px;
+  background: #132c38;
+}
+.profile-potions h2 {
+  font-size: 16px;
+  line-height: 20px;
+  font-weight: 600;
+  margin: 0;
+}
+.profile-potions p {
+  font-size: 12px;
+  line-height: 16px;
+  margin: 6px 0 10px;
+}
+.profile-potions :deep(.potion-belt--manage) {
+  padding: 6px;
+  gap: 6px;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+}
+.profile-potions :deep(.potion-use) {
+  min-height: 80px;
+}
+@container (max-width: 1000px) {
+  .profile-layout { grid-template-columns: minmax(0, 1fr); }
+  .profile-buffs { grid-column: 1; grid-row: auto; }
+  .profile-panels, .profile-potions { grid-column: 1; }
+}
+@container (max-width: 740px) {
+  .profile-panels { flex-wrap: wrap; }
+  .profile-equipment, .profile-inventory { flex: 1 0 100%; }
+  .profile-potions :deep(.potion-belt--manage) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+</style>

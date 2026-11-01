@@ -1,0 +1,44 @@
+<html><head><title>Isolated clan treasury preview</title></head><body><div id="app"></div>
+<script type="module">
+import { createApp } from 'vue';
+import { createPinia } from 'pinia';
+import { Quasar, Notify } from 'quasar';
+import I18nextVue from 'i18next-vue';
+import 'quasar/dist/quasar.css';
+import '@quasar/extras/material-icons/material-icons.css';
+import '/test/dungeon-preview.css';
+import { initializeI18n, i18n } from '/src/locales/i18n';
+import Clans from '/src/pages/ClansPage.vue';
+import { clansApi } from '/src/modules/Clans/api';
+import { useCurrentUserStore } from '/src/modules/Auth/store/currentUser';
+await initializeI18n();
+const role = new URLSearchParams(location.search).get('role') ?? 'LEADER';
+const clan = {
+  id: 'preview', name: 'Moon Guard', tag: 'MOON', description: 'Treasury preview',
+  activityPoints: 120, viewerGold: 5000, viewerGems: 50, treasury: { gold: 0, gems: 0 },
+  viewerRole: role, viewerProfileId: 7, memberCount: 1, maxMembers: 20,
+  activeBannerCode: null, unlockedBannerCodes: [],
+  activityRewards: { monsterKill: 1, quest: 5, pvpVictory: 8, dungeon: 20 },
+  buildings: { maxLevel: 20, bonusPerLevel: 2, treasure: { level: 0, bonusPercent: 0, nextCost: 2500 }, armory: { level: 0, bonusPercent: 0, nextCost: 2500 } },
+  members: [{ profileId: 7, name: 'Preview Hero', level: 20, role, contributedActivity: 120, contributedGold: 0, contributedGems: 0, joinedAt: '2026-10-30T00:00:00Z' }],
+};
+clansApi.getMine = async () => ({ clan: structuredClone(clan), eligible: true, minLevel: 10 });
+clansApi.deposit = async (gold, gems) => {
+  if (gold > clan.viewerGold || gems > clan.viewerGems) throw new Error('Not enough funds');
+  clan.viewerGold -= gold; clan.viewerGems -= gems;
+  clan.treasury.gold += gold; clan.treasury.gems += gems;
+  clan.members[0].contributedGold += gold; clan.members[0].contributedGems += gems;
+  return structuredClone(clan);
+};
+clansApi.upgradeBuilding = async (building) => {
+  if (role !== 'LEADER') throw new Error('Only the clan leader');
+  const state = clan.buildings[building];
+  if (clan.treasury.gold < state.nextCost) throw new Error('Treasury needs gold');
+  clan.treasury.gold -= state.nextCost;
+  state.level++; state.bonusPercent += 2; state.nextCost += 1000;
+  return structuredClone(clan);
+};
+const pinia = createPinia();
+useCurrentUserStore(pinia).fetchCurrentUser = async () => {};
+createApp(Clans).use(pinia).use(Quasar, { plugins: { Notify } }).use(I18nextVue, { i18next: i18n }).mount('#app');
+</script></body></html>

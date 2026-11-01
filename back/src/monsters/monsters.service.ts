@@ -4,7 +4,7 @@ import { PrismaService } from '../prisma.service';
 import { GeneratedMonster, MonsterGeneratorService } from './monster-generator.service';
 import { UsersService } from '../users/users.service';
 import { UserView } from '../users/user.view';
-import { ItemRarity, PlayerBuffType, StatType } from '../../generated/client';
+import { ItemRarity, PlayerBuffType, StatType, Prisma } from '../../generated/client';
 import { ItemGeneratorService } from '../items/item-generator.service';
 import { ItemView } from '../common/views/item.view';
 import { rollMonsterLootRarity, rollQuestLootRarity } from './monster-loot';
@@ -15,10 +15,29 @@ import type { UpdateMapPositionDto } from '../users/dto/update-map-position.dto'
 import { CRAFTING_MIN_LEVEL, rollCraftMaterialCode } from '../crafting/crafting.catalog';
 import { rollDeathCurse } from './death-curse';
 import { DungeonRunsService } from './dungeon-runs.service';
-import { monsterMovement } from './battle-movement';
-import { canShoot } from './battle-range';
-import { SKILLS, type SkillDefinition, type SkillEffect } from '../skills/skills.catalog';
+import type { DungeonAction } from './dungeon-tactics';
+import { monsterMovement, slowMonsterDamage } from './battle-movement';
+import { canShoot, weaponAttackRange } from './battle-range';
+import {
+  chooseMonsterShot,
+  monsterCombatView,
+  monsterBuffEvent,
+  monsterSpellDamage,
+  RANGED_MONSTERS,
+  type MonsterShot,
+} from './monster-combat';
+import { isMagicSpell, SKILLS, type SkillDefinition, type SkillEffect } from '../skills/skills.catalog';
 import { magicSkillManaCost } from '../items/mage-equipment';
+import { getPotionEffect, getPotionRequiredLevel } from '../items/potion-effects';
+import { ensurePotionSlotAccess, isPotionSlot } from '../items/potion-slots';
+import {
+  applyRangerStatus,
+  effectiveDefense,
+  effectiveMovement,
+  consumeArmorHit,
+  finishStatusTurn,
+  type CombatStatuses,
+} from '../skills/combat-status';
 
 export { DEATH_CURSES, rollDeathCurse } from './death-curse';
 
@@ -27,6 +46,9 @@ export type BattleAction = 'ATTACK' | 'DEFEND' | 'POWER_ATTACK' | 'MOVE' | 'SKIL
 const ARENA_COLUMNS = 8;
 const ARENA_ROWS = 5;
 type Combatant = {
+  buffCooldown?: number;
+  rangedSkillCooldown?: number;
+  statuses?: CombatStatuses;
   missingAmmunition?: boolean;
   attackRange?: number;
   movement: number;
@@ -47,6 +69,7 @@ type Battle = {
   userId: number;
   status: BattleStatus;
   turn: number;
+  lastPotionTurn?: number;
   player: Combatant;
   monster: Combatant & { id: number; level: number; rewardGold: number; rewardExperience: number };
   events: Array<{
@@ -54,6 +77,7 @@ type Battle = {
     skillName?: string;
     effect?: SkillEffect;
     healing?: number;
+    statusText?: string;
     actor: 'PLAYER' | 'MONSTER';
     damage: number;
     critical: boolean;
@@ -112,6 +136,7 @@ export class MonstersService {
   ) {}
 
   private readonly battles = new Map<string, Battle>();
+  private readonly potionInProgress = new Set<string>();
 
   hasActiveBattle(userId: number) {
     return [...this.battles.values()].some((battle) => battle.userId === userId && battle.status === 'ACTIVE');
@@ -218,8 +243,14 @@ export class MonstersService {
     return battle ? this.renderBattle(battle) : null;
   }
 
-  attackDungeonOpponent(userId: number, runId: string, opponentId: string, skillId?: string) {
-    return this.dungeonRuns.attack(userId, runId, opponentId, skillId);
+  attackDungeonOpponent(
+    userId: number,
+    runId: string,
+    opponentId: string,
+    skillId?: string,
+    action: DungeonAction = {},
+  ) {
+    return this.dungeonRuns.attack(userId, runId, opponentId, skillId, action);
   }
 
   leaveDungeon(userId: number, runId: string) {
@@ -242,6 +273,7 @@ export class MonstersService {
   }
 
   async attack(userId: number, battleId: string, preserveEvents = false) {
+    if (this.potionInProgress.has(battleId)) throw new BadRequestException('Wait for the potion to finish');
     const battle = this.battles.get(battleId);
     if (!battle || battle.userId !== userId) throw new NotFoundException('Active battle not found');
     if (battle.status !== 'ACTIVE') throw new BadRequestException('Battle has already ended');
@@ -262,7 +294,9 @@ export class MonstersService {
         break;
       }
 
-      this.strike(battle.monster, battle.player, 'MONSTER', battle.events);
+      if (!battle.monster.statuses?.petrify?.turns)
+        this.enemyStrike(battle, chooseMonsterShot(battle.monsterType, battle.monster, true, true));
+      finishStatusTurn(battle.monster);
       if (battle.player.health <= 0) {
         battle.status = 'DEFEAT';
         break;
@@ -401,6 +435,7 @@ export class MonstersService {
   }
 
   async takeTurn(userId: number, battleId: string, action: BattleAction, targetCell?: number, skillId?: string) {
+    if (this.potionInProgress.has(battleId)) throw new BadRequestException('Wait for the potion to finish');
     const battle = this.battles.get(battleId);
     if (!battle || battle.userId !== userId) throw new NotFoundException('Active battle not found');
     if (battle.status !== 'ACTIVE') throw new BadRequestException('Battle has already ended');
@@ -479,27 +514,27 @@ export class MonstersService {
           dodged: false,
         });
       } else {
-        const originalDefense = battle.monster.defense;
-        if (skill.effect === 'pierce' || skill.effect === 'arcane') battle.monster.defense *= 0.5;
         this.strike(
           {
             ...battle.player,
             criticalChance: skill.canCrit ? battle.player.criticalChance : 0,
             damage:
               (skill.class === 'MAGE' ? state.spellPower : battle.player.damage) *
-              ((skill.multiplier ?? 1) + (rank - 1) * 0.04),
+              ((skill.multiplier ?? 1) + (skill.class === 'SCOUT' ? 0 : (rank - 1) * 0.04)),
           },
           battle.monster,
           'PLAYER',
           battle.events,
+          skill.class === 'MAGE',
         );
-        battle.monster.defense = originalDefense;
         Object.assign(battle.events[battle.events.length - 1], {
           action: 'SKILL',
           skillId: skill.id,
           skillName: skill.name,
           effect: skill.effect,
         });
+        if (skill.class === 'SCOUT')
+          applyRangerStatus(battle.monster, skill.id, rank, battle.events[battle.events.length - 1]);
       }
     } else {
       this.strike(battle.player, battle.monster, 'PLAYER', battle.events);
@@ -510,7 +545,31 @@ export class MonstersService {
 
     const originalDefense = battle.player.defense;
     if (action === 'DEFEND') battle.player.defense = Math.min(75, originalDefense + 25);
-    if (!this.areAdjacent(battle.playerPosition, battle.monsterPosition)) {
+    const petrified = !!battle.monster.statuses?.petrify?.turns;
+    const shot = !petrified
+      ? chooseMonsterShot(
+          battle.monsterType,
+          battle.monster,
+          this.areAdjacent(battle.playerPosition, battle.monsterPosition),
+          canShoot(
+            battle.monsterPosition,
+            battle.playerPosition,
+            ARENA_COLUMNS,
+            Number.MAX_SAFE_INTEGER,
+            battle.blockedCells,
+          ),
+        )
+      : undefined;
+    if (petrified)
+      battle.events.push({
+        actor: 'MONSTER',
+        action: 'DEFEND',
+        damage: 0,
+        critical: false,
+        dodged: false,
+        statusText: 'Petrified — turn skipped',
+      });
+    if (!petrified && !shot && !this.areAdjacent(battle.playerPosition, battle.monsterPosition)) {
       const path = this.shortestPath(
         battle.monsterPosition,
         battle.playerPosition,
@@ -519,7 +578,7 @@ export class MonstersService {
       );
       const slowed =
         skill?.effect === 'ice' && battle.events.some((event) => event.skillId === skill.id && event.damage > 0);
-      const movement = slowed ? Math.max(1, battle.monster.movement - 2) : battle.monster.movement;
+      const movement = slowed ? Math.max(1, effectiveMovement(battle.monster) - 2) : effectiveMovement(battle.monster);
       const destination = path[Math.min(movement, path.length - 1)];
       if (destination !== undefined && destination !== battle.monsterPosition) {
         const fromCell = battle.monsterPosition;
@@ -535,10 +594,23 @@ export class MonstersService {
         });
       }
     }
-    if (this.areAdjacent(battle.playerPosition, battle.monsterPosition)) {
-      this.strike(battle.monster, battle.player, 'MONSTER', battle.events);
+    if (!petrified) {
+      const afterMoveShot =
+        RANGED_MONSTERS[battle.monsterType] &&
+        canShoot(
+          battle.monsterPosition,
+          battle.playerPosition,
+          ARENA_COLUMNS,
+          Number.MAX_SAFE_INTEGER,
+          battle.blockedCells,
+        )
+          ? RANGED_MONSTERS[battle.monsterType]
+          : undefined;
+      if (shot || afterMoveShot) this.enemyStrike(battle, shot ?? afterMoveShot);
+      else if (this.areAdjacent(battle.playerPosition, battle.monsterPosition)) this.enemyStrike(battle);
     }
     battle.player.defense = originalDefense;
+    finishStatusTurn(battle.monster);
 
     if (battle.player.health <= 0) return this.attack(userId, battleId, true);
 
@@ -548,7 +620,62 @@ export class MonstersService {
     return this.renderBattle(battle);
   }
 
+  async useBattleHealthPotion(userId: number, battleId: string, inventoryItemId: number) {
+    const battle = this.battles.get(battleId);
+    if (!battle || battle.userId !== userId) throw new NotFoundException('Active battle not found');
+    if (battle.status !== 'ACTIVE' || battle.player.health <= 0) throw new BadRequestException('Battle has ended');
+    if (battle.player.health >= battle.player.maxHealth) throw new BadRequestException('Health is already full');
+    if (battle.lastPotionTurn === battle.turn) throw new BadRequestException('Only one health potion per turn');
+    if (this.potionInProgress.has(battleId)) throw new BadRequestException('Wait for the potion to finish');
+    this.potionInProgress.add(battleId);
+    try {
+      const healed = await this.prisma.$transaction(
+        async (tx) => {
+          const profile = await tx.gameProfile.findUnique({ where: { userId }, select: { id: true, level: true } });
+          if (!profile) throw new NotFoundException('Game profile not found');
+          const entry = await tx.inventoryItem.findFirst({
+            where: { id: inventoryItemId, gameProfileId: profile.id, isEquiped: false },
+            include: { item: true },
+          });
+          if (!entry || entry.quantity <= 0) throw new NotFoundException('Health potion not found');
+          if (!isPotionSlot(entry.slot) || entry.quantity !== 1)
+            throw new BadRequestException('Assign one health potion to a quick slot first');
+          await ensurePotionSlotAccess(tx, profile.id, entry.slot);
+          const effect = getPotionEffect(entry.item.name);
+          if (!entry.item.isConsumable || effect?.kind !== 'HEALTH')
+            throw new BadRequestException('Only health potions can be used in battle');
+          if (profile.level < getPotionRequiredLevel(entry.item.name))
+            throw new BadRequestException('Your level is too low for this potion');
+          if (entry.quantity > 1)
+            await tx.inventoryItem.update({ where: { id: entry.id }, data: { quantity: { decrement: 1 } } });
+          else await tx.inventoryItem.delete({ where: { id: entry.id } });
+          return Math.min(effect.restore, battle.player.maxHealth - battle.player.health);
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
+      battle.player.health += healed;
+      battle.lastPotionTurn = battle.turn;
+      // Do not replay the previous attack when a potion updates the scene.
+      battle.events = [
+        {
+          actor: 'PLAYER',
+          action: 'SKILL',
+          effect: 'heal',
+          healing: healed,
+          skillName: 'Health potion',
+          damage: 0,
+          critical: false,
+          dodged: false,
+        },
+      ];
+      return { battle: this.renderBattle(battle), healed };
+    } finally {
+      this.potionInProgress.delete(battleId);
+    }
+  }
+
   retreat(userId: number, battleId: string) {
+    if (this.potionInProgress.has(battleId)) throw new BadRequestException('Wait for the potion to finish');
     const battle = this.battles.get(battleId);
     if (!battle || battle.userId !== userId) throw new NotFoundException('Active battle not found');
     if (!battle.canRetreat) throw new BadRequestException('You can retreat only on a road or near a town');
@@ -614,7 +741,7 @@ export class MonstersService {
         level: monster.level,
         health: monsterHealth,
         maxHealth: monsterHealth,
-        damage: 3 + monster.level * 2 + attribute('STRENGTH'),
+        damage: slowMonsterDamage(3 + monster.level * 2 + attribute('STRENGTH'), monster.monsterType),
         defense: Math.min(45, monster.level * 0.8 + attribute('ENDURANCE')),
         dodge: Math.min(30, monster.level * 0.3 + attribute('AGILITY')),
         blockChance: 0,
@@ -626,8 +753,14 @@ export class MonstersService {
     };
   }
 
-  private strike(attacker: Combatant, defender: Combatant, actor: 'PLAYER' | 'MONSTER', events: Battle['events']) {
-    if (Math.random() * 100 < defender.dodge) {
+  private strike(
+    attacker: Combatant,
+    defender: Combatant,
+    actor: 'PLAYER' | 'MONSTER',
+    events: Battle['events'],
+    ignoresDefense = false,
+  ) {
+    if (!ignoresDefense && Math.random() * 100 < defender.dodge) {
       events.push({ actor, damage: 0, critical: false, dodged: true });
       return;
     }
@@ -637,9 +770,40 @@ export class MonstersService {
     }
     const critical = Math.random() * 100 < attacker.criticalChance;
     const attackDamage = attacker.damage * (critical ? attacker.criticalDamage / 100 : 1);
-    const damage = Math.max(1, Math.round(attackDamage * (1 - defender.defense / 100)));
+    const damage = Math.max(
+      1,
+      Math.round(attackDamage * (1 - (ignoresDefense ? 0 : effectiveDefense(defender)) / 100)),
+    );
+    if (!ignoresDefense) consumeArmorHit(defender);
     defender.health = Math.max(0, defender.health - damage);
     events.push({ actor, damage, critical, dodged: false });
+  }
+
+  private enemyStrike(battle: Battle, shot?: MonsterShot) {
+    if (shot?.effect === 'empower') {
+      battle.events.push(monsterBuffEvent(shot));
+      return;
+    }
+    this.strike(
+      shot
+        ? {
+            ...battle.monster,
+            damage: monsterSpellDamage(battle.monster, battle.monster.damage * shot.multiplier),
+            criticalChance: 0,
+          }
+        : battle.monster,
+      battle.player,
+      'MONSTER',
+      battle.events,
+      isMagicSpell(shot?.effect),
+    );
+    if (shot)
+      Object.assign(battle.events[battle.events.length - 1], {
+        action: shot.action,
+        skillId: shot.id,
+        skillName: shot.name,
+        effect: shot.effect,
+      });
   }
 
   private renderBattle(battle: Battle) {
@@ -648,8 +812,13 @@ export class MonstersService {
       monsterType: battle.monsterType,
       status: battle.status,
       turn: battle.turn,
+      potionUsedThisTurn: battle.lastPotionTurn === battle.turn,
       player: battle.player,
-      monster: battle.monster,
+      monster: {
+        ...battle.monster,
+        movement: effectiveMovement(battle.monster),
+        ...monsterCombatView(battle.monsterType, battle.monster),
+      },
       events: battle.events,
       rewards: battle.rewards,
       canRetreat: battle.canRetreat,
@@ -673,7 +842,7 @@ export class MonstersService {
         playerPosition: battle.playerPosition,
         monsterPosition: battle.monsterPosition,
         playerMovement: battle.player.movement,
-        monsterMovement: battle.monster.movement,
+        monsterMovement: effectiveMovement(battle.monster),
         blockedCells: battle.blockedCells,
         reachableCells:
           battle.status === 'ACTIVE' && !battle.playerMovedThisTurn
@@ -685,14 +854,14 @@ export class MonstersService {
               )
             : [],
         canAttack: battle.status === 'ACTIVE' && this.playerCanAttack(battle),
-        playerAttackRange: battle.player.attackRange ?? 1,
+        playerAttackRange: weaponAttackRange(battle.player.attackRange),
         playerHasMoved: battle.playerMovedThisTurn,
       },
     };
   }
 
   private playerCanAttack(battle: Battle) {
-    const range = battle.player.attackRange ?? 1;
+    const range = weaponAttackRange(battle.player.attackRange);
     return range > 1
       ? canShoot(battle.playerPosition, battle.monsterPosition, ARENA_COLUMNS, range, battle.blockedCells)
       : this.areAdjacent(battle.playerPosition, battle.monsterPosition);
@@ -710,7 +879,7 @@ export class MonstersService {
       return battle.player.health >= battle.player.maxHealth ? 'Health is already full' : null;
     if (skill.class === 'SCOUT' && (battle.player.missingAmmunition || (battle.player.attackRange ?? 1) <= 1))
       return 'Equip a bow or crossbow and matching ammunition';
-    const range = skill.range ?? battle.player.attackRange ?? 1;
+    const range = skill.class === 'SCOUT' ? weaponAttackRange(battle.player.attackRange) : (skill.range ?? 1);
     const inRange =
       range > 1
         ? canShoot(battle.playerPosition, battle.monsterPosition, ARENA_COLUMNS, range, battle.blockedCells)

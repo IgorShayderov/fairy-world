@@ -1,4 +1,9 @@
 type Cube = { x: number; y: number; z: number };
+// Finite JSON-safe value: loaded bows/crossbows can cover any battlefield.
+export const UNLIMITED_WEAPON_RANGE = Number.MAX_SAFE_INTEGER;
+export function weaponAttackRange(range = 1): number {
+  return range > 1 ? UNLIMITED_WEAPON_RANGE : 1;
+}
 const cube = (cell: number, columns: number): Cube => {
   const z = Math.floor(cell / columns);
   const x = (cell % columns) - (z - (z & 1)) / 2;

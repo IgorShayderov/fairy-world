@@ -1,4 +1,18 @@
-import { type AnimationAction, type AnimationClip, type AnimationMixer, LoopOnce, LoopRepeat } from 'three';
+import { type AnimationAction, type AnimationClip, type AnimationMixer, type Object3D, type Quaternion, LoopOnce, LoopRepeat, Vector3 } from 'three';
+
+/** Euler Y alone becomes ambiguous after a hit quaternion crosses the rear half-plane. */
+export function planarFacingAngle(rotation: Quaternion): number {
+  const forward = new Vector3(0, 0, 1).applyQuaternion(rotation);
+  return Math.atan2(forward.x, forward.z);
+}
+
+export function faceBattleTarget(root: Object3D, destination: { x: number; z: number }): void {
+  const dx = destination.x - root.position.x;
+  const dz = destination.z - root.position.z;
+  if (Math.hypot(dx, dz) < 0.0001) return;
+  // Reset pitch/roll left by quaternion-to-Euler decomposition, not just yaw.
+  root.rotation.set(0, Math.atan2(dx, dz), 0);
+}
 
 /** Reusing an idle clip for aiming/casting must not fade that same pose to zero. */
 export function transitionBattleAction(
@@ -30,9 +44,35 @@ export function usesReversingIdle(model: string): boolean {
   return model === 'bone-knight' || model === 'minotaur';
 }
 
+/** Authored combat runs, with stride cadence matched to faster visual travel. */
+export function playerRunClip(twoHanded: boolean): string {
+  return twoHanded ? 'knight_run_heavy_weapon_in_place' : 'knight_run_shield';
+}
+export const PLAYER_RUN_CADENCE = 1.25;
+export function movementStepDuration(distance: number, isPlayer: boolean): number {
+  return Math.max(isPlayer ? 0.14 : 0.22, distance / (isPlayer ? 6.5 : 3.9));
+}
+
 export function smoothStep(value: number): number {
   const t = Math.max(0, Math.min(1, value));
   return t * t * (3 - 2 * t);
+}
+
+/** A readable impact, held brace, and slow recovery rather than a symmetric twitch. */
+export function hitReactionProfile(model: string, critical = false) {
+  const heavy = /golem|giant|warden|dragon|brute|troll|minotaur|bog-lurker/i.test(model);
+  const beast = /wolf|hound|chimera|boar|spider/i.test(model);
+  return {
+    duration: (heavy ? 0.82 : beast ? 0.62 : 0.72) + (critical ? 0.12 : 0),
+    distance: (heavy ? 0.08 : beast ? 0.2 : 0.16) * (critical ? 1.45 : 1),
+    lean: (heavy ? 0.045 : beast ? 0.09 : 0.12) * (critical ? 1.25 : 1),
+  };
+}
+export function hitReactionWeight(progress: number) {
+  if (progress <= 0 || progress >= 1) return 0;
+  if (progress < 0.18) return smoothStep(progress / 0.18);
+  if (progress < 0.38) return 1 - 0.12 * smoothStep((progress - 0.18) / 0.2);
+  return 0.88 * (1 - smoothStep((progress - 0.38) / 0.62));
 }
 
 /** Ease only the ends of a route: interior hexes must not cause stop/start motion. */

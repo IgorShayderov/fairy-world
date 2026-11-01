@@ -7,6 +7,7 @@ export const SKILL_IMPACT = 0.62;
 export const SKILL_COLORS: Record<SkillEffect, string> = {
   slash: '#ffe296',
   heal: '#6dffb0',
+  empower: '#c194ff',
   shockwave: '#ffbb45',
   arrow: '#8fffc2',
   pierce: '#baffee',
@@ -14,6 +15,8 @@ export const SKILL_COLORS: Record<SkillEffect, string> = {
   fire: '#ff661c',
   ice: '#8be6ff',
   arcane: '#c194ff',
+  'frost-arrow': '#8be6ff',
+  poison: '#b2ef53',
 };
 
 /** Cast, release and contact share a timeline with the attack and hit reaction. */
@@ -42,7 +45,7 @@ export function createSkillEffect(effect: SkillEffect, from: T.Vector3, to: T.Ve
   const direction = to.clone().sub(from).normalize();
   if (!direction.lengthSq()) direction.set(0, 0, 1);
   const side = new T.Vector3().crossVectors(direction, new T.Vector3(0, 1, 0)).normalize();
-  const ranged = ['arrow', 'pierce', 'volley'].includes(effect);
+  const ranged = ['arrow', 'pierce', 'volley', 'frost-arrow', 'poison'].includes(effect);
   const spell = ['fire', 'ice', 'arcane'].includes(effect);
   const missile = ranged || spell;
   const rune = mesh('Caster sigil', new T.RingGeometry(0.49, 0.52, 48), undefined, 0.6);
@@ -73,7 +76,7 @@ export function createSkillEffect(effect: SkillEffect, from: T.Vector3, to: T.Ve
   const sparks = Array.from({ length: 28 }, (_, i) =>
     mesh(
       'Particle ' + i,
-      effect === 'ice'
+      effect === 'ice' || effect === 'frost-arrow'
         ? new T.OctahedronGeometry(0.065 + (i % 3) * 0.025)
         : effect === 'shockwave'
           ? new T.TetrahedronGeometry(0.06 + (i % 4) * 0.018)
@@ -95,7 +98,7 @@ export function createSkillEffect(effect: SkillEffect, from: T.Vector3, to: T.Ve
     const alive = t < 1;
     rune.position.set(caster.x, 0.065, caster.z);
     rune.scale.setScalar(0.6 + charge * 0.4);
-    fade(rune, spell || effect === 'heal' ? (1 - flight) * charge : 0);
+    fade(rune, spell || effect === 'heal' || effect === 'empower' ? (1 - flight) * charge : 0);
     glyphs.forEach((glyph, i) => {
       const angle = (i * Math.PI) / 4 + t * 0.5;
       glyph.position.set(caster.x + Math.cos(angle) * 0.64, 0.07, caster.z + Math.sin(angle) * 0.64);
@@ -121,7 +124,10 @@ export function createSkillEffect(effect: SkillEffect, from: T.Vector3, to: T.Ve
       ring.position.set(to.x, 0.075 + i * 0.035, to.z);
       const spread = Math.max(0, burst - i * 0.1);
       ring.scale.setScalar(0.15 + spread * (effect === 'shockwave' ? 3.3 : effect === 'arcane' ? 2.5 : 1.2));
-      fade(ring, hit && alive ? Math.pow(1 - burst, 2) * (effect === 'slash' || ranged ? 0.2 : 1) : 0);
+      fade(
+        ring,
+        hit && alive ? Math.pow(1 - burst, 2) * (effect === 'slash' || (ranged && effect !== 'poison') ? 0.2 : 1) : 0
+      );
     });
     slash.position.copy(to).addScaledVector(direction, -0.35);
     slash.rotation.set(0, Math.atan2(direction.x, direction.z), -0.8 + burst * 1.6);
@@ -129,7 +135,7 @@ export function createSkillEffect(effect: SkillEffect, from: T.Vector3, to: T.Ve
     fade(slash, effect === 'slash' && hit && alive ? Math.max(0, 1 - burst * 2) : 0);
     sparks.forEach((spark, i) => {
       const angle = i * 2.399963;
-      if (effect === 'heal') {
+      if (effect === 'heal' || effect === 'empower') {
         const rise = (t * 1.7 + i / sparks.length) % 1;
         spark.position.set(
           from.x + Math.cos(angle + t * 4) * 0.45,

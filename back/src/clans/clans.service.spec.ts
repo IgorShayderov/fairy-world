@@ -11,13 +11,16 @@ describe('ClansService', () => {
   const clanCreate = jest.fn();
   const clanFindUnique = jest.fn();
   const clanMemberFindMany = jest.fn();
+  const clanMemberFindUnique = jest.fn();
   const clanMemberUpdate = jest.fn();
+  const clanMemberCreate = jest.fn();
   const clanUpdate = jest.fn();
   const clanUpdateMany = jest.fn();
   const clanBannerUnlockCreate = jest.fn();
   const clanBannerUnlockCreateMany = jest.fn();
   const gameProfileUpdateMany = jest.fn();
   const transaction = jest.fn();
+  const lockActivity = jest.fn();
   const prisma = {
     gameProfile: { findUnique: gameProfileFindUnique },
     clan: {
@@ -28,7 +31,7 @@ describe('ClansService', () => {
       update: clanUpdate,
       updateMany: clanUpdateMany,
     },
-    clanMember: { findMany: clanMemberFindMany, update: clanMemberUpdate },
+    clanMember: { findMany: clanMemberFindMany, update: clanMemberUpdate, create: clanMemberCreate },
     clanBannerUnlock: { create: clanBannerUnlockCreate, createMany: clanBannerUnlockCreateMany },
     $transaction: transaction,
   } as unknown as PrismaService;
@@ -43,6 +46,7 @@ describe('ClansService', () => {
     userId: 4,
     level: 10,
     gold: 10_000,
+    gems: 100,
     killedMonsters: 12,
     dungeonsCleared: 2,
     coinsOfHonour: 3,
@@ -64,6 +68,8 @@ describe('ClansService', () => {
       activityPoints: 0,
       treasureLevel: 0,
       armoryLevel: 0,
+      treasuryGold: 10000,
+      treasuryGems: 100,
       activeBannerCode: null,
       bannerUnlocks: [],
       members: [
@@ -72,17 +78,22 @@ describe('ClansService', () => {
           role: ClanRole.LEADER,
           contributedActivity: 0,
           contributedGold: 0,
+          contributedGems: 0,
           joinedAt: new Date(),
           gameProfile: { level: 10, user: { name: 'Hero' } },
         },
       ],
     });
     gameProfileUpdateMany.mockResolvedValue({ count: 1 });
+    clanMemberFindUnique.mockResolvedValue({ clanId: 'clan-1', gameProfileId: 7, role: ClanRole.LEADER });
+    clanMemberFindMany.mockResolvedValue([]);
     clanUpdateMany.mockResolvedValue({ count: 1 });
     transaction.mockImplementation((callback: (client: unknown) => unknown) =>
       callback({
         gameProfile: { updateMany: gameProfileUpdateMany },
-        clanMember: { update: clanMemberUpdate },
+        clanMember: { update: clanMemberUpdate, findMany: clanMemberFindMany, findUnique: clanMemberFindUnique },
+        $executeRaw: lockActivity,
+        $queryRaw: jest.fn(),
         clanBannerUnlock: { create: clanBannerUnlockCreate },
         clan: { findUnique: clanFindUnique, update: clanUpdate, updateMany: clanUpdateMany },
       }),
@@ -117,6 +128,23 @@ describe('ClansService', () => {
       },
       select: { id: true },
     });
+  });
+
+  it('snapshots lifetime achievements when joining another clan', async () => {
+    clanFindUnique.mockResolvedValueOnce({ id: 'clan-1', _count: { members: 2 } });
+    await service.joinClan(4, 'clan-1');
+    expect(clanMemberCreate).toHaveBeenCalledWith({
+      data: {
+        clanId: 'clan-1',
+        gameProfileId: 7,
+        role: ClanRole.MEMBER,
+        trackedKilledMonsters: 12,
+        trackedDungeonsCleared: 2,
+        trackedQuestsCompleted: 5,
+        trackedPvpVictories: 3,
+      },
+    });
+    expect(clanUpdate).not.toHaveBeenCalled();
   });
 
   it('converts new game achievements into shared clan activity', async () => {
@@ -162,6 +190,47 @@ describe('ClansService', () => {
       where: { id: 'clan-1' },
       data: { activityPoints: { increment: expected } },
     });
+  });
+
+  it('does not credit lifetime achievements present when a member joined', async () => {
+    gameProfileFindUnique.mockResolvedValue({ ...profile, clanMembership: { clanId: 'clan-1' } });
+    clanMemberFindMany.mockResolvedValue([
+      {
+        gameProfileId: 7,
+        trackedKilledMonsters: 787,
+        trackedDungeonsCleared: 24,
+        trackedQuestsCompleted: 21,
+        trackedPvpVictories: 3,
+        gameProfile: { killedMonsters: 787, dungeonsCleared: 24, coinsOfHonour: 3, _count: { quests: 21 } },
+      },
+    ]);
+
+    const result = await service.getMyClan(4);
+    expect(result.clan?.members[0]?.contributedActivity).toBe(0);
+    expect(clanMemberUpdate).not.toHaveBeenCalled();
+    expect(clanUpdate).not.toHaveBeenCalled();
+    expect(lockActivity).toHaveBeenCalledTimes(1);
+    expect(lockActivity.mock.invocationCallOrder[0]).toBeLessThan(clanMemberFindMany.mock.invocationCallOrder[0]);
+  });
+
+  it('credits only new achievements and does not credit them again on refresh', async () => {
+    gameProfileFindUnique.mockResolvedValue({ ...profile, clanMembership: { clanId: 'clan-1' } });
+    const member = {
+      gameProfileId: 7,
+      trackedKilledMonsters: 787,
+      trackedDungeonsCleared: 24,
+      trackedQuestsCompleted: 21,
+      trackedPvpVictories: 3,
+      gameProfile: { killedMonsters: 790, dungeonsCleared: 24, coinsOfHonour: 3, _count: { quests: 21 } },
+    };
+    clanMemberFindMany
+      .mockResolvedValueOnce([member])
+      .mockResolvedValueOnce([{ ...member, trackedKilledMonsters: 790 }]);
+    await service.getMyClan(4);
+    await service.getMyClan(4);
+    expect(clanUpdate).toHaveBeenCalledTimes(1);
+    expect(clanUpdate).toHaveBeenCalledWith({ where: { id: 'clan-1' }, data: { activityPoints: { increment: 3 } } });
+    expect(clanMemberUpdate).toHaveBeenCalledTimes(1);
   });
 
   it('ranks clans by activity and marks the current clan', async () => {
@@ -214,10 +283,10 @@ describe('ClansService', () => {
     expect(clanMemberFindMany).toHaveBeenCalledTimes(2);
   });
 
-  it('lets every member spend personal gold to upgrade a shared building', async () => {
+  it('lets only the leader spend treasury gold to upgrade a shared building', async () => {
     gameProfileFindUnique.mockResolvedValue({
       ...profile,
-      clanMembership: { clanId: 'clan-1', gameProfileId: 7, role: ClanRole.MEMBER },
+      clanMembership: { clanId: 'clan-1', gameProfileId: 7, role: ClanRole.LEADER },
     });
     clanFindUnique.mockResolvedValueOnce({ treasureLevel: 2, armoryLevel: 1 }).mockResolvedValueOnce({
       id: 'clan-1',
@@ -244,23 +313,88 @@ describe('ClansService', () => {
 
     const result = await service.upgradeBuilding(4, 'treasure');
 
-    expect(gameProfileUpdateMany).toHaveBeenCalledWith({
-      where: { id: 7, gold: { gte: clanBuildingUpgradeCost(2) } },
-      data: { gold: { decrement: clanBuildingUpgradeCost(2) } },
-    });
+    expect(gameProfileUpdateMany).not.toHaveBeenCalled();
     expect(clanUpdateMany).toHaveBeenCalledWith({
-      where: { id: 'clan-1', treasureLevel: 2 },
-      data: { treasureLevel: { increment: 1 } },
+      where: { id: 'clan-1', treasureLevel: 2, treasuryGold: { gte: clanBuildingUpgradeCost(2) } },
+      data: { treasureLevel: { increment: 1 }, treasuryGold: { decrement: clanBuildingUpgradeCost(2) } },
     });
-    expect(clanMemberUpdate).toHaveBeenCalledWith({
-      where: { gameProfileId: 7 },
-      data: { contributedGold: { increment: clanBuildingUpgradeCost(2) } },
-    });
+    expect(clanMemberUpdate).not.toHaveBeenCalled();
     expect(result.clan?.buildings.treasure).toEqual({
       level: 3,
       bonusPercent: 6,
       nextCost: clanBuildingUpgradeCost(3),
     });
+  });
+
+  it.each([ClanRole.MEMBER, ClanRole.OFFICER])('rejects %s building upgrades on the server', async (role) => {
+    gameProfileFindUnique.mockResolvedValue({ ...profile, clanMembership: { clanId: 'clan-1' } });
+    clanMemberFindUnique.mockResolvedValue({ clanId: 'clan-1', role });
+    await expect(service.upgradeBuilding(4, 'armory')).rejects.toThrow('Only the clan leader');
+    expect(clanUpdateMany).not.toHaveBeenCalled();
+    expect(gameProfileUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it('does not fall back to the leader wallet when treasury funds are insufficient', async () => {
+    gameProfileFindUnique.mockResolvedValue({ ...profile, clanMembership: { clanId: 'clan-1' } });
+    clanUpdateMany.mockResolvedValue({ count: 0 });
+    await expect(service.upgradeBuilding(4, 'armory')).rejects.toThrow('treasury needs');
+    expect(gameProfileUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it.each([ClanRole.LEADER, ClanRole.OFFICER, ClanRole.MEMBER])(
+    '%s can permanently deposit both currencies',
+    async (role) => {
+      gameProfileFindUnique.mockResolvedValue({ ...profile, clanMembership: { clanId: 'clan-1' } });
+      clanMemberFindUnique.mockResolvedValue({ clanId: 'clan-1', role });
+      const result = await service.depositTreasury(4, 300, 5);
+      expect(gameProfileUpdateMany).toHaveBeenCalledWith({
+        where: { id: 7, gold: { gte: 300 }, gems: { gte: 5 } },
+        data: { gold: { decrement: 300 }, gems: { decrement: 5 } },
+      });
+      expect(clanUpdateMany).toHaveBeenCalledWith({
+        where: { id: 'clan-1', treasuryGold: { lte: 2147483347 }, treasuryGems: { lte: 2147483642 } },
+        data: { treasuryGold: { increment: 300 }, treasuryGems: { increment: 5 } },
+      });
+      expect(clanMemberUpdate).toHaveBeenCalledWith({
+        where: { gameProfileId: 7 },
+        data: {
+          contributedGold: { increment: 300 },
+          contributedGems: { increment: 5 },
+        },
+      });
+      expect(result.clan?.treasury).toEqual({ gold: 10000, gems: 100 });
+    },
+  );
+
+  it.each([
+    [0, 0],
+    [-1, 0],
+    [0, -1],
+    [1.5, 0],
+    [NaN, 1],
+    [Infinity, 0],
+    [2147483648, 0],
+  ])('rejects invalid or withdrawal amounts %s / %s', async (gold, gems) => {
+    await expect(service.depositTreasury(4, gold, gems)).rejects.toThrow('positive whole');
+    expect(transaction).not.toHaveBeenCalled();
+  });
+
+  it('rejects non-members and membership changes before any charge', async () => {
+    await expect(service.depositTreasury(4, 1, 0)).rejects.toThrow('not in a clan');
+    gameProfileFindUnique.mockResolvedValue({ ...profile, clanMembership: { clanId: 'clan-1' } });
+    clanMemberFindUnique.mockResolvedValue({ clanId: 'another-clan', role: ClanRole.LEADER });
+    await expect(service.depositTreasury(4, 1, 0)).rejects.toThrow('membership changed');
+    await expect(service.upgradeBuilding(4, 'armory')).rejects.toThrow('membership changed');
+    expect(gameProfileUpdateMany).not.toHaveBeenCalled();
+    expect(clanUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it('rejects insufficient personal funds before crediting the treasury', async () => {
+    gameProfileFindUnique.mockResolvedValue({ ...profile, clanMembership: { clanId: 'clan-1' } });
+    gameProfileUpdateMany.mockResolvedValue({ count: 0 });
+    await expect(service.depositTreasury(4, 10001, 0)).rejects.toThrow('Not enough');
+    expect(clanUpdateMany).not.toHaveBeenCalled();
+    expect(clanMemberUpdate).not.toHaveBeenCalled();
   });
 
   it('unlocks a reached banner milestone without spending clan activity', async () => {

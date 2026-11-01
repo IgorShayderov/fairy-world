@@ -27,6 +27,9 @@ describe('MonstersService', () => {
       findUnique: jest.fn(),
     },
     inventoryItem: {
+      findFirst: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
       create: jest.fn().mockResolvedValue({ id: 99 }),
       count: jest.fn().mockResolvedValue(0),
     },
@@ -156,11 +159,68 @@ describe('MonstersService', () => {
       const result = await service.takeTurn(7, battle.id, 'SKILL', undefined, 'mage-fireball');
       expect(result.events[0]).toMatchObject({ action: 'SKILL', effect: 'fire', skillName: 'Fireball' });
       expect(result.events[0].damage).toBeGreaterThan(0);
-      expect(result.skills!.mana).toBe(mana - 20 + 3);
+      expect(result.skills!.mana).toBe(mana - 30 + 3);
       expect(result.skills!.abilities[0].remainingCooldown).toBe(1);
       await expect(service.takeTurn(7, battle.id, 'SKILL', undefined, 'mage-fireball')).rejects.toThrow('cooldown');
       await service.takeTurn(7, battle.id, 'DEFEND');
       expect((await service.takeTurn(7, battle.id, 'SKILL', undefined, 'mage-fireball')).events[0].effect).toBe('fire');
+    });
+
+    it('consumes only owned, eligible health potions and caps healing at maximum health', async () => {
+      const battle = await encounterFor();
+      battle.player.health = battle.player.maxHealth - 20;
+      mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 5, level: 20 });
+      mockPrismaService.inventoryItem.findFirst.mockResolvedValue({
+        id: 9,
+        quantity: 1,
+        slot: 'potion-1',
+        item: { name: 'Minor Health Potion', isConsumable: true },
+      });
+      const result = await service.useBattleHealthPotion(7, battle.id, 9);
+      expect(result.healed).toBe(20);
+      expect(result.battle.player.health).toBe(battle.player.maxHealth);
+      expect(mockPrismaService.inventoryItem.findFirst).toHaveBeenCalledWith({
+        where: { id: 9, gameProfileId: 5, isEquiped: false },
+        include: { item: true },
+      });
+      expect(mockPrismaService.inventoryItem.delete).toHaveBeenCalledWith({ where: { id: 9 } });
+      await expect(service.useBattleHealthPotion(7, battle.id, 9)).rejects.toThrow('already full');
+      expect(mockPrismaService.inventoryItem.delete).toHaveBeenCalledTimes(1);
+      battle.player.health -= 10;
+      await expect(service.useBattleHealthPotion(7, battle.id, 9)).rejects.toThrow('one health potion per turn');
+      expect(mockPrismaService.inventoryItem.delete).toHaveBeenCalledTimes(1);
+      battle.turn++;
+      await expect(service.useBattleHealthPotion(8, battle.id, 9)).rejects.toThrow('not found');
+      mockPrismaService.inventoryItem.findFirst.mockResolvedValue({
+        id: 9,
+        quantity: 1,
+        slot: 'potion-1',
+        item: { name: 'Lesser Attack Potion', isConsumable: true },
+      });
+      await expect(service.useBattleHealthPotion(7, battle.id, 9)).rejects.toThrow('Only health');
+      mockPrismaService.inventoryItem.findFirst.mockResolvedValue({
+        id: 9,
+        quantity: 1,
+        slot: 'potion-1',
+        item: { name: 'Higher Health Potion', isConsumable: true },
+      });
+      await expect(service.useBattleHealthPotion(7, battle.id, 9)).rejects.toThrow('level is too low');
+      mockPrismaService.inventoryItem.findFirst.mockResolvedValue({
+        id: 9,
+        quantity: 1,
+        slot: 'potion-1',
+        item: { name: 'Minor Health Potion', isConsumable: true },
+      });
+      mockPrismaService.inventoryItem.findFirst.mockResolvedValueOnce({
+        id: 9,
+        quantity: 1,
+        slot: null,
+        item: { name: 'Minor Health Potion', isConsumable: true },
+      });
+      await expect(service.useBattleHealthPotion(7, battle.id, 9)).rejects.toThrow('quick slot');
+      await service.useBattleHealthPotion(7, battle.id, 9);
+      expect(mockPrismaService.inventoryItem.delete).toHaveBeenCalledWith({ where: { id: 9 } });
+      expect(battle.turn).toBe(2);
     });
 
     it('requires a loaded ranged weapon for Scout skills', async () => {
@@ -170,6 +230,23 @@ describe('MonstersService', () => {
       );
     });
 
+    it('petrification skips the enemy attack and movement, then expires', async () => {
+      const battle = await encounterFor('SCOUT', { 'scout-volley': 1 });
+      battle.player.attackRange = 7;
+      battle.player.damage = 10;
+      battle.monster.health = 10000;
+      battle.monster.dodge = 0;
+      battle.monster.blockChance = 0;
+      battle.playerPosition = 20;
+      battle.monsterPosition = 21;
+      jest.spyOn(Math, 'random').mockReturnValue(0);
+      const health = battle.player.health;
+      const result = await service.takeTurn(7, battle.id, 'SKILL', undefined, 'scout-volley');
+      expect(result.player.health).toBe(health);
+      expect(result.events.some((event) => event.statusText === 'Petrified — turn skipped')).toBe(true);
+      expect(result.monster.statuses?.petrify).toBeUndefined();
+    });
+
     it.each([
       ['MAGE', 'mage-fireball', false],
       ['MAGE', 'mage-frost', false],
@@ -177,8 +254,8 @@ describe('MonstersService', () => {
       ['SCOUT', 'scout-volley', false],
       ['WARRIOR', 'warrior-slam', false],
       ['WARRIOR', 'warrior-cleave', true],
-      ['SCOUT', 'scout-aim', true],
-      ['SCOUT', 'scout-pierce', true],
+      ['SCOUT', 'scout-aim', false],
+      ['SCOUT', 'scout-pierce', false],
     ] as const)('%s %s only crits when it enhances a weapon attack', async (playerClass, skillId, canCrit) => {
       const battle = await encounterFor(playerClass, { [skillId]: 1 });
       battle.playerPosition = 20;
@@ -188,10 +265,16 @@ describe('MonstersService', () => {
       battle.player.damage = 10;
       battle.monster.health = 10000;
       battle.monster.maxHealth = 10000;
-      battle.monster.dodge = 0;
+      battle.monster.dodge = playerClass === 'MAGE' ? 100 : 0;
       battle.monster.blockChance = 0;
+      battle.monster.defense = 60;
       const result = await service.takeTurn(7, battle.id, 'SKILL', undefined, skillId);
-      expect(result.events[0]).toMatchObject({ action: 'SKILL', critical: canCrit });
+      expect(result.events[0]).toMatchObject({ action: 'SKILL', critical: canCrit, dodged: false });
+      if (playerClass === 'MAGE') {
+        const multiplier = skillId === 'mage-fireball' ? 1.4 : skillId === 'mage-frost' ? 1.2 : 2.1;
+        expect(result.events[0].damage).toBe(Math.round(battle.skills!.spellPower * multiplier));
+      }
+      expect(result.monster.defense).toBe(60);
     });
 
     it('heals without damaging the monster and does not exceed maximum health', async () => {
@@ -201,6 +284,31 @@ describe('MonstersService', () => {
       expect(result.events[0]).toMatchObject({ effect: 'heal', healing: 10, damage: 0 });
       expect(result.player.health).toBe(result.player.maxHealth);
       expect(result.monster.health).toBe(result.monster.maxHealth);
+    });
+
+    it('magic-only enemies buff instead of attacking, then consume two boosted spells; magic ignores player dodge', async () => {
+      const battle = await encounterFor();
+      battle.monsterType = 'Goblin Hexer';
+      battle.blockedCells = [];
+      battle.player.dodge = 100;
+      battle.player.blockChance = 0;
+      battle.player.health = battle.player.maxHealth = 10000;
+      battle.monster.damage = 100;
+      const turn = () => service.takeTurn(7, battle.id, 'DEFEND');
+      const first = await turn();
+      expect(first.events.find((e) => e.actor === 'MONSTER')).toMatchObject({ damage: 100, dodged: false });
+      const health = battle.player.health;
+      const buff = await turn();
+      expect(buff.player.health).toBe(health);
+      expect(buff.events.filter((e) => e.actor === 'MONSTER')).toEqual([
+        expect.objectContaining({ effect: 'empower', action: 'SKILL', damage: 0 }),
+      ]);
+      for (let i = 0; i < 2; i++) {
+        const result = await turn();
+        expect(result.events.find((e) => e.actor === 'MONSTER')).toMatchObject({ damage: 135, dodged: false });
+      }
+      expect(battle.monster.statuses?.empower).toBeUndefined();
+      expect(battle.monster.damage).toBe(100);
     });
   });
 
@@ -332,7 +440,7 @@ describe('MonstersService', () => {
     });
     await expect(service.resetDungeon(7, 'EMBERDEEP')).resolves.toEqual({ success: true, cost: 10 });
     expect(mockDungeonRuns.enter).toHaveBeenCalledWith(7, 'EMBERDEEP');
-    expect(mockDungeonRuns.attack).toHaveBeenCalledWith(7, 'run-1', 'enemy-1', undefined);
+    expect(mockDungeonRuns.attack).toHaveBeenCalledWith(7, 'run-1', 'enemy-1', undefined, {});
   });
 
   describe('findAll', () => {
@@ -572,8 +680,8 @@ describe('MonstersService', () => {
     });
 
     it.each([
-      ['Bow', 6, 'Arrows'],
-      ['Crossbow', 7, 'Bolts'],
+      ['Bow', Number.MAX_SAFE_INTEGER, 'Arrows'],
+      ['Crossbow', Number.MAX_SAFE_INTEGER, 'Bolts'],
       ['Bow', 1, null],
       ['Crossbow', 1, null],
       ['Bow', 1, 'Bolts'],
@@ -652,10 +760,6 @@ describe('MonstersService', () => {
         expect(strike!.damage).toBeLessThanOrEqual(25);
         return;
       }
-      if (weapon === 'Bow') {
-        await expect(service.takeTurn(7, encounter.battle.id, 'ATTACK')).rejects.toThrow('outside attack range');
-        await service.takeTurn(7, encounter.battle.id, 'MOVE', 17);
-      }
       const result = await service.takeTurn(7, encounter.battle.id, 'ATTACK');
       expect(result.events.some((event) => event.actor === 'PLAYER' && event.action === 'ATTACK')).toBe(true);
       expect(result.events.some((event) => event.actor === 'MONSTER' && event.action === 'ATTACK')).toBe(false);
@@ -663,10 +767,41 @@ describe('MonstersService', () => {
       expect(mockPrismaService.inventoryItem.create).not.toHaveBeenCalled();
     });
 
+    it.each(['Goblin Hexer', 'Ash Invoker', 'Frost Revenant'])(
+      '%s attacks at range without approaching',
+      async (monsterType) => {
+        jest.spyOn(Math, 'random').mockReturnValueOnce(0.01).mockReturnValue(0.99);
+        mockUsersService.findCurrentUser.mockResolvedValue(currentUser(5, 500));
+        mockMonsterGenerator.generate.mockReturnValue({
+          id: 3,
+          name: monsterType,
+          monsterType,
+          level: 5,
+          rewardGold: 20,
+          rewardExperience: 25,
+          attributes: [],
+        });
+        const encounter = await service.rollEncounter(7);
+        if (!encounter.encountered) throw new Error('Expected encounter');
+        const position = encounter.battle.arena.monsterPosition;
+        const turn = await service.takeTurn(7, encounter.battle.id, 'DEFEND');
+        expect(turn.arena.monsterPosition).toBe(position);
+        expect(turn.monster.attackStyle).toBe('RANGED');
+        expect(turn.events.find((event) => event.actor === 'MONSTER')?.skillName).toEqual(expect.any(String));
+        expect(turn.events.find((event) => event.actor === 'MONSTER')?.effect).toEqual(expect.any(String));
+        expect(turn.events.filter((event) => event.actor === 'MONSTER')).toEqual([
+          expect.objectContaining({
+            action: 'ATTACK',
+            critical: false,
+          }),
+        ]);
+      },
+    );
+
     it.each([
       ['Stone Golem', 1, 22],
       ['Goblin Raider', 3, 20],
-      ['Dire Wolf', 4, 19],
+      ['Dire Wolf', 5, 18],
     ])('uses %s movement on the server', async (monsterType, movement, destination) => {
       jest.spyOn(Math, 'random').mockReturnValueOnce(0.01).mockReturnValue(0.99);
       mockUsersService.findCurrentUser.mockResolvedValue(currentUser(5, 500));

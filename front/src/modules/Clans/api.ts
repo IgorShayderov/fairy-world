@@ -10,6 +10,7 @@ export type ClanMember = {
   role: ClanRole;
   contributedActivity: number;
   contributedGold: number;
+  contributedGems: number;
   joinedAt: string;
 };
 
@@ -20,6 +21,8 @@ export type Clan = {
   description: string;
   activityPoints: number;
   viewerGold: number;
+  viewerGems: number;
+  treasury: { gold: number; gems: number };
   buildings: {
     maxLevel: number;
     bonusPerLevel: number;
@@ -99,6 +102,10 @@ export const clansApi = {
   },
   async upgradeBuilding(building: ClanBuilding) {
     const { data } = await api.post<{ clan: Clan }>(routes.api.clans.upgradeBuildingPath(building));
+    return data.clan;
+  },
+  async deposit(gold: number, gems: number) {
+    const { data } = await api.post<{ clan: Clan | null }>(routes.api.clans.depositPath(), { gold, gems });
     return data.clan;
   },
   async getShop() {

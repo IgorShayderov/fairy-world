@@ -1,7 +1,14 @@
-import { canShoot } from './battle-range';
+import { canShoot, weaponAttackRange } from './battle-range';
 import { matchingAmmunition, rangedWeapon } from '../items/weapon-types';
 
 describe('ranged combat', () => {
+  it('gives loaded bows and crossbows unlimited distance, including old saved ranges', () => {
+    for (const oldRange of [6, 7]) {
+      expect(canShoot(0, 76, 11, weaponAttackRange(oldRange), [])).toBe(true);
+    }
+    expect(canShoot(0, 76, 11, weaponAttackRange(1), [])).toBe(false);
+    expect(canShoot(16, 23, 8, weaponAttackRange(6), [20])).toBe(false);
+  });
   it('enforces range and obstacles on the hex grid', () => {
     expect(canShoot(16, 23, 8, 6, [])).toBe(false);
     expect(canShoot(17, 23, 8, 6, [])).toBe(true);

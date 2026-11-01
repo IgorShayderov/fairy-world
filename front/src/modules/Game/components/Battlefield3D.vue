@@ -37,16 +37,25 @@ import {
   attackMotion,
   attackOffset,
   attackTiming,
+  faceBattleTarget,
   inPlacePlayerClips,
   movementProgress,
+  movementStepDuration,
+  playerRunClip,
+  planarFacingAngle,
+  PLAYER_RUN_CADENCE,
   safeLungeDistance,
   skeletonAttackClips,
   smoothStep,
+  hitReactionProfile,
+  hitReactionWeight,
   transitionBattleAction,
   usesReversingIdle,
 } from '@/modules/Game/battleAnimation';
+import { fitBattleCamera } from '@/modules/Game/battleCamera';
 import { applyCastingGesture, castingWeaponPose } from '@/modules/Game/battleCastingPose';
 import { CROSSBOW_MUZZLE, updateCrossbowMechanism } from '@/modules/Game/battleCrossbowModel';
+import { dressDungeonBoss } from '@/modules/Game/battleDungeonBoss';
 import {
   closeGrip,
   gripRotation,
@@ -55,8 +64,9 @@ import {
   palmGrip,
   placeArm,
 } from '@/modules/Game/battleHeavyWeapon';
+import { createCreatureHitPose } from '@/modules/Game/battleHitReaction';
 import { createMageStaff } from '@/modules/Game/battleMageStaff';
-import { battleMonsterModel } from '@/modules/Game/battleMonsterModels';
+import { battleMonsterModel, hasGroundedFootsteps } from '@/modules/Game/battleMonsterModels';
 import { battleMovementPath } from '@/modules/Game/battleMovementPath';
 import type { BattleHandMode } from '@/modules/Game/battlePlayerLoadout';
 import {
@@ -71,6 +81,7 @@ import { createSkillEffect, SKILL_IMPACT, SKILL_RELEASE } from '@/modules/Game/b
 import { BattleTimeline, dampShake } from '@/modules/Game/battleTimeline';
 import type { BattleState } from '@/modules/Monsters/api';
 import type { SkillEffect } from '@/modules/Skills/api';
+import { gameAudio } from '@/shared/audio/gameAudio';
 
 const props = defineProps<{ battle: BattleState; disabled: boolean; handMode?: BattleHandMode; mageStaff?: boolean }>();
 const emit = defineEmits<{ busy: [value: boolean]; ready: []; move: [cell: number]; attack: []; fallback: [] }>();
@@ -484,7 +495,7 @@ function clip(unit: Fighter, kind: 'idle' | 'walk' | 'attack' | 'death' | 'hit')
     const names = {
       idle:
         mode === 'TWO_HANDED' ? 'knight_idle_heavy_weapon' : mode === 'DUAL' ? 'knight_idle_2_weapon' : 'knight_idle',
-      walk: 'knight_walk_in_place',
+      walk: playerRunClip(mode === 'TWO_HANDED'),
       attack:
         mode === 'TWO_HANDED'
           ? 'knight_attack_2_heavy_weapon'
@@ -564,6 +575,7 @@ function playAction(
 function play(unit: Fighter, kind: 'idle' | 'walk' | 'attack' | 'death' | 'hit', once = false) {
   const animation = clip(unit, kind) ?? clip(unit, 'idle') ?? unit.clips[0];
   const duration = playAction(unit, animation, once);
+  if (kind === 'walk' && unit === player) unit.current?.setEffectiveTimeScale(PLAYER_RUN_CADENCE);
   if (kind === 'idle' && unit.reverseIdle && unit.current) {
     // This legacy clip contains only the outward half of its idle cycle.
     unit.current.setLoop(T.LoopPingPong, Infinity).setEffectiveTimeScale(0.65);
@@ -572,8 +584,7 @@ function play(unit: Fighter, kind: 'idle' | 'walk' | 'attack' | 'death' | 'hit',
 }
 
 function face(unit: Fighter, destination: T.Vector3) {
-  const direction = destination.clone().sub(unit.root.position);
-  unit.root.rotation.y = Math.atan2(direction.x, direction.z);
+  faceBattleTarget(unit.root, destination);
 }
 
 function spawnHitSparks(position: T.Vector3, colorHex: string, count = 12) {
@@ -654,22 +665,28 @@ function spawnBlockBarrier(position: T.Vector3) {
 
 function triggerHitReaction(target: Fighter, hitDirection: T.Vector3, isCrit = false) {
   const hitClip = clip(target, 'hit');
-  if (hitClip) play(target, 'hit', true);
-
-  const recoilDist = isCrit ? 0.42 : 0.25;
-  const recoilDir = hitDirection.clone().normalize().multiplyScalar(recoilDist);
+  const reaction = hitReactionProfile(target.model, isCrit);
+  if (hitClip) playAction(target, hitClip, true, reaction.duration, 0.035);
+  const direction = hitDirection.clone().setY(0).normalize();
+  const bodyPose = hitClip ? undefined : createCreatureHitPose(target.root, direction, reaction.lean / 0.12);
   const startPos = target.root.position.clone();
-  const recoilPos = startPos.clone().add(recoilDir);
-
-  const staggerDuration = isCrit ? 0.26 : 0.18;
-  void wait(staggerDuration, (t) => {
-    const progress = t < 0.35 ? smoothStep(t / 0.35) : 1 - smoothStep((t - 0.35) / 0.65);
-    target.root.position.lerpVectors(startPos, recoilPos, progress);
-  });
-
+  const startRotation = target.root.quaternion.clone();
+  const leanAxis = new T.Vector3(direction.z, 0, -direction.x);
+  const tilt = new T.Quaternion();
   const sparkPos = target.root.position.clone();
   sparkPos.y += target.height * 0.55;
   spawnHitSparks(sparkPos, isCrit ? '#fde047' : '#f97316', isCrit ? 16 : 10);
+  return wait(reaction.duration, (t) => {
+    const weight = hitReactionWeight(t);
+    target.root.position.copy(startPos).addScaledVector(direction, reaction.distance * weight);
+    tilt.setFromAxisAngle(leanAxis, reaction.lean * weight);
+    target.root.quaternion.copy(startRotation).premultiply(tilt);
+    bodyPose?.apply(t);
+  }).then(() => {
+    bodyPose?.restore();
+    target.root.position.copy(startPos);
+    target.root.quaternion.copy(startRotation);
+  });
 }
 
 function triggerDodgeReaction(target: Fighter, attackDirection: T.Vector3) {
@@ -874,10 +891,31 @@ async function skillVisual(effect: SkillEffect, from: T.Vector3, to: T.Vector3, 
   }
 }
 
+let displayedMonsterId: number | undefined;
+let soundedOutcome: string | undefined;
 async function replay(next: BattleState) {
   if (!player || !enemy || disposed) return;
   busy = true;
   emit('busy', true);
+  if (displayedMonsterId !== next.monster.id) {
+    const model = battleMonsterModel(next.monsterType, next.monster.name);
+    const replacement = await fighter(model.file, model.height);
+    if (disposed) return;
+    enemy.mixer.stopAllAction();
+    scene.remove(enemy.root);
+    release(enemy.root);
+    enemy = replacement;
+    dressDungeonBoss(enemy.root, model);
+    enemy.root.children[0]!.rotation.y = model.facing ?? 0;
+    enemy.root.position.copy(point(next.arena.monsterPosition));
+    face(enemy, player.root.position);
+    play(enemy, 'idle');
+    enemy.current?.stopFading().setEffectiveWeight(1);
+    enemy.mixer.update(0);
+    enemy.root.visible = true;
+    displayedMonsterId = next.monster.id;
+    play(player, 'idle');
+  }
   paint();
 
   let deathStarted = false;
@@ -901,17 +939,18 @@ async function replay(next: BattleState) {
 
       for (const [stepIndex, cell] of path.entries()) {
         if (disposed) return;
+        if (hasGroundedFootsteps(unit.model)) gameAudio.play('step');
         const step = point(cell);
         const origin = unit.root.position.clone();
 
         const targetDir = step.clone().sub(origin);
         const targetAngle = Math.atan2(targetDir.x, targetDir.z);
-        const startAngle = unit.root.rotation.y;
+        const startAngle = planarFacingAngle(unit.root.quaternion);
         let deltaAngle = (targetAngle - startAngle) % (Math.PI * 2);
         if (deltaAngle > Math.PI) deltaAngle -= Math.PI * 2;
         if (deltaAngle < -Math.PI) deltaAngle += Math.PI * 2;
 
-        const moveDuration = Math.max(0.22, origin.distanceTo(step) / 3.9);
+        const moveDuration = movementStepDuration(origin.distanceTo(step), unit === player);
         await wait(moveDuration, (t) => {
           unit.root.position.lerpVectors(
             origin,
@@ -919,24 +958,26 @@ async function replay(next: BattleState) {
             movementProgress(t, stepIndex === 0, stepIndex === path.length - 1)
           );
           const turnProgress = Math.min(1, t / 0.35);
-          unit.root.rotation.y = startAngle + deltaAngle * smoothStep(turnProgress);
+          unit.root.rotation.set(0, startAngle + deltaAngle * smoothStep(turnProgress), 0);
         });
         if (disposed) return;
         unit.root.position.copy(step);
       }
-    } else if (event.effect === 'heal') {
+    } else if (event.effect === 'heal' || event.effect === 'empower') {
+      gameAudio.play(event.effect === 'empower' ? 'arcane' : 'heal');
       const center = unit.root.position.clone().add(new T.Vector3(0, unit.height * 0.5, 0));
-      addFloatingText(`+${event.healing ?? 0} HP`, 'block', center);
+      addFloatingText(event.effect === 'empower' ? 'ARCANE FOCUS' : `+${event.healing ?? 0} HP`, 'block', center);
       play(unit, 'idle');
-      await skillVisual('heal', center, center, 0.9, unit === player);
+      await skillVisual(event.effect, center, center, 0.9, unit === player);
     } else if (event.action === 'DEFEND') {
+      if (!event.statusText) gameAudio.play('block');
       const block =
         unit.clips.find(
           (entry) => entry.name === (props.handMode === 'DUAL' ? 'knight_block_2_weapon' : 'knight_shield_block')
         ) ?? unit.clips.find((entry) => entry.name === 'Block');
       if (block) playAction(unit, block, true, undefined, 0.1);
       addFloatingText(
-        'DEFENDING',
+        event.statusText ?? 'DEFENDING',
         'block',
         unit.root.position.clone().add(new T.Vector3(0, unit.height * 0.85 + 0.3, 0))
       );
@@ -944,8 +985,9 @@ async function replay(next: BattleState) {
     } else {
       face(unit, target.root.position);
       const spell = event.effect && ['fire', 'ice', 'arcane'].includes(event.effect);
+      const playerSpell = spell && unit === player;
       const isPower = event.action === 'POWER_ATTACK' || event.effect === 'shockwave';
-      const attackClip = spell
+      const attackClip = playerSpell
         ? clip(unit, 'idle')
         : unit === player
           ? selectPlayerAttackClip(isPower)
@@ -970,7 +1012,7 @@ async function replay(next: BattleState) {
         timing.impact = 0.57;
       }
       const duration = playAction(unit, attackClip, true, timing.duration, timing.blend);
-      if (spell) castingProgress = 0;
+      if (playerSpell) castingProgress = 0;
 
       // Melee combat lunge towards target
       const homePos = unit.root.position.clone();
@@ -1006,7 +1048,7 @@ async function replay(next: BattleState) {
       const projectile = rangedAttack && !visual ? createProjectile(props.handMode === 'CROSSBOW') : undefined;
       if (spell) {
         await wait(0.42, (t) => {
-          castingProgress = t * SKILL_RELEASE;
+          if (playerSpell) castingProgress = t * SKILL_RELEASE;
           updateEquipment();
           visualFrom.copy(spellOrigin());
           visual?.update(t * SKILL_RELEASE);
@@ -1015,9 +1057,11 @@ async function replay(next: BattleState) {
           visual?.dispose();
           return;
         }
+        gameAudio.play(event.effect === 'fire' ? 'fire' : event.effect === 'ice' ? 'ice' : 'arcane');
         await wait(Math.max(0.16, visualFrom.distanceTo(visualTo) / 14), (t) => {
-          castingProgress = SKILL_RELEASE + t * (SKILL_IMPACT - SKILL_RELEASE);
-          visual?.update(castingProgress);
+          const progress = SKILL_RELEASE + t * (SKILL_IMPACT - SKILL_RELEASE);
+          if (playerSpell) castingProgress = progress;
+          visual?.update(progress);
         });
       } else if (rangedAttack) {
         // Draw/aim first. Flight speed depends on distance, not the attack clip length.
@@ -1031,6 +1075,7 @@ async function replay(next: BattleState) {
           return;
         }
         updateEquipment();
+        gameAudio.play(props.handMode === 'CROSSBOW' ? 'crossbow' : 'bow');
         const shotStart = weapon
           ? weapon.localToWorld(props.handMode === 'CROSSBOW' ? CROSSBOW_MUZZLE.clone() : new T.Vector3(0, 0, 0.2))
           : homePos.clone();
@@ -1052,6 +1097,7 @@ async function replay(next: BattleState) {
           release(projectile);
         }
       } else {
+        gameAudio.play('swing');
         await wait(duration * strikePoint, (t) => {
           if (rangedMelee) rangedBashProgress = t * strikePoint;
           if (heavyAttack && heavySwing) heavySwing.progress = t * strikePoint;
@@ -1077,24 +1123,30 @@ async function replay(next: BattleState) {
         (event.damage ?? 0) > 0 &&
         ((next.status === 'VICTORY' && target === enemy) || (next.status === 'DEFEAT' && target === player));
 
+      let hitRecovery: Promise<void> | undefined;
       if (event.dodged) {
+        gameAudio.play('dodge');
         triggerDodgeReaction(target, attackDirection);
         addFloatingText('DODGED!', 'dodge', textPos);
       } else if (event.blocked) {
+        gameAudio.play('block');
         triggerBlockReaction(target, impactPoint, attackDirection);
         addFloatingText('BLOCKED!', 'block', textPos);
       } else {
+        gameAudio.play('hit');
         if (killingBlow) {
+          gameAudio.play('death');
           deathStarted = true;
           deathFinished = wait(play(target, 'death', true));
           spawnHitSparks(impactPoint, '#fbc879', 12);
         } else {
-          triggerHitReaction(target, attackDirection, event.critical || isPower);
+          hitRecovery = triggerHitReaction(target, attackDirection, event.critical || isPower);
         }
         const dmg = event.damage ?? 0;
         const text = event.critical ? `CRIT! -${dmg}` : isPower ? `HEAVY! -${dmg}` : `-${dmg}`;
         const type = event.critical || isPower ? 'crit' : 'damage';
         addFloatingText(text, type, textPos);
+        if (event.statusText) addFloatingText(event.statusText, 'block', textPos.clone().add(new T.Vector3(0, 0.6, 0)));
         if (event.critical || isPower) {
           shakeIntensity = 0.22;
         }
@@ -1102,7 +1154,7 @@ async function replay(next: BattleState) {
 
       await wait(duration * (1 - strikePoint), (t) => {
         visual?.update(SKILL_IMPACT + t * (1 - SKILL_IMPACT));
-        if (spell) castingProgress = SKILL_IMPACT + t * (1 - SKILL_IMPACT);
+        if (playerSpell) castingProgress = SKILL_IMPACT + t * (1 - SKILL_IMPACT);
         if (rangedAttack) rangedShotProgress = strikePoint + t * (1 - strikePoint);
         if (rangedMelee) rangedBashProgress = strikePoint + t * (1 - strikePoint);
         if (heavyAttack && heavySwing) heavySwing.progress = strikePoint + t * (1 - strikePoint);
@@ -1118,6 +1170,8 @@ async function replay(next: BattleState) {
       if (rangedAttack) rangedShotProgress = undefined;
       if (rangedMelee) rangedBashProgress = undefined;
 
+      // Never interrupt the defender's brace with idle or its next attack.
+      if (hitRecovery) await hitRecovery;
       if (!killingBlow) play(target, 'idle');
     }
     if (disposed) return;
@@ -1140,6 +1194,13 @@ async function replay(next: BattleState) {
   }
 
   if (disposed) return;
+  if (next.status !== 'ACTIVE') {
+    const outcome = `${next.id}:${next.monster.id}:${next.status}`;
+    if (soundedOutcome !== outcome) {
+      gameAudio.play(next.status === 'VICTORY' ? 'victory' : 'defeat');
+      soundedOutcome = outcome;
+    }
+  }
   busy = false;
   emit('busy', false);
   paint();
@@ -1426,9 +1487,9 @@ onMounted(async () => {
       const { width, height } = host.value.getBoundingClientRect();
       renderer.setSize(width, height);
       camera.aspect = width / Math.max(1, height);
-      const distance = Math.max((columns * 2.9) / camera.aspect, rows * 2.7, 15);
-      camera.position.set(distance * 0.08, distance * 0.53, distance * 0.82);
-      controls!.target.set(0, 0.7, 0);
+      const fit = fitBattleCamera(camera, Array.from({ length: columns * rows }, (_, cell) => point(cell)));
+      controls!.maxDistance = Math.max(35, fit.distance * 1.5);
+      controls!.target.copy(fit.target);
       controls!.update();
       camera.updateProjectionMatrix();
     };
@@ -1531,6 +1592,8 @@ onMounted(async () => {
     if (disposed) return;
 
     const mode = props.handMode ?? 'TWO_HANDED';
+    displayedMonsterId = props.battle.monster.id;
+    dressDungeonBoss(enemy.root, monsterModel);
     const equipment: Record<string, boolean> = {
       '1H_Sword': ['SINGLE', 'DUAL', 'WEAPON_SHIELD'].includes(mode),
       '1H_Sword_Offhand': mode === 'DUAL',
@@ -1578,6 +1641,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   disposed = true;
+  gameAudio.stop();
   cancelAnimationFrame(frame);
   observer?.disconnect();
   controls?.dispose();

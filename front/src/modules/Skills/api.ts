@@ -2,7 +2,8 @@ import routes from '@/routes';
 import { api } from '@shared/api';
 
 export type PlayerClass = 'WARRIOR' | 'SCOUT' | 'MAGE';
-export type SkillEffect = 'slash' | 'heal' | 'shockwave' | 'arrow' | 'pierce' | 'volley' | 'fire' | 'ice' | 'arcane';
+export type SkillEffect =
+  'slash' | 'heal' | 'empower' | 'shockwave' | 'arrow' | 'pierce' | 'volley' | 'fire' | 'ice' | 'arcane' | 'frost-arrow' | 'poison';
 export interface SkillDefinition {
   id: string;
   class: PlayerClass;

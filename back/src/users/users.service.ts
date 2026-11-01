@@ -11,6 +11,7 @@ import { requiredPlayerLevel } from './level-progression';
 import { getPotionEffect, getPotionRequiredLevel, POTION_BUFF_DURATION_MS } from '../items/potion-effects';
 import { CRAFTING_MIN_LEVEL } from '../crafting/crafting.catalog';
 import { isTwoHandedWeapon, matchingAmmunition, rangedWeapon } from '../items/weapon-types';
+import { assignPotionSlot } from '../items/potion-slots';
 
 const SLOT_TYPES: Record<EquipmentSlotId, EquipmentType[]> = {
   head: [EquipmentType.HELMET],
@@ -27,6 +28,9 @@ const SLOT_TYPES: Record<EquipmentSlotId, EquipmentType[]> = {
 
 @Injectable()
 export class UsersService {
+  setPotionSlot(userId: number, slot: number, inventoryItemId?: number | null) {
+    return assignPotionSlot(this.prisma, userId, slot, inventoryItemId);
+  }
   async claimDevGems(userId: number) {
     if (
       process.env.NODE_ENV === 'production' ||

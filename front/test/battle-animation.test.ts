@@ -7,14 +7,35 @@ import {
   attackTiming,
   inPlacePlayerClips,
   movementProgress,
+  movementStepDuration,
+  playerRunClip,
+  PLAYER_RUN_CADENCE,
   safeLungeDistance,
   skeletonAttackClips,
   smoothStep,
+  hitReactionProfile,
+  hitReactionWeight,
   transitionBattleAction,
   usesReversingIdle,
 } from '../src/modules/Game/battleAnimation';
 
 describe('battle animation pacing', () => {
+  it('holds hit reactions long enough to read and restores the exact stance', () => {
+    expect(hitReactionWeight(0)).toBe(0);
+    expect(hitReactionWeight(1)).toBe(0);
+    expect(hitReactionWeight(.25)).toBeGreaterThan(.9);
+    expect(hitReactionWeight(.65)).toBeGreaterThan(0);
+    expect(hitReactionProfile('golem').distance).toBeLessThan(hitReactionProfile('wolf').distance);
+    expect(hitReactionProfile('knight').duration).toBeGreaterThan(.6);
+    expect(hitReactionProfile('knight', true).duration).toBeGreaterThan(hitReactionProfile('knight').duration);
+  });
+  it('uses equipment-aware combat runs and faster travel without changing the hex path', () => {
+    expect(playerRunClip(true)).toBe('knight_run_heavy_weapon_in_place');
+    expect(playerRunClip(false)).toBe('knight_run_shield');
+    expect(PLAYER_RUN_CADENCE).toBeGreaterThan(1);
+    expect(movementStepDuration(2, true)).toBeCloseTo(2 / 6.5);
+    expect(movementStepDuration(2, true)).toBeLessThan(movementStepDuration(2, false));
+  });
   it('keeps ranged and blocked-lunge impact directions even when the lunge is zero', () => {
     const from = { x: 1, z: 2 },
       to = { x: 4, z: 6 };

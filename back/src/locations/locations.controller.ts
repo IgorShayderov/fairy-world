@@ -12,9 +12,33 @@ export class SetLocationDto {
   @Min(1)
   locationId!: number;
 }
+export class RemoveItemBonusDto {
+  @IsInt()
+  @Min(0)
+  expectedCost!: number;
+  @IsInt()
+  @Min(0)
+  expectedGemCost!: number;
+}
 @Controller('locations')
 export class LocationsController {
   constructor(private readonly locationsService: LocationsService) {}
+
+  @Get('blacksmith')
+  @UseGuards(AuthGuard)
+  blacksmith(@Request() req: RequestWithUser) {
+    return this.locationsService.blacksmith(req.user.sub);
+  }
+
+  @Post('blacksmith/items/:id/remove-bonus')
+  @UseGuards(AuthGuard)
+  removeBonus(
+    @Request() req: RequestWithUser,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: RemoveItemBonusDto,
+  ) {
+    return this.locationsService.removeItemBonus(req.user.sub, id, body.expectedCost, body.expectedGemCost);
+  }
 
   @Post('sanctuaries/:id/blessing')
   @UseGuards(AuthGuard)

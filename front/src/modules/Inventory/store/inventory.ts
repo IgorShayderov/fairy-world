@@ -93,6 +93,7 @@ export const useInventoryStore = defineStore('inventory', () => {
     equipmentType: item.equipmentType,
     attributes: item.attributes,
     properties: item.properties,
+    ...(item.blockChance !== undefined ? { blockChance: item.blockChance } : {}),
     quantity,
     slot,
     ...(upgradeType !== undefined ? { upgradeType } : {}),

@@ -6,6 +6,7 @@ import { ItemView } from '../common/views/item.view';
 import { CRAFTING_MIN_LEVEL, pickCraftMaterialCode } from '../crafting/crafting.catalog';
 import { ItemGeneratorService } from '../items/item-generator.service';
 import { getPotionEffect, getPotionRequiredLevel } from '../items/potion-effects';
+import { ensurePotionSlotAccess, isPotionSlot } from '../items/potion-slots';
 import { requireLandmark } from '../locations/landmarks';
 import { PrismaService } from '../prisma.service';
 import { gemActionCost } from '../gem-prices/gem-prices';
@@ -17,6 +18,26 @@ import type { GeneratedMonster } from './monster-generator.service';
 import { MonsterGeneratorService } from './monster-generator.service';
 import { rollDungeonLootRarity } from './monster-loot';
 import {
+  dungeonNeighbors,
+  initialDungeonTactics,
+  moveDungeonEnemy,
+  moveDungeonPlayer,
+  type DungeonAction,
+  type DungeonTactics,
+} from './dungeon-tactics';
+import { monsterMovement, slowMonsterDamage } from './battle-movement';
+import { canShoot, weaponAttackRange } from './battle-range';
+import { chooseMonsterShot, monsterCombatView, monsterBuffEvent, monsterSpellDamage } from './monster-combat';
+import {
+  effectiveDefense,
+  effectiveMovement,
+  consumeArmorHit,
+  finishStatusTurn,
+  type CombatStatuses,
+} from '../skills/combat-status';
+import { isMagicSpell, SKILLS } from '../skills/skills.catalog';
+import { DUNGEON_BALANCE_VERSION, fortifySlowDungeonMinion, strengthenDungeonEnemy } from './dungeon-balance';
+import {
   castDungeonSkill,
   dungeonSkillSnapshot,
   dungeonSkillView,
@@ -26,6 +47,13 @@ import {
 } from '../skills/dungeon-skills';
 
 type Combatant = {
+  buffCooldown?: number;
+  rangedSkillCooldown?: number;
+  attackStyle?: 'MELEE' | 'RANGED';
+  rangedSkill?: { name: string; cooldown: number };
+  statuses?: CombatStatuses;
+  movement?: number;
+  attackRange?: number;
   skillState?: DungeonSkillState;
   name: string;
   health: number;
@@ -39,6 +67,8 @@ type Combatant = {
 };
 
 type DungeonEvent = SkillEventFields & {
+  fromCell?: number;
+  toCell?: number;
   actor: 'PLAYER' | 'MONSTER';
   damage: number;
   critical: boolean;
@@ -88,6 +118,8 @@ type DungeonPartyLoot = {
   deadlineAt?: string;
 };
 export type DungeonPartyMemberView = {
+  movement?: number;
+  attackRange?: number;
   skillState?: DungeonSkillState;
   profileId: number;
   userId: number;
@@ -117,6 +149,18 @@ type PartyWithMembers = Prisma.DungeonPartyGetPayload<{
   include: { members: { include: { gameProfile: { include: { user: true } } } } };
 }>;
 export type DungeonRunState = {
+  potionTurns?: Record<string, number>;
+  potionUsedThisTurn?: boolean;
+  bossBalanceVersion?: number;
+  exchange?: {
+    opponentId: string;
+    events: DungeonEvent[];
+    playerPosition: number;
+    monsterPosition: number;
+    actorProfileId?: number;
+  };
+  tactical?: DungeonTactics;
+  damageDealt?: Record<string, { name: string; damage: number }>;
   skills?: ReturnType<typeof dungeonSkillView>;
   id: string;
   dungeon: string;
@@ -309,6 +353,10 @@ export class DungeonRunsService {
         if (run) {
           const state = this.parseState(run.state);
           if (state.party) {
+            if (state.tactical?.movingProfileId === profile.id) {
+              state.tactical.moved = false;
+              delete state.tactical.movingProfileId;
+            }
             state.party.members = state.party.members
               .filter(({ profileId }) => profileId !== profile.id)
               .map((member) => ({ ...member, leader: member.profileId === nextLeaderId }));
@@ -404,7 +452,13 @@ export class DungeonRunsService {
     return this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(${userId})`;
       const activeRun = await tx.dungeonRun.findUnique({ where: { gameProfileId: user.gameProfile!.id } });
-      if (activeRun) return this.parseState(activeRun.state);
+      if (activeRun) {
+        const restored = this.parseState(activeRun.state);
+        if (await this.hydrateSkills(restored, userId)) {
+          await tx.dungeonRun.update({ where: { id: activeRun.id }, data: { state: this.json(restored) } });
+        }
+        return this.renderPartyRun(restored, user.gameProfile!.id);
+      }
       const partyMembership = await tx.dungeonPartyMember.findUnique({
         where: { gameProfileId: user.gameProfile!.id },
       });
@@ -434,7 +488,13 @@ export class DungeonRunsService {
     });
   }
 
-  async attack(userId: number, runId: string, opponentId: string, skillId?: string): Promise<DungeonRunState> {
+  async attack(
+    userId: number,
+    runId: string,
+    opponentId: string,
+    skillId?: string,
+    action: DungeonAction = {},
+  ): Promise<DungeonRunState> {
     return this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${runId}))`;
       const profile = await tx.gameProfile.findUnique({ where: { userId }, include: { dungeonRun: true } });
@@ -447,7 +507,7 @@ export class DungeonRunsService {
         if (!partyRun) throw new NotFoundException('Active dungeon run not found');
         const partyState = this.parseState(partyRun.state);
         await this.hydrateSkills(partyState, userId);
-        return this.attackParty(tx, profile.id, party, partyState, opponentId, skillId);
+        return this.attackParty(tx, profile.id, party, partyState, opponentId, skillId, action);
       }
       if (!profile?.dungeonRun || profile.dungeonRun.id !== runId) {
         throw new NotFoundException('Active dungeon run not found');
@@ -470,22 +530,15 @@ export class DungeonRunsService {
 
       state.lastBattleResult = null;
       state.lastExperience = 0;
-      if (skillId) {
-        castDungeonSkill(
-          state.player.skillState,
-          skillId,
-          state.player,
-          opponent.monster,
-          state.latestEvents,
-          (attacker, target) => this.strike(attacker, target, 'PLAYER', state.latestEvents, state.player.name),
-          state.player.name,
-        );
-      } else {
-        this.strike(state.player, opponent.monster, 'PLAYER', state.latestEvents);
+      const eventStart = state.latestEvents.length;
+      const moved = this.playerAction(state, opponent, state.player, profile.id, action, skillId);
+      if (moved) {
+        this.recordExchange(state, opponent, eventStart, profile.id, state.player.name, true);
+        await tx.dungeonRun.update({ where: { id: runId }, data: { state: this.json(state) } });
+        return state;
       }
-      if (opponent.monster.health > 0) {
-        this.strike(opponent.monster, state.player, 'MONSTER', state.latestEvents);
-      }
+      this.monsterAction(state, opponent, state.player, action.action === 'DEFEND');
+      this.recordExchange(state, opponent, eventStart, profile.id, state.player.name);
       state.latestEvents = state.latestEvents.slice(-200);
       finishDungeonSkillTurn(state.player.skillState);
       state.skills = dungeonSkillView(state.player.skillState, state.player);
@@ -621,60 +674,94 @@ export class DungeonRunsService {
   }
 
   async useHealthPotion(userId: number, runId: string, inventoryItemId: number) {
-    return this.prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${runId}))`;
-      const profile = await tx.gameProfile.findUnique({
-        where: { userId },
-        include: { dungeonRun: true, dungeonParty: true },
-      });
-      const partyRun =
-        profile?.dungeonParty?.partyId === runId ? await tx.dungeonRun.findUnique({ where: { id: runId } }) : null;
-      const run = profile?.dungeonRun?.id === runId ? profile.dungeonRun : partyRun;
-      if (!profile || !run) {
-        throw new NotFoundException('Active dungeon run not found');
-      }
-      const state = this.parseState(run.state);
-      if (state.status !== 'ACTIVE') throw new BadRequestException('Dungeon run has already ended');
-      this.ensurePartyCombatState(state);
-      const partyMember = state.party?.members.find(({ profileId }) => profileId === profile.id);
-      const currentHealth = partyMember?.health ?? state.player.health;
-      const maxHealth = partyMember?.maxHealth ?? state.player.maxHealth;
-      if (currentHealth >= maxHealth) {
-        throw new BadRequestException('Health is already full');
-      }
-
-      const inventoryEntry = await tx.inventoryItem.findFirst({
-        where: { id: inventoryItemId, gameProfileId: profile.id, isEquiped: false },
-        include: { item: true },
-      });
-      if (!inventoryEntry) throw new NotFoundException('Health potion not found');
-      const effect = getPotionEffect(inventoryEntry.item.name);
-      if (!inventoryEntry.item.isConsumable || effect?.kind !== 'HEALTH') {
-        throw new BadRequestException('This item is not a health potion');
-      }
-      const requiredLevel = getPotionRequiredLevel(inventoryEntry.item.name);
-      if (profile.level < requiredLevel) {
-        throw new BadRequestException(`This potion requires player level ${requiredLevel}`);
-      }
-
-      const healed = Math.min(effect.restore, maxHealth - currentHealth);
-      if (partyMember) {
-        partyMember.health = currentHealth + healed;
-        this.syncPartySummary(state);
-      } else {
-        state.player.health += healed;
-      }
-      if (inventoryEntry.quantity > 1) {
-        await tx.inventoryItem.update({
-          where: { id: inventoryEntry.id },
-          data: { quantity: { decrement: 1 } },
+    return this.prisma.$transaction(
+      async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${runId}))`;
+        const profile = await tx.gameProfile.findUnique({
+          where: { userId },
+          include: { dungeonRun: true, dungeonParty: true },
         });
-      } else {
-        await tx.inventoryItem.delete({ where: { id: inventoryEntry.id } });
-      }
-      await tx.dungeonRun.update({ where: { id: runId }, data: { state: this.json(state) } });
-      return { run: this.renderPartyRun(state, profile.id), healed };
-    });
+        const partyRun =
+          profile?.dungeonParty?.partyId === runId ? await tx.dungeonRun.findUnique({ where: { id: runId } }) : null;
+        const run = profile?.dungeonRun?.id === runId ? profile.dungeonRun : partyRun;
+        if (!profile || !run) {
+          throw new NotFoundException('Active dungeon run not found');
+        }
+        const state = this.parseState(run.state);
+        if (state.status !== 'ACTIVE') throw new BadRequestException('Dungeon run has already ended');
+        this.ensurePartyCombatState(state);
+        const partyMember = state.party?.members.find(({ profileId }) => profileId === profile.id);
+        const currentHealth = partyMember?.health ?? state.player.health;
+        const maxHealth = partyMember?.maxHealth ?? state.player.maxHealth;
+        if (currentHealth >= maxHealth) {
+          throw new BadRequestException('Health is already full');
+        }
+        if (currentHealth <= 0) throw new BadRequestException('A defeated player cannot drink a potion');
+        const potionTurn = state.tactical?.turn ?? state.partyTurn ?? 1;
+        if (state.potionTurns?.[String(profile.id)] === potionTurn)
+          throw new BadRequestException('Only one health potion per turn');
+
+        const inventoryEntry = await tx.inventoryItem.findFirst({
+          where: { id: inventoryItemId, gameProfileId: profile.id, isEquiped: false },
+          include: { item: true },
+        });
+        if (!inventoryEntry || inventoryEntry.quantity <= 0) throw new NotFoundException('Health potion not found');
+        if (!isPotionSlot(inventoryEntry.slot) || inventoryEntry.quantity !== 1)
+          throw new BadRequestException('Assign one health potion to a quick slot first');
+        await ensurePotionSlotAccess(tx, profile.id, inventoryEntry.slot);
+        const effect = getPotionEffect(inventoryEntry.item.name);
+        if (!inventoryEntry.item.isConsumable || effect?.kind !== 'HEALTH') {
+          throw new BadRequestException('This item is not a health potion');
+        }
+        const requiredLevel = getPotionRequiredLevel(inventoryEntry.item.name);
+        if (profile.level < requiredLevel) {
+          throw new BadRequestException(`This potion requires player level ${requiredLevel}`);
+        }
+
+        const healed = Math.min(effect.restore, maxHealth - currentHealth);
+        state.potionTurns ??= {};
+        state.potionTurns[String(profile.id)] = potionTurn;
+        if (partyMember) {
+          partyMember.health = currentHealth + healed;
+          this.syncPartySummary(state);
+        } else {
+          state.player.health += healed;
+        }
+        const event: DungeonEvent = {
+          actor: 'PLAYER',
+          actorName: partyMember?.name ?? state.player.name,
+          action: 'SKILL',
+          effect: 'heal',
+          skillName: 'Health potion',
+          healing: healed,
+          damage: 0,
+          critical: false,
+          dodged: false,
+        };
+        state.latestEvents = [...state.latestEvents, event].slice(-200);
+        if (state.tactical) {
+          state.tactical.revision++;
+          state.exchange = {
+            opponentId: state.tactical.opponentId,
+            events: [event],
+            playerPosition: state.tactical.playerPosition,
+            monsterPosition: state.tactical.monsterPosition,
+            actorProfileId: profile.id,
+          };
+        }
+        if (inventoryEntry.quantity > 1) {
+          await tx.inventoryItem.update({
+            where: { id: inventoryEntry.id },
+            data: { quantity: { decrement: 1 } },
+          });
+        } else {
+          await tx.inventoryItem.delete({ where: { id: inventoryEntry.id } });
+        }
+        await tx.dungeonRun.update({ where: { id: runId }, data: { state: this.json(state) } });
+        return { run: this.renderPartyRun(state, profile.id), healed };
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
   }
 
   async submitPartyLoot(userId: number, runId: string, itemIds: unknown): Promise<DungeonRunState> {
@@ -758,6 +845,7 @@ export class DungeonRunsService {
     state: DungeonRunState,
     opponentId: string,
     skillId?: string,
+    action: DungeonAction = {},
   ): Promise<DungeonRunState> {
     if (state.status !== 'ACTIVE') throw new BadRequestException('Dungeon run has already ended');
     const opponent = state.opponents.find(({ id }) => id === opponentId);
@@ -780,19 +868,14 @@ export class DungeonRunsService {
     }
     state.lastBattleResult = null;
     const attacker = this.partyMemberCombatant(actingMember);
-    if (skillId) {
-      castDungeonSkill(
-        actingMember.skillState,
-        skillId,
-        attacker,
-        opponent.monster,
-        state.latestEvents,
-        (source, target) => this.strike(source, target, 'PLAYER', state.latestEvents, actingMember.name),
-        actingMember.name,
-      );
-      actingMember.health = attacker.health;
-    } else {
-      this.strike(attacker, opponent.monster, 'PLAYER', state.latestEvents, actingMember.name);
+    attacker.skillState = actingMember.skillState;
+    const eventStart = state.latestEvents.length;
+    const moved = this.playerAction(state, opponent, attacker, currentProfileId, action, skillId);
+    actingMember.health = attacker.health;
+    if (moved) {
+      this.recordExchange(state, opponent, eventStart, currentProfileId, actingMember.name, true);
+      await tx.dungeonRun.update({ where: { id: party.id }, data: { state: this.json(state) } });
+      return this.renderPartyRun(state, currentProfileId);
     }
     finishDungeonSkillTurn(actingMember.skillState);
     if (actingMember.skillState) actingMember.mana = actingMember.skillState.mana;
@@ -807,11 +890,17 @@ export class DungeonRunsService {
       }
       if (this.partyMemberIsAlive(target)) {
         const defender = this.partyMemberCombatant(target);
-        this.strike(opponent.monster, defender, 'MONSTER', state.latestEvents, opponent.monster.name, target.name);
+        this.monsterAction(
+          state,
+          opponent,
+          defender,
+          action.action === 'DEFEND' && target.profileId === currentProfileId,
+        );
         target.health = defender.health;
         state.partyTurn = (targetIndex + 1) % members.length;
       }
     }
+    this.recordExchange(state, opponent, eventStart, currentProfileId, actingMember.name);
     state.latestEvents = state.latestEvents.slice(-200);
     this.syncPartySummary(state);
 
@@ -1029,6 +1118,9 @@ export class DungeonRunsService {
     });
     return {
       id: randomUUID(),
+      bossBalanceVersion: DUNGEON_BALANCE_VERSION,
+      tactical: initialDungeonTactics(opponents[0].id),
+      damageDealt: {},
       dungeon,
       status: 'ACTIVE',
       startedAt: new Date().toISOString(),
@@ -1042,6 +1134,8 @@ export class DungeonRunsService {
         player.rewardBonuses.experiencePercent,
       goldBonusPercent: player.rewardBonuses.goldPercent,
       player: {
+        movement: player.properties.find((entry) => entry.name === 'MOVEMENT')?.value ?? 3,
+        attackRange: player.attackRange ?? 1,
         skillState: dungeonSkillSnapshot(player),
         name: player.name ?? `Player ${userId}`,
         health,
@@ -1069,20 +1163,25 @@ export class DungeonRunsService {
   ): DungeonOpponent {
     const attribute = (attributeName: string) =>
       generated.attributes.find((entry) => entry.attribute.name === attributeName)?.value ?? 0;
-    const health = Math.round((40 + generated.level * 15 + attribute('ENDURANCE') * 10) * healthMultiplier);
-    return {
+    const slowBoss = isBoss && monsterMovement(name) <= 2;
+    const health = Math.round(
+      (40 + generated.level * 15 + attribute('ENDURANCE') * 10) * healthMultiplier * (slowBoss ? 1.6 : 1),
+    );
+    const opponent: DungeonOpponent = {
       id: randomUUID(),
-      monsterType: generated.monsterType ?? name,
+      monsterType: name,
       image,
       isBoss,
       status: isBoss ? 'LOCKED' : 'AVAILABLE',
       monster: {
+        ...monsterCombatView(name, {}),
+        movement: monsterMovement(name),
         name,
         level: generated.level,
         health,
         maxHealth: health,
         damage: Math.ceil((3 + generated.level * 2 + attribute('STRENGTH')) * damageMultiplier),
-        defense: Math.min(60, generated.level * 0.8 + attribute('ENDURANCE') + (isBoss ? 8 : 4)),
+        defense: slowBoss ? 60 : Math.min(60, generated.level * 0.8 + attribute('ENDURANCE') + (isBoss ? 8 : 4)),
         dodge: Math.min(30, generated.level * 0.3 + attribute('AGILITY')),
         blockChance: 0,
         criticalChance: Math.min(30, 4 + generated.level * 0.25 + index),
@@ -1091,6 +1190,10 @@ export class DungeonRunsService {
         rewardExperience: Math.max(1, Math.round(generated.rewardExperience * (isBoss ? 2.5 : 1.5))),
       },
     };
+    strengthenDungeonEnemy(opponent.monster, isBoss);
+    fortifySlowDungeonMinion(opponent.monster, name, isBoss);
+    opponent.monster.damage = slowMonsterDamage(opponent.monster.damage, name);
+    return opponent;
   }
 
   private createPartyRun(
@@ -1109,6 +1212,8 @@ export class DungeonRunsService {
       const mana = Math.max(0, property(player, StatType.MANA));
       return {
         profileId: profile.id,
+        movement: player.properties.find((entry) => entry.name === 'MOVEMENT')?.value ?? 3,
+        attackRange: player.attackRange ?? 1,
         skillState: dungeonSkillSnapshot(player),
         userId: profile.userId,
         name: profile.user.name,
@@ -1134,6 +1239,9 @@ export class DungeonRunsService {
     });
     return {
       id,
+      bossBalanceVersion: DUNGEON_BALANCE_VERSION,
+      tactical: initialDungeonTactics(opponents[0].id),
+      damageDealt: {},
       dungeon,
       status: 'ACTIVE',
       startedAt: new Date().toISOString(),
@@ -1236,6 +1344,8 @@ export class DungeonRunsService {
 
   private partyMemberCombatant(member: DungeonPartyMemberView): Combatant {
     return {
+      movement: member.movement ?? 3,
+      attackRange: member.attackRange ?? 1,
       name: member.name,
       health: member.health ?? 0,
       maxHealth: member.maxHealth ?? 1,
@@ -1258,6 +1368,10 @@ export class DungeonRunsService {
   }
 
   private renderPartyRun(state: DungeonRunState, profileId: number): DungeonRunState {
+    state = {
+      ...state,
+      potionUsedThisTurn: state.potionTurns?.[String(profileId)] === (state.tactical?.turn ?? state.partyTurn ?? 1),
+    };
     if (!state.party) return { ...state, skills: dungeonSkillView(state.player.skillState, state.player) };
     const member = state.party.members.find((entry) => entry.profileId === profileId);
     return {
@@ -1268,11 +1382,75 @@ export class DungeonRunsService {
   }
 
   private async hydrateSkills(state: DungeonRunState, userId: number) {
+    // Pre-tactical runs were already fighting at close range. Do not move their
+    // opponents eight hexes away on restore or require a new encounter.
+    let changed = false;
+    if ((state.bossBalanceVersion ?? 0) < 1) {
+      for (const opponent of state.opponents) {
+        if (!opponent.isBoss || monsterMovement(opponent.monsterType) > 2) continue;
+        const ratio = opponent.monster.health / Math.max(1, opponent.monster.maxHealth);
+        opponent.monster.maxHealth = Math.round(opponent.monster.maxHealth * 1.6);
+        opponent.monster.health = Math.round(opponent.monster.maxHealth * ratio);
+        opponent.monster.defense = 60;
+      }
+      state.bossBalanceVersion = 1;
+      changed = true;
+    }
+    if ((state.bossBalanceVersion ?? 0) < 2) {
+      if (state.status === 'ACTIVE') {
+        for (const opponent of state.opponents) {
+          if (opponent.status === 'DEFEATED' || opponent.monster.health <= 0) continue;
+          strengthenDungeonEnemy(opponent.monster, opponent.isBoss);
+        }
+      }
+      state.bossBalanceVersion = 2;
+      changed = true;
+    }
+    if ((state.bossBalanceVersion ?? 0) < 3) {
+      if (state.status === 'ACTIVE') {
+        for (const opponent of state.opponents) {
+          if (opponent.status === 'DEFEATED' || opponent.monster.health <= 0) continue;
+          fortifySlowDungeonMinion(opponent.monster, opponent.monsterType, opponent.isBoss);
+        }
+      }
+      state.bossBalanceVersion = 3;
+      changed = true;
+    }
+    if ((state.bossBalanceVersion ?? 0) < DUNGEON_BALANCE_VERSION) {
+      if (state.status === 'ACTIVE') {
+        for (const opponent of state.opponents) {
+          if (opponent.status === 'DEFEATED' || opponent.monster.health <= 0) continue;
+          opponent.monster.damage = slowMonsterDamage(opponent.monster.damage, opponent.monsterType);
+        }
+      }
+      state.bossBalanceVersion = DUNGEON_BALANCE_VERSION;
+      changed = true;
+    }
+    // Apply balance changes to saved runs too, without resetting combat progress.
+    for (const opponent of state.opponents) {
+      Object.assign(opponent.monster, monsterCombatView(opponent.monsterType, opponent.monster));
+      const movement = monsterMovement(opponent.monsterType);
+      if (opponent.monster.movement !== movement) {
+        opponent.monster.movement = movement;
+        changed = true;
+      }
+    }
+    if (state.status === 'ACTIVE' && !state.tactical) {
+      const opponent = state.opponents.find((entry) => entry.status === 'AVAILABLE' && entry.monster.health > 0);
+      if (opponent) {
+        state.tactical = { ...initialDungeonTactics(opponent.id), playerPosition: 40, monsterPosition: 41 };
+        changed = true;
+      }
+    }
     const fighter = state.party ? state.party.members.find((member) => member.userId === userId) : state.player;
-    if (!fighter || fighter.skillState) return false;
+    if (!fighter || (fighter.skillState && fighter.attackRange !== undefined && fighter.movement !== undefined))
+      return changed;
     const user = await this.usersService.findCurrentUser(userId);
-    if (!user?.gameProfile) return false;
-    fighter.skillState = dungeonSkillSnapshot(UserView.renderCurrent(user));
+    if (!user?.gameProfile) return changed;
+    const rendered = UserView.renderCurrent(user);
+    fighter.attackRange ??= rendered.attackRange ?? 1;
+    fighter.movement ??= rendered.properties.find((entry) => entry.name === 'MOVEMENT')?.value ?? 3;
+    fighter.skillState ??= dungeonSkillSnapshot(rendered);
     if (state.party && 'mana' in fighter && fighter.mana !== undefined) fighter.skillState.mana = fighter.mana;
     state.skills = dungeonSkillView(
       fighter.skillState,
@@ -1298,6 +1476,173 @@ export class DungeonRunsService {
     }
   }
 
+  private playerAction(
+    state: DungeonRunState,
+    opponent: DungeonOpponent,
+    player: Combatant,
+    profileId: number,
+    command: DungeonAction,
+    skillId?: string,
+  ) {
+    const action = command.action ?? (skillId ? 'SKILL' : 'ATTACK');
+    if (!['MOVE', 'ATTACK', 'SKILL', 'DEFEND'].includes(action))
+      throw new BadRequestException('Unknown dungeon action');
+    if (action === 'SKILL' && !skillId) throw new BadRequestException('Choose a learned skill');
+    if (skillId && action !== 'SKILL') throw new BadRequestException('Invalid skill action');
+    if (!state.tactical && command.action)
+      state.tactical = initialDungeonTactics(state.opponents.find((entry) => entry.status === 'AVAILABLE')!.id);
+    const tactics = state.tactical;
+    if (tactics) {
+      if (opponent.id !== tactics.opponentId) throw new BadRequestException('Defeat the current wave first');
+      if (tactics.moved && tactics.movingProfileId !== profileId)
+        throw new BadRequestException('Your companion must finish their action first');
+      if (action === 'MOVE') {
+        state.latestEvents.push({
+          ...moveDungeonPlayer(tactics, command.targetCell, player.movement ?? 3),
+          actorName: player.name,
+        });
+        tactics.movingProfileId = profileId;
+        return true;
+      }
+      const skill = skillId ? SKILLS.find((entry) => entry.id === skillId) : undefined;
+      const range = !skill || skill.class === 'SCOUT' ? weaponAttackRange(player.attackRange) : (skill.range ?? 1);
+      if (
+        (action === 'ATTACK' || action === 'SKILL') &&
+        skill?.effect !== 'heal' &&
+        !canShoot(tactics.playerPosition, tactics.monsterPosition, 11, range, [])
+      ) {
+        throw new BadRequestException('Move into attack range first');
+      }
+    }
+    if (skillId) {
+      castDungeonSkill(
+        player.skillState,
+        skillId,
+        player,
+        opponent.monster,
+        state.latestEvents,
+        (source, target, ignoresDefense) =>
+          this.strike(source, target, 'PLAYER', state.latestEvents, player.name, opponent.monster.name, ignoresDefense),
+        player.name,
+      );
+    } else if (action === 'DEFEND') {
+      state.latestEvents.push({
+        actor: 'PLAYER',
+        actorName: player.name,
+        action: 'DEFEND',
+        damage: 0,
+        critical: false,
+        dodged: false,
+      });
+    } else this.strike(player, opponent.monster, 'PLAYER', state.latestEvents, player.name, opponent.monster.name);
+    return false;
+  }
+
+  private monsterAction(state: DungeonRunState, opponent: DungeonOpponent, defender: Combatant, defending: boolean) {
+    if (opponent.monster.health <= 0) return;
+    if (opponent.monster.statuses?.petrify?.turns) {
+      state.latestEvents.push({
+        actor: 'MONSTER',
+        actorName: opponent.monster.name,
+        action: 'DEFEND',
+        damage: 0,
+        critical: false,
+        dodged: false,
+        statusText: 'Petrified — turn skipped',
+      });
+      finishStatusTurn(opponent.monster);
+      return;
+    }
+    const shot = chooseMonsterShot(
+      opponent.monsterType,
+      opponent.monster,
+      !state.tactical || dungeonNeighbors(state.tactical.monsterPosition).includes(state.tactical.playerPosition),
+      true,
+    );
+    Object.assign(opponent.monster, monsterCombatView(opponent.monsterType, opponent.monster));
+    if (shot?.effect === 'empower') {
+      state.latestEvents.push({ ...monsterBuffEvent(shot), actorName: opponent.monster.name });
+      finishStatusTurn(opponent.monster);
+      return;
+    }
+    if (state.tactical && !shot) {
+      const move = moveDungeonEnemy(state.tactical, effectiveMovement(opponent.monster));
+      if (move.fromCell !== move.toCell) state.latestEvents.push({ ...move, actorName: opponent.monster.name });
+      if (!dungeonNeighbors(state.tactical.monsterPosition).includes(state.tactical.playerPosition)) {
+        finishStatusTurn(opponent.monster);
+        return;
+      }
+    }
+    const originalDefense = defender.defense;
+    if (defending) defender.defense = Math.min(75, defender.defense + 25);
+    this.strike(
+      shot
+        ? {
+            ...opponent.monster,
+            damage: monsterSpellDamage(opponent.monster, opponent.monster.damage * shot.multiplier),
+            criticalChance: 0,
+          }
+        : opponent.monster,
+      defender,
+      'MONSTER',
+      state.latestEvents,
+      opponent.monster.name,
+      defender.name,
+      isMagicSpell(shot?.effect),
+    );
+    if (shot)
+      Object.assign(state.latestEvents[state.latestEvents.length - 1], {
+        action: shot.action,
+        skillId: shot.id,
+        skillName: shot.name,
+        effect: shot.effect,
+      });
+    Object.assign(opponent.monster, monsterCombatView(opponent.monsterType, opponent.monster));
+    defender.defense = originalDefense;
+    finishStatusTurn(opponent.monster);
+  }
+
+  private recordExchange(
+    state: DungeonRunState,
+    opponent: DungeonOpponent,
+    start: number,
+    profileId: number,
+    name: string,
+    moved = false,
+  ) {
+    const events = state.latestEvents.slice(start);
+    state.damageDealt ??= {};
+    const score = (state.damageDealt[String(profileId)] ??= { name, damage: 0 });
+    score.damage += events.filter((event) => event.actor === 'PLAYER').reduce((sum, event) => sum + event.damage, 0);
+    if (!state.tactical) return;
+    const tactics = state.tactical;
+    state.exchange = {
+      opponentId: opponent.id,
+      events,
+      playerPosition: tactics.playerPosition,
+      monsterPosition: tactics.monsterPosition,
+      actorProfileId: profileId,
+    };
+    tactics.revision++;
+    if (!moved) {
+      tactics.turn++;
+      tactics.moved = false;
+      delete tactics.movingProfileId;
+    }
+    if (opponent.monster.health <= 0) {
+      const next =
+        state.opponents.find(
+          (entry) =>
+            entry.id !== opponent.id && entry.status !== 'DEFEATED' && entry.monster.health > 0 && !entry.isBoss,
+        ) ?? state.opponents.find((entry) => entry.isBoss && entry.monster.health > 0);
+      if (next) {
+        tactics.opponentId = next.id;
+        // The arena and player position persist between waves. Spawn away from the player.
+        tactics.monsterPosition = tactics.playerPosition % 11 >= 5 ? 34 : 42;
+      }
+    }
+  }
+
   private strike(
     attacker: Combatant,
     defender: Combatant,
@@ -1305,8 +1650,9 @@ export class DungeonRunsService {
     events: DungeonEvent[],
     actorName?: string,
     targetName?: string,
+    ignoresDefense = false,
   ) {
-    if (Math.random() * 100 < defender.dodge) {
+    if (!ignoresDefense && Math.random() * 100 < defender.dodge) {
       events.push({ actor, damage: 0, critical: false, dodged: true, actorName, targetName });
       return;
     }
@@ -1316,7 +1662,11 @@ export class DungeonRunsService {
     }
     const critical = Math.random() * 100 < attacker.criticalChance;
     const rawDamage = attacker.damage * (critical ? attacker.criticalDamage / 100 : 1);
-    const damage = Math.max(1, Math.round(rawDamage * (1 - defender.defense / 100)));
+    const damage = Math.min(
+      defender.health,
+      Math.max(1, Math.round(rawDamage * (1 - (ignoresDefense ? 0 : effectiveDefense(defender)) / 100))),
+    );
+    if (!ignoresDefense) consumeArmorHit(defender);
     defender.health = Math.max(0, defender.health - damage);
     events.push({ actor, damage, critical, dodged: false, actorName, targetName });
   }
@@ -1388,13 +1738,17 @@ export class DungeonRunsService {
         : parsed.partyRewards,
       opponents: parsed.opponents.map((opponent, index) => {
         const role = roster?.[index];
-        if (!role || (opponent.image === role.image && opponent.monster.name === role.name)) {
+        if (
+          !role ||
+          (opponent.image === role.image && opponent.monster.name === role.name && opponent.monsterType === role.name)
+        ) {
           return opponent.monster.blockChance === undefined
             ? { ...opponent, monster: { ...opponent.monster, blockChance: 0 } }
             : opponent;
         }
         return {
           ...opponent,
+          monsterType: role.name,
           image: role.image,
           monster: { ...opponent.monster, name: role.name, blockChance: opponent.monster.blockChance ?? 0 },
         };

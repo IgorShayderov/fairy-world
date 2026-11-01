@@ -30,6 +30,7 @@ export type CurrentUser = {
   mapPosition: MapPosition;
   activeBuffs: ActiveBuff[];
   inventory: InventoryEntry[];
+  potionSlots?: Array<Omit<InventoryEntry, 'slot'> & { slot: string }>;
   equippedItems: InventoryEntry[];
   attributes: EffectiveModifier[];
   properties: EffectiveModifier[];

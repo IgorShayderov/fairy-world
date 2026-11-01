@@ -16,7 +16,7 @@ const VISUAL_RULES: Array<{ terms: string[]; asset: string }> = [
   { terms: ['bone', 'skeleton', 'knight'], asset: '/images/battle/enemy-bone-knight.png' },
   { terms: ['troll', 'giant', 'lurker'], asset: '/images/battle/enemy-forest-troll.png' },
   { terms: ['golem', 'brute'], asset: '/images/battle/enemy-stone-golem.png' },
-  { terms: ['wraith', 'stalker', 'hag', 'siren'], asset: '/images/battle/enemy-void-wraith.png' },
+  { terms: ['wraith', 'stalker', 'hag', 'siren', 'invoker', 'revenant'], asset: '/images/battle/enemy-void-wraith.png' },
   { terms: ['harpy'], asset: '/images/battle/enemy-storm-harpy.png' },
   { terms: ['dragon', 'chimera', 'serpent'], asset: '/images/battle/enemy-dragon.png' },
 ];

@@ -2,6 +2,28 @@ import type { DungeonRunState } from '@/modules/Monsters/api';
 import routes from '@/routes';
 import { api } from '@shared/api';
 
+export interface BlacksmithOffer {
+  cost: number;
+  gemCost: number;
+  gold: number;
+  gems: number;
+  items: Array<{
+    id: number;
+    name: string;
+    level: number;
+    rarity: string;
+    upgradeType: string;
+    upgradeValue: number;
+    equipped: boolean;
+  }>;
+}
+export async function getBlacksmithOffer() {
+  return (await api.get<BlacksmithOffer>(routes.api.locations.blacksmithPath())).data;
+}
+export async function removeItemBonus(id: number, expectedCost: number, expectedGemCost: number) {
+  await api.post(routes.api.locations.removeBonusPath(id), { expectedCost, expectedGemCost });
+}
+
 export const receiveBlessing = async (id: number, coordinates: { x: number; y: number }): Promise<void> => {
   await api.post(routes.api.locations.blessingPath(id), coordinates);
 };

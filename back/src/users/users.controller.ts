@@ -77,6 +77,17 @@ export class UsersController {
     return this.usersService.consumeInventoryItem(req.user.sub, inventoryItemId);
   }
 
+  @Put('me/potion-slots/:slot')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
+  setPotionSlot(
+    @Request() req: RequestWithUser,
+    @Param('slot', ParseIntPipe) slot: number,
+    @Body() body: { inventoryItemId?: number | null },
+  ) {
+    return this.usersService.setPotionSlot(req.user.sub, slot, body?.inventoryItemId);
+  }
+
   @Delete('me/inventory/:inventoryItemId')
   @UseGuards(AuthGuard)
   @ApiBearerAuth()

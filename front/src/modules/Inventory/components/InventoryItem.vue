@@ -449,6 +449,9 @@ const onDragStart = (e: DragEvent) => {
   const active = displayItem.value;
   if (!active) return;
   e.dataTransfer?.setData('text/plain', active.name ?? active.nameKey);
+  if (active.inventoryItemId) {
+    e.dataTransfer?.setData('application/x-fairy-inventory-item', String(active.inventoryItemId));
+  }
   if (e.dataTransfer) {
     e.dataTransfer.effectAllowed = 'move';
   }
