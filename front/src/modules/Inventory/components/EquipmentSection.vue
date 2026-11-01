@@ -11,7 +11,8 @@
     <div class="flex w-full flex-1 flex-col justify-start">
       <div
         v-if="activeBlockKey === 'equipment'"
-        class="relative flex h-[432px] min-h-[432px] w-full items-center justify-center"
+        class="relative flex w-full items-center justify-center"
+        style="height: var(--profile-grid-height, 432px); min-height: var(--profile-grid-height, 432px)"
       >
         <div
           class="relative z-10 grid gap-4"
@@ -26,8 +27,8 @@
           <div
             v-for="slot in equipmentSlots"
             :key="slot.id"
-            :style="{ gridArea: slot.id }"
-            class="relative flex h-24 w-24 flex-col items-center justify-center"
+            :style="{ gridArea: slot.id, width: 'var(--profile-slot-size, 96px)', height: 'var(--profile-slot-size, 96px)' }"
+            class="relative flex flex-col items-center justify-center"
             @dragover.prevent
             @dragenter.prevent="$emit('slot-enter', slot.id)"
             @dragleave="$emit('slot-leave')"
@@ -98,7 +99,11 @@
         </div>
       </div>
 
-      <div v-else-if="activeBlockKey === 'characteristics'" class="h-[432px] min-h-[432px] w-full overflow-y-auto">
+      <div
+        v-else-if="activeBlockKey === 'characteristics'"
+        class="w-full overflow-y-auto"
+        style="height: var(--profile-grid-height, 432px); min-height: var(--profile-grid-height, 432px)"
+      >
         <QCard class="min-h-full w-full rounded-lg bg-white p-5 shadow-sm">
           <div class="mb-3 flex items-center justify-between">
             <h3 class="text-xs font-bold tracking-wider text-gray-500 uppercase">
@@ -182,7 +187,11 @@
         </QCard>
       </div>
 
-      <div v-else-if="activeBlockKey === 'statistics'" class="h-[432px] min-h-[432px] w-full">
+      <div
+        v-else-if="activeBlockKey === 'statistics'"
+        class="w-full overflow-y-auto"
+        style="height: var(--profile-grid-height, 432px); min-height: var(--profile-grid-height, 432px)"
+      >
         <QCard class="h-full w-full rounded-lg bg-white p-5 shadow-sm">
           <div class="grid w-full grid-cols-2 gap-4 text-sm">
             <div

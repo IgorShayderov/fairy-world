@@ -25,13 +25,14 @@ describe('dungeon ability balance', () => {
       expect(strike).toHaveBeenCalledWith(
         expect.objectContaining({ criticalChance: skill.canCrit ? 100 : 0 }),
         expect.any(Object),
+        skill.class === 'MAGE',
       );
       expect(fighter.criticalChance).toBe(100);
     },
   );
-  it('doubles base costs for all active abilities', () => {
+  it('raises all active ability costs by fifty percent', () => {
     expect(SKILLS.filter((skill) => skill.effect).map((skill) => skill.manaCost)).toEqual([
-      16, 32, 48, 16, 32, 52, 20, 36, 60,
+      24, 48, 72, 24, 48, 78, 30, 54, 90,
     ]);
   });
 });

@@ -13,6 +13,15 @@
 
     <div class="map-vignette pointer-events-none absolute inset-0"></div>
     <div class="map-grain pointer-events-none absolute inset-0 opacity-25"></div>
+    <div
+      v-if="playerLocated"
+      class="player-location-beacon pointer-events-none absolute z-20"
+      :style="{ left: `${position.x * camera.scale + camera.x}px`, top: `${position.y * camera.scale + camera.y}px` }"
+      role="status"
+      aria-label="Your current position"
+    >
+      <span class="player-location-ring"></span><strong>You are here</strong>
+    </div>
 
     <div class="absolute top-5 left-5 z-10 flex max-w-[calc(100%-6rem)] flex-col items-start gap-4">
       <ActiveBuffs compact :buffs="currentUserStore.user?.activeBuffs ?? []" />
@@ -25,8 +34,8 @@
         <QIcon name="add" size="19px" />
       </button>
       <div class="h-px bg-[#d6bd75]/20"></div>
-      <button class="map-control" :aria-label="t('fantasy.resetView')" @click="resetView">
-        <QIcon name="center_focus_strong" size="17px" />
+      <button class="map-control" aria-label="Find player" title="Find player" @click="locatePlayer">
+        <QIcon name="my_location" size="19px" />
       </button>
       <div class="h-px bg-[#d6bd75]/20"></div>
       <button class="map-control" :aria-label="t('fantasy.zoomOut')" @click="handleZoomBtn(-0.18)">
@@ -86,7 +95,14 @@
     </aside>
 
     <LandmarkEncounter
-      v-if="activeLandmark && !activeBattle && !activeDungeonRun && !showQuestOffers && !showPartyLobby"
+      v-if="
+        activeLandmark &&
+        activeLandmark.type !== 'blacksmith' &&
+        !activeBattle &&
+        !activeDungeonRun &&
+        !showQuestOffers &&
+        !showPartyLobby
+      "
       :landmark="activeLandmark"
       :pending="landmarkPending"
       :message="landmarkMessage"
@@ -112,6 +128,11 @@
       :dungeon="activeLandmark.name"
       @close="showPartyLobby = false"
       @start="handlePartyStart"
+    />
+
+    <BlacksmithDialog
+      v-if="activeLandmark?.type === 'blacksmith' && !activeBattle && !activeDungeonRun"
+      @close="activeLandmark = null"
     />
 
     <TownQuestDialog
@@ -140,6 +161,7 @@
       :loading="battlePending"
       @quick-battle="handleAttack"
       @tactical-action="handleTacticalAction"
+      @use-potion="handleBattleHealthPotion"
       @retreat="handleRetreat"
       @close="activeBattle = null"
     />
@@ -152,6 +174,7 @@ import { Notify, QIcon } from 'quasar';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
+
 import { usersApi } from '@/modules/Auth/api/users';
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 import { canHuntAt, landmarks, movementSpeedAt, type Landmark } from '@/modules/Game/composables/useMapObjects';
@@ -159,6 +182,7 @@ import { rollHuntDelaySeconds } from '@/modules/Game/hunt';
 import { enterDungeon, receiveBlessing, resetDungeon } from '@/modules/Locations/api';
 import type { BattleState, DungeonRunState, TacticalBattleAction } from '@/modules/Monsters/api';
 import {
+  useBattleHealthPotion,
   attackDungeonOpponent,
   attackMonster,
   getActiveForcedBattle,
@@ -177,6 +201,7 @@ import { useMapGenerator } from '@modules/Game/composables/useMapGenerator';
 
 import ActiveBuffs from '@/modules/Game/components/ActiveBuffs.vue';
 import BattleEncounter from '@/modules/Game/components/BattleEncounter.vue';
+import BlacksmithDialog from '@/modules/Game/components/BlacksmithDialog.vue';
 import DungeonPartyLobby from '@/modules/Game/components/DungeonPartyLobby.vue';
 import DungeonRunEncounter from '@/modules/Game/components/DungeonRunEncounter.vue';
 import LandmarkEncounter from '@/modules/Game/components/LandmarkEncounter.vue';
@@ -270,16 +295,16 @@ let dungeonPartyTimer: ReturnType<typeof setInterval> | undefined;
 const nearbyLandmark = (x: number, y: number) =>
   landmarks.find((landmark) => Math.hypot(x - landmark.x, y - landmark.y) <= 55);
 
-const openLandmark = (landmark: Landmark) => {
+const openLandmark = async (landmark: Landmark) => {
   stop();
   visitedLandmark = landmark.name;
   promptLandmark.value = null;
-  activeLandmark.value = landmark;
   landmarkMessage.value = '';
-  void persistPosition();
+  const encountered = await persistPosition();
+  if (!encountered && !activeBattle.value) activeLandmark.value = landmark;
 };
 const enterPromptedLandmark = () => {
-  if (promptLandmark.value) openLandmark(promptLandmark.value);
+  if (promptLandmark.value) void openLandmark(promptLandmark.value);
 };
 
 const handleLandmarkAction = async () => {
@@ -340,6 +365,18 @@ const huntPending = ref(false);
 const huntCountdown = ref(0);
 let huntAttempt = 0;
 const battlePending = ref(false);
+const playerLocated = ref(false);
+let locationHighlightTimer: ReturnType<typeof setTimeout> | undefined;
+const locatePlayer = () => {
+  if (!containerRef.value) return;
+  centerOn(position.x, position.y, containerRef.value.clientWidth, containerRef.value.clientHeight);
+  playerLocated.value = true;
+  clearTimeout(locationHighlightTimer);
+  locationHighlightTimer = setTimeout(() => {
+    playerLocated.value = false;
+  }, 4000);
+  draw();
+};
 let ctx: CanvasRenderingContext2D | null = null;
 let resizeObserver: ResizeObserver | null = null;
 let animationFrame: number | null = null;
@@ -525,11 +562,25 @@ const handlePlayerDefeat = () => {
   draw();
 };
 
-const handleDungeonAttack = async (opponentId: string, skillId?: string) => {
+const handleBattleHealthPotion = async (inventoryItemId: number) => {
+  if (!activeBattle.value || battlePending.value) return;
+  battlePending.value = true;
+  try {
+    const result = await useBattleHealthPotion(activeBattle.value.id, inventoryItemId);
+    activeBattle.value = result.battle;
+    await currentUserStore.fetchCurrentUser(true);
+  } catch (error) {
+    Notify.create({ type: 'negative', message: error instanceof Error ? error.message : 'Could not use potion' });
+  } finally {
+    battlePending.value = false;
+  }
+};
+
+const handleDungeonAttack = async (opponentId: string, skillId?: string, command?: TacticalBattleAction) => {
   if (!activeDungeonRun.value || battlePending.value) return;
   battlePending.value = true;
   try {
-    activeDungeonRun.value = await attackDungeonOpponent(activeDungeonRun.value.id, opponentId, skillId);
+    activeDungeonRun.value = await attackDungeonOpponent(activeDungeonRun.value.id, opponentId, skillId, command);
     if (activeDungeonRun.value.status === 'DEFEAT') {
       handlePlayerDefeat();
     }
@@ -696,7 +747,7 @@ const onPointerUp = (event: PointerEvent) => {
   const mapCoords = screenToMap(pointer.x, pointer.y);
   const landmark = nearbyLandmark(mapCoords.x, mapCoords.y);
   if (landmark && nearbyLandmark(position.x, position.y)?.name === landmark.name) {
-    openLandmark(landmark);
+    void openLandmark(landmark);
     draw();
     return;
   }
@@ -721,13 +772,6 @@ const handleZoomBtn = (delta: number) => {
   if (!containerRef.value) return;
   zoomBy(delta, containerRef.value.clientWidth, containerRef.value.clientHeight);
   if (!isMoving.value) requestAnimationFrame(draw);
-};
-
-const resetView = () => {
-  if (!containerRef.value) return;
-  fitToScreen(containerRef.value.clientWidth, containerRef.value.clientHeight);
-  centerOn(position.x, position.y, containerRef.value.clientWidth, containerRef.value.clientHeight);
-  draw();
 };
 
 onMounted(async () => {
@@ -781,6 +825,7 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+  clearTimeout(locationHighlightTimer);
   disposed = true;
   cancelHunt();
   stopPromptDrag();
@@ -792,6 +837,47 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.player-location-beacon {
+  transform: translate(-50%, -50%);
+  width: 64px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+}
+.player-location-beacon strong {
+  position: absolute;
+  bottom: 74px;
+  white-space: nowrap;
+  border: 1px solid #f0cf73;
+  border-radius: 20px;
+  background: #102734;
+  padding: 7px 14px;
+  color: #ffe49a;
+  box-shadow: 0 4px 20px #0009;
+}
+.player-location-ring {
+  position: absolute;
+  inset: 0;
+  border: 3px solid #ffe49a;
+  border-radius: 50%;
+  box-shadow: 0 0 20px #f0cf73;
+  animation: locate-player-pulse 1.2s ease-out infinite;
+}
+@keyframes locate-player-pulse {
+  from {
+    transform: scale(0.65);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .player-location-ring {
+    animation: none;
+  }
+}
 .fantasy-map {
   isolation: isolate;
 }

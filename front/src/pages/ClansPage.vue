@@ -88,6 +88,7 @@
                   <div class="font-bold text-[#efca72]">{{ member.contributedActivity }}</div>
                   <div class="mt-1 text-xs font-semibold text-amber-200/80">
                     {{ t('clans.goldContributed', { value: member.contributedGold.toLocaleString() }) }}
+                    <br />{{ t('clans.gemsContributed', { value: member.contributedGems.toLocaleString() }) }}
                   </div>
                 </div>
                 <div v-if="canManageMember(member)" class="flex gap-1">
@@ -158,6 +159,7 @@
         </section>
 
         <section v-else-if="activeTab === 'upgrades'" class="clan-tab-panel mt-5">
+          <ClanTreasury :clan="clan" :busy="actionBusy" @deposit="depositTreasury" />
           <div class="rounded-2xl border border-[#d8bd75]/25 bg-[#0b2530] p-5 shadow-lg sm:p-6">
             <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
               <div>
@@ -166,9 +168,9 @@
               </div>
               <div class="rounded-xl border border-[#efca72]/25 bg-[#071a23] px-4 py-2 text-right">
                 <span class="block text-[10px] font-bold tracking-wider text-[#7e9a9b] uppercase">{{
-                  t('clans.yourGold')
+                  t('clans.treasuryGold')
                 }}</span>
-                <strong class="text-xl text-[#efca72]">{{ clan.viewerGold.toLocaleString() }}</strong>
+                <strong class="text-xl text-[#efca72]">{{ clan.treasury.gold.toLocaleString() }}</strong>
               </div>
             </div>
 
@@ -195,11 +197,12 @@
                     {{ t('clans.goldBonus', { value: clan.buildings.treasure.bonusPercent }) }}
                   </strong>
                   <button
+                    v-if="clan.viewerRole === 'LEADER'"
                     class="primary-button mt-4 w-full"
                     :disabled="
                       actionBusy ||
                       clan.buildings.treasure.nextCost === null ||
-                      clan.viewerGold < (clan.buildings.treasure.nextCost ?? 0)
+                      clan.treasury.gold < (clan.buildings.treasure.nextCost ?? 0)
                     "
                     @click="upgradeBuilding('treasure')"
                   >
@@ -231,11 +234,12 @@
                     {{ t('clans.experienceBonus', { value: clan.buildings.armory.bonusPercent }) }}
                   </strong>
                   <button
+                    v-if="clan.viewerRole === 'LEADER'"
                     class="primary-button mt-4 w-full"
                     :disabled="
                       actionBusy ||
                       clan.buildings.armory.nextCost === null ||
-                      clan.viewerGold < (clan.buildings.armory.nextCost ?? 0)
+                      clan.treasury.gold < (clan.buildings.armory.nextCost ?? 0)
                     "
                     @click="upgradeBuilding('armory')"
                   >
@@ -405,6 +409,7 @@ import {
 import { getApiErrorMessage } from '@/shared/api/error-message';
 
 import ClanBanner from '@/modules/Clans/ClanBanner.vue';
+import ClanTreasury from '@/modules/Clans/ClanTreasury.vue';
 
 const { t } = useTranslation();
 const currentUser = useCurrentUserStore();
@@ -500,6 +505,13 @@ const upgradeBuilding = async (building: ClanBuilding) =>
     Notify.create({ type: 'positive', message: t('clans.buildingUpgraded') });
   });
 
+const depositTreasury = async (gold: number, gems: number) =>
+  run(async () => {
+    clan.value = await clansApi.deposit(gold, gems);
+    await currentUser.fetchCurrentUser(true);
+    Notify.create({ type: 'positive', message: t('clans.depositSuccess') });
+  });
+
 const upgradeLabel = (cost: number | null) =>
   cost === null ? t('clans.maxLevel') : t('clans.upgradeForGold', { cost: cost.toLocaleString() });
 
@@ -514,6 +526,7 @@ const formatDate = (value: string) =>
   new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(value));
 
 const run = async (action: () => Promise<void>) => {
+  if (actionBusy.value) return;
   actionBusy.value = true;
   try {
     await action();

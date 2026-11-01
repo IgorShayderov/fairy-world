@@ -51,6 +51,7 @@ const routes = {
       messagePath: () => [BASE_API_PATH, 'chat', 'messages'].join('/'),
     },
     users: {
+      potionSlotPath: (slot: number) => `${BASE_API_PATH}/users/me/potion-slots/${slot}`,
       leaderboardPath: () => [BASE_API_PATH, 'users', 'leaderboard'].join('/'),
       devGemsPath: () => [BASE_API_PATH, 'users', 'me', 'dev-gems'].join('/'),
       mePath: () => [BASE_API_PATH, 'users', 'me'].join('/'),
@@ -65,11 +66,15 @@ const routes = {
       equipmentSlotPath: (slot: string) => [BASE_API_PATH, 'users', 'me', 'equipment', slot].join('/'),
     },
     locations: {
+      blacksmithPath: () => `${BASE_API_PATH}/locations/blacksmith`,
+      removeBonusPath: (id: number) => `${BASE_API_PATH}/locations/blacksmith/items/${id}/remove-bonus`,
       blessingPath: (id: number) => [BASE_API_PATH, 'locations', 'sanctuaries', String(id), 'blessing'].join('/'),
       listPath: () => [BASE_API_PATH, 'locations'].join('/'),
       mePath: () => [BASE_API_PATH, 'locations', 'me'].join('/'),
     },
     monsters: {
+      battleHealthPotionPath: (battleId: string, inventoryItemId: number) =>
+        `${BASE_API_PATH}/monsters/battle/${encodeURIComponent(battleId)}/potions/${inventoryItemId}/use`,
       activeDungeonPath: () => [BASE_API_PATH, 'monsters', 'dungeon', 'active'].join('/'),
       dungeonPartiesPath: (name: string) => [BASE_API_PATH, 'monsters', 'dungeon', 'parties', name].join('/'),
       dungeonPartyJoinPath: (partyId: string) =>
@@ -104,6 +109,7 @@ const routes = {
       buyShopOfferPath: () => [BASE_API_PATH, 'pvp', 'shop', 'buy'].join('/'),
     },
     clans: {
+      depositPath: () => [BASE_API_PATH, 'clans', 'treasury', 'deposit'].join('/'),
       listPath: () => [BASE_API_PATH, 'clans'].join('/'),
       mePath: () => [BASE_API_PATH, 'clans', 'me'].join('/'),
       leaderboardPath: () => [BASE_API_PATH, 'clans', 'leaderboard'].join('/'),

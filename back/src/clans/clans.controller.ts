@@ -5,6 +5,7 @@ import type { RequestWithUser } from '../auth/interfaces/request-with-user.inter
 import { ClansService } from './clans.service';
 import { CreateClanDto } from './dto/create-clan.dto';
 import { UpdateClanRoleDto } from './dto/update-clan-role.dto';
+import { DepositTreasuryDto } from './dto/deposit-treasury.dto';
 
 @ApiTags('Clans')
 @ApiBearerAuth()
@@ -46,6 +47,11 @@ export class ClansController {
   @Post('buildings/:building/upgrade')
   upgradeBuilding(@Req() req: RequestWithUser, @Param('building') building: string) {
     return this.clansService.upgradeBuilding(req.user.sub, building);
+  }
+
+  @Post('treasury/deposit')
+  deposit(@Req() req: RequestWithUser, @Body() dto: DepositTreasuryDto) {
+    return this.clansService.depositTreasury(req.user.sub, dto.gold, dto.gems);
   }
 
   @Post('members/:profileId/role')

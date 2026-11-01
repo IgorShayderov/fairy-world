@@ -2,6 +2,11 @@ type Point = { x: number; y: number };
 
 export const TRAVEL_ROUTES: Point[][] = [
   [
+    { x: 1470, y: 960 },
+    { x: 1535, y: 850 },
+    { x: 1490, y: 740 },
+  ],
+  [
     { x: 520, y: 850 },
     { x: 940, y: 620 },
   ],

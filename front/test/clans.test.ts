@@ -56,6 +56,12 @@ describe('clan module', () => {
     });
   });
 
+  it('deposits both currencies into the clan treasury', async () => {
+    vi.spyOn(api, 'post').mockResolvedValueOnce({ data: { clan: { treasury: { gold: 500, gems: 10 } } } } as never);
+    await expect(clansApi.deposit(500, 10)).resolves.toEqual({ treasury: { gold: 500, gems: 10 } });
+    expect(api.post).toHaveBeenCalledWith(routes.api.clans.depositPath(), { gold: 500, gems: 10 });
+  });
+
   it('includes English and Russian clan navigation', () => {
     expect(en.menu.clans).toBe('Clans');
     expect(ru.menu.clans).toBe('Кланы');

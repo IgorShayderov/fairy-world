@@ -45,7 +45,13 @@ models = {
         ('Idle', 'idle', 1, 100, 3), ('Walk', 'walk', 1, 35, 1.2),
         ('Attack', 'attack', 1, 35, 1.2), ('Death', 'die', 1, 15, 1.3),
         ('Hit', 'flinch', 1, 10, .4)],
-        {'stoneBaked': ('stoneBaked', 'stoneNormal')}),
+        # The source's stone mesh uses a material named fireBaked.
+        {'fireBaked': ('stoneBaked', 'stoneNormal')}),
+    'golem-ice': ('golem.blend', 'Armature', ['stone'], [
+        ('Idle', 'idle', 1, 100, 3), ('Walk', 'walk', 1, 35, 1.2),
+        ('Attack', 'attack', 1, 35, 1.2), ('Death', 'die', 1, 15, 1.3),
+        ('Hit', 'flinch', 1, 10, .4)],
+        {'fireBaked': ('iceDiffuse', 'iceNormal')}),
     'dragon': ('dragon/dragon-2_80.blend', 'Armature', ['dragon'], [
         ('Idle', 'Idle', 1, 102, 3), ('Walk', 'Walk', 1, 41, 1),
         ('Attack', 'Attack', 1, 41, 1.2), ('Death', 'Die', 1, 60, 1.8)], {}),
@@ -110,6 +116,13 @@ for key, (path, rig_name, mesh_names, clips, textures) in models.items():
         obj.hide_viewport = False
         obj.hide_render = False
         obj.select_set(True)
+        # glTF skin export skips unapplied geometry modifiers. The golem source
+        # contains only its right half; bake its mirror before skinning/export.
+        if key in ('golem', 'golem-ice') and obj.type == 'MESH':
+            bpy.context.view_layer.objects.active = obj
+            for modifier in list(obj.modifiers):
+                if modifier.type == 'MIRROR':
+                    bpy.ops.object.modifier_apply(modifier=modifier.name)
         if obj.animation_data:
             obj.animation_data.action = None
             for track in list(obj.animation_data.nla_tracks):

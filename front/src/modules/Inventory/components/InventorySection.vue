@@ -25,7 +25,8 @@
           :is-dragging="dragIndex === getAbsoluteIndex(idx)"
           :disable-tooltip="dragIndex !== null"
           :empty-icon="ScrollIcon"
-          class="h-24 w-24 shrink-0"
+          class="shrink-0"
+          style="width: var(--profile-slot-size, 96px); height: var(--profile-slot-size, 96px)"
           @drag-start="$emit('drag-start', getAbsoluteIndex(idx))"
           @drag-end="$emit('drag-end')"
           @dragover.prevent

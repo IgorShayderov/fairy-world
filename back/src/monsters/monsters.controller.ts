@@ -74,9 +74,9 @@ export class MonstersController {
     @Param('runId') runId: string,
     @Param('opponentId') opponentId: string,
     @Request() req: RequestWithUser,
-    @Body() body: { skillId?: string } = {},
+    @Body() body: { skillId?: string; action?: 'ATTACK' | 'MOVE' | 'DEFEND' | 'SKILL'; targetCell?: number } = {},
   ) {
-    return this.monstersService.attackDungeonOpponent(req.user.sub, runId, opponentId, body?.skillId);
+    return this.monstersService.attackDungeonOpponent(req.user.sub, runId, opponentId, body?.skillId, body ?? {});
   }
 
   @Post('dungeon/run/:runId/leave')
@@ -125,6 +125,15 @@ export class MonstersController {
   @Post('battle/:battleId/retreat')
   retreat(@Param('battleId') battleId: string, @Request() req: RequestWithUser) {
     return this.monstersService.retreat(req.user.sub, battleId);
+  }
+
+  @Post('battle/:battleId/potions/:inventoryItemId/use')
+  useBattleHealthPotion(
+    @Param('battleId') battleId: string,
+    @Param('inventoryItemId', ParseIntPipe) inventoryItemId: number,
+    @Request() req: RequestWithUser,
+  ) {
+    return this.monstersService.useBattleHealthPotion(req.user.sub, battleId, inventoryItemId);
   }
 
   @Post('hunt')

@@ -10,10 +10,34 @@ function model(name: string) {
     nodes: { name: string }[];
     skins: unknown[];
     buffers: { uri?: string }[];
+    materials: { normalTexture?: { index: number }; pbrMetallicRoughness: { baseColorTexture?: { index: number } } }[];
+    images: { name: string; bufferView?: number; uri?: string }[];
+    meshes: { primitives: { attributes: { POSITION: number } }[] }[];
+    accessors: { min: number[]; max: number[] }[];
   };
 }
 
 describe('redistributable 3D battle assets', () => {
+  it('embeds the original stone and ice golem skins and normal maps', () => {
+    for (const [name, diffuse, normal] of [
+      ['golem', 'stoneBaked', 'stoneNormal'],
+      ['golem-ice', 'iceDiffuse', 'iceNormal'],
+    ]) {
+      const asset = model(`creatures/${name}`);
+      const position = asset.accessors[asset.meshes[0]!.primitives[0]!.attributes.POSITION]!;
+      // The source is half a mesh plus a Mirror modifier. Both sides must be baked.
+      expect(position.min[0]).toBeLessThan(-1);
+      expect(position.max[0]).toBeGreaterThan(1);
+      expect(-position.min[0]!).toBeCloseTo(position.max[0]!, 3);
+      expect(asset.materials[0]?.pbrMetallicRoughness.baseColorTexture).toBeDefined();
+      expect(asset.materials[0]?.normalTexture).toBeDefined();
+      expect(asset.images.map((image) => image.name)).toEqual(expect.arrayContaining([diffuse, normal]));
+      expect(asset.images.every((image) => image.bufferView !== undefined && !image.uri)).toBe(true);
+      expect(asset.animations.map((clip) => clip.name)).toEqual(
+        expect.arrayContaining(['Idle', 'Walk', 'Attack', 'Death', 'Hit'])
+      );
+    }
+  });
   it('exports real skeletal motion, not just animation names, for the dragon', () => {
     const bytes = readFileSync(new URL('../public/models/battle/creatures/dragon.glb', import.meta.url));
     const jsonLength = bytes.readUInt32LE(12);
@@ -46,6 +70,8 @@ describe('redistributable 3D battle assets', () => {
     expect(knight.animations.map((entry) => entry.name)).toEqual(
       expect.arrayContaining([
         'knight_walk_in_place',
+        'knight_run_shield',
+        'knight_run_heavy_weapon_in_place',
         'knight_idle_heavy_weapon',
         'knight_attack_2_heavy_weapon',
         'two_weapon_attack_sequence',

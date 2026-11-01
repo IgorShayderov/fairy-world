@@ -4,11 +4,19 @@ export type Landmark = Point & {
   sanctuaryId?: number;
   name: string;
   subtitle: string;
-  type: 'capital' | 'city' | 'village' | 'dungeon' | 'sanctum';
+  type: 'capital' | 'city' | 'village' | 'dungeon' | 'sanctum' | 'blacksmith';
   accent: string;
 };
 
 export const landmarks: Landmark[] = [
+  {
+    x: 1490,
+    y: 740,
+    name: 'BLACKSMITH',
+    subtitle: 'Moonward Forge · remove item bonuses',
+    type: 'blacksmith',
+    accent: '#e9a66b',
+  },
   {
     x: 1200,
     y: 330,
@@ -50,6 +58,7 @@ export const landmarks: Landmark[] = [
 ];
 
 export const LANDMARK_VISUALS: Record<Landmark['type'], { radius: number; label: string }> = {
+  blacksmith: { radius: 35, label: 'FORGE' },
   capital: { radius: 43, label: 'CAPITAL' },
   city: { radius: 39, label: 'CITY' },
   village: { radius: 35, label: 'VILLAGE' },
@@ -68,6 +77,7 @@ const road = (from: string, to: string, ...via: Point[]): Point[] => {
 };
 
 export const roads: Point[][] = [
+  road('EVERCROSS', 'BLACKSMITH', { x: 1535, y: 850 }),
   road('WESTMERE', 'AURELIA'),
   road('RAVENCRYPT', 'AURELIA'),
   road('AURELIA', 'SUNSPIRE'),
@@ -1149,7 +1159,28 @@ export function useMapObjects() {
     ctx.strokeStyle = 'rgba(244, 232, 189, 0.52)';
     ctx.stroke();
 
-    if (type === 'capital' || type === 'city') {
+    if (type === 'blacksmith') {
+      ctx.fillStyle = accent;
+      ctx.beginPath();
+      ctx.moveTo(-25, -10);
+      ctx.lineTo(24, -10);
+      ctx.lineTo(14, 0);
+      ctx.lineTo(6, 0);
+      ctx.lineTo(6, 12);
+      ctx.lineTo(17, 18);
+      ctx.lineTo(-16, 18);
+      ctx.lineTo(-6, 12);
+      ctx.lineTo(-6, 0);
+      ctx.lineTo(-18, -2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.save();
+      ctx.translate(3, -21);
+      ctx.rotate(-0.45);
+      ctx.fillRect(-2, -3, 4, 17);
+      ctx.fillRect(-10, -8, 20, 8);
+      ctx.restore();
+    } else if (type === 'capital' || type === 'city') {
       drawSettlementGlyph(ctx, type, accent);
     } else if (type === 'village') {
       drawVillageGlyph(ctx, accent);

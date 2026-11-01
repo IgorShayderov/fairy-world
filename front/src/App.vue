@@ -5,11 +5,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onBeforeUnmount, onMounted } from 'vue';
 import { RouterView, useRoute } from 'vue-router';
 
 import AuthLayout from './layouts/AuthLayout.vue';
 import UnauthLayout from './layouts/UnauthLayout.vue';
+import { gameAudio } from './shared/audio/gameAudio';
+
+let stopAudioListeners: (() => void) | undefined;
+onMounted(() => {
+  stopAudioListeners = gameAudio.listen();
+});
+onBeforeUnmount(() => stopAudioListeners?.());
 
 const $route = useRoute();
 

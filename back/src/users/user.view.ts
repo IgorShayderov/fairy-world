@@ -16,6 +16,7 @@ import { townAt } from '../locations/towns';
 import { shieldBlockChance } from '../items/shield-block';
 import { matchingAmmunition, rangedWeapon } from '../items/weapon-types';
 import { playerMovement } from '../monsters/battle-movement';
+import { UNLIMITED_WEAPON_RANGE } from '../monsters/battle-range';
 import { SKILLS, skillRanks, skillPoints } from '../skills/skills.catalog';
 import { robeManaReduction } from '../items/mage-equipment';
 import { experienceToNextLevel, MAX_PLAYER_LEVEL } from './level-progression';
@@ -267,13 +268,20 @@ export class UserView {
     }
 
     for (const skill of SKILLS) {
-      if (!skill.stat || !ranks[skill.id]) continue;
+      if (!ranks[skill.id]) continue;
       if (skill.id === 'scout-precision' && (!ranged || missingAmmunition)) continue;
-      const property = properties.get(skill.stat);
+      const property = skill.stat ? properties.get(skill.stat) : undefined;
       if (property) {
         const bonus = Math.round((property.value * (skill.percentPerRank ?? 0) * ranks[skill.id]) / 100);
-        property.buffBonus = (property.buffBonus ?? 0) + bonus;
+        property.baseValue += bonus;
         property.value += bonus;
+      }
+      for (const [stat, perRank] of Object.entries(skill.flatBonusesPerRank ?? {})) {
+        const target = properties.get(stat as StatType);
+        if (!target) continue;
+        const bonus = perRank * ranks[skill.id];
+        target.baseValue += bonus;
+        target.value += bonus;
       }
     }
 
@@ -323,6 +331,19 @@ export class UserView {
       };
     });
 
+    // Critical passives add percentage points after rating conversion, not rating percentages.
+    for (const skill of SKILLS) {
+      if (!ranks[skill.id]) continue;
+      for (const [stat, perRank] of Object.entries(skill.percentagePointsPerRank ?? {})) {
+        const property = renderedProperties.find((entry) => entry.name === stat);
+        if (!property) continue;
+        const bonus = perRank * ranks[skill.id];
+        const nextValue = stat === 'CRIT' ? Math.min(100, property.value + bonus) : property.value + bonus;
+        property.baseValue += nextValue - property.value;
+        property.value = nextValue;
+      }
+    }
+
     return {
       ...this.render(user),
       gold: profile?.gold ?? 0,
@@ -370,7 +391,7 @@ export class UserView {
       activeClanBanner: activeClanBanner ?? null,
       blockChance,
       missingAmmunition,
-      attackRange: missingAmmunition || !ranged ? 1 : ranged === 'CROSSBOW' ? 7 : 6,
+      attackRange: missingAmmunition || !ranged ? 1 : UNLIMITED_WEAPON_RANGE,
       craftInventory: (profile?.craftItems ?? []).map(({ craftItem, quantity }) => ({ ...craftItem, quantity })),
       attributes: [...attributes.values()],
       properties: [
@@ -394,7 +415,8 @@ export class UserView {
           value: playerMovement(attributes.get(AttributeType.AGILITY)!.value),
         },
       ],
-      inventory: entries.filter((entry) => !entry.isEquiped).map(renderEntry),
+      inventory: entries.filter((entry) => !entry.isEquiped && !entry.slot?.startsWith('potion-')).map(renderEntry),
+      potionSlots: entries.filter((entry) => !entry.isEquiped && entry.slot?.startsWith('potion-')).map(renderEntry),
       equippedItems: equippedEntries.map(renderEntry),
     };
   }

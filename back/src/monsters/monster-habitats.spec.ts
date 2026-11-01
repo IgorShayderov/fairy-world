@@ -10,12 +10,13 @@ describe('regional encounters', () => {
     );
     for (const region of MONSTER_HABITATS) expect(habitatAt(region)).toBe(region);
   });
-  it('generates each of the two local species and excludes unrelated monsters', () => {
+  it('generates every local species and excludes unrelated monsters', () => {
     const generator = new MonsterGeneratorService();
     for (const region of MONSTER_HABITATS) {
-      for (const roll of [0, 0.99]) {
+      for (const [index, species] of region.monsters.entries()) {
+        const roll = (index + 0.5) / region.monsters.length;
         jest.spyOn(Math, 'random').mockReturnValue(roll);
-        expect(generator.generate(10, region).monsterType).toBe(region.monsters[roll === 0 ? 0 : 1]);
+        expect(generator.generate(10, region).monsterType).toBe(species);
       }
     }
   });

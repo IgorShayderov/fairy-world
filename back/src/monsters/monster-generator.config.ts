@@ -111,6 +111,24 @@ export const MONSTER_ARCHETYPES: MonsterArchetype[] = [
     primaryAttribute: AttributeType.WISDOM,
     secondaryAttribute: AttributeType.CHARISMA,
   },
+  {
+    name: 'Goblin Hexer',
+    description: 'A nimble goblin shaman who hurls hex bolts from a distance.',
+    primaryAttribute: AttributeType.WISDOM,
+    secondaryAttribute: AttributeType.AGILITY,
+  },
+  {
+    name: 'Ash Invoker',
+    description: 'A fire cultist who attacks travelers with blazing ranged spells.',
+    primaryAttribute: AttributeType.WISDOM,
+    secondaryAttribute: AttributeType.ENDURANCE,
+  },
+  {
+    name: 'Frost Revenant',
+    description: 'An icy specter whose frost bolts strike from across the battlefield.',
+    primaryAttribute: AttributeType.WISDOM,
+    secondaryAttribute: AttributeType.AGILITY,
+  },
 ];
 
 export const MONSTER_RANKS: MonsterRank[] = [

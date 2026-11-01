@@ -1,15 +1,13 @@
 <template>
-  <div
-    class="absolute inset-0 z-40 flex items-center justify-center overflow-y-auto bg-[#06141d]/85 p-5 backdrop-blur-sm"
-  >
+  <div class="absolute inset-0 z-40 overflow-hidden bg-[#06141d]/95 p-2 backdrop-blur-sm">
     <section
-      class="encounter-panel flex max-h-full min-h-0 w-full max-w-6xl flex-col rounded-2xl border border-[#ddbd6b]/45 text-white shadow-2xl"
+      class="encounter-panel relative mx-auto flex h-full min-h-0 w-full max-w-[1800px] flex-col rounded-xl border border-[#806f43] text-white"
     >
-      <header class="shrink-0 border-b border-[#ddbd6b]/20 px-6 py-4 text-center">
+      <header class="shrink-0 border-b border-[#ddbd6b]/20 px-6 py-2 text-center">
         <div class="text-[10px] font-bold tracking-[0.34em] text-[#efca72] uppercase">
           {{ t('fantasy.encounter.eyebrow') }} · {{ t('fantasy.encounter.turn', { turn: battle.turn }) }}
         </div>
-        <h2 class="mt-1 font-serif text-3xl font-semibold text-[#fff0bd]">
+        <h2 class="mt-1 font-serif text-xl font-semibold text-[#fff0bd]">
           {{ statusTitle }}
         </h2>
       </header>
@@ -60,11 +58,12 @@
         <div class="tactical-stat tactical-stat--player" aria-label="Player vitals">
           <strong>{{ playerName }}</strong>
           <span>{{ battle.player.health }} / {{ battle.player.maxHealth }} HP</span>
-          <div><i :style="{ width: `${playerHealthPercent}%` }" /></div>
+          <div class="vital-bar"><i :style="{ width: `${playerHealthPercent}%` }" /></div>
           <template v-if="battle.skills">
             <span class="mana-label">Mana</span>
             <span class="mana-label">{{ battle.skills.mana }} / {{ battle.skills.maxMana }}</span>
             <div
+              class="vital-bar"
               role="progressbar"
               aria-label="Mana"
               :aria-valuenow="battle.skills.mana"
@@ -80,7 +79,38 @@
           <strong>{{ battle.monster.name }}</strong>
           <span>{{ battle.monster.health }} / {{ battle.monster.maxHealth }} HP</span>
           <small>{{ t('profile.propertyNames.MOVEMENT') }}: {{ battle.monster.movement }}</small>
-          <div><i :style="{ width: `${monsterHealthPercent}%` }" /></div>
+          <small v-if="battle.monster.attackStyle === 'RANGED'">Ranged attacks</small>
+          <small v-if="battle.monster.rangedSkill"
+            >{{ battle.monster.rangedSkill.name }} ·
+            {{
+              battle.monster.rangedSkill.cooldown ? `in ${battle.monster.rangedSkill.cooldown} turns` : 'ready'
+            }}</small
+          >
+          <CombatStatusBadges :statuses="battle.monster.statuses" />
+          <div class="vital-bar"><i :style="{ width: `${monsterHealthPercent}%` }" /></div>
+        </div>
+        <div v-if="battle.status === 'ACTIVE'" class="combat-hud">
+          <div class="combat-hud-log" aria-live="polite">
+            <div v-for="(event, index) in battle.events.slice(-2)" :key="index">{{ eventText(event) }}</div>
+          </div>
+          <div class="combat-hud-tools">
+            <PotionQuickSlots
+              :used-this-turn="battle.potionUsedThisTurn"
+              :disabled="
+                loading ||
+                !battlefieldReady ||
+                battle.player.health <= 0 ||
+                battle.player.health >= battle.player.maxHealth
+              "
+              @drink="emit('use-potion', $event)"
+            />
+            <BattleSkillBar
+              v-if="battle.skills?.abilities.length"
+              :skills="battle.skills"
+              :disabled="loading || !battlefieldReady"
+              @cast="castSkill"
+            />
+          </div>
         </div>
       </div>
 
@@ -109,7 +139,11 @@
         />
       </div>
 
-      <div class="encounter-log min-w-0 shrink-0 border-t border-[#ddbd6b]/15 bg-[#0b2029]/85 px-6 py-4">
+      <div
+        v-if="mode !== 'tactical' || (battle.status !== 'ACTIVE' && !animating)"
+        :class="{ 'battle-results': battle.status !== 'ACTIVE' && !animating }"
+        class="encounter-log min-w-0 shrink-0 border-t border-[#ddbd6b]/15 bg-[#0b2029]/85 px-6 py-4"
+      >
         <h3 class="text-xs font-bold tracking-[0.16em] text-[#efca72] uppercase">
           {{ t('fantasy.encounter.combatLog') }}
         </h3>
@@ -211,33 +245,7 @@
         </p>
       </div>
 
-      <section
-        v-if="mode === 'tactical' && battle.status === 'ACTIVE' && battle.skills?.abilities.length"
-        class="shrink-0 border-t border-[#a58aff]/25 bg-[#0b1c2c] px-6 py-3"
-        aria-label="Combat skills"
-      >
-        <div class="flex gap-3 overflow-x-auto">
-          <button
-            v-for="skill in battle.skills.abilities"
-            :key="skill.id"
-            class="flex min-w-40 items-center gap-3 rounded-xl border border-violet-300/30 bg-violet-300/5 px-4 py-3 text-left text-violet-100 hover:bg-violet-300/15 disabled:opacity-40"
-            :disabled="loading || !!skill.unavailable || battle.status !== 'ACTIVE'"
-            :title="skill.unavailable || skill.description"
-            @click="castSkill(skill.id)"
-          >
-            <QIcon :name="skill.icon" size="26px" /><span
-              ><strong class="block text-sm">{{ skill.name }}</strong
-              ><small class="block text-xs text-sky-200"
-                >{{ skill.manaCost }} mana ·
-                {{ skill.remainingCooldown ? `${skill.remainingCooldown} turns` : `Rank ${skill.rank}` }}</small
-              ></span
-            >
-            <QTooltip>{{ skill.description }}<br />{{ skill.unavailable || 'Ready' }}</QTooltip>
-          </button>
-        </div>
-      </section>
-
-      <footer class="flex shrink-0 flex-wrap justify-end gap-3 border-t border-[#ddbd6b]/15 bg-[#081a23] px-6 py-4">
+      <footer class="flex shrink-0 flex-wrap justify-end gap-2 border-t border-[#ddbd6b]/15 bg-[#081a23] px-3 py-2">
         <button
           v-if="battle.status === 'ACTIVE' && battle.canRetreat"
           class="rounded-lg border border-white/15 px-5 py-2.5 text-xs font-bold tracking-wider text-[#b8cbc6] uppercase hover:bg-white/5 disabled:opacity-50"
@@ -445,7 +453,7 @@
 
 <script setup lang="ts">
 import { useTranslation } from 'i18next-vue';
-import { Notify, QIcon, QTooltip } from 'quasar';
+import { Notify, QIcon } from 'quasar';
 import { computed, defineComponent, h, ref, watch, type PropType } from 'vue';
 
 import type { InventoryEntry, InventoryItemType } from '@/modules/Inventory/types';
@@ -457,6 +465,12 @@ import { getBattlePlayerLoadout } from '@/modules/Game/battlePlayerLoadout';
 import { getBattleMonsterVisual } from '@/modules/Game/monsterVisual';
 import { getRarityTextClass } from '@/modules/Inventory/utils/rarity';
 import type { BattleState, TacticalBattleAction } from '@/modules/Monsters/api';
+import { gameAudio } from '@/shared/audio/gameAudio';
+
+import BattleSkillBar from './BattleSkillBar.vue';
+import CombatStatusBadges from './CombatStatusBadges.vue';
+import PotionQuickSlots from './PotionQuickSlots.vue';
+import './combatHud.css';
 
 import Battlefield3D from '@/modules/Game/components/Battlefield3D.vue';
 import BattleMonsterModel from '@/modules/Game/components/BattleMonsterModel.vue';
@@ -465,6 +479,7 @@ import InventoryItem from '@/modules/Inventory/components/InventoryItem.vue';
 
 const props = defineProps<{ battle: BattleState; playerName: string; loading: boolean }>();
 const emit = defineEmits<{
+  (event: 'use-potion', inventoryItemId: number): void;
   (event: 'quick-battle'): void;
   (event: 'tactical-action', action: TacticalBattleAction): void;
   (event: 'retreat'): void;
@@ -484,6 +499,17 @@ watch(
     animating.value = false;
     battlefieldReady.value = false;
     queuedSkill.value = null;
+    gameAudio.play('encounter');
+  },
+  { immediate: true }
+);
+
+watch(
+  () => props.battle.status,
+  (status, previous) => {
+    if (previous === 'ACTIVE' && status !== 'ACTIVE' && mode.value !== 'tactical') {
+      gameAudio.play(status === 'VICTORY' ? 'victory' : 'defeat');
+    }
   }
 );
 
@@ -619,9 +645,13 @@ const statusTitle = computed(() => {
 });
 
 const eventText = (event: BattleState['events'][number]) => {
+  if (event.effect === 'empower') return `${event.skillName}: ${event.statusText}`;
+  if (event.statusText)
+    return `${event.skillName ? `${event.skillName}: ${event.damage} damage. ` : ''}${event.statusText}`;
   if (event.skillName) {
     if (event.healing !== undefined) return `${event.skillName}: restored ${event.healing} HP.`;
-    return `${event.skillName}: ${event.dodged ? 'enemy dodged.' : event.blocked ? 'enemy blocked.' : `${event.damage} damage${event.critical ? ' (critical)' : ''}.`}`;
+    const defender = event.actor === 'PLAYER' ? 'enemy' : 'you';
+    return `${event.actor === 'MONSTER' ? `${props.battle.monster.name} — ` : ''}${event.skillName}: ${event.dodged ? `${defender} dodged.` : event.blocked ? `${defender} blocked.` : `${event.damage} damage${event.critical ? ' (critical)' : ''}.`}`;
   }
   if (event.action === 'MOVE') {
     return t(event.actor === 'PLAYER' ? 'fantasy.encounter.youMove' : 'fantasy.encounter.enemyMoves');
@@ -730,12 +760,21 @@ const CombatantCard = defineComponent({
   /* Quasar's .flex wraps by default; a height-constrained column must not wrap loot into a second column. */
   flex-wrap: nowrap;
   overflow-x: hidden;
-  overflow-y: auto;
+  overflow-y: hidden;
   background: linear-gradient(145deg, rgb(14 38 47 / 98%), rgb(20 28 36 / 98%));
 }
 .encounter-panel > * {
   flex-shrink: 0;
   min-width: 0;
+}
+.encounter-panel > .battlefield-grid {
+  /* The pre-battle overview fills the same space as the tactical scene. */
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+.encounter-panel > footer {
+  margin-top: auto;
 }
 .battlefield-grid {
   background:
@@ -743,8 +782,8 @@ const CombatantCard = defineComponent({
     radial-gradient(circle at 75% 50%, rgb(198 77 59 / 18%), transparent 30%), #102831;
 }
 .tactical-battlefield {
-  height: clamp(220px, 42vh, 460px);
-  min-height: 220px;
+  flex: 1 1 0;
+  min-height: 0;
   background: #18292c;
 }
 .battle-haze {
@@ -922,14 +961,14 @@ const CombatantCard = defineComponent({
   right: 3%;
   text-align: right;
 }
-.tactical-stat strong,
-.tactical-stat span {
+.tactical-stat > strong,
+.tactical-stat > span {
   overflow: hidden;
   font-size: 0.68rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.tactical-stat span {
+.tactical-stat > span {
   color: #c7d8d4;
 }
 .tactical-stat small {
@@ -937,7 +976,12 @@ const CombatantCard = defineComponent({
   color: #79e8d1;
   font-size: 0.65rem;
 }
-.tactical-stat > div {
+.tactical-stat > .status-badges {
+  grid-column: 1 / -1;
+  justify-content: flex-end;
+  text-align: left;
+}
+.tactical-stat > .vital-bar {
   height: 0.4rem;
   grid-column: 1 / -1;
   overflow: hidden;
@@ -1110,7 +1154,7 @@ const CombatantCard = defineComponent({
 }
 @media (max-width: 640px) {
   .tactical-battlefield {
-    height: 340px;
+    flex-basis: 340px;
   }
   .battle-command-bar {
     justify-content: center;
@@ -1121,6 +1165,56 @@ const CombatantCard = defineComponent({
   .initiative-ribbon,
   .arena-instruction {
     display: none;
+  }
+}
+
+/* Keep the battlefield within the app viewport; only reward dialogs scroll. */
+.encounter-panel > .tactical-battlefield {
+  flex-shrink: 1;
+  min-height: 0;
+}
+.encounter-panel > header h2 {
+  font-size: 20px;
+  line-height: 1.3;
+  margin: 2px 0 0;
+}
+.tactical-stat {
+  bottom: 95px;
+}
+.battle-results {
+  position: absolute;
+  z-index: 46;
+  inset: 65px 12px 62px;
+  overflow-y: auto;
+  border: 1px solid #806f43;
+  border-radius: 12px;
+  background: #0b2029f5;
+}
+@media (max-width: 650px) {
+  .tactical-stat {
+    bottom: 155px;
+    padding: 6px;
+    font-size: 10px;
+  }
+  .arena-instruction {
+    display: none;
+  }
+  .battle-command-bar {
+    min-height: 30px;
+  }
+  .encounter-panel > footer {
+    gap: 5px;
+    padding: 6px;
+  }
+  .encounter-panel > footer button {
+    padding: 8px;
+    font-size: 10px;
+  }
+  .encounter-panel > header {
+    padding: 4px;
+  }
+  .encounter-panel > header h2 {
+    font-size: 15px;
   }
 }
 </style>

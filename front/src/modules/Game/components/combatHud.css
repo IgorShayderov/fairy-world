@@ -1,0 +1,45 @@
+.combat-hud {
+  position: absolute;
+  z-index: 45;
+  bottom: 10px;
+  left: 12px;
+  right: 12px;
+  pointer-events: none;
+}
+.combat-hud-tools {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.combat-hud-tools > * {
+  pointer-events: auto;
+}
+.combat-hud-log {
+  color: #e0e9df;
+  font-size: 11px;
+  text-shadow:
+    0 1px 3px #000,
+    0 0 8px #000;
+  margin-bottom: 6px;
+  line-height: 1.4;
+}
+.skill-tooltip {
+  max-width: 300px;
+  background: #102a35;
+  border: 1px solid #a28b55;
+  color: #e9e0ca;
+  padding: 10px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+@media (max-width: 650px) {
+  .combat-hud {
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+  }
+  .combat-hud-tools {
+    gap: 6px;
+  }
+}

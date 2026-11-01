@@ -48,7 +48,7 @@ export const canRetreatAt = (point: Point) =>
 
 const isNearSanctuary = (point: Point) =>
   Object.values(encounterLandmarks).some(
-    (landmark) => landmark.type === 'sanctum' && Math.hypot(point.x - landmark.x, point.y - landmark.y) <= 85,
+    (landmark) => landmark.type !== 'dungeon' && Math.hypot(point.x - landmark.x, point.y - landmark.y) <= 85,
   );
 
 export const canHuntAt = (point: Point) =>

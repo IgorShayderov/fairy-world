@@ -24,12 +24,14 @@ The following licenses apply to the assets themselves, including the converted v
 | wolf.glb | Micket, Poss, Danimal — https://opengameart.org/content/wolf-monsters-animated | CC BY-SA 4.0 |
 | minotaur.glb | Clint Bellanger, Danimal — https://opengameart.org/content/charging-minotaur | CC BY 3.0 |
 | bone-knight.glb | VWolfdog, Clint Bellanger — https://opengameart.org/content/flare-skeleton-mod-skeletal-knight | CC BY 3.0 |
-| golem.glb | umask007, Yughues — https://opengameart.org/content/fireicestone-golem | CC BY 3.0 |
+| golem.glb, golem-ice.glb | umask007, Yughues — https://opengameart.org/content/fireicestone-golem | CC BY 3.0 |
 | bog-lurker.glb | CDmir, TinyWorlds — https://opengameart.org/content/forest-monster | CC0 1.0 |
 | wraith.glb | Danimal, Dread Knight, Katarzyna Zalecka, Ancient Beast (https://AncientBeast.com), Alejandro CG, Yughues — https://opengameart.org/content/dark-priest | CC BY-SA 3.0 |
 | harpy.glb | GuieA_7, Danimal — https://opengameart.org/content/flying-terror | CC BY-SA 4.0 |
 | chimera.glb | Clement Wu, Nikolaus, Botanic — https://opengameart.org/content/animated-cerberus | CC BY 3.0 |
 | hag.glb | Clement Wu, Nikolaus, Botanic — https://opengameart.org/content/animated-female-mage | CC BY 3.0 |
+
+The golem variants include the original packed stone/ice diffuse and normal maps, restored during conversion. Both retain Idle, Walk, Attack, Hit and Death animations.
 
 License texts: https://creativecommons.org/licenses/by/3.0/,
 https://creativecommons.org/licenses/by-sa/3.0/,

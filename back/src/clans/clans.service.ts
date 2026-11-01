@@ -1,5 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { ClanRole } from '../../generated/client';
+import { ClanRole, Prisma } from '../../generated/client';
 import { PrismaService } from '../prisma.service';
 import { CLAN_BANNERS } from './clan-banners';
 import { CLAN_BUILDING_BONUS_PER_LEVEL, CLAN_BUILDING_MAX_LEVEL, clanBuildingUpgradeCost } from './clan-buildings';
@@ -86,6 +86,8 @@ export class ClansService {
     const clanId = profile.clanMembership.clanId;
 
     await this.prisma.$transaction(async (tx) => {
+      const member = await this.lockTreasuryMember(tx, userId, profile.id, clanId);
+      if (member.role !== ClanRole.LEADER) throw new ForbiddenException('Only the clan leader can upgrade buildings');
       const clan = await tx.clan.findUnique({
         where: { id: clanId },
         select: { treasureLevel: true, armoryLevel: true },
@@ -94,30 +96,58 @@ export class ClansService {
       const level = selected === 'treasure' ? clan.treasureLevel : clan.armoryLevel;
       if (level >= CLAN_BUILDING_MAX_LEVEL) throw new BadRequestException('This clan building is fully upgraded');
       const cost = clanBuildingUpgradeCost(level);
-      const payment = await tx.gameProfile.updateMany({
-        where: { id: profile.id, gold: { gte: cost } },
-        data: { gold: { decrement: cost } },
-      });
-      if (payment.count !== 1) throw new BadRequestException(`You need ${cost} gold for this upgrade`);
-
       const upgraded =
         selected === 'treasure'
           ? await tx.clan.updateMany({
-              where: { id: clanId, treasureLevel: level },
-              data: { treasureLevel: { increment: 1 } },
+              where: { id: clanId, treasureLevel: level, treasuryGold: { gte: cost } },
+              data: { treasureLevel: { increment: 1 }, treasuryGold: { decrement: cost } },
             })
           : await tx.clan.updateMany({
-              where: { id: clanId, armoryLevel: level },
-              data: { armoryLevel: { increment: 1 } },
+              where: { id: clanId, armoryLevel: level, treasuryGold: { gte: cost } },
+              data: { armoryLevel: { increment: 1 }, treasuryGold: { decrement: cost } },
             });
-      if (upgraded.count !== 1) throw new BadRequestException('The building changed; please try again');
-      await tx.clanMember.update({
-        where: { gameProfileId: profile.id },
-        data: { contributedGold: { increment: cost } },
-      });
+      if (upgraded.count !== 1) throw new BadRequestException(`The clan treasury needs ${cost} gold for this upgrade`);
     });
 
     return this.getMyClan(userId);
+  }
+
+  async depositTreasury(userId: number, gold: number, gems: number) {
+    const limit = 2147483647;
+    if (![gold, gems].every((value) => Number.isInteger(value) && value >= 0 && value <= limit) || gold + gems === 0)
+      throw new BadRequestException('Deposit a positive whole amount of gold or gems');
+    const profile = await this.profileForUser(userId);
+    if (!profile.clanMembership) throw new BadRequestException('You are not in a clan');
+    const clanId = profile.clanMembership.clanId;
+    await this.prisma.$transaction(async (tx) => {
+      await this.lockTreasuryMember(tx, userId, profile.id, clanId);
+      const paid = await tx.gameProfile.updateMany({
+        where: { id: profile.id, gold: { gte: gold }, gems: { gte: gems } },
+        data: { gold: { decrement: gold }, gems: { decrement: gems } },
+      });
+      if (paid.count !== 1) throw new BadRequestException('Not enough gold or gems');
+      const credited = await tx.clan.updateMany({
+        where: { id: clanId, treasuryGold: { lte: limit - gold }, treasuryGems: { lte: limit - gems } },
+        data: { treasuryGold: { increment: gold }, treasuryGems: { increment: gems } },
+      });
+      if (credited.count !== 1) throw new BadRequestException('The clan treasury cannot accept this deposit');
+      await tx.clanMember.update({
+        where: { gameProfileId: profile.id },
+        data: { contributedGold: { increment: gold }, contributedGems: { increment: gems } },
+      });
+    });
+    return this.getMyClan(userId);
+  }
+
+  private async lockTreasuryMember(tx: Prisma.TransactionClient, userId: number, profileId: number, clanId: string) {
+    // Use the same lock order as other wallet actions and clan activity updates.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(${userId})`;
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${clanId}))`;
+    await tx.$queryRaw`SELECT "gameProfileId" FROM "ClanMember" WHERE "gameProfileId" = ${profileId} FOR UPDATE`;
+    const member = await tx.clanMember.findUnique({ where: { gameProfileId: profileId } });
+    if (!member || member.clanId !== clanId)
+      throw new ForbiddenException('Your clan membership changed. Refresh and try again');
+    return member;
   }
 
   async createClan(userId: number, dto: CreateClanDto) {
@@ -265,38 +295,41 @@ export class ClansService {
   }
 
   private async syncClanActivity(clanId: string) {
-    const members = await this.prisma.clanMember.findMany({
-      where: { clanId },
-      include: {
-        gameProfile: { include: { _count: { select: { quests: { where: { completedAt: { not: null } } } } } } },
-      },
-    });
-    const changes = members.map((member) => {
-      const profile = member.gameProfile;
-      const quests = profile._count.quests;
-      const killsDelta = Math.max(0, profile.killedMonsters - member.trackedKilledMonsters);
-      const dungeonsDelta = Math.max(0, profile.dungeonsCleared - member.trackedDungeonsCleared);
-      const questsDelta = Math.max(0, quests - member.trackedQuestsCompleted);
-      const pvpDelta = Math.max(0, profile.coinsOfHonour - member.trackedPvpVictories);
-      const activity =
-        killsDelta * CLAN_ACTIVITY_REWARDS.monsterKill +
-        dungeonsDelta * CLAN_ACTIVITY_REWARDS.dungeon +
-        questsDelta * CLAN_ACTIVITY_REWARDS.quest +
-        pvpDelta * CLAN_ACTIVITY_REWARDS.pvpVictory;
-      return { member, profile, quests, activity };
-    });
-    const total = changes.reduce((sum, change) => sum + change.activity, 0);
-    if (!total) return;
-
     await this.prisma.$transaction(async (tx) => {
+      // Serialize the baseline read and credit together: concurrent page loads must
+      // never credit the same post-join achievements more than once.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${clanId}))`;
+      const members = await tx.clanMember.findMany({
+        where: { clanId },
+        include: {
+          gameProfile: { include: { _count: { select: { quests: { where: { completedAt: { not: null } } } } } } },
+        },
+      });
+      const changes = members.map((member) => {
+        const profile = member.gameProfile;
+        const quests = profile._count.quests;
+        const killsDelta = Math.max(0, profile.killedMonsters - member.trackedKilledMonsters);
+        const dungeonsDelta = Math.max(0, profile.dungeonsCleared - member.trackedDungeonsCleared);
+        const questsDelta = Math.max(0, quests - member.trackedQuestsCompleted);
+        const pvpDelta = Math.max(0, profile.coinsOfHonour - member.trackedPvpVictories);
+        const activity =
+          killsDelta * CLAN_ACTIVITY_REWARDS.monsterKill +
+          dungeonsDelta * CLAN_ACTIVITY_REWARDS.dungeon +
+          questsDelta * CLAN_ACTIVITY_REWARDS.quest +
+          pvpDelta * CLAN_ACTIVITY_REWARDS.pvpVictory;
+        return { member, profile, quests, activity };
+      });
+      const total = changes.reduce((sum, change) => sum + change.activity, 0);
+      if (!total) return;
+
       for (const { member, profile, quests, activity } of changes) {
         await tx.clanMember.update({
           where: { gameProfileId: member.gameProfileId },
           data: {
             contributedActivity: { increment: activity },
-            trackedKilledMonsters: profile.killedMonsters,
-            trackedDungeonsCleared: profile.dungeonsCleared,
-            trackedQuestsCompleted: quests,
+            trackedKilledMonsters: Math.max(member.trackedKilledMonsters, profile.killedMonsters),
+            trackedDungeonsCleared: Math.max(member.trackedDungeonsCleared, profile.dungeonsCleared),
+            trackedQuestsCompleted: Math.max(member.trackedQuestsCompleted, quests),
             trackedPvpVictories: Math.max(member.trackedPvpVictories, profile.coinsOfHonour),
           },
         });
@@ -345,6 +378,8 @@ export class ClansService {
       viewerRole: viewer?.role ?? null,
       viewerProfileId,
       viewerGold: viewer?.gameProfile.gold ?? 0,
+      viewerGems: viewer?.gameProfile.gems ?? 0,
+      treasury: { gold: clan.treasuryGold, gems: clan.treasuryGems },
       activityRewards: CLAN_ACTIVITY_REWARDS,
       members: clan.members.map((member) => ({
         profileId: member.gameProfileId,
@@ -353,6 +388,7 @@ export class ClansService {
         role: member.role,
         contributedActivity: member.contributedActivity,
         contributedGold: member.contributedGold,
+        contributedGems: member.contributedGems,
         joinedAt: member.joinedAt,
       })),
     };
