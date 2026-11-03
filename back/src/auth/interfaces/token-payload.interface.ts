@@ -1,6 +1,7 @@
 import { UserModel } from '../../../generated/models';
 
 export interface AccessTokenPayload {
+  type?: 'access' | 'refresh';
   sub: number;
   email: UserModel['email'];
 }

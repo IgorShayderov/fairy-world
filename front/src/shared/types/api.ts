@@ -26,8 +26,3 @@ export interface IApi {
     response: InterceptorManager<unknown>;
   };
 }
-
-export interface FailedRequest {
-  resolve: (value?: unknown) => void;
-  reject: (reason?: unknown) => void;
-}

@@ -17,15 +17,17 @@ export class ChatService {
   }
 
   async getMessages(channelId: string) {
-    return this.prisma.message.findMany({
+    const messages = await this.prisma.message.findMany({
       where: { channelId },
       include: {
         author: {
           select: { id: true, name: true },
         },
       },
-      orderBy: { createdAt: 'asc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: 200,
     });
+    return messages.reverse();
   }
 
   async createMessage(authorId: number, channelId: string, text: string) {

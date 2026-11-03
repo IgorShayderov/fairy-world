@@ -1,13 +1,8 @@
-import {
-  WebSocketGateway,
-  WebSocketServer,
-  SubscribeMessage,
-  MessageBody,
-  OnGatewayInit,
-  OnGatewayConnection,
-  OnGatewayDisconnect,
-} from '@nestjs/websockets';
-import { Server, Socket } from 'socket.io';
+import { WebSocketGateway, WebSocketServer, OnGatewayInit } from '@nestjs/websockets';
+import { JwtService } from '@nestjs/jwt';
+import { Server } from 'socket.io';
+import { isAccessPayload, jwtSecret } from '../auth/token-security';
+import type { AccessTokenPayload } from '../auth/interfaces/token-payload.interface';
 
 @WebSocketGateway({
   cors: {
@@ -15,36 +10,28 @@ import { Server, Socket } from 'socket.io';
     credentials: true,
   },
 })
-export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
+export class ChatGateway implements OnGatewayInit {
+  constructor(private readonly jwt: JwtService) {}
+
   @WebSocketServer()
   server: Server;
 
-  afterInit() {
-    console.log('✅ WebSocket Gateway успешно инициализирован');
+  afterInit(server: Server) {
+    server.use((socket, next) => {
+      try {
+        const token: unknown = socket.handshake.auth.token;
+        if (typeof token !== 'string') throw new Error('Missing token');
+        const payload = this.jwt.verify<AccessTokenPayload>(token, {
+          secret: jwtSecret(),
+          algorithms: ['HS256'],
+        });
+        if (!isAccessPayload(payload)) throw new Error('Invalid token type');
+        next();
+      } catch {
+        next(new Error('Unauthorized'));
+      }
+    });
   }
 
-  handleConnection(client: Socket) {
-    console.log(`🔌 Клиент подключился: ${client.id}`);
-  }
-
-  handleDisconnect(client: Socket) {
-    console.log(`❌ Клиент отключился: ${client.id}`);
-  }
-
-  // Обработчик события, если сообщение отправляется клиентом через WebSocket
-  @SubscribeMessage('send_message')
-  handleMessage(@MessageBody() payload: { channelId: string; text: string; authorId?: number }) {
-    const newMessage = {
-      id: Date.now().toString(),
-      channelId: payload.channelId,
-      text: payload.text,
-      authorId: payload.authorId,
-      createdAt: new Date().toISOString(),
-    };
-
-    // Отправляем сообщение ВСЕМ подключенным клиентам (включая отправителя)
-    this.server.emit('new_message', newMessage);
-
-    return newMessage;
-  }
+  // Messages are created only by the authenticated, validated HTTP endpoint.
 }

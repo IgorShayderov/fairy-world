@@ -24,7 +24,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     // Формируем детальный ответ
     response.status(status).json({
       statusCode: status,
-      message,
+      message: !isDev && status >= 500 ? 'Internal Server Error' : message,
       timestamp: new Date().toISOString(),
       // Выводим стек трейс только для разработки
       stack: isDev && exception instanceof Error ? exception.stack : undefined,

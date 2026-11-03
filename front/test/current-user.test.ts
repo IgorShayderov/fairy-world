@@ -10,6 +10,19 @@ import { i18n, initializeI18n } from '@/locales/i18n';
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 
 describe('current user loading', () => {
+  it('does not restore a logged-out player from an in-flight response', async () => {
+    let resolve!: (value: unknown) => void;
+    mocks.getMe.mockImplementationOnce(() => new Promise((done) => { resolve = done; }));
+    const store = useCurrentUserStore();
+    const pending = store.fetchCurrentUser();
+    store.reset();
+    mocks.getMe.mockResolvedValue({ id: 2, level: 1 });
+    await store.fetchCurrentUser();
+    resolve({ id: 1, level: 20 });
+    await pending;
+    expect(store.user?.id).toBe(2);
+    expect(mocks.notify).not.toHaveBeenCalled();
+  });
   it('notifies once on quest completion, but not on initial load or unchanged data', async () => {
     const store = useCurrentUserStore();
     mocks.getMe.mockResolvedValue({ id: 5, level: 1, accomplishedQuests: 3 });

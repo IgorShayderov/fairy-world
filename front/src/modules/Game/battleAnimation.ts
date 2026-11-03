@@ -63,16 +63,16 @@ export function hitReactionProfile(model: string, critical = false) {
   const heavy = /golem|giant|warden|dragon|brute|troll|minotaur|bog-lurker/i.test(model);
   const beast = /wolf|hound|chimera|boar|spider/i.test(model);
   return {
-    duration: (heavy ? 0.82 : beast ? 0.62 : 0.72) + (critical ? 0.12 : 0),
-    distance: (heavy ? 0.08 : beast ? 0.2 : 0.16) * (critical ? 1.45 : 1),
-    lean: (heavy ? 0.045 : beast ? 0.09 : 0.12) * (critical ? 1.25 : 1),
+    duration: (heavy ? 1.02 : beast ? 0.84 : 0.94) + (critical ? 0.14 : 0),
+    distance: (heavy ? 0.1 : beast ? 0.25 : 0.22) * (critical ? 1.35 : 1),
+    lean: (heavy ? 0.085 : beast ? 0.14 : 0.18) * (critical ? 1.2 : 1),
   };
 }
 export function hitReactionWeight(progress: number) {
   if (progress <= 0 || progress >= 1) return 0;
-  if (progress < 0.18) return smoothStep(progress / 0.18);
-  if (progress < 0.38) return 1 - 0.12 * smoothStep((progress - 0.18) / 0.2);
-  return 0.88 * (1 - smoothStep((progress - 0.38) / 0.62));
+  if (progress < 0.12) return smoothStep(progress / 0.12);
+  if (progress < 0.36) return 1 - 0.08 * smoothStep((progress - 0.12) / 0.24);
+  return 0.92 * (1 - smoothStep((progress - 0.36) / 0.64));
 }
 
 /** Ease only the ends of a route: interior hexes must not cause stop/start motion. */

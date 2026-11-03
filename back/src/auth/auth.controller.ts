@@ -7,6 +7,8 @@ import { RegisterDto } from './dto/register.dto';
 import { Response } from 'express';
 
 import type { RequestWithUser } from './interfaces/request-with-user.interface';
+import { refreshLifetimeMs } from './token-security';
+import { AuthRateLimitGuard } from './auth-rate-limit.guard';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -14,6 +16,7 @@ export class AuthController {
   constructor(private authService: AuthService) {}
 
   @Post('login')
+  @UseGuards(AuthRateLimitGuard)
   @HttpCode(HttpStatus.OK)
   @ApiBody({ type: LoginDto })
   @ApiOkResponse({
@@ -36,13 +39,14 @@ export class AuthController {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: parseInt(process.env.REFRESH_COOKIE_LIFETIME ?? '604800', 10),
+      maxAge: refreshLifetimeMs(),
     });
 
     return { access_token, expiresIn };
   }
 
   @Post('register')
+  @UseGuards(AuthRateLimitGuard)
   @HttpCode(HttpStatus.CREATED)
   @ApiBody({ type: RegisterDto })
   @ApiOkResponse({
@@ -65,7 +69,7 @@ export class AuthController {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: parseInt(process.env.REFRESH_COOKIE_LIFETIME ?? '604800', 10),
+      maxAge: refreshLifetimeMs(),
     });
 
     return { access_token, expiresIn };
@@ -96,7 +100,7 @@ export class AuthController {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: parseInt(process.env.REFRESH_COOKIE_LIFETIME ?? '604800', 10),
+      maxAge: refreshLifetimeMs(),
     });
 
     return { access_token, expiresIn };
@@ -105,7 +109,9 @@ export class AuthController {
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOkResponse({ description: 'Logout successful, cookie cleared' })
-  logout(@Res({ passthrough: true }) res: Response) {
+  async logout(@Res({ passthrough: true }) res: Response, @Request() req: RequestWithUser) {
+    const token: unknown = req.cookies?.refresh_token;
+    await this.authService.logout(typeof token === 'string' ? token : undefined);
     res.clearCookie('refresh_token', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',

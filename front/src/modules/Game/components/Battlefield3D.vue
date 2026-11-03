@@ -181,6 +181,7 @@ let castingProgress: number | undefined;
 let rangedBashProgress: number | undefined;
 
 const timeline = new BattleTimeline();
+const hitPoses = new Set<ReturnType<typeof createCreatureHitPose>>();
 
 function wait(seconds: number, tick?: (progress: number) => void) {
   return timeline.wait(seconds, tick);
@@ -668,7 +669,8 @@ function triggerHitReaction(target: Fighter, hitDirection: T.Vector3, isCrit = f
   const reaction = hitReactionProfile(target.model, isCrit);
   if (hitClip) playAction(target, hitClip, true, reaction.duration, 0.035);
   const direction = hitDirection.clone().setY(0).normalize();
-  const bodyPose = hitClip ? undefined : createCreatureHitPose(target.root, direction, reaction.lean / 0.12);
+  const bodyPose = createCreatureHitPose(target.root, direction, reaction.lean / 0.12);
+  hitPoses.add(bodyPose);
   const startPos = target.root.position.clone();
   const startRotation = target.root.quaternion.clone();
   const leanAxis = new T.Vector3(direction.z, 0, -direction.x);
@@ -676,17 +678,19 @@ function triggerHitReaction(target: Fighter, hitDirection: T.Vector3, isCrit = f
   const sparkPos = target.root.position.clone();
   sparkPos.y += target.height * 0.55;
   spawnHitSparks(sparkPos, isCrit ? '#fde047' : '#f97316', isCrit ? 16 : 10);
-  return wait(reaction.duration, (t) => {
+  return timeline.wait(reaction.duration, (t) => {
     const weight = hitReactionWeight(t);
     target.root.position.copy(startPos).addScaledVector(direction, reaction.distance * weight);
-    tilt.setFromAxisAngle(leanAxis, reaction.lean * weight);
+    // Most of the bend belongs in the spine, not a rigid tilt around the feet.
+    tilt.setFromAxisAngle(leanAxis, reaction.lean * weight * (bodyPose.articulated ? 0.15 : 1));
     target.root.quaternion.copy(startRotation).premultiply(tilt);
-    bodyPose?.apply(t);
-  }).then(() => {
-    bodyPose?.restore();
+    bodyPose.apply(t);
+  }, () => {
+    bodyPose.restore();
+    hitPoses.delete(bodyPose);
     target.root.position.copy(startPos);
     target.root.quaternion.copy(startRotation);
-  });
+  }).then(() => {});
 }
 
 function triggerDodgeReaction(target: Fighter, attackDirection: T.Vector3) {
@@ -1505,6 +1509,7 @@ onMounted(async () => {
       previous = now;
       elapsed += delta;
 
+      for (const pose of hitPoses) pose.restore();
       player?.mixer.update(delta);
       enemy?.mixer.update(delta);
 

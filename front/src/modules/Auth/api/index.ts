@@ -4,6 +4,8 @@ import type { ISignData } from '../../../shared/types/user';
 import routes from '@/routes';
 import { api } from '@shared/api';
 
+import { notifySessionChanged } from '../utils/session-events';
+
 export const signIn = async ({ email, password }: ISignData) => {
   const { data } = await api.post<{
     access_token: string;
@@ -12,6 +14,7 @@ export const signIn = async ({ email, password }: ISignData) => {
 
   localStorage.setItem('access_token', data.access_token);
   localStorage.setItem('access_token_expires_at', String(Date.now() + data.expiresIn * 1000));
+  notifySessionChanged();
 
   return data;
 };
@@ -24,6 +27,7 @@ export const refresh = async () => {
 
   localStorage.setItem('access_token', data.access_token);
   localStorage.setItem('access_token_expires_at', String(Date.now() + data.expiresIn * 1000));
+  notifySessionChanged();
 
   return data;
 };
@@ -34,6 +38,7 @@ export const signUp = async ({ email, password }: ISignData) => {
   );
   localStorage.setItem('access_token', data.access_token);
   localStorage.setItem('access_token_expires_at', String(Date.now() + data.expiresIn * 1000));
+  notifySessionChanged();
   return data;
 };
 
@@ -41,4 +46,5 @@ export const signOut = async () => {
   await api.post(routes.api.auth.logoutPath());
   localStorage.removeItem('access_token');
   localStorage.removeItem('access_token_expires_at');
+  notifySessionChanged();
 };

@@ -1,4 +1,5 @@
-import { Controller, Body, HttpCode, HttpStatus, Post, Logger } from '@nestjs/common';
+import { Controller, Body, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
+import { AuthRateLimitGuard } from '../auth/auth-rate-limit.guard';
 import { ApiBody, ApiOkResponse, ApiUnauthorizedResponse, ApiTags } from '@nestjs/swagger';
 
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
@@ -7,17 +8,15 @@ import { PasswordsService } from './passwords.service';
 
 @ApiTags('passwords')
 @Controller('passwords')
+@UseGuards(AuthRateLimitGuard)
 export class PasswordsController {
   constructor(private passwordsService: PasswordsService) {}
-  private readonly logger = new Logger(PasswordsController.name);
 
   @Post('forgot')
   @HttpCode(HttpStatus.OK)
   @ApiBody({ type: ForgotPasswordDto })
   @ApiOkResponse({ description: 'Запрос принят.' })
   async forgotPassword(@Body() dto: ForgotPasswordDto) {
-    this.logger.log(`Получен запрос на сброс пароля для email: ${dto.email}`);
-
     await this.passwordsService.requestPasswordReset(dto.email);
 
     return {
@@ -31,11 +30,7 @@ export class PasswordsController {
   @ApiOkResponse({ description: 'Пароль успешно изменён' })
   @ApiUnauthorizedResponse({ description: 'Неверный или просроченный токен' })
   async resetPassword(@Body() dto: ResetPasswordDto) {
-    this.logger.log(`Попытка изменения пароля. Токен: ${dto.token.substring(0, 10) + '...'}`);
-
     await this.passwordsService.resetPassword(dto.token, dto.password);
-
-    this.logger.log('Пароль успешно изменен для токена');
 
     return { message: 'Пароль успешно изменён' };
   }
