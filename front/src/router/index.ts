@@ -8,8 +8,6 @@ import routes from '@/routes';
 
 import routerRoutes from './routes';
 
-
-
 import { defineRouter } from '#q-app/wrappers';
 
 /*
@@ -33,24 +31,6 @@ export default defineRouter(function (/* { store, ssrContext } */) {
     history: createHistory(process.env.VUE_ROUTER_BASE),
     parseQuery: (query: string) => qs.parse(query) as LocationQuery,
     stringifyQuery: (query: LocationQueryRaw | undefined) => qs.stringify(query, { encodeValuesOnly: true }),
-  });
-
-  Router.beforeEach(() => {
-    // const privateRoutes = [
-    // ];
-    // const publicRoutes = [
-    //   'Login',
-    //   'Support',
-    //   'UpdatePassword',
-    //   'CreatePassword',
-    //   // 'ConfirmEmail'
-    // ];
-    // const token = localStorage.getItem('acess_token');
-    // if (!token && requireAuthRoutes.includes(from.name as string)) {
-    //   return { name: 'Login' };
-    // } else if (token && noAuthRoutes.includes(from.name as string)) {
-    //   return { name: 'Home' };
-    // }
   });
 
   Router.beforeEach((to, from, next) => {

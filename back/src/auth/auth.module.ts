@@ -5,15 +5,15 @@ import { UsersModule } from '../users/users.module';
 import { JwtModule } from '@nestjs/jwt';
 import { PrismaService } from '../prisma.service';
 import { ItemsModule } from '../items/items.module';
+import { jwtSecret } from './token-security';
 
 @Module({
   imports: [
     UsersModule,
     ItemsModule,
-    JwtModule.register({
+    JwtModule.registerAsync({
       global: true,
-      secret: process.env.JWT_SECRET || 'access-secret',
-      signOptions: { expiresIn: '60s' },
+      useFactory: () => ({ secret: jwtSecret(), signOptions: { expiresIn: '60s' } }),
     }),
   ],
   controllers: [AuthController],

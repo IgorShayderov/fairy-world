@@ -1,8 +1,15 @@
 import { ChatGateway } from './chat.gateway';
 import type { Server } from 'socket.io';
+import { JwtService } from '@nestjs/jwt';
 
 describe('ChatGateway', () => {
   let gateway: ChatGateway;
+  const jwt = { verify: jest.fn() };
+  const originalSecret = process.env.JWT_SECRET;
+  afterAll(() => {
+    if (originalSecret === undefined) delete process.env.JWT_SECRET;
+    else process.env.JWT_SECRET = originalSecret;
+  });
 
   const emitSpy = jest.fn();
   const mockServer = {
@@ -11,7 +18,8 @@ describe('ChatGateway', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    gateway = new ChatGateway();
+    process.env.JWT_SECRET = 'test-secret';
+    gateway = new ChatGateway(jwt as unknown as JwtService);
     gateway.server = mockServer;
   });
 
@@ -19,44 +27,22 @@ describe('ChatGateway', () => {
     expect(gateway).toBeDefined();
   });
 
-  describe('handleMessage', () => {
-    it('should emit new_message to all clients and return the message', () => {
-      const payload = { channelId: 'c1', text: 'hello' };
-
-      const result = gateway.handleMessage(payload);
-
-      expect(result).toMatchObject({
-        channelId: 'c1',
-        text: 'hello',
-      });
-      expect(typeof result.id).toBe('string');
-      expect(result.createdAt).toBeDefined();
-      expect(emitSpy).toHaveBeenCalledWith('new_message', result);
-    });
-
-    it('should preserve channelId and text from the payload', () => {
-      const payload = { channelId: 'xyz', text: 'another message' };
-
-      const result = gateway.handleMessage(payload);
-
-      expect(result.channelId).toBe('xyz');
-      expect(result.text).toBe('another message');
-    });
+  it('has no unauthenticated client broadcast handler', () => {
+    expect('handleMessage' in gateway).toBe(false);
   });
 
-  describe('lifecycle hooks', () => {
-    it('handleConnection should not throw', () => {
-      const fakeClient = { id: 'socket-1' };
-      expect(() => gateway.handleConnection(fakeClient as never)).not.toThrow();
-    });
-
-    it('handleDisconnect should not throw', () => {
-      const fakeClient = { id: 'socket-2' };
-      expect(() => gateway.handleDisconnect(fakeClient as never)).not.toThrow();
-    });
-
-    it('afterInit should not throw', () => {
-      expect(() => gateway.afterInit()).not.toThrow();
-    });
+  it.each(['missing', 'refresh', 'invalid', 'access'])('authenticates %s connections', (type) => {
+    const use = jest.fn<void, [(socket: unknown, next: (err?: Error) => void) => void]>();
+    gateway.afterInit({ use } as unknown as Server);
+    const middleware = use.mock.calls[0][0];
+    jwt.verify.mockReturnValue({ sub: 1, email: 'user@example.com', type });
+    if (type === 'invalid')
+      jwt.verify.mockImplementationOnce(() => {
+        throw new Error('bad signature');
+      });
+    const next = jest.fn();
+    middleware({ handshake: { auth: type === 'missing' ? {} : { token: 'jwt' } } }, next);
+    if (type === 'access') expect(next).toHaveBeenCalledWith();
+    else expect(next).toHaveBeenCalledWith(expect.any(Error));
   });
 });

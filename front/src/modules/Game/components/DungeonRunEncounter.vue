@@ -294,7 +294,7 @@
 
 <script setup lang="ts">
 import { useTranslation } from 'i18next-vue';
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import type { InventoryItemType } from '@/modules/Inventory/types';
 
@@ -303,7 +303,7 @@ import { getBattleEventSubject } from '@/modules/Game/battleEvent';
 import { findEquippedItemForEntries } from '@/modules/Inventory/utils/equipment';
 import type { DungeonRunState, TacticalBattleAction } from '@/modules/Monsters/api';
 
-import Battlefield3D from './Battlefield3D.vue';
+const Battlefield3D = defineAsyncComponent(() => import('./Battlefield3D.vue'));
 import BattleSkillBar from './BattleSkillBar.vue';
 import CombatStatusBadges from './CombatStatusBadges.vue';
 import PotionQuickSlots from './PotionQuickSlots.vue';

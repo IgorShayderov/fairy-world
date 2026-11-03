@@ -3,6 +3,7 @@ import { Response } from 'express';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import type { RequestWithUser } from './interfaces/request-with-user.interface';
 
 describe('AuthController', () => {
   let controller: AuthController;
@@ -10,6 +11,7 @@ describe('AuthController', () => {
   const mockAuthService = {
     signIn: jest.fn(),
     refreshTokens: jest.fn(),
+    logout: jest.fn(),
   };
 
   const mockJwtService = {
@@ -75,11 +77,12 @@ describe('AuthController', () => {
   });
 
   describe('logout', () => {
-    it('should clear refresh_token cookie', () => {
+    it('should revoke session and clear refresh_token cookie', async () => {
       const clearCookieSpy = jest.fn();
       const mockRes = { clearCookie: clearCookieSpy } as unknown as Response;
 
-      controller.logout(mockRes);
+      await controller.logout(mockRes, { cookies: { refresh_token: 'session' } } as unknown as RequestWithUser);
+      expect(mockAuthService.logout).toHaveBeenCalledWith('session');
 
       expect(clearCookieSpy).toHaveBeenCalledWith('refresh_token', {
         httpOnly: true,

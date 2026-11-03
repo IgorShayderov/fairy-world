@@ -1,6 +1,6 @@
 import { Controller, UseGuards, Get, Post, Body, Param, Request } from '@nestjs/common';
 import { ApiOkResponse, ApiBearerAuth } from '@nestjs/swagger';
-import { IsString, IsNotEmpty } from 'class-validator';
+import { IsString, IsNotEmpty, MaxLength } from 'class-validator';
 
 import { ChatService } from './chat.service';
 import { AuthGuard } from '../auth/auth.guard';
@@ -9,10 +9,12 @@ import type { RequestWithUser } from '../auth/interfaces/request-with-user.inter
 export class CreateMessageDto {
   @IsString()
   @IsNotEmpty()
+  @MaxLength(128)
   channelId!: string;
 
   @IsString()
   @IsNotEmpty()
+  @MaxLength(2000)
   text!: string;
 }
 

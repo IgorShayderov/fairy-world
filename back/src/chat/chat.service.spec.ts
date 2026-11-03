@@ -63,7 +63,7 @@ describe('ChatService', () => {
         { id: 'm1', channelId, text: 'hello', createdAt: new Date('2024-01-01') },
         { id: 'm2', channelId, text: 'world', createdAt: new Date('2024-01-02') },
       ];
-      mockPrismaService.message.findMany.mockResolvedValue(messages);
+      mockPrismaService.message.findMany.mockResolvedValue([...messages].reverse());
 
       const result = await service.getMessages(channelId);
 
@@ -74,7 +74,8 @@ describe('ChatService', () => {
             select: { id: true, name: true },
           },
         },
-        orderBy: { createdAt: 'asc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: 200,
       });
       expect(result).toEqual(messages);
     });

@@ -1,5 +1,6 @@
-import type { IApi, PromiseChainNode, RequestConfig, FailedRequest } from '@shared/types/api';
+import type { IApi, PromiseChainNode, RequestConfig } from '@shared/types/api';
 
+import { notifySessionChanged } from '@/modules/Auth/utils/session-events';
 import routes from '@/routes';
 import { refresh } from '@modules/Auth/api';
 
@@ -10,6 +11,10 @@ import { InterceptorManager } from './InterceptorManager';
 const dispatchRequest = async (config: RequestConfig) => {
   const DEFAULT_TIMEOUT = 4000;
   const controller = new AbortController();
+  const callerSignal = config.options.signal;
+  const abort = () => controller.abort(callerSignal?.reason);
+  if (callerSignal?.aborted) abort();
+  else callerSignal?.addEventListener('abort', abort, { once: true });
   const timeoutId = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT);
 
   const finalOptions: RequestInit = {
@@ -50,21 +55,20 @@ const dispatchRequest = async (config: RequestConfig) => {
     return await response.blob();
   } finally {
     clearTimeout(timeoutId);
+    callerSignal?.removeEventListener('abort', abort);
   }
 };
 
 const makeRequest = <T>(url: string, options: RequestInit = {}): Promise<T> => {
+  const headers = new Headers({ Accept: 'application/json', 'Content-Type': 'application/json;charset=UTF-8' });
+  new Headers(options.headers).forEach((value, key) => headers.set(key, value));
   const config: RequestConfig = {
     url,
     options: {
       method: 'GET',
       credentials: 'include',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json;charset=UTF-8',
-        ...(options.headers ?? {}),
-      },
       ...options,
+      headers,
     },
   };
 
@@ -123,27 +127,27 @@ api.interceptors.request.use((config) => {
   const accessToken = localStorage.getItem('access_token');
 
   if (accessToken) {
-    config.options.headers = {
-      ...config.options.headers,
-      Authorization: `Bearer ${accessToken}`,
-    };
+    const headers = new Headers(config.options.headers);
+    headers.set('Authorization', `Bearer ${accessToken}`);
+    config.options.headers = headers;
   }
 
   return config;
 });
 
-let isRefreshing = false;
-let failedQueue: FailedRequest[] = [];
+let refreshPromise: Promise<unknown> | null = null;
 
-const processQueue = (error: Error | null) => {
-  failedQueue.forEach((promise) => {
-    if (error) {
-      promise.reject(error);
-    } else {
-      promise.resolve();
-    }
-  });
-  failedQueue = [];
+const refreshSession = (tokenAtFailure: string | null) => {
+  const rotate = () => {
+    const token = localStorage.getItem('access_token');
+    if (token && token !== tokenAtFailure) return Promise.resolve();
+    return refresh();
+  };
+  // Serialize cookie rotation across tabs as well as requests in this tab.
+  if (typeof navigator !== 'undefined' && navigator.locks) {
+    return navigator.locks.request('fairy-world:refresh', rotate);
+  }
+  return rotate();
 };
 
 api.interceptors.response.use(
@@ -163,41 +167,27 @@ api.interceptors.response.use(
     const isExcluded = config?.url ? EXCLUDED_ROUTES.some((route) => config.url.includes(route)) : false;
 
     if (error instanceof HttpError && error.status === 401 && config && !options._retry && !isExcluded) {
-      if (isRefreshing) {
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
-        })
-          .then(() => {
-            return makeRequest(config.url, { ...options, _retry: true } as RequestInit);
-          })
-          .catch((queueError: unknown) => {
-            const queueErrInstance = queueError instanceof Error ? queueError : new Error(String(queueError));
-            return Promise.reject(queueErrInstance);
-          });
+      const currentToken = localStorage.getItem('access_token');
+      const sentToken = new Headers(options.headers).get('Authorization');
+      // A slower response may arrive after another request already refreshed.
+      if (currentToken && sentToken !== `Bearer ${currentToken}`) {
+        return makeRequest(config.url, { ...options, _retry: true } as RequestInit);
       }
-
-      options._retry = true;
-      isRefreshing = true;
-
-      try {
-        await refresh();
-        processQueue(null);
-
-        return await makeRequest(config.url, config.options);
-      } catch (refreshError: unknown) {
-        const refreshErrInstance = refreshError instanceof Error ? refreshError : new Error(String(refreshError));
-
-        processQueue(refreshErrInstance);
-
-        localStorage.removeItem('access_token');
-        if (window.location.pathname !== routes.loginPath()) {
-          window.location.href = routes.loginPath();
-        }
-
-        return Promise.reject(refreshErrInstance);
-      } finally {
-        isRefreshing = false;
+      if (!refreshPromise) {
+        refreshPromise = refreshSession(currentToken).catch((refreshError: unknown) => {
+          // Network/server failures are not proof that the session is invalid.
+          if (refreshError instanceof HttpError && refreshError.status === 401) {
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('access_token_expires_at');
+            notifySessionChanged();
+            if (window.location.pathname !== routes.loginPath()) window.location.href = routes.loginPath();
+          }
+          throw refreshError;
+        }).finally(() => { refreshPromise = null; });
       }
+      await refreshPromise;
+      // A failed retry is an endpoint error, not a failed refresh/logout.
+      return makeRequest(config.url, { ...options, _retry: true } as RequestInit);
     }
 
     return Promise.reject(err);

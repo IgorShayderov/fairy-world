@@ -7,6 +7,12 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   root: fileURLToPath(new URL('..', import.meta.url)),
   plugins: [vue()],
-  resolve: { alias: { '@': fileURLToPath(new URL('../src', import.meta.url)) } },
+  resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('../src', import.meta.url)),
+      vue: 'vue/dist/vue.esm-bundler.js',
+    },
+  },
+  optimizeDeps: { entries: ['test/battle-3d-preview.html'] },
   server: { host: '127.0.0.1', port: 5190 },
 });

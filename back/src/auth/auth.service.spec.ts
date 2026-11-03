@@ -8,6 +8,7 @@ import type { Prisma } from '../../generated/client';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
 import { ItemGeneratorService } from '../items/item-generator.service';
+import { refreshTokenHash } from './token-security';
 
 jest.mock('bcrypt');
 
@@ -26,19 +27,23 @@ describe('AuthService', () => {
 
   const mockJwtService: {
     signAsync: jest.Mock;
+    verifyAsync: jest.Mock;
   } = {
     signAsync: jest.fn(),
+    verifyAsync: jest.fn(),
   };
 
   const mockPrismaService: {
     $transaction: jest.Mock;
     user: {
       create: jest.Mock<Promise<{ id: number; email: string }>, [Prisma.UserCreateArgs]>;
+      updateMany: jest.Mock;
     };
   } = {
     $transaction: jest.fn(),
     user: {
       create: jest.fn<Promise<{ id: number; email: string }>, [Prisma.UserCreateArgs]>(),
+      updateMany: jest.fn(),
     },
   };
 
@@ -60,6 +65,7 @@ describe('AuthService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    mockPrismaService.user.updateMany.mockResolvedValue({ count: 1 });
     mockPrismaService.$transaction.mockImplementation((operation: (tx: unknown) => unknown) =>
       operation(mockPrismaService),
     );
@@ -104,18 +110,18 @@ describe('AuthService', () => {
       expect(mockJwtService.signAsync).toHaveBeenCalledTimes(2);
       expect(mockJwtService.signAsync).toHaveBeenNthCalledWith(
         1,
-        { sub: 1, email: 'john@mail.ru' },
+        { sub: 1, email: 'john@mail.ru', type: 'access' },
         { expiresIn: 900, secret: 'test_secret' },
       );
       expect(mockJwtService.signAsync).toHaveBeenNthCalledWith(
         2,
-        { sub: 1, type: 'refresh' },
+        { sub: 1, type: 'refresh', jti: expect.any(String) as string },
         { expiresIn: 604.8, secret: 'test_secret' },
       );
 
-      expect(bcrypt.hash).toHaveBeenCalledWith('refresh_token_value', 10);
+      expect(bcrypt.hash).not.toHaveBeenCalled();
       expect(mockUsersService.update).toHaveBeenCalledWith(user.id, {
-        hashedRefreshToken: 'new_hashed_refresh_token',
+        hashedRefreshToken: refreshTokenHash('refresh_token_value'),
       });
     });
 
@@ -175,7 +181,7 @@ describe('AuthService', () => {
   });
 
   describe('refreshTokens', () => {
-    const user = { id: 1, email: 'john@mail.ru', hashedRefreshToken: 'old_hashed_token' };
+    const user = { id: 1, email: 'john@mail.ru', hashedRefreshToken: refreshTokenHash('old_refresh_token_value') };
     const sub = 1;
     const oldToken = 'old_refresh_token_value';
 
@@ -194,10 +200,23 @@ describe('AuthService', () => {
         refresh_token: 'new_refresh_token',
       });
 
-      expect(bcrypt.compare).toHaveBeenCalledWith(oldToken, user.hashedRefreshToken);
-      expect(mockUsersService.update).toHaveBeenCalledWith(user.id, {
-        hashedRefreshToken: 'new_hashed_refresh_token',
+      expect(bcrypt.compare).not.toHaveBeenCalled();
+      expect(mockPrismaService.user.updateMany).toHaveBeenCalledWith({
+        where: { id: user.id, hashedRefreshToken: user.hashedRefreshToken },
+        data: { hashedRefreshToken: refreshTokenHash('new_refresh_token') },
       });
+    });
+
+    it('rejects rotation when another request already consumed the token', async () => {
+      mockUsersService.findById.mockResolvedValue(user);
+      mockJwtService.signAsync.mockResolvedValue('new_token');
+      mockPrismaService.user.updateMany.mockResolvedValue({ count: 0 });
+      await expect(service.refreshTokens(sub, oldToken)).rejects.toThrow('already used');
+    });
+
+    it('requires a new login for legacy bcrypt refresh hashes', async () => {
+      mockUsersService.findById.mockResolvedValue({ ...user, hashedRefreshToken: '$2b$legacy' });
+      await expect(service.refreshTokens(sub, oldToken)).rejects.toThrow(UnauthorizedException);
     });
 
     it('should throw UnauthorizedException if user not found', async () => {
@@ -222,12 +241,18 @@ describe('AuthService', () => {
 
   describe('logout', () => {
     it('should nullify hashedRefreshToken in DB', async () => {
-      const userId = 1;
-      await service.logout(userId);
+      mockJwtService.verifyAsync.mockResolvedValue({ sub: 1, type: 'refresh' });
+      await service.logout('session_token');
 
-      expect(mockUsersService.update).toHaveBeenCalledWith(userId, {
-        hashedRefreshToken: null,
+      expect(mockPrismaService.user.updateMany).toHaveBeenCalledWith({
+        where: { id: 1, hashedRefreshToken: refreshTokenHash('session_token') },
+        data: { hashedRefreshToken: null },
       });
+    });
+    it('ignores an invalid cookie without looking up all users', async () => {
+      mockJwtService.verifyAsync.mockRejectedValue(new Error('Invalid JWT'));
+      await service.logout('invalid');
+      expect(mockPrismaService.user.updateMany).not.toHaveBeenCalled();
     });
   });
 });

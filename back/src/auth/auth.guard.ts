@@ -4,6 +4,7 @@ import { Request } from 'express';
 
 import type { RequestWithUser } from './interfaces/request-with-user.interface';
 import type { AccessTokenPayload } from './interfaces/token-payload.interface';
+import { isAccessPayload, jwtSecret } from './token-security';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
@@ -19,10 +20,12 @@ export class AuthGuard implements CanActivate {
 
     try {
       const payload = await this.jwtService.verifyAsync<AccessTokenPayload>(token, {
-        secret: process.env.JWT_SECRET || 'access-secret',
+        secret: jwtSecret(),
+        algorithms: ['HS256'],
       });
+      if (!isAccessPayload(payload)) throw new UnauthorizedException();
 
-      request['user'] = { sub: payload.sub, email: payload.email };
+      request['user'] = { sub: payload.sub, email: payload.email, type: 'access' };
     } catch {
       throw new UnauthorizedException();
     }
@@ -50,8 +53,12 @@ export class RefreshGuard implements CanActivate {
 
     try {
       const payload = await this.jwtService.verifyAsync<AccessTokenPayload>(refreshToken, {
-        secret: process.env.JWT_SECRET,
+        secret: jwtSecret(),
+        algorithms: ['HS256'],
       });
+      if (payload.type !== 'refresh' || !Number.isSafeInteger(payload.sub) || payload.sub <= 0) {
+        throw new UnauthorizedException();
+      }
 
       request['user'] = { sub: payload.sub, type: 'refresh' };
     } catch {
@@ -62,15 +69,7 @@ export class RefreshGuard implements CanActivate {
   }
 
   private extractRefreshTokenFromCookie(request: Request): string | undefined {
-    const cookieHeader = request.headers.cookie;
-    if (!cookieHeader) return undefined;
-
-    const cookies = cookieHeader.split(';').reduce<Record<string, string>>((acc, pair) => {
-      const [key, ...vals] = pair.trim().split('=');
-      if (key) acc[key] = decodeURIComponent(vals.join('='));
-      return acc;
-    }, {});
-
-    return cookies['refresh_token'];
+    const token: unknown = request.cookies?.refresh_token;
+    return typeof token === 'string' ? token : undefined;
   }
 }

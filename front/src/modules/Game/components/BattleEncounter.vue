@@ -454,7 +454,7 @@
 <script setup lang="ts">
 import { useTranslation } from 'i18next-vue';
 import { Notify, QIcon } from 'quasar';
-import { computed, defineComponent, h, ref, watch, type PropType } from 'vue';
+import { computed, defineAsyncComponent, defineComponent, h, ref, watch, type PropType } from 'vue';
 
 import type { InventoryEntry, InventoryItemType } from '@/modules/Inventory/types';
 
@@ -472,7 +472,7 @@ import CombatStatusBadges from './CombatStatusBadges.vue';
 import PotionQuickSlots from './PotionQuickSlots.vue';
 import './combatHud.css';
 
-import Battlefield3D from '@/modules/Game/components/Battlefield3D.vue';
+const Battlefield3D = defineAsyncComponent(() => import('@/modules/Game/components/Battlefield3D.vue'));
 import BattleMonsterModel from '@/modules/Game/components/BattleMonsterModel.vue';
 import BattlePlayerModel from '@/modules/Game/components/BattlePlayerModel.vue';
 import InventoryItem from '@/modules/Inventory/components/InventoryItem.vue';
