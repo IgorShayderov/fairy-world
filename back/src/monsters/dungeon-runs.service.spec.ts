@@ -197,7 +197,7 @@ describe('DungeonRunsService', () => {
     run.player.health = 123;
     const positions = { ...run.tactical };
     const restored = await service.active(7);
-    expect(restored?.opponents.map((enemy) => enemy.monster.movement)).toEqual([5, 1, 4, 3]);
+    expect(restored?.opponents.map((enemy) => enemy.monster.movement)).toEqual([5, 2, 4, 3]);
     expect(restored?.player.health).toBe(123);
     expect(restored?.tactical).toEqual(positions);
   });
@@ -228,7 +228,7 @@ describe('DungeonRunsService', () => {
     }
     const tactics = { ...run.tactical };
     const result = await service.active(7);
-    expect(result?.bossBalanceVersion).toBe(4);
+    expect(result?.bossBalanceVersion).toBe(6);
     expect(result?.opponents[0].monster.health).toBe(0);
     expect(result?.opponents[0].status).toBe('DEFEATED');
     expect(result?.opponents[1].monster).toMatchObject({ health: 1500, maxHealth: 3750, damage: 195, defense: 60 });
@@ -241,9 +241,21 @@ describe('DungeonRunsService', () => {
 
   it('does not reapply strength when reopening a newly generated dungeon', async () => {
     const run = await service.enter(7, 'EMBERDEEP');
-    expect(run.bossBalanceVersion).toBe(4);
+    expect(run.bossBalanceVersion).toBe(6);
     const snapshot = JSON.stringify(run.opponents);
     expect(JSON.stringify((await service.active(7))?.opponents)).toBe(snapshot);
+  });
+
+  it('halves saved mage minion dodge only once without changing other stats', async () => {
+    const run = await service.enter(7, 'EMBERDEEP');
+    run.bossBalanceVersion = 5;
+    const mage = run.opponents.find((entry) => entry.monsterType === 'Ember Wraith')!;
+    expect(mage).toBeDefined();
+    mage.monster.dodge = 20;
+    const before = { ...mage.monster };
+    const restored = await service.active(7);
+    expect(restored?.opponents.find((entry) => entry.id === mage.id)?.monster).toEqual({ ...before, dodge: 10 });
+    expect((await service.active(7))?.opponents.find((entry) => entry.id === mage.id)?.monster.dodge).toBe(10);
   });
 
   it('upgrades version-three slow enemy damage once without multiplying HP again', async () => {
@@ -251,8 +263,53 @@ describe('DungeonRunsService', () => {
     run.bossBalanceVersion = 3;
     Object.assign(run.opponents[1].monster, { health: 1701, maxHealth: 2325, damage: 100 });
     const restored = await service.active(7);
-    expect(restored?.opponents[1].monster).toMatchObject({ health: 1701, maxHealth: 2325, damage: 150, movement: 1 });
+    expect(restored?.opponents[1].monster).toMatchObject({ health: 1701, maxHealth: 2325, damage: 150, movement: 2 });
     expect((await service.active(7))?.opponents[1].monster.damage).toBe(150);
+  });
+
+  it('reduces a saved Icebound Sovereign attack once, without reapplying the slow-monster bonus', async () => {
+    const run = await service.enter(7, 'EMBERDEEP');
+    run.dungeon = 'ICEVAULT';
+    run.bossBalanceVersion = 4;
+    const boss = run.opponents[3];
+    boss.monsterType = 'Icebound Sovereign';
+    Object.assign(boss.monster, { health: 4233, maxHealth: 4695, damage: 200, defense: 60 });
+    const tactics = { ...run.tactical };
+    const restored = await service.active(7);
+    expect(restored?.opponents[3].monster).toMatchObject({ health: 4233, maxHealth: 4695, damage: 140, defense: 60 });
+    expect(restored?.bossBalanceVersion).toBe(6);
+    expect(restored?.tactical).toEqual(tactics);
+    expect((await service.active(7))?.opponents[3].monster.damage).toBe(140);
+  });
+
+  it('uses the reduced Icebound damage for both Glacial Shard and melee in new runs', async () => {
+    usersService.findCurrentUser.mockResolvedValue({
+      ...user,
+      gameProfile: { ...user.gameProfile, mapPositionX: 1770, mapPositionY: 300 },
+    });
+    const run = await service.enter(7, 'ICEVAULT');
+    const boss = run.opponents[3];
+    const base = Math.ceil((3 + boss.monster.level * 2) * 1.6);
+    const previousDamage = Math.ceil(Math.ceil(base * 1.4) * 1.25);
+    const damage = Math.floor(previousDamage * 0.7);
+    expect(boss.monster.damage).toBe(damage);
+    run.opponents.slice(0, 3).forEach((enemy) => {
+      enemy.status = 'DEFEATED';
+      enemy.monster.health = 0;
+    });
+    boss.status = 'AVAILABLE';
+    boss.monster.rangedSkillCooldown = 0;
+    boss.monster.criticalChance = 0;
+    Object.assign(run.player, { health: 10000, maxHealth: 10000, defense: 0, dodge: 0, blockChance: 0, damage: 1 });
+    Object.assign(run.tactical!, { opponentId: boss.id, playerPosition: 0, monsterPosition: 76 });
+    const spell = await service.attack(7, run.id, boss.id, undefined, { action: 'DEFEND' });
+    expect(spell.exchange?.events.find((event) => event.actor === 'MONSTER')).toMatchObject({
+      skillName: 'Glacial Shard',
+      damage: Math.round(damage * 1.2),
+    });
+    inMelee(boss.id);
+    const melee = await service.attack(7, run.id, boss.id, undefined, { action: 'ATTACK' });
+    expect(melee.exchange?.events.find((event) => event.actor === 'MONSTER')).toMatchObject({ damage });
   });
 
   it('upgrades version-two tanks without repeating the earlier damage and boss buffs', async () => {
@@ -266,7 +323,7 @@ describe('DungeonRunsService', () => {
       maxHealth: 2240,
       damage: 150,
       defense: 60,
-      movement: 1,
+      movement: 2,
     });
     expect(JSON.stringify(restored?.opponents[3])).toBe(boss);
     const snapshot = JSON.stringify(restored?.opponents);
@@ -331,7 +388,7 @@ describe('DungeonRunsService', () => {
     ]);
   });
 
-  it('mage minions spend a turn on Arcane Focus, persist it, and boost exactly two undodgeable spells', async () => {
+  it('mage minions heal and attack in one turn, preserving the support cooldown on reload', async () => {
     const run = await service.enter(7, 'EMBERDEEP');
     const enemy = run.opponents[2];
     run.opponents.slice(0, 2).forEach((entry) => {
@@ -350,25 +407,32 @@ describe('DungeonRunsService', () => {
       dodged: false,
     });
     const health = first.player.health;
-    const buff = await turn();
-    expect(buff.player.health).toBe(health);
-    expect(buff.exchange?.events.filter((event) => event.actor === 'MONSTER')).toEqual([
-      expect.objectContaining({ effect: 'empower', action: 'SKILL', damage: 0 }),
+    enemy.monster.maxHealth = 1000;
+    enemy.monster.health = 400;
+    const healed = await turn();
+    expect(healed.player.health).toBe(health - 100);
+    expect(healed.opponents[2].monster.health).toBe(650);
+    expect(healed.exchange?.events.filter((event) => event.actor === 'MONSTER')).toEqual([
+      expect.objectContaining({ effect: 'heal', action: 'SKILL', damage: 0, healing: 250 }),
+      expect.objectContaining({ action: 'ATTACK', damage: 100, dodged: false }),
     ]);
     const restored = await service.active(7);
-    expect(restored?.opponents[2].monster.statuses?.empower).toEqual({ hits: 2, percent: 35 });
+    expect(restored?.opponents[2].monster.statuses?.empower).toBeUndefined();
     expect(restored?.opponents[2].monster.buffCooldown).toBe(4);
-    for (let i = 0; i < 2; i++) {
+    restored!.opponents[2].monster.health = 100;
+    for (let i = 0; i < 4; i++) {
       const result = await turn();
-      expect(result.exchange?.events.find((event) => event.actor === 'MONSTER')).toMatchObject({
-        damage: 135,
-        dodged: false,
-      });
+      expect(result.exchange?.events.filter((event) => event.actor === 'MONSTER')).toEqual([
+        expect.objectContaining({ damage: 100, dodged: false }),
+      ]);
     }
     const after = await turn();
     expect(after.opponents[2].monster.statuses?.empower).toBeUndefined();
     expect(after.opponents[2].monster.damage).toBe(100);
-    expect(after.exchange?.events.find((event) => event.actor === 'MONSTER')).toMatchObject({ damage: 100 });
+    expect(after.exchange?.events.filter((event) => event.actor === 'MONSTER')).toEqual([
+      expect.objectContaining({ effect: 'heal', healing: 250 }),
+      expect.objectContaining({ action: 'ATTACK', damage: 100 }),
+    ]);
   });
 
   it('a distant melee boss casts after its approach turn and keeps cooldown on reload', async () => {
@@ -389,13 +453,22 @@ describe('DungeonRunsService', () => {
     expect(approach.opponents[3].monster.rangedSkill?.cooldown).toBe(0);
     const cast = await service.attack(7, run.id, enemy.id, undefined, { action: 'DEFEND' });
     expect(cast.exchange?.events.filter((event) => event.actor === 'MONSTER')).toEqual([
+      expect.objectContaining({
+        action: 'SKILL',
+        skillName: 'Glacial Chains',
+        statusText: 'Slowed: -2 movement for 2 turns',
+      }),
       expect.objectContaining({ action: 'SKILL', skillName: 'Glacial Shard', effect: 'ice', critical: false }),
     ]);
     expect(cast.tactical!.monsterPosition).toBe(approach.tactical!.monsterPosition);
     expect(cast.opponents[3].monster.rangedSkillCooldown).toBe(2);
+    expect(cast.player.statuses?.slow).toEqual({ turns: 2, reduction: 2 });
     const after = await service.attack(7, run.id, enemy.id, undefined, { action: 'DEFEND' });
     expect(after.exchange?.events.some((event) => event.action === 'SKILL')).toBe(false);
     expect(after.opponents[3].monster.rangedSkillCooldown).toBe(1);
+    expect(after.player.statuses?.slow?.turns).toBe(1);
+    const recovered = await service.attack(7, run.id, enemy.id, undefined, { action: 'DEFEND' });
+    expect(recovered.player.statuses?.slow).toBeUndefined();
   });
 
   it('rejects backpack potions until assigned to a quick slot', async () => {
@@ -544,6 +617,30 @@ describe('DungeonRunsService', () => {
     expect(result.latestEvents[0].dodged).toBe(false);
     expect(result.opponents[0].monster.defense).toBe(60);
   });
+
+  it.each(['warrior-cleave', 'warrior-slam', 'scout-aim', 'scout-pierce', 'scout-volley'])(
+    '%s cannot be dodged in a dungeon',
+    async (skillId) => {
+      const run = await service.enter(7, 'EMBERDEEP');
+      run.player.skillState = {
+        class: skillId.startsWith('scout') ? 'SCOUT' : 'WARRIOR',
+        ranks: { [skillId]: 1 },
+        mana: 1000,
+        maxMana: 1000,
+        spellPower: 50,
+        loadedRangedWeapon: true,
+        turn: 1,
+        readyOnTurn: {},
+      };
+      const target = run.opponents[0];
+      Object.assign(target.monster, { health: 10000, maxHealth: 10000, dodge: 100, blockChance: 0 });
+      inMelee(target.id);
+      jest.spyOn(Math, 'random').mockReturnValue(0.5);
+      const result = await service.attack(7, run.id, target.id, skillId);
+      expect(result.latestEvents[0].dodged).toBe(false);
+      expect(result.latestEvents[0].damage).toBeGreaterThan(0);
+    },
+  );
 
   it('casts learned dungeon skills, persists mana and cooldowns, and rejects unlearned spells', async () => {
     const mage = {

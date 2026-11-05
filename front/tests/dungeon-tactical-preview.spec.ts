@@ -3,23 +3,57 @@ import { expect, test } from '@playwright/test';
 test.use({ launchOptions: { args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] } });
 const base = 'http://127.0.0.1:5193/test/dungeon-preview.html';
 
-test('mage minion buff animates on the caster and displays its remaining charges', async ({ page }) => {
+test('quick battle resolves without starting tactical combat and shows the complete log', async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.goto(base + '?standard=1&premium=1');
+  await page.getByRole('button', { name: 'Quick battle', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('Resolving quick battle…');
+  await expect(page.locator('.tactical-battlefield, .unit-attacking')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Tactical battle', exact: true })).toHaveCount(0);
+  await expect(page.locator('body')).toHaveAttribute('data-quick-requests', '1');
+  await page.evaluate(() => (window as unknown as { finishQuickBattle: () => void }).finishQuickBattle());
+  await expect(page.getByRole('heading', { name: 'Victory', exact: true })).toBeVisible();
+  await expect(page.locator('.battle-results')).toContainText('You dealt 12 damage.');
+  await expect(page.locator('.battle-results')).toContainText('Enemy dealt 7 damage.');
+  await expect(page.locator('.battle-results')).toContainText('You dealt 81 damage.');
+  await expect(page.locator('.tactical-battlefield')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Return to map', exact: true })).toBeVisible();
+});
+
+test('failed quick battle restores battle choices and permits a retry', async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.goto(base + '?standard=1&premium=1');
+  await page.getByRole('button', { name: 'Quick battle', exact: true }).click();
+  await expect(page.getByRole('status')).toBeVisible();
+  await page.evaluate(() =>
+    (window as unknown as { finishQuickBattle: (fail: boolean) => void }).finishQuickBattle(true)
+  );
+  await expect(page.getByRole('button', { name: 'Tactical battle', exact: true })).toBeEnabled();
+  await page.getByRole('button', { name: 'Quick battle', exact: true }).click();
+  await expect(page.locator('body')).toHaveAttribute('data-quick-requests', '2');
+});
+
+test('mage minion healing animates on the caster followed by an attack in the same turn', async ({ page }) => {
   test.setTimeout(90_000);
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto(base + '?enemySpell=1&enemyBuff=1&edgeStart=1');
+  await expect(page.locator('.combat-floating-layer')).toBeAttached({ timeout: 60_000 });
   await expect(page.locator('.scene-message')).toHaveCount(0, { timeout: 60_000 });
   await page.evaluate(() => {
     const layer = document.querySelector('.combat-floating-layer');
     if (!layer) throw new Error('Missing battle effect layer');
     new MutationObserver(() => {
-      if (layer.textContent?.includes('ARCANE FOCUS')) document.body.dataset.enemyBuffSeen = 'yes';
+      if (layer.textContent?.includes('+20 HP')) document.body.dataset.enemyHealSeen = 'yes';
+      if (layer.textContent?.includes('-10')) document.body.dataset.enemyAttackSeen = 'yes';
     }).observe(layer, { childList: true, subtree: true, characterData: true });
   });
   await page.screenshot({ path: '/tmp/closer-battle-camera.png' });
   await page.getByRole('button', { name: 'Defend / End turn' }).click();
-  await expect(page.locator('body')).toHaveAttribute('data-enemy-buff-seen', 'yes', { timeout: 30_000 });
-  await expect(page.locator('.status-badges')).toContainText('Spell damage +35% · 2 attacks');
-  await expect(page.locator('.combat-hud-log')).toContainText('Arcane Focus');
+  await expect(page.locator('body')).toHaveAttribute('data-enemy-heal-seen', 'yes', { timeout: 30_000 });
+  await expect(page.locator('body')).toHaveAttribute('data-enemy-attack-seen', 'yes', { timeout: 30_000 });
+  await expect(page.locator('.combat-hud-log')).toContainText('Soul Renewal: +20 HP');
+  await expect(page.locator('.combat-hud-log')).toContainText('Frost Bolt: 10 damage');
+  await expect(page.locator('.dungeon-vitals')).toContainText('50 / 80 HP');
   await expect(page.getByRole('button', { name: 'Defend / End turn' })).toBeEnabled({ timeout: 30_000 });
 });
 

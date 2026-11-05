@@ -14,6 +14,7 @@ const appRoutes: RouteRecordRaw[] = [
         path: '',
         component: () => import('@pages/RootPage.vue'),
         children: [
+          { path: routes.castlePath(), name: 'CastlePage', component: () => import('@pages/CastlePage.vue') },
           { path: routes.auctionPath(), name: 'AuctionPage', component: () => import('@pages/AuctionPage.vue') },
           { path: routes.notificationsPath(), name: 'NotificationsPage', component: () => import('@pages/NotificationsPage.vue') },
           {

@@ -38,16 +38,41 @@ const run = (): DungeonRunState => ({
 });
 
 describe('dungeon battlefield adapter', () => {
+  it('shows and enforces the player slow without mutating base movement', () => {
+    const state = run();
+    state.player = { ...state.player, movement: 3, statuses: { slow: { turns: 2, reduction: 2 } } };
+    const battle = dungeonBattle(state, 1);
+    expect(battle.player.movement).toBe(1);
+    expect(battle.arena.playerMovement).toBe(1);
+    expect(state.player.movement).toBe(3);
+    expect(battle.arena.reachableCells.length).toBeLessThanOrEqual(6);
+  });
+  it('never displays one movement, even for a legacy slowed monster; petrification still stops it', () => {
+    const state = run();
+    state.opponents[0]!.monster.movement = 1;
+    state.opponents[0]!.monster.statuses = { slow: { turns: 3, reduction: 5 } };
+    expect(dungeonBattle(state, 1).monster.movement).toBe(2);
+    state.opponents[0]!.monster.statuses.petrify = { turns: 1 };
+    expect(dungeonBattle(state, 1).monster.movement).toBe(0);
+  });
   it('lets saved crossbow users attack distant waves without moving', () => {
     const state = run();
     state.player = { ...state.player, attackRange: 7 };
     state.tactical!.playerPosition = 64;
     state.tactical!.monsterPosition = 34;
     expect(dungeonBattle(state, 1).arena.canAttack).toBe(true);
-    expect(dungeonAttackHint(dungeonBattle(state, 1))).toBe('Range: unlimited · Target: 9 hexes — ready to attack');
+    expect(dungeonAttackHint(dungeonBattle(state, 1))).toBe('Ready to attack');
     state.tactical!.monsterPosition = 40;
     expect(dungeonBattle(state, 1).arena.canAttack).toBe(true);
-    expect(dungeonAttackHint(dungeonBattle(state, 1))).toBe('Range: unlimited · Target: 3 hexes — ready to attack');
+    expect(dungeonAttackHint(dungeonBattle(state, 1))).toBe('Ready to attack');
+  });
+  it('keeps useful melee guidance without displaying attack range', () => {
+    const battle = dungeonBattle(run(), 1);
+    expect(battle.arena.canAttack).toBe(false);
+    expect(dungeonAttackHint(battle)).toMatch(/^Move \d+ hex(?:es)? closer$/);
+    battle.arena.playerHasMoved = true;
+    expect(dungeonAttackHint(battle)).toMatch(/closer next turn$/);
+    expect(dungeonAttackHint(battle)).not.toMatch(/range|target:/i);
   });
   it('keeps an old in-progress fight in melee range, so Attack is enabled', () => {
     const state = run();

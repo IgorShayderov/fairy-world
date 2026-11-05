@@ -30,7 +30,7 @@
             queuedSkill = null;
           "
         />
-        <div class="battle-command-bar">
+        <div v-if="battle.status === 'ACTIVE' || animating" class="battle-command-bar">
           <div class="initiative-ribbon">
             <span class="initiative-unit initiative-unit--active"><QIcon name="shield" /> {{ playerName }}</span>
             <QIcon name="chevron_right" />
@@ -42,9 +42,6 @@
           </div>
           <div class="arena-instruction">
             <span v-if="battle.player.missingAmmunition">{{ t('fantasy.encounter.missingAmmunition') }} · </span>
-            <span v-if="(battle.arena.playerAttackRange ?? 1) > 1"
-              >{{ t('fantasy.encounter.rangedRange', { range: battle.arena.playerAttackRange }) }} ·
-            </span>
             <QIcon :name="battle.arena.canAttack ? 'sports_martial_arts' : 'ads_click'" />
             {{
               battle.arena.canAttack
@@ -74,6 +71,7 @@
             </div>
           </template>
           <small>{{ t('profile.propertyNames.MOVEMENT') }}: {{ battle.player.movement }}</small>
+          <CombatStatusBadges :statuses="battle.player.statuses" label="Player status effects" />
         </div>
         <div class="tactical-stat tactical-stat--monster">
           <strong>{{ battle.monster.name }}</strong>
@@ -87,6 +85,12 @@
             }}</small
           >
           <CombatStatusBadges :statuses="battle.monster.statuses" />
+          <small v-if="battle.monster.debuffSkill"
+            >{{ battle.monster.debuffSkill.name }} ·
+            {{
+              battle.monster.debuffSkill.cooldown ? `in ${battle.monster.debuffSkill.cooldown} turns` : 'ready'
+            }}</small
+          >
           <div class="vital-bar"><i :style="{ width: `${monsterHealthPercent}%` }" /></div>
         </div>
         <div v-if="battle.status === 'ACTIVE'" class="combat-hud">
@@ -114,7 +118,19 @@
         </div>
       </div>
 
-      <div v-else class="battlefield-grid relative grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-7 px-8 py-7">
+      <div
+        v-else-if="mode === 'quick' && battle.status === 'ACTIVE'"
+        class="quick-battle-pending"
+        role="status"
+        aria-live="polite"
+      >
+        <QIcon name="fast_forward" size="36px" />
+        <p>{{ t('fantasy.encounter.resolvingQuickBattle') }}</p>
+      </div>
+      <div
+        v-else-if="mode !== 'quick'"
+        class="battlefield-grid relative grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-7 px-8 py-7"
+      >
         <CombatantCard
           icon="auto_awesome"
           :name="playerName"
@@ -140,15 +156,15 @@
       </div>
 
       <div
-        v-if="mode !== 'tactical' || (battle.status !== 'ACTIVE' && !animating)"
+        v-if="mode === 'choose' || (battle.status !== 'ACTIVE' && !animating)"
         :class="{ 'battle-results': battle.status !== 'ACTIVE' && !animating }"
         class="encounter-log min-w-0 shrink-0 border-t border-[#ddbd6b]/15 bg-[#0b2029]/85 px-6 py-4"
       >
         <h3 class="text-xs font-bold tracking-[0.16em] text-[#efca72] uppercase">
           {{ t('fantasy.encounter.combatLog') }}
         </h3>
-        <div v-if="battle.events.length" class="mt-2 max-h-48 space-y-1 overflow-y-auto text-sm text-[#d6e1de]">
-          <div v-for="(event, index) in battle.events" :key="index">
+        <div v-if="combatLog.length" class="mt-2 max-h-48 space-y-1 overflow-y-auto text-sm text-[#d6e1de]">
+          <div v-for="(event, index) in combatLog" :key="index">
             {{ eventText(event) }}
           </div>
         </div>
@@ -247,7 +263,7 @@
 
       <footer class="flex shrink-0 flex-wrap justify-end gap-2 border-t border-[#ddbd6b]/15 bg-[#081a23] px-3 py-2">
         <button
-          v-if="battle.status === 'ACTIVE' && battle.canRetreat"
+          v-if="battle.status === 'ACTIVE' && battle.canRetreat && mode !== 'quick'"
           class="rounded-lg border border-white/15 px-5 py-2.5 text-xs font-bold tracking-wider text-[#b8cbc6] uppercase hover:bg-white/5 disabled:opacity-50"
           :disabled="loading"
           @click="$emit('retreat')"
@@ -303,25 +319,8 @@
             {{ loading ? t('fantasy.encounter.attacking') : t('fantasy.encounter.attack') }}
           </button>
         </template>
-        <template v-else-if="battle.status === 'ACTIVE'">
-          <button
-            class="rounded-lg border border-[#dfc16d]/45 bg-[#dfc16d]/10 px-5 py-2.5 text-xs font-bold tracking-wider text-[#ffe69a] uppercase hover:bg-[#dfc16d]/20 disabled:opacity-50"
-            :disabled="loading"
-            @click="mode = 'tactical'"
-          >
-            <QIcon name="stadia_controller" size="18px" />
-            {{ t('fantasy.encounter.tacticalBattle') }}
-          </button>
-          <button
-            class="rounded-lg bg-[#bd4938] px-7 py-2.5 text-xs font-bold tracking-wider text-white uppercase shadow-lg hover:bg-[#d15743] disabled:opacity-50"
-            :disabled="loading"
-            @click="startQuickBattle"
-          >
-            {{ loading ? t('fantasy.encounter.attacking') : t('fantasy.encounter.attack') }}
-          </button>
-        </template>
         <button
-          v-else-if="!animating"
+          v-else-if="battle.status !== 'ACTIVE' && !animating"
           class="rounded-lg border border-[#dfc16d]/45 bg-[#dfc16d]/10 px-6 py-2.5 text-xs font-bold tracking-wider text-[#ffe69a] uppercase hover:bg-[#dfc16d]/20"
           @click="$emit('close')"
         >
@@ -491,6 +490,16 @@ const animating = ref(false);
 const battlefieldReady = ref(false);
 const queuedSkill = ref<string | null>(null);
 const loading = computed(() => props.loading || animating.value);
+const combatLog = computed(() => props.battle.history ?? props.battle.events);
+
+watch(
+  () => props.loading,
+  (pending, wasPending) => {
+    if (wasPending && !pending && mode.value === 'quick' && props.battle.status === 'ACTIVE') {
+      mode.value = 'choose';
+    }
+  }
+);
 
 watch(
   () => props.battle.id,
@@ -556,7 +565,10 @@ const manaPercent = computed(() =>
   Math.max(0, Math.min(100, ((props.battle.skills?.mana ?? 0) / Math.max(1, props.battle.skills?.maxMana ?? 0)) * 100))
 );
 const startQuickBattle = () => {
-  if (!canQuickBattle.value || loading.value) return;
+  if (!canQuickBattle.value || loading.value || mode.value === 'quick' || props.battle.status !== 'ACTIVE') return;
+  queuedSkill.value = null;
+  battlefieldReady.value = false;
+  animating.value = false;
   mode.value = 'quick';
   emit('quick-battle');
 };
@@ -756,6 +768,15 @@ const CombatantCard = defineComponent({
 </script>
 
 <style scoped>
+.quick-battle-pending {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  color: #ffe69a;
+}
 .encounter-panel {
   /* Quasar's .flex wraps by default; a height-constrained column must not wrap loot into a second column. */
   flex-wrap: nowrap;

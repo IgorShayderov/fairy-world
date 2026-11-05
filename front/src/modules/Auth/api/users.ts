@@ -1,6 +1,7 @@
 import type { CraftInventoryItem, EffectiveModifier, EquipmentSlotId, InventoryEntry } from '@/modules/Inventory/types';
 
 import type { EncounterRoll } from '@/modules/Monsters/api';
+import type { PlayerClass } from '@/modules/Skills/api';
 import routes from '@/routes';
 import { api } from '@shared/api';
 
@@ -27,6 +28,11 @@ export type CurrentUser = {
   dungeonCooldowns?: Array<{ dungeon: string; nextEntryAt: string }>;
   level: number;
   freeAttributes: number;
+  skills?: {
+    class: PlayerClass | null;
+    ranks: Record<string, number>;
+    points: { total: number; spent: number; available: number };
+  };
   mapPosition: MapPosition;
   activeBuffs: ActiveBuff[];
   inventory: InventoryEntry[];

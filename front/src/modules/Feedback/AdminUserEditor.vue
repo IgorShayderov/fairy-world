@@ -22,7 +22,7 @@
       /></label>
     </div>
     <template v-if="draft && user.gameProfile">
-      <form class="feedback-card feedback-stack" aria-label="Edit player profile" @submit.prevent="save">
+      <form class="feedback-card feedback-stack" aria-label="Edit player profile" novalidate @submit.prevent="save">
         <h3>Profile & currencies</h3>
         <fieldset :disabled="busy || user.locked" class="editor-grid">
           <label>Name<input v-model.trim="draft.name" required minlength="2" maxlength="60" /></label>
@@ -40,9 +40,7 @@
         </fieldset>
         <p class="feedback-muted">
           XP is progress within the selected level, not lifetime XP.
-          {{
-            draft.level === 100 ? 'Level 100 requires 0 XP.' : `Keep XP below ${100 * draft.level * draft.level}.`
-          }}
+          {{ draft.level === 100 ? 'Level 100 requires 0 XP.' : `Keep XP below ${100 * draft.level * draft.level}.` }}
           Level changes update skill-point entitlement; free attribute points and base attributes are set explicitly
           below.
         </p>
@@ -60,9 +58,7 @@
         <p v-if="user.gameProfile.premiumAccount" class="feedback-muted">
           Premium expiry: {{ new Date(user.gameProfile.premiumAccount.expiresAt).toLocaleString() }}
         </p>
-        <button class="feedback-button feedback-button--primary" :disabled="cannotChange || !isDirty">
-          Save profile
-        </button>
+        <button class="feedback-button feedback-button--primary" :disabled="busy">Save profile</button>
       </form>
       <section class="feedback-card feedback-stack" aria-label="Player inventory">
         <h3>
@@ -201,6 +197,7 @@
   </section>
 </template>
 <script setup lang="ts">
+import { Notify } from 'quasar';
 import { computed, ref, watch } from 'vue';
 
 import type {
@@ -274,8 +271,36 @@ const validQuantity = (value: unknown): value is number =>
   typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 9999;
 const stats = (item: AdminItem) =>
   [...item.attributes, ...item.properties].map((stat) => `${stat.name}: ${stat.value}`).join(' · ');
-function save() {
-  if (!cannotChange.value && draft.value) emit('save', { ...draft.value, ...change() });
+function save(event: Event) {
+  if (props.busy) return;
+  let problem = '';
+  if (props.user.locked)
+    problem = 'Finish the player’s battle or leave their dungeon party before editing their profile.';
+  else if (!draft.value) problem = 'This account has no game profile.';
+  else if (reason.value.trim().length < 3)
+    problem = 'Enter a reason for this change (at least 3 characters) above the profile form.';
+  else if (!isDirty.value) problem = 'No profile changes to save.';
+  else {
+    const form = event.currentTarget as HTMLFormElement;
+    const invalid = form.querySelector<HTMLInputElement>('input:invalid');
+    if (invalid) {
+      const label = invalid.closest('label')?.textContent?.trim() || 'Field';
+      problem = `${label}: ${invalid.validationMessage}`;
+      invalid.focus();
+    } else if (
+      draft.value.level === 100 ? draft.value.experience !== 0 : draft.value.experience >= 100 * draft.value.level ** 2
+    ) {
+      problem =
+        draft.value.level === 100
+          ? 'Level 100 requires 0 XP.'
+          : `Experience must be below ${100 * draft.value.level ** 2} for level ${draft.value.level}.`;
+    }
+  }
+  if (problem) {
+    Notify.create({ type: 'warning', message: problem });
+    return;
+  }
+  if (draft.value) emit('save', { ...draft.value, ...change() });
 }
 function changeItem(entry: AdminInventoryEntry, action: AdminInventoryEdit['action']) {
   if (cannotChange.value) return;

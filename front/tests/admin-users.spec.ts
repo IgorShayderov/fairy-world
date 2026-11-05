@@ -129,8 +129,18 @@ for (const width of [1440, 390]) {
     await expect(create).toHaveCount(0);
     const reason = page.getByLabel('Reason for next change');
     const profile = page.getByRole('form', { name: 'Edit player profile' });
+    const save = profile.getByRole('button', { name: 'Save profile' });
+    await expect(save).toBeEnabled();
+    await save.click();
+    await expect(page.locator('.q-notification').filter({ hasText: 'Enter a reason' })).toBeVisible();
     await reason.fill('Correct test balance');
+    await save.click();
+    await expect(page.locator('.q-notification').filter({ hasText: 'No profile changes' })).toBeVisible();
     await profile.getByLabel('Gold', { exact: true }).fill('1200');
+    await profile.getByLabel('Experience (current level)').fill('100');
+    await save.click();
+    await expect(page.locator('.q-notification').filter({ hasText: 'Experience must be below 100' })).toBeVisible();
+    await profile.getByLabel('Experience (current level)').fill('0');
     await profile.getByLabel('Level', { exact: true }).fill('10');
     await profile.getByRole('button', { name: 'Save profile' }).click();
     await expect(page.getByRole('status')).toHaveText('Profile saved.');
@@ -139,7 +149,8 @@ for (const width of [1440, 390]) {
     await profile.getByLabel('Gold', { exact: true }).fill('1500');
     stale = true;
     await profile.getByRole('button', { name: 'Save profile' }).click();
-    await expect(page.getByRole('alert')).toContainText('Player data changed');
+    await expect(page.locator('.feedback-error')).toContainText('Player data changed');
+    await expect(page.locator('.q-notification').filter({ hasText: 'Player data changed' })).toBeVisible();
     await expect(profile.getByLabel('Gold', { exact: true })).toHaveValue('1500');
     await page.getByRole('button', { name: 'Reload player' }).click();
     await expect(profile.getByLabel('Gold', { exact: true })).toHaveValue('1200');
@@ -163,7 +174,9 @@ for (const width of [1440, 390]) {
     await expect(page.getByText('Inventory is empty.', { exact: true })).toBeVisible();
     user!.locked = true;
     await page.getByRole('button', { name: 'Reload player' }).click();
-    await expect(page.getByRole('alert')).toContainText('Editing is locked');
-    await expect(profile.getByRole('button', { name: 'Save profile' })).toBeDisabled();
+    await expect(page.locator('.user-editor .feedback-error')).toContainText('Editing is locked');
+    await expect(save).toBeEnabled();
+    await save.click();
+    await expect(page.locator('.q-notification').filter({ hasText: 'Finish the player’s battle' })).toBeVisible();
   });
 }

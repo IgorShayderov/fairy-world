@@ -1,3 +1,25 @@
+import type { BattleState } from '@/modules/Monsters/api';
+
+/** Reconstruct occupancy at this event, not at the end of the exchange. */
+export function battleEventMovementPath(
+  battle: {
+    arena: Pick<BattleState['arena'], 'columns' | 'rows' | 'blockedCells' | 'playerPosition' | 'monsterPosition'>;
+    events: Pick<BattleState['events'][number], 'actor' | 'action' | 'fromCell' | 'toCell'>[];
+  },
+  eventIndex: number
+) {
+  const event = battle.events[eventIndex];
+  if (event?.toCell === undefined) return [];
+  const { arena } = battle;
+  const occupied =
+    battle.events
+      .slice(eventIndex + 1)
+      .find((next) => next.actor !== event.actor && next.action === 'MOVE' && next.fromCell !== undefined)?.fromCell ??
+    (event.actor === 'PLAYER' ? arena.monsterPosition : arena.playerPosition);
+  if (event.fromCell === undefined) return [];
+  return battleMovementPath(event.fromCell, event.toCell, arena.columns, arena.rows, [...arena.blockedCells, occupied]);
+}
+
 /** Presentation-only path. Move legality remains server-authoritative. */
 export function battleMovementPath(from: number, to: number, columns: number, rows: number, blocked: number[]) {
   const parents = new Map<number, number | null>([[from, null]]);

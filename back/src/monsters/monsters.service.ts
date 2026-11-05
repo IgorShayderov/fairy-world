@@ -21,13 +21,21 @@ import { canShoot, weaponAttackRange } from './battle-range';
 import {
   chooseMonsterShot,
   monsterCombatView,
-  monsterBuffEvent,
-  monsterSpellDamage,
+  monsterSupportAction,
+  slowBossDebuff,
   RANGED_MONSTERS,
   type MonsterShot,
 } from './monster-combat';
-import { isMagicSpell, SKILLS, type SkillDefinition, type SkillEffect } from '../skills/skills.catalog';
+import {
+  isMagicSpell,
+  SKILLS,
+  skillBaseManaCost,
+  skillDamageMultiplier,
+  type SkillDefinition,
+  type SkillEffect,
+} from '../skills/skills.catalog';
 import { magicSkillManaCost } from '../items/mage-equipment';
+import { skillDescription } from '../skills/skill-presentation';
 import { getPotionEffect, getPotionRequiredLevel } from '../items/potion-effects';
 import { ensurePotionSlotAccess, isPotionSlot } from '../items/potion-slots';
 import {
@@ -46,6 +54,7 @@ export type BattleAction = 'ATTACK' | 'DEFEND' | 'POWER_ATTACK' | 'MOVE' | 'SKIL
 const ARENA_COLUMNS = 8;
 const ARENA_ROWS = 5;
 type Combatant = {
+  debuffCooldown?: number;
   buffCooldown?: number;
   rangedSkillCooldown?: number;
   statuses?: CombatStatuses;
@@ -70,6 +79,7 @@ type Battle = {
   status: BattleStatus;
   turn: number;
   lastPotionTurn?: number;
+  history: Battle['events'];
   player: Combatant;
   monster: Combatant & { id: number; level: number; rewardGold: number; rewardExperience: number };
   events: Array<{
@@ -278,7 +288,7 @@ export class MonstersService {
     if (!battle || battle.userId !== userId) throw new NotFoundException('Active battle not found');
     if (battle.status !== 'ACTIVE') throw new BadRequestException('Battle has already ended');
 
-    if (!preserveEvents) battle.events = [];
+    if (!preserveEvents) this.beginExchange(battle);
     while (battle.status === 'ACTIVE') {
       if (battle.monster.health <= 0) {
         battle.status = 'VICTORY';
@@ -294,8 +304,11 @@ export class MonstersService {
         break;
       }
 
-      if (!battle.monster.statuses?.petrify?.turns)
+      if (!battle.monster.statuses?.petrify?.turns) {
+        const support = monsterSupportAction(battle.monsterType, battle.monster);
+        if (support) battle.events.push(support);
         this.enemyStrike(battle, chooseMonsterShot(battle.monsterType, battle.monster, true, true));
+      }
       finishStatusTurn(battle.monster);
       if (battle.player.health <= 0) {
         battle.status = 'DEFEAT';
@@ -464,15 +477,13 @@ export class MonstersService {
       );
     }
 
-    battle.events = battle.playerMovedThisTurn
-      ? battle.events.filter((event) => event.actor === 'PLAYER' && event.action === 'MOVE')
-      : [];
+    this.beginExchange(battle, battle.playerMovedThisTurn);
     if (action === 'MOVE') {
       if (!Number.isInteger(targetCell)) throw new BadRequestException('Choose a battlefield hex');
       const reachable = this.reachableCells(
         battle.playerPosition,
         battle.monsterPosition,
-        battle.player.movement,
+        effectiveMovement(battle.player, 1),
         battle.blockedCells,
       );
       if (!reachable.includes(targetCell!)) throw new BadRequestException('That hex is outside your movement range');
@@ -494,7 +505,7 @@ export class MonstersService {
     } else if (skill && battle.skills) {
       const state = battle.skills;
       const rank = state.ranks[skill.id];
-      state.mana -= magicSkillManaCost(skill.manaCost ?? 0, skill.class, state.manaCostReduction ?? 0);
+      state.mana -= magicSkillManaCost(skillBaseManaCost(skill, rank), skill.class, state.manaCostReduction ?? 0);
       state.readyOnTurn[skill.id] = battle.turn + (skill.cooldown ?? 0) + 1;
       if (skill.effect === 'heal') {
         const healing = Math.min(
@@ -519,13 +530,13 @@ export class MonstersService {
             ...battle.player,
             criticalChance: skill.canCrit ? battle.player.criticalChance : 0,
             damage:
-              (skill.class === 'MAGE' ? state.spellPower : battle.player.damage) *
-              ((skill.multiplier ?? 1) + (skill.class === 'SCOUT' ? 0 : (rank - 1) * 0.04)),
+              (skill.class === 'MAGE' ? state.spellPower : battle.player.damage) * skillDamageMultiplier(skill, rank),
           },
           battle.monster,
           'PLAYER',
           battle.events,
           skill.class === 'MAGE',
+          true,
         );
         Object.assign(battle.events[battle.events.length - 1], {
           action: 'SKILL',
@@ -544,8 +555,20 @@ export class MonstersService {
     if (battle.monster.health <= 0) return this.attack(userId, battleId, true);
 
     const originalDefense = battle.player.defense;
+    finishStatusTurn(battle.player);
     if (action === 'DEFEND') battle.player.defense = Math.min(75, originalDefense + 25);
     const petrified = !!battle.monster.statuses?.petrify?.turns;
+    if (!petrified) {
+      const support = monsterSupportAction(battle.monsterType, battle.monster);
+      if (support) battle.events.push(support);
+      const debuff = slowBossDebuff(
+        battle.monsterType,
+        battle.monster,
+        battle.player,
+        this.areAdjacent(battle.playerPosition, battle.monsterPosition),
+      );
+      if (debuff) battle.events.push(debuff);
+    }
     const shot = !petrified
       ? chooseMonsterShot(
           battle.monsterType,
@@ -578,7 +601,7 @@ export class MonstersService {
       );
       const slowed =
         skill?.effect === 'ice' && battle.events.some((event) => event.skillId === skill.id && event.damage > 0);
-      const movement = slowed ? Math.max(1, effectiveMovement(battle.monster) - 2) : effectiveMovement(battle.monster);
+      const movement = slowed ? Math.max(2, effectiveMovement(battle.monster) - 2) : effectiveMovement(battle.monster);
       const destination = path[Math.min(movement, path.length - 1)];
       if (destination !== undefined && destination !== battle.monsterPosition) {
         const fromCell = battle.monsterPosition;
@@ -656,6 +679,7 @@ export class MonstersService {
       battle.player.health += healed;
       battle.lastPotionTurn = battle.turn;
       // Do not replay the previous attack when a potion updates the scene.
+      this.beginExchange(battle);
       battle.events = [
         {
           actor: 'PLAYER',
@@ -701,6 +725,7 @@ export class MonstersService {
       status: 'ACTIVE',
       turn: 1,
       events: [],
+      history: [],
       powerAttackCooldown: 0,
       skills: {
         class: player.skills?.class ?? null,
@@ -759,8 +784,9 @@ export class MonstersService {
     actor: 'PLAYER' | 'MONSTER',
     events: Battle['events'],
     ignoresDefense = false,
+    cannotBeDodged = ignoresDefense,
   ) {
-    if (!ignoresDefense && Math.random() * 100 < defender.dodge) {
+    if (!cannotBeDodged && Math.random() * 100 < defender.dodge) {
       events.push({ actor, damage: 0, critical: false, dodged: true });
       return;
     }
@@ -780,15 +806,11 @@ export class MonstersService {
   }
 
   private enemyStrike(battle: Battle, shot?: MonsterShot) {
-    if (shot?.effect === 'empower') {
-      battle.events.push(monsterBuffEvent(shot));
-      return;
-    }
     this.strike(
       shot
         ? {
             ...battle.monster,
-            damage: monsterSpellDamage(battle.monster, battle.monster.damage * shot.multiplier),
+            damage: battle.monster.damage * shot.multiplier,
             criticalChance: 0,
           }
         : battle.monster,
@@ -796,6 +818,7 @@ export class MonstersService {
       'MONSTER',
       battle.events,
       isMagicSpell(shot?.effect),
+      !!shot,
     );
     if (shot)
       Object.assign(battle.events[battle.events.length - 1], {
@@ -806,6 +829,16 @@ export class MonstersService {
       });
   }
 
+  private beginExchange(battle: Battle, keepPlayerMove = false) {
+    const carried = keepPlayerMove
+      ? battle.events.filter((event) => event.actor === 'PLAYER' && event.action === 'MOVE')
+      : [];
+    // Carried movement stays in this exchange, so it is logged exactly once.
+    battle.history ??= [];
+    battle.history.push(...battle.events.filter((event) => !carried.includes(event)));
+    battle.events = carried;
+  }
+
   private renderBattle(battle: Battle) {
     return {
       id: battle.id,
@@ -813,13 +846,14 @@ export class MonstersService {
       status: battle.status,
       turn: battle.turn,
       potionUsedThisTurn: battle.lastPotionTurn === battle.turn,
-      player: battle.player,
+      player: { ...battle.player, movement: effectiveMovement(battle.player, 1) },
       monster: {
         ...battle.monster,
         movement: effectiveMovement(battle.monster),
         ...monsterCombatView(battle.monsterType, battle.monster),
       },
       events: battle.events,
+      history: [...(battle.history ?? []), ...battle.events],
       rewards: battle.rewards,
       canRetreat: battle.canRetreat,
       powerAttackCooldown: battle.powerAttackCooldown,
@@ -829,7 +863,12 @@ export class MonstersService {
             maxMana: battle.skills.maxMana,
             abilities: SKILLS.filter((skill) => skill.effect && battle.skills!.ranks[skill.id] > 0).map((skill) => ({
               ...skill,
-              manaCost: magicSkillManaCost(skill.manaCost ?? 0, skill.class, battle.skills!.manaCostReduction ?? 0),
+              description: skillDescription(skill, battle.skills!.ranks[skill.id]),
+              manaCost: magicSkillManaCost(
+                skillBaseManaCost(skill, battle.skills!.ranks[skill.id]),
+                skill.class,
+                battle.skills!.manaCostReduction ?? 0,
+              ),
               rank: battle.skills!.ranks[skill.id],
               remainingCooldown: Math.max(0, (battle.skills!.readyOnTurn[skill.id] ?? 0) - battle.turn),
               unavailable: this.skillUnavailable(battle, skill),
@@ -841,7 +880,7 @@ export class MonstersService {
         rows: ARENA_ROWS,
         playerPosition: battle.playerPosition,
         monsterPosition: battle.monsterPosition,
-        playerMovement: battle.player.movement,
+        playerMovement: effectiveMovement(battle.player, 1),
         monsterMovement: effectiveMovement(battle.monster),
         blockedCells: battle.blockedCells,
         reachableCells:
@@ -849,7 +888,7 @@ export class MonstersService {
             ? this.reachableCells(
                 battle.playerPosition,
                 battle.monsterPosition,
-                battle.player.movement,
+                effectiveMovement(battle.player, 1),
                 battle.blockedCells,
               )
             : [],
@@ -873,7 +912,10 @@ export class MonstersService {
       return 'Skill has not been learned';
     if (battle.status !== 'ACTIVE') return 'Battle has ended';
     if ((state.readyOnTurn[skill.id] ?? 0) > battle.turn) return 'Skill is on cooldown';
-    if (state.mana < magicSkillManaCost(skill.manaCost ?? 0, skill.class, state.manaCostReduction ?? 0))
+    if (
+      state.mana <
+      magicSkillManaCost(skillBaseManaCost(skill, state.ranks[skill.id]), skill.class, state.manaCostReduction ?? 0)
+    )
       return 'Not enough mana';
     if (skill.effect === 'heal')
       return battle.player.health >= battle.player.maxHealth ? 'Health is already full' : null;

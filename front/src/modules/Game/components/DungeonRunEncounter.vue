@@ -29,13 +29,12 @@
             <strong>{{ playerName }}</strong
             ><span>{{ controlsBattle.player.health }} / {{ controlsBattle.player.maxHealth }} HP</span>
             <progress :value="controlsBattle.player.health" :max="controlsBattle.player.maxHealth" />
-            <span class="text-[#efca72]"
-              >Attack range: {{ (controlsBattle.arena.playerAttackRange ?? 1) > 1 ? 'unlimited' : '1 hex' }}</span
-            >
             <template v-if="battle.skills"
               ><span class="text-sky-200">Mana {{ battle.skills.mana }} / {{ battle.skills.maxMana }}</span
               ><progress class="mana" :value="battle.skills.mana" :max="battle.skills.maxMana"
             /></template>
+            <span v-if="controlsBattle.player.statuses?.slow">Movement: {{ controlsBattle.player.movement }}</span>
+            <CombatStatusBadges :statuses="controlsBattle.player.statuses" label="Player status effects" />
           </div>
           <div>
             <strong>{{ controlsBattle.monster.name }}</strong
@@ -52,6 +51,14 @@
               }}</span
             >
             <CombatStatusBadges :statuses="controlsBattle.monster.statuses" />
+            <span v-if="controlsBattle.monster.debuffSkill"
+              >{{ controlsBattle.monster.debuffSkill.name }} ·
+              {{
+                controlsBattle.monster.debuffSkill.cooldown
+                  ? `in ${controlsBattle.monster.debuffSkill.cooldown} turns`
+                  : 'ready'
+              }}</span
+            >
           </div>
         </div>
         <details class="dungeon-scores" aria-label="Dungeon damage contributions">
@@ -229,7 +236,7 @@
         </div>
       </div>
       <footer v-if="battle.status === 'ACTIVE'" class="dungeon-actions">
-        <span id="dungeon-attack-range">{{ dungeonAttackHint(controlsBattle) }}</span>
+        <span id="dungeon-attack-hint">{{ dungeonAttackHint(controlsBattle) }}</span>
         <select
           v-if="sceneFailed"
           aria-label="Move to hex"
@@ -245,7 +252,7 @@
         <button
           class="attack-button"
           :title="dungeonAttackHint(controlsBattle)"
-          aria-describedby="dungeon-attack-range"
+          aria-describedby="dungeon-attack-hint"
           :disabled="loading || !controlsBattle.arena.canAttack || currentMemberDefeated"
           @click="act({ action: 'ATTACK' })"
         >

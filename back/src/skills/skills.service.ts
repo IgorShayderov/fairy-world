@@ -1,7 +1,8 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { MonstersService } from '../monsters/monsters.service';
-import { PLAYER_CLASSES, SKILLS, skillPoints, skillRanks, upgradeError } from './skills.catalog';
+import { PLAYER_CLASSES, SKILLS, skillBaseManaCost, skillPoints, skillRanks, upgradeError } from './skills.catalog';
+import { skillPresentation } from './skill-presentation';
 
 export const SKILL_RESET_GEMS = 500;
 
@@ -24,7 +25,19 @@ export class SkillsService {
       gems: profile.gems,
       resetCost: SKILL_RESET_GEMS,
       classes: PLAYER_CLASSES,
-      catalog: SKILLS,
+      catalog: SKILLS.map((skill) => ({
+        ...skill,
+        ...skillPresentation(skill, ranks[skill.id] ?? 0),
+        ...(skill.effect
+          ? {
+              manaCost: skillBaseManaCost(skill, ranks[skill.id] ?? 1),
+              nextRankManaCost:
+                (ranks[skill.id] ?? 0) < skill.maxRank
+                  ? skillBaseManaCost(skill, (ranks[skill.id] ?? 0) + 1)
+                  : undefined,
+            }
+          : {}),
+      })),
       locked: this.monsters.hasActiveBattle(userId) || !!(await this.monsters.activeDungeon(userId)),
     };
   }

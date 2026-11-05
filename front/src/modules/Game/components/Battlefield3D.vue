@@ -67,13 +67,14 @@ import {
 import { createCreatureHitPose } from '@/modules/Game/battleHitReaction';
 import { createMageStaff } from '@/modules/Game/battleMageStaff';
 import { battleMonsterModel, hasGroundedFootsteps } from '@/modules/Game/battleMonsterModels';
-import { battleMovementPath } from '@/modules/Game/battleMovementPath';
+import { battleEventMovementPath } from '@/modules/Game/battleMovementPath';
 import type { BattleHandMode } from '@/modules/Game/battlePlayerLoadout';
 import {
   createProjectile,
   createRangedWeapon,
   projectileFlightSeconds,
   updateCrossbowGrip,
+  updateBowGrip,
 } from '@/modules/Game/battleRangedWeapon';
 import { releaseBattleResources as release } from '@/modules/Game/battleResources';
 import { dressSkeleton, uprightSkeletonClips } from '@/modules/Game/battleSkeleton';
@@ -333,49 +334,14 @@ function updateEquipment() {
     return;
   }
   if (props.handMode === 'BOW') {
-    if (/fall|death/i.test(player.current?.getClip().name ?? '')) {
-      weapon.position.copy(left.localToWorld(palmGrip.clone()));
-      weapon.quaternion.copy(left.getWorldQuaternion(new T.Quaternion()));
-      return;
-    }
     const bash = rangedBashProgress === undefined ? 0 : attackOffset(rangedBashProgress, 0.45) * 0.3;
-    const forward = new T.Vector3(0, 0, 1).transformDirection(player.root.matrixWorld);
-    const up = new T.Vector3(0, 1, 0);
-    const draw =
-      rangedShotProgress === undefined
-        ? 0
-        : rangedShotProgress <= 0.3
-          ? Math.sin(((rangedShotProgress / 0.3) * Math.PI) / 2)
-          : Math.max(0, 1 - (rangedShotProgress - 0.3) / 0.12);
-    for (const [side, hand] of [
-      ['L', left],
-      ['R', right],
-    ] as const) {
-      const upper = player.root.getObjectByName(`Rig_Upper_Arm_${side}`);
-      const lower = player.root.getObjectByName(`Rig_Lower_Arm_${side}`);
-      if (!upper || !lower) continue;
-      const rotation = gripRotation(up, forward, side);
-      const handTarget = player.root.localToWorld(
-        new T.Vector3(side === 'L' ? -0.08 : 0.08, 1.85, (side === 'L' ? 0.5 : 0.3 - draw * 0.3) + bash)
-      );
-      const palmOffset = palmGrip.clone().multiply(hand.getWorldScale(new T.Vector3())).applyQuaternion(rotation);
-      placeArm(
-        upper,
-        lower,
-        hand,
-        handTarget.sub(palmOffset),
-        player.root.localToWorld(new T.Vector3(side === 'L' ? -0.7 : 0.7, 1.7, 0))
-      );
-      hand.quaternion.copy(hand.parent!.getWorldQuaternion(new T.Quaternion()).invert().multiply(rotation));
-      hand.updateMatrixWorld(true);
-      closeGrip(player.root, side);
-    }
-    weapon.position.copy(left.localToWorld(palmGrip.clone()));
-    weapon.quaternion.copy(player.root.getWorldQuaternion(new T.Quaternion()));
-    const string = weapon.getObjectByName('Bowstring') as T.Line;
-    const positions = string.geometry.getAttribute('position') as T.BufferAttribute;
-    positions.setZ(1, -0.16 - draw * 0.3);
-    positions.needsUpdate = true;
+    updateBowGrip(
+      player.root,
+      weapon,
+      rangedShotProgress,
+      bash,
+      /fall|death/i.test(player.current?.getClip().name ?? '')
+    );
     return;
   }
   const heavy = (props.handMode ?? 'TWO_HANDED') === 'TWO_HANDED';
@@ -678,19 +644,25 @@ function triggerHitReaction(target: Fighter, hitDirection: T.Vector3, isCrit = f
   const sparkPos = target.root.position.clone();
   sparkPos.y += target.height * 0.55;
   spawnHitSparks(sparkPos, isCrit ? '#fde047' : '#f97316', isCrit ? 16 : 10);
-  return timeline.wait(reaction.duration, (t) => {
-    const weight = hitReactionWeight(t);
-    target.root.position.copy(startPos).addScaledVector(direction, reaction.distance * weight);
-    // Most of the bend belongs in the spine, not a rigid tilt around the feet.
-    tilt.setFromAxisAngle(leanAxis, reaction.lean * weight * (bodyPose.articulated ? 0.15 : 1));
-    target.root.quaternion.copy(startRotation).premultiply(tilt);
-    bodyPose.apply(t);
-  }, () => {
-    bodyPose.restore();
-    hitPoses.delete(bodyPose);
-    target.root.position.copy(startPos);
-    target.root.quaternion.copy(startRotation);
-  }).then(() => {});
+  return timeline
+    .wait(
+      reaction.duration,
+      (t) => {
+        const weight = hitReactionWeight(t);
+        target.root.position.copy(startPos).addScaledVector(direction, reaction.distance * weight);
+        // Most of the bend belongs in the spine, not a rigid tilt around the feet.
+        tilt.setFromAxisAngle(leanAxis, reaction.lean * weight * (bodyPose.articulated ? 0.15 : 1));
+        target.root.quaternion.copy(startRotation).premultiply(tilt);
+        bodyPose.apply(t);
+      },
+      () => {
+        bodyPose.restore();
+        hitPoses.delete(bodyPose);
+        target.root.position.copy(startPos);
+        target.root.quaternion.copy(startRotation);
+      }
+    )
+    .then(() => {});
 }
 
 function triggerDodgeReaction(target: Fighter, attackDirection: T.Vector3) {
@@ -935,11 +907,7 @@ async function replay(next: BattleState) {
       if (start.distanceTo(destination) < 0.01) continue;
 
       play(unit, 'walk');
-      const from = event.fromCell;
-      const path =
-        from === undefined
-          ? [event.toCell]
-          : battleMovementPath(from, event.toCell, next.arena.columns, next.arena.rows, next.arena.blockedCells);
+      const path = battleEventMovementPath(next, eventIndex);
 
       for (const [stepIndex, cell] of path.entries()) {
         if (disposed) return;
@@ -1491,7 +1459,10 @@ onMounted(async () => {
       const { width, height } = host.value.getBoundingClientRect();
       renderer.setSize(width, height);
       camera.aspect = width / Math.max(1, height);
-      const fit = fitBattleCamera(camera, Array.from({ length: columns * rows }, (_, cell) => point(cell)));
+      const fit = fitBattleCamera(
+        camera,
+        Array.from({ length: columns * rows }, (_, cell) => point(cell))
+      );
       controls!.maxDistance = Math.max(35, fit.distance * 1.5);
       controls!.target.copy(fit.target);
       controls!.update();

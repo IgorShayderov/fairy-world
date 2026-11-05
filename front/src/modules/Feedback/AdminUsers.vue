@@ -107,6 +107,7 @@
   </section>
 </template>
 <script setup lang="ts">
+import { Notify } from 'quasar';
 import { onMounted, ref } from 'vue';
 
 import type {
@@ -144,6 +145,7 @@ async function run(operation: () => Promise<void>) {
     await operation();
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Request failed.';
+    Notify.create({ type: 'negative', message: error.value });
   } finally {
     busy.value = false;
   }

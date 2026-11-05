@@ -7,6 +7,7 @@ import { UsersService } from '../users/users.service';
 import { PlayerBuffType, StatType } from '../../generated/client';
 import { ItemGeneratorService } from '../items/item-generator.service';
 import { DungeonRunsService } from './dungeon-runs.service';
+import { SKILLS, skillBaseManaCost } from '../skills/skills.catalog';
 
 describe('MonstersService', () => {
   let service: MonstersService;
@@ -138,6 +139,46 @@ describe('MonstersService', () => {
       if (!encounter.encountered) throw new Error('Expected battle');
       return service['battles'].get(encounter.battle.id)!;
     }
+
+    it.each(SKILLS.filter((skill) => skill.effect))(
+      '$name charges the ranked cost shown in normal combat',
+      async (skill) => {
+        const battle = await encounterFor(skill.class, { [skill.id]: 2 });
+        battle.playerPosition = 22;
+        battle.player.attackRange = 99;
+        battle.player.missingAmmunition = false;
+        battle.player.health = 500;
+        battle.monster.health = battle.monster.maxHealth = 100000;
+        battle.monster.dodge = 100;
+        battle.monster.blockChance = 0;
+        battle.skills!.mana = 1000;
+        battle.skills!.maxMana = 1000;
+        const cost = skillBaseManaCost(skill, 2);
+        expect(service['renderBattle'](battle).skills!.abilities[0].manaCost).toBe(cost);
+        const result = await service.takeTurn(7, battle.id, 'SKILL', undefined, skill.id);
+        expect(result.skills!.mana).toBe(1000 - cost + 3);
+        expect(result.events.find((event) => event.skillId === skill.id)?.dodged).toBe(false);
+      },
+    );
+
+    it('keeps all exchanges for results without replaying earlier attacks or duplicating movement', async () => {
+      const battle = await encounterFor();
+      battle.player.attackRange = 99;
+      battle.monster.health = battle.monster.maxHealth = 10000;
+      await service.takeTurn(7, battle.id, 'MOVE', 17);
+      const first = await service.takeTurn(7, battle.id, 'ATTACK');
+      const firstLog = [...first.history];
+      const second = await service.takeTurn(7, battle.id, 'ATTACK');
+      expect(second.history).toEqual([...firstLog, ...second.events]);
+      expect(second.history.filter((event) => event.actor === 'PLAYER' && event.action === 'MOVE')).toHaveLength(1);
+      battle.monster.health = 1;
+      battle.monster.dodge = battle.monster.blockChance = 0;
+      jest.spyOn(Math, 'random').mockReturnValue(0.5);
+      const result = await service.takeTurn(7, battle.id, 'ATTACK');
+      expect(result.status).toBe('VICTORY');
+      expect(result.events).toHaveLength(1);
+      expect(result.history).toEqual([...second.history, ...result.events]);
+    });
 
     it('rejects unlearned skills, blocked range and insufficient mana without spending it', async () => {
       const battle = await encounterFor();
@@ -286,7 +327,7 @@ describe('MonstersService', () => {
       expect(result.monster.health).toBe(result.monster.maxHealth);
     });
 
-    it('magic-only enemies buff instead of attacking, then consume two boosted spells; magic ignores player dodge', async () => {
+    it('magic-only enemies heal when wounded and still cast an undodgeable spell on the same turn', async () => {
       const battle = await encounterFor();
       battle.monsterType = 'Goblin Hexer';
       battle.blockedCells = [];
@@ -297,16 +338,25 @@ describe('MonstersService', () => {
       const turn = () => service.takeTurn(7, battle.id, 'DEFEND');
       const first = await turn();
       expect(first.events.find((e) => e.actor === 'MONSTER')).toMatchObject({ damage: 100, dodged: false });
+      expect(first.events.some((e) => e.effect === 'heal')).toBe(false);
+      battle.monster.maxHealth = 1000;
+      battle.monster.health = 400;
       const health = battle.player.health;
-      const buff = await turn();
-      expect(buff.player.health).toBe(health);
-      expect(buff.events.filter((e) => e.actor === 'MONSTER')).toEqual([
-        expect.objectContaining({ effect: 'empower', action: 'SKILL', damage: 0 }),
+      const healed = await turn();
+      expect(healed.player.health).toBe(health - 100);
+      expect(healed.monster.health).toBe(650);
+      expect(healed.events.filter((e) => e.actor === 'MONSTER')).toEqual([
+        expect.objectContaining({ effect: 'heal', healing: 250, action: 'SKILL', damage: 0 }),
+        expect.objectContaining({ action: 'ATTACK', damage: 100, dodged: false }),
       ]);
-      for (let i = 0; i < 2; i++) {
+      battle.monster.health = 100;
+      for (let i = 0; i < 4; i++) {
         const result = await turn();
-        expect(result.events.find((e) => e.actor === 'MONSTER')).toMatchObject({ damage: 135, dodged: false });
+        expect(result.events.filter((e) => e.actor === 'MONSTER')).toEqual([
+          expect.objectContaining({ damage: 100, dodged: false }),
+        ]);
       }
+      expect((await turn()).events.find((e) => e.effect === 'heal')).toMatchObject({ healing: 250 });
       expect(battle.monster.statuses?.empower).toBeUndefined();
       expect(battle.monster.damage).toBe(100);
     });
@@ -326,8 +376,8 @@ describe('MonstersService', () => {
     });
     const result = await service.rollEncounter(7);
     if (!result.encountered) throw new Error('Expected battle');
-    result.battle.player.health = 1;
-    result.battle.player.damage = 1;
+    service['battles'].get(result.battle.id)!.player.health = 1;
+    service['battles'].get(result.battle.id)!.player.damage = 1;
     const battle = await service.attack(7, result.battle.id);
     expect(battle.status).toBe('DEFEAT');
     expect(mockPrismaService.gameProfile.update).toHaveBeenCalledWith({
@@ -364,8 +414,8 @@ describe('MonstersService', () => {
     });
     const result = await service.rollEncounter(7);
     if (!result.encountered) throw new Error('Expected battle');
-    result.battle.player.health = 1;
-    result.battle.player.damage = 1;
+    service['battles'].get(result.battle.id)!.player.health = 1;
+    service['battles'].get(result.battle.id)!.player.damage = 1;
     await service.attack(7, result.battle.id);
     expect(mockPrismaService.gameProfileBuff.create).toHaveBeenCalledTimes(1);
     const callArgs = mockPrismaService.gameProfileBuff.create.mock.calls[0] as [
@@ -411,7 +461,7 @@ describe('MonstersService', () => {
     });
     const result = await service.rollEncounter(7);
     if (!result.encountered) throw new Error('Expected battle');
-    result.battle.player.damage = 10000;
+    service['battles'].get(result.battle.id)!.player.damage = 10000;
     const battle = await service.attack(7, result.battle.id);
     expect(battle.rewards).toMatchObject({ gold: 207, experience: 411, items: [{ id: 99, rarity: 'MAGIC' }] });
     expect(mockItemGenerator.generate).toHaveBeenCalledWith(
@@ -660,7 +710,7 @@ describe('MonstersService', () => {
       });
       const encounter = await service.rollEncounter(7);
       if (!encounter.encountered) throw new Error('Expected encounter');
-      encounter.battle.player.damage = 1_000;
+      service['battles'].get(encounter.battle.id)!.player.damage = 1_000;
 
       const battle = await service.attack(7, encounter.battle.id);
 
@@ -752,7 +802,7 @@ describe('MonstersService', () => {
         await expect(service.takeTurn(7, encounter.battle.id, 'ATTACK')).rejects.toThrow('Move next to the enemy');
         await service.takeTurn(7, encounter.battle.id, 'MOVE', 19);
         await service.takeTurn(7, encounter.battle.id, 'DEFEND');
-        await service.takeTurn(7, encounter.battle.id, 'MOVE', 21);
+        await service.takeTurn(7, encounter.battle.id, 'MOVE', 20);
         const melee = await service.takeTurn(7, encounter.battle.id, 'ATTACK');
         const strike = melee.events.find((event) => event.actor === 'PLAYER' && event.action === 'ATTACK');
         expect(strike).toBeDefined();
@@ -799,7 +849,7 @@ describe('MonstersService', () => {
     );
 
     it.each([
-      ['Stone Golem', 1, 22],
+      ['Stone Golem', 2, 21],
       ['Goblin Raider', 3, 20],
       ['Dire Wolf', 5, 18],
     ])('uses %s movement on the server', async (monsterType, movement, destination) => {
@@ -973,7 +1023,7 @@ describe('MonstersService', () => {
       mockItemGenerator.generate.mockResolvedValue(droppedItem);
       const encounter = await service.rollEncounter(7);
       if (!encounter.encountered) throw new Error('Expected encounter');
-      encounter.battle.player.damage = 1_000;
+      service['battles'].get(encounter.battle.id)!.player.damage = 1_000;
 
       const battle = await service.attack(7, encounter.battle.id);
 
@@ -1017,7 +1067,7 @@ describe('MonstersService', () => {
       });
       const result = await service.rollEncounter(7);
       if (!result.encountered) throw new Error('Expected battle');
-      result.battle.player.damage = 1_000;
+      service['battles'].get(result.battle.id)!.player.damage = 1_000;
       mockPrismaService.inventoryItem.create.mockClear();
 
       const battle = await service.attack(7, result.battle.id);

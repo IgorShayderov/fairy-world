@@ -107,8 +107,18 @@ const menuItems = computed(() => [
   {
     id: 'skills',
     nameKey: 'menu.skills',
+    attention: (currentUser.user?.skills?.points.available ?? 0) > 0,
+    attentionReason: t('menu.skillPointsAvailable'),
     route: routes.skillsPath(),
     icon: 'M12 3v6m0 0H5v6m7-6h7v6M5 19v2m14-2v2M3 15h4v4H3zM17 15h4v4h-4zM10 3h4v4h-4z',
+  },
+  {
+    id: 'castle',
+    nameKey: 'menu.castle',
+    route: routes.castlePath(),
+    disabled: (currentUser.user?.level ?? 1) < 25,
+    disabledReason: t('menu.castleLocked', { level: 25 }),
+    icon: 'M3 21V7h3V3h3v4h6V3h3v4h3v14H3Zm6 0v-7a3 3 0 0 1 6 0v7M7 10v2m10-2v2',
   },
   {
     id: 'pvp',

@@ -44,12 +44,12 @@ describe('ranger combat control', () => {
     expect(target.statuses?.petrify).toBeUndefined();
     expect(event.statusText).toBe('Petrification resisted');
   });
-  it('never applies control on a miss or block; a slow cannot reduce movement below one', () => {
+  it('never applies control on a miss or block; a slow cannot reduce movement below two', () => {
     const target: StatusTarget = { defense: 60, movement: 1 };
     applyRangerStatus(target, 'scout-aim', 20, { damage: 0, dodged: true });
     applyRangerStatus(target, 'scout-pierce', 20, { damage: 0, dodged: false, blocked: true });
     expect(target.statuses).toBeUndefined();
     applyRangerStatus(target, 'scout-aim', 20, hit());
-    expect(effectiveMovement(target)).toBe(1);
+    expect(effectiveMovement(target)).toBe(2);
   });
 });

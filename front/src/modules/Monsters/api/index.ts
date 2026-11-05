@@ -36,6 +36,7 @@ export type GeneratedMonster = Pick<
 export interface BattleCombatant {
   attackStyle?: 'MELEE' | 'RANGED';
   rangedSkill?: { name: string; cooldown: number };
+  debuffSkill?: { name: string; cooldown: number };
   statuses?: {
     slow?: { turns: number; reduction: number };
     armorBreak?: { hits: number; percent: number };
@@ -86,6 +87,8 @@ export interface BattleState {
     fromCell?: number;
     toCell?: number;
   }>;
+  /** Full battle log; events contains only the exchange to animate. */
+  history?: BattleState['events'];
   rewards?: {
     gold: number;
     experience: number;
@@ -217,6 +220,7 @@ export interface DungeonRunState {
 }
 
 export interface DungeonPartyMember {
+  statuses?: BattleCombatant['statuses'];
   movement?: number;
   attackRange?: number;
   damage?: number;

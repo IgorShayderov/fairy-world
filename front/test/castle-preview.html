@@ -1,0 +1,284 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Castle preview — isolated test data</title>
+    <style>
+      html,
+      body,
+      #app {
+        margin: 0;
+        height: 100%;
+        font-family: Arial, sans-serif;
+        background: #0b202b;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      #app {
+        display: flex;
+        flex-direction: column;
+      }
+      .preview-header {
+        height: 52px;
+        padding: 16px 24px;
+        background: #1e2939;
+        color: white;
+        flex-shrink: 0;
+      }
+      .preview-content {
+        display: flex;
+        flex: 1;
+        min-height: 0;
+      }
+      .preview-map {
+        position: relative;
+        flex: 1;
+        background: #b8ac7c;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module">
+      import { createApp, ref } from 'vue';
+      import { createPinia } from 'pinia';
+      import { createRouter, createMemoryHistory } from 'vue-router';
+      import { Quasar } from 'quasar';
+      import I18nextVue from 'i18next-vue';
+      import 'quasar/dist/quasar.css';
+      import '@quasar/extras/material-icons/material-icons.css';
+      import '/src/css/app.scss';
+      import '/test/castle-preview.css';
+      import { initializeI18n, i18n } from '/src/locales/i18n';
+      import AppMenu from '/src/components/AppMenu.vue';
+      import CastlePage from '/src/pages/CastlePage.vue';
+      import CastleMapLayer from '/src/modules/Castles/CastleMapLayer.vue';
+      import { castlesApi } from '/src/modules/Castles/api';
+      import { useCurrentUserStore } from '/src/modules/Auth/store/currentUser';
+      const params = new URLSearchParams(location.search);
+      localStorage.setItem('fw_settings', JSON.stringify({ sidebarExpanded: params.has('expanded') }));
+      await initializeI18n();
+      const definitions = [
+        ['keep', 'Crownkeep', 'The heart of your estate. Unlocks higher building levels and expands storage.', 3],
+        ['lumberMill', 'Timberwright Lodge', 'Produces wood, even while you are away.', 2],
+        ['quarry', 'Moonstone Quarry', 'Extracts stone for construction, even while you are away.', 2],
+        ['storehouse', 'Vaulted Storehouse', 'Increases storage capacity.', 1],
+        ['barracks', 'Oathguard Barracks', 'Trains your army. Rangers unlock at level 2; arcanists at level 3.', 3],
+        ['forge', 'Starfire Forge', 'Adds 10% strength to every unit per level.', 1],
+      ];
+      const castle = {
+        id: 'own',
+        name: 'Moonward Keep',
+        x: 1100,
+        y: 650,
+        city: 'AURELIA',
+        keep: 3,
+        lumberMill: 2,
+        quarry: 2,
+        storehouse: 1,
+        barracks: 3,
+        forge: 1,
+        wood: 1950,
+        stone: 1220,
+        capacity: 11000,
+        production: { wood: 240, stone: 180 },
+        armyCapacity: 60,
+        armyPower: 396,
+        defensePower: 546,
+        construction: null,
+        constructionEndsAt: null,
+        training: null,
+        trainingCount: 0,
+        trainingEndsAt: null,
+        sentinels: 20,
+        rangers: 10,
+        arcanists: 0,
+        raidSentinels: 0,
+        raidRangers: 0,
+        raidArcanists: 0,
+        raidTarget: null,
+        raidEndsAt: null,
+        raidCooldownUntil: null,
+        protectedUntil: null,
+        rating: 480,
+        victories: 4,
+        buildings: definitions.map(([key, name, description, level]) => ({
+          key,
+          name,
+          description,
+          level,
+          nextCost: { wood: 300, stone: 200, seconds: 240 },
+          unlocked: true,
+        })),
+        units: [
+          {
+            key: 'sentinels',
+            name: 'Oathguard',
+            description: 'Shield-bearing infantry.',
+            wood: 15,
+            stone: 10,
+            seconds: 45,
+            power: 10,
+            barracks: 1,
+            count: 20,
+          },
+          {
+            key: 'rangers',
+            name: 'Thorn Rangers',
+            description: 'Longbow scouts with strong ranged support.',
+            wood: 25,
+            stone: 10,
+            seconds: 60,
+            power: 16,
+            barracks: 2,
+            count: 10,
+          },
+          {
+            key: 'arcanists',
+            name: 'Dawn Arcanists',
+            description: 'Battle mages wielding starlight.',
+            wood: 20,
+            stone: 30,
+            seconds: 90,
+            power: 24,
+            barracks: 3,
+            count: 0,
+          },
+        ],
+        reports: [],
+      };
+      let hasCastle = !params.has('empty');
+      const state = () => ({
+        serverTime: new Date().toISOString(),
+        eligible: !params.has('locked'),
+        minLevel: 25,
+        foundationGold: 2500,
+        gold: 5000,
+        castle: hasCastle ? structuredClone(castle) : null,
+        placement: { cities: [{ name: 'AURELIA', x: 940, y: 620 }], radius: 350, clearance: 110 },
+      });
+      castlesApi.get = async () => state();
+      castlesApi.leaderboard = async () =>
+        params.has('noRankings')
+          ? []
+          : [
+              {
+                rank: 1,
+                id: 'other',
+                name: 'Silverthorn Citadel',
+                owner: 'Elara',
+                keep: 3,
+                rating: 620,
+                victories: 8,
+                isCurrent: false,
+                protectedUntil: null,
+              },
+              ...(hasCastle
+                ? [
+                    {
+                      rank: 2,
+                      id: 'own',
+                      name: castle.name,
+                      owner: 'Aster',
+                      keep: 3,
+                      rating: castle.rating,
+                      victories: castle.victories,
+                      isCurrent: true,
+                      protectedUntil: null,
+                    },
+                  ]
+                : []),
+            ];
+      castlesApi.upgrade = async (building) => {
+        castle.wood -= 300;
+        castle.stone -= 200;
+        castle.construction = building;
+        castle.constructionEndsAt = new Date(Date.now() + 240000).toISOString();
+      };
+      castlesApi.train = async (unit, count) => {
+        const u = castle.units.find((u) => u.key === unit);
+        castle.wood -= u.wood * count;
+        castle.stone -= u.stone * count;
+        castle.training = unit;
+        castle.trainingCount = count;
+        castle.trainingEndsAt = new Date(Date.now() + u.seconds * count * 1000).toISOString();
+      };
+      castlesApi.preview = async (id) => ({
+        id,
+        name: 'Silverthorn Citadel',
+        owner: 'Elara',
+        keep: 3,
+        defense: 220,
+        wood: 100,
+        stone: 80,
+        seconds: 180,
+        rating: 35,
+        reason: null,
+        protectedUntil: null,
+      });
+      castlesApi.raid = async (target, army) => {
+        castle.raidTarget = target;
+        castle.raidEndsAt = new Date(Date.now() + 180000).toISOString();
+        for (const key of ['sentinels', 'rangers', 'arcanists']) castle[key] -= army[key];
+        castle.raidSentinels = army.sentinels;
+        castle.raidRangers = army.rangers;
+        castle.raidArcanists = army.arcanists;
+      };
+      castlesApi.site = async (x, y) => ({
+        valid: x > 1000,
+        reason: x > 1000 ? 'Open ground suitable for your castle.' : 'Choose open ground outside forests and bogs.',
+        city: x > 1000 ? 'AURELIA' : null,
+      });
+      castlesApi.create = async (name, x, y) => {
+        castle.name = name;
+        castle.x = x;
+        castle.y = y;
+        hasCastle = true;
+      };
+      const pinia = createPinia();
+      const store = useCurrentUserStore(pinia);
+      store.user = { name: 'Aster', level: params.has('locked') ? 24 : 25 };
+      if (params.has('skillPoints')) {
+        store.user.skills = { class: 'SCOUT', ranks: {}, points: { total: 25, spent: 24, available: 1 } };
+        window.spendSkillPoint = () => {
+          store.user.skills.points.available = 0;
+        };
+      }
+      store.fetchCurrentUser = async () => store.user;
+      const MapPreview = {
+        components: { CastleMapLayer },
+        setup() {
+          const control = ref(null);
+          return {
+            control,
+            camera: { x: -400, y: -100, scale: 0.7 },
+            position: { x: 1100, y: 650 },
+            pick: () => control.value?.pick({ x: 1100, y: 650 }),
+            bad: () => control.value?.pick({ x: 900, y: 650 }),
+          };
+        },
+        template: `<div class="preview-map"><h2>Placement preview</h2><button @click="pick">Select open ground</button><button @click="bad">Select forest</button><CastleMapLayer ref="control" :camera="camera" :position="position"/></div>`,
+      };
+      const router = createRouter({
+        history: createMemoryHistory(),
+        routes: [
+          { path: '/', component: MapPreview },
+          { path: '/castle', component: CastlePage },
+        ],
+      });
+      await router.push(params.has('map') ? '/?castle=place' : '/castle');
+      await router.isReady();
+      createApp({
+        components: { AppMenu },
+        template:
+          '<header class="preview-header">✦ Fairy World</header><div class="preview-content"><RouterView/><AppMenu/></div>',
+      })
+        .use(pinia)
+        .use(router)
+        .use(Quasar)
+        .use(I18nextVue, { i18next: i18n })
+        .mount('#app');
+    </script>
+  </body>
+</html>

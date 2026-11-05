@@ -1,0 +1,4 @@
+/* Match App.vue's utility priority so Quasar and Tailwind interact as in the app. */
+@import 'tailwindcss' important;
+@import 'sanitize.css';
+@source '../src';

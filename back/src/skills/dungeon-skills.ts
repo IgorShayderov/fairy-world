@@ -1,8 +1,15 @@
 import { BadRequestException } from '@nestjs/common';
-import { SKILLS, type SkillDefinition, type SkillEffect } from './skills.catalog';
+import {
+  SKILLS,
+  skillBaseManaCost,
+  skillDamageMultiplier,
+  type SkillDefinition,
+  type SkillEffect,
+} from './skills.catalog';
 import type { UserView } from '../users/user.view';
 import { magicSkillManaCost } from '../items/mage-equipment';
 import { applyRangerStatus, type CombatStatuses } from './combat-status';
+import { skillDescription } from './skill-presentation';
 
 export type DungeonSkillState = {
   class: string | null;
@@ -60,7 +67,10 @@ function unavailable(state: DungeonSkillState, skill: SkillDefinition | undefine
   if (!skill?.effect || state.class !== skill.class || !state.ranks[skill.id]) return 'Skill has not been learned';
   if (fighter.health <= 0) return 'You have no Health and cannot attack';
   if ((state.readyOnTurn[skill.id] ?? 0) > state.turn) return 'Skill is on cooldown';
-  if (state.mana < magicSkillManaCost(skill.manaCost ?? 0, skill.class, state.manaCostReduction ?? 0))
+  if (
+    state.mana <
+    magicSkillManaCost(skillBaseManaCost(skill, state.ranks[skill.id]), skill.class, state.manaCostReduction ?? 0)
+  )
     return 'Not enough mana';
   if (skill.class === 'SCOUT' && !state.loadedRangedWeapon) return 'Equip a bow or crossbow and matching ammunition';
   if (skill.effect === 'heal' && fighter.health >= fighter.maxHealth) return 'Health is already full';
@@ -75,7 +85,12 @@ export function dungeonSkillView(state: DungeonSkillState | undefined, fighter: 
     abilities: SKILLS.filter((skill) => skill.effect && skill.class === state.class && state.ranks[skill.id] > 0).map(
       (skill) => ({
         ...skill,
-        manaCost: magicSkillManaCost(skill.manaCost ?? 0, skill.class, state.manaCostReduction ?? 0),
+        description: skillDescription(skill, state.ranks[skill.id]),
+        manaCost: magicSkillManaCost(
+          skillBaseManaCost(skill, state.ranks[skill.id]),
+          skill.class,
+          state.manaCostReduction ?? 0,
+        ),
         rank: state.ranks[skill.id],
         remainingCooldown: Math.max(0, (state.readyOnTurn[skill.id] ?? 0) - state.turn),
         unavailable: unavailable(state, skill, fighter),
@@ -99,7 +114,7 @@ export function castDungeonSkill<T extends Fighter>(
   const error = unavailable(state, skill, attacker);
   if (error || !skill) throw new BadRequestException(error ?? 'Unknown skill');
   const rank = state.ranks[skill.id];
-  state.mana -= magicSkillManaCost(skill.manaCost ?? 0, skill.class, state.manaCostReduction ?? 0);
+  state.mana -= magicSkillManaCost(skillBaseManaCost(skill, rank), skill.class, state.manaCostReduction ?? 0);
   state.readyOnTurn[skill.id] = state.turn + (skill.cooldown ?? 0) + 1;
   if (skill.effect === 'heal') {
     const healing = Math.min(
@@ -113,9 +128,7 @@ export function castDungeonSkill<T extends Fighter>(
       {
         ...attacker,
         criticalChance: skill.canCrit ? (attacker.criticalChance ?? 0) : 0,
-        damage:
-          (skill.class === 'MAGE' ? state.spellPower : attacker.damage) *
-          ((skill.multiplier ?? 1) + (skill.class === 'SCOUT' ? 0 : (rank - 1) * 0.04)),
+        damage: (skill.class === 'MAGE' ? state.spellPower : attacker.damage) * skillDamageMultiplier(skill, rank),
       },
       target,
       skill.class === 'MAGE',

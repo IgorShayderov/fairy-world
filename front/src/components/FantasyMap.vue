@@ -3,7 +3,7 @@
     <canvas
       ref="canvasRef"
       class="absolute inset-0 block h-full w-full"
-      :class="isDragging ? 'cursor-grabbing' : 'cursor-grab'"
+      :class="castlePlacing ? 'cursor-crosshair' : isDragging ? 'cursor-grabbing' : 'cursor-grab'"
       @pointerdown="onPointerDown"
       @pointermove="onPointerMove"
       @pointerup="onPointerUp"
@@ -13,6 +13,15 @@
 
     <div class="map-vignette pointer-events-none absolute inset-0"></div>
     <div class="map-grain pointer-events-none absolute inset-0 opacity-25"></div>
+    <CastleMapLayer
+      v-if="mapReady"
+      v-show="!activeBattle && !activeDungeonRun && !activeLandmark"
+      ref="castleMap"
+      :camera="camera"
+      :position="position"
+      @placing="setCastlePlacement"
+      @locate="locateCastle"
+    />
     <div
       v-if="playerLocated"
       class="player-location-beacon pointer-events-none absolute z-20"
@@ -52,7 +61,7 @@
     </div>
 
     <button
-      v-if="huntAvailable && !activeLandmark && !activeBattle && !activeDungeonRun"
+      v-if="huntAvailable && !castlePlacing && !activeLandmark && !activeBattle && !activeDungeonRun"
       class="hunt-control absolute bottom-5 left-5 z-20 flex items-center gap-3 rounded-xl border px-4 py-3 text-left shadow-2xl backdrop-blur-md"
       :class="{ 'hunt-control--cancel': huntPending }"
       @click="huntPending ? cancelHunt() : handleHunt()"
@@ -72,7 +81,7 @@
 
     <aside
       ref="promptCardRef"
-      v-if="promptLandmark && !activeLandmark && !activeBattle && !activeDungeonRun"
+      v-if="promptLandmark && !castlePlacing && !activeLandmark && !activeBattle && !activeDungeonRun"
       class="atlas-panel absolute z-30 w-[min(20rem,calc(100%-2.5rem))] cursor-grab touch-none p-4 text-[#d6e1de] select-none active:cursor-grabbing"
       :style="{ borderColor: promptLandmark.accent, left: `${promptPosition.x}px`, top: `${promptPosition.y}px` }"
       @pointerdown.stop="startPromptDrag"
@@ -174,7 +183,6 @@ import { Notify, QIcon } from 'quasar';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
-
 import { usersApi } from '@/modules/Auth/api/users';
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 import { canHuntAt, landmarks, movementSpeedAt, type Landmark } from '@/modules/Game/composables/useMapObjects';
@@ -199,6 +207,7 @@ import { useCharacter } from '@modules/Game/composables/useCharacter';
 import { useMapCamera } from '@modules/Game/composables/useMapCamera';
 import { useMapGenerator } from '@modules/Game/composables/useMapGenerator';
 
+import CastleMapLayer from '@/modules/Castles/CastleMapLayer.vue';
 import ActiveBuffs from '@/modules/Game/components/ActiveBuffs.vue';
 import BattleEncounter from '@/modules/Game/components/BattleEncounter.vue';
 import BlacksmithDialog from '@/modules/Game/components/BlacksmithDialog.vue';
@@ -209,6 +218,21 @@ import TownQuestDialog from '@/modules/Quests/TownQuestDialog.vue';
 
 const { t } = useTranslation();
 const currentUserStore = useCurrentUserStore();
+const castleMap = ref<InstanceType<typeof CastleMapLayer> | null>(null);
+const castlePlacing = ref(false),
+  mapReady = ref(false);
+function setCastlePlacement(active: boolean) {
+  castlePlacing.value = active;
+  if (active) {
+    stop();
+    cancelHunt();
+  }
+}
+function locateCastle(point: { x: number; y: number }) {
+  if (!containerRef.value) return;
+  centerOn(point.x, point.y, containerRef.value.clientWidth, containerRef.value.clientHeight);
+  draw();
+}
 const router = useRouter();
 const activeLandmark = ref<Landmark | null>(null);
 const promptLandmark = ref<Landmark | null>(null);
@@ -476,7 +500,10 @@ const handleAttack = async () => {
     }
     if (activeBattle.value.status !== 'ACTIVE') await currentUserStore.fetchCurrentUser(true);
   } catch (error) {
-    console.error('Battle attack failed:', error);
+    Notify.create({
+      type: 'negative',
+      message: error instanceof Error ? error.message : t('fantasy.landmark.error'),
+    });
   } finally {
     battlePending.value = false;
   }
@@ -745,6 +772,10 @@ const onPointerUp = (event: PointerEvent) => {
 
   const pointer = relativePointer(event);
   const mapCoords = screenToMap(pointer.x, pointer.y);
+  if (castlePlacing.value) {
+    void castleMap.value?.pick(mapCoords);
+    return;
+  }
   const landmark = nearbyLandmark(mapCoords.x, mapCoords.y);
   if (landmark && nearbyLandmark(position.x, position.y)?.name === landmark.name) {
     void openLandmark(landmark);
@@ -785,6 +816,7 @@ onMounted(async () => {
     void persistPosition();
   }
   resizeCanvas();
+  mapReady.value = true;
   if (user.hasActiveDungeon) {
     try {
       activeDungeonRun.value = await getActiveDungeon();

@@ -5,7 +5,21 @@
     aria-label="Health potion quick slots"
     @keydown.esc="editing = null"
   >
-    <div v-for="(entry, index) in slots" :key="index" class="belt-slot">
+    <div
+      v-for="(entry, index) in slots"
+      :key="index"
+      class="belt-slot"
+      :class="{ 'belt-slot--locked': locked(index) }"
+      :tabindex="locked(index) ? 0 : undefined"
+      :aria-label="
+        locked(index)
+          ? `${t('potionSlots.configure', { slot: index + 1 })}: ${t('potionSlots.premiumRequired')}`
+          : undefined
+      "
+    >
+      <QTooltip v-if="locked(index)" anchor="top middle" self="bottom middle">
+        {{ t('potionSlots.premiumRequired') }}
+      </QTooltip>
       <button
         class="potion-use"
         :class="{
@@ -21,7 +35,7 @@
               ? `Drink ${entry.item.name} from slot ${index + 1}`
               : `Assign potion slot ${index + 1}`
         "
-        :disabled="pending || (!!entry && (disabled || usedThisTurn) && !manage)"
+        :disabled="locked(index) || pending || (!!entry && (disabled || usedThisTurn) && !manage)"
         :title="
           usedThisTurn && !manage
             ? 'One health potion per turn — available next turn'
@@ -39,14 +53,13 @@
           locked(index) ? '♔' : '+'
         }}</span>
         <span v-if="manage" class="slot-caption">{{ entry ? entry.item.name : t('potionSlots.add') }}</span>
-        <span v-if="manage && index >= 5" class="premium-caption">{{ t('potionSlots.premium') }}</span>
       </button>
       <button
         v-if="!manage"
         class="slot-edit"
         type="button"
         :aria-label="`Configure potion slot ${index + 1}`"
-        :disabled="pending"
+        :disabled="pending || locked(index)"
         @click="openPicker(index)"
       >
         ✎
@@ -78,7 +91,7 @@
 </template>
 <script setup lang="ts">
 import { useTranslation } from 'i18next-vue';
-import { QDialog } from 'quasar';
+import { QDialog, QTooltip } from 'quasar';
 import { computed, ref } from 'vue';
 
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
@@ -118,6 +131,7 @@ const potions = computed(() =>
   )
 );
 function openPicker(index: number) {
+  if (pending.value || locked(index)) return;
   error.value = '';
   editing.value = index;
 }
@@ -261,8 +275,15 @@ async function assign(id: number | null, index = editing.value) {
   background: #10252e;
   border-style: dashed;
 }
-.premium-caption {
-  color: #e6c16c;
-  font-size: 10px;
+.belt-slot--locked {
+  cursor: not-allowed;
+}
+.belt-slot--locked .potion-use {
+  pointer-events: none;
+}
+.belt-slot--locked:focus-visible {
+  outline: 2px solid #e6c16c;
+  outline-offset: 3px;
+  border-radius: 6px;
 }
 </style>
