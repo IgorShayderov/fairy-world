@@ -1,14 +1,20 @@
 import { readFileSync } from 'node:fs';
 
-import { AnimationMixer, Box3, Group, SkinnedMesh, Vector3 } from 'three';
+import { AnimationMixer, Box3, Group, SkinnedMesh, Vector3, Line } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { expect, it } from 'vitest';
 
 import { attackOffset, inPlacePlayerClips } from '../src/modules/Game/battleAnimation';
 import { palmGrip } from '../src/modules/Game/battleHeavyWeapon';
-import { CROSSBOW_LEFT_GRIP, CROSSBOW_RIGHT_GRIP, updateCrossbowGrip } from '../src/modules/Game/battleRangedWeapon';
+import {
+  CROSSBOW_LEFT_GRIP,
+  CROSSBOW_RIGHT_GRIP,
+  updateCrossbowGrip,
+  updateBowGrip,
+  createRangedWeapon,
+} from '../src/modules/Game/battleRangedWeapon';
 
-it('keeps the crossbow attached across the actual knight animation poses', async () => {
+async function loadKnightRig() {
   const file = readFileSync(new URL('../public/models/battle/solus-knight.glb', import.meta.url));
   const jsonLength = file.readUInt32LE(12);
   const data = JSON.parse(file.subarray(20, 20 + jsonLength).toString()) as {
@@ -47,6 +53,36 @@ it('keeps the crossbow attached across the actual knight animation poses', async
   model.position.y -= box.min.y * scale;
   const root = new Group();
   root.add(model);
+  return { root, clips, mixer };
+}
+
+it('keeps the bow in the left palm and its string in the drawing hand across actual knight poses', async () => {
+  const { root, clips, mixer } = await loadKnightRig();
+  const weapon = createRangedWeapon(false);
+  updateBowGrip(root, weapon);
+  for (const name of ['knight_idle', 'knight_walk_in_place', 'knight_hurt_left', 'knight_shield_attack']) {
+    const clip = clips.find((entry) => entry.name === name)!;
+    const positions: Vector3[] = [];
+    for (const fraction of Array.from({ length: 21 }, (_, i) => Math.min(i / 20, 0.99))) {
+      mixer.stopAllAction();
+      mixer.clipAction(clip).reset().play();
+      mixer.update(clip.duration * fraction);
+      updateBowGrip(root, weapon, name === 'knight_shield_attack' ? fraction : undefined);
+      positions.push(weapon.position.clone());
+      const left = root.getObjectByName('Rig_hand_L')!.localToWorld(palmGrip.clone());
+      const right = root.getObjectByName('Rig_hand_R')!.localToWorld(palmGrip.clone());
+      expect(left.distanceTo(weapon.position)).toBeLessThan(0.001);
+      const string = weapon.getObjectByName('Bowstring') as Line;
+      const socket = new Vector3().fromBufferAttribute(string.geometry.getAttribute('position'), 1);
+      expect(right.distanceTo(weapon.localToWorld(socket))).toBeLessThan(0.001);
+    }
+    if (name === 'knight_walk_in_place')
+      expect(new Box3().setFromPoints(positions).getSize(new Vector3()).length()).toBeGreaterThan(0.02);
+  }
+});
+
+it('keeps the crossbow attached across the actual knight animation poses', async () => {
+  const { root, clips, mixer } = await loadKnightRig();
   const weapon = new Group();
   updateCrossbowGrip(root, weapon);
   for (const name of [

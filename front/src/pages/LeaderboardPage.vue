@@ -14,6 +14,7 @@
       </header>
 
       <nav class="mt-5 flex gap-2 rounded-xl border border-[#d8bd75]/20 bg-[#071a23] p-1.5">
+        <RouterLink class="leaderboard-tab" to="/castle?tab=ranking"><QIcon name="castle" size="18px" />Castles</RouterLink>
         <button
           class="leaderboard-tab"
           :class="{ active: activeTab === 'players' }"
@@ -140,6 +141,7 @@ import '@/css/realm-pages.css';
 import { useTranslation } from 'i18next-vue';
 import { QIcon } from 'quasar';
 import { onMounted, ref } from 'vue';
+import { RouterLink } from 'vue-router';
 
 import { usersApi, type LeaderboardEntry } from '@/modules/Auth/api/users';
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';

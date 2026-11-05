@@ -23,6 +23,7 @@
       import { gameAudio } from '/src/shared/audio/gameAudio';
       import { dungeonBattle } from '/src/modules/Game/dungeonBattle';
       import { api } from '/src/shared/api/index.ts';
+      import { attackMonster } from '/src/modules/Monsters/api/index.ts';
       await initializeI18n();
       gameAudio.listen();
       const pinia = createPinia();
@@ -61,7 +62,15 @@
           { id: 10, item: item('Lesser Health Potion', 'POTION'), quantity: 1, isEquiped: false, slot: null },
           { id: 11, item: item('Lesser Attack Potion', 'POTION'), quantity: 1, isEquiped: false, slot: null },
         ],
-        equippedItems: [{ id: 1, item: item('Crossbow', 'WEAPON'), quantity: 1, isEquiped: true, slot: 'left-hand' }],
+        equippedItems: [
+          {
+            id: 1,
+            item: item(new URLSearchParams(location.search).has('bow') ? 'Bow' : 'Crossbow', 'WEAPON'),
+            quantity: 1,
+            isEquiped: true,
+            slot: 'left-hand',
+          },
+        ],
       };
       let potionId = 100;
       api.put = async (url, body) => {
@@ -80,13 +89,49 @@
       };
       user.fetchCurrentUser = async () => {};
       const forgeOffer = {
-        cost: 1000, gemCost: 10, gold: 2500, gems: new URLSearchParams(location.search).has('poorForge') ? 9 : 25,
-        items: [{ id: 42, name: 'Iron Crossbow', level: 20, rarity: 'RARE', upgradeType: 'DAMAGE', upgradeValue: 12, equipped: true }],
+        cost: 1000,
+        gemCost: 10,
+        gold: 2500,
+        gems: new URLSearchParams(location.search).has('poorForge') ? 9 : 25,
+        items: [
+          {
+            id: 42,
+            name: 'Iron Crossbow',
+            level: 20,
+            rarity: 'RARE',
+            upgradeType: 'DAMAGE',
+            upgradeValue: 12,
+            equipped: true,
+          },
+        ],
       };
       api.get = async () => ({ data: structuredClone(forgeOffer), meta: {} });
       api.post = async (url, body) => {
+        if (url.endsWith(`/monsters/battle/${normal.value.id}/attack`)) {
+          document.body.dataset.quickRequests = String(Number(document.body.dataset.quickRequests ?? 0) + 1);
+          return new Promise((resolve, reject) => {
+            window.finishQuickBattle = (fail = false) => {
+              if (fail) return reject(new Error('Preview request failed'));
+              const attack = (actor, damage) => ({ actor, damage, critical: false, dodged: false, action: 'ATTACK' });
+              const events = [attack('PLAYER', 12), attack('MONSTER', 7), attack('PLAYER', 81)];
+              resolve({
+                data: {
+                  ...normal.value,
+                  status: 'VICTORY',
+                  events: [events[2]],
+                  history: events,
+                  monster: { ...normal.value.monster, health: 0 },
+                  rewards: { gold: 40, experience: 40, items: [], craftItems: [] },
+                },
+                meta: {},
+              });
+            };
+          });
+        }
         if (url.endsWith('/remove-bonus') && body.expectedCost === 1000 && body.expectedGemCost === 10) {
-          forgeOffer.items = []; forgeOffer.gold -= 1000; forgeOffer.gems -= 10;
+          forgeOffer.items = [];
+          forgeOffer.gold -= 1000;
+          forgeOffer.gems -= 10;
           return { data: { success: true }, meta: {} };
         }
         throw new Error('Unexpected preview action');
@@ -197,6 +242,7 @@
       const legacy = new URLSearchParams(location.search).has('legacy');
       const enemySpell = new URLSearchParams(location.search).has('enemySpell');
       const enemyBuff = new URLSearchParams(location.search).has('enemyBuff');
+      if (enemyBuff) initial.opponents[0].monster.health = 30;
       if (enemySpell) {
         initial.opponents[0].monsterType = 'Frost Revenant';
         initial.opponents[0].monster.name = 'Frost Revenant';
@@ -216,6 +262,18 @@
       }
       const state = ref(initial);
       const normal = ref(dungeonBattle(initial, 7));
+      const quickPending = ref(false);
+      async function quickBattle() {
+        if (quickPending.value) return;
+        quickPending.value = true;
+        try {
+          normal.value = await attackMonster(normal.value.id);
+        } catch {
+          document.body.dataset.quickFailed = 'yes';
+        } finally {
+          quickPending.value = false;
+        }
+      }
       if (new URLSearchParams(location.search).has('statusBadges')) {
         normal.value.monster.statuses = {
           slow: { turns: 2, reduction: 2 },
@@ -289,11 +347,32 @@
         } else if (command.action === 'DEFEND' && enemyBuff) {
           events = [
             { actor: 'PLAYER', action: 'DEFEND', damage: 0, critical: false, dodged: false },
-            { actor: 'MONSTER', actorName: opponent.monster.name, action: 'SKILL',
-              skillId: 'arcane-focus', skillName: 'Arcane Focus', effect: 'empower', damage: 0,
-              critical: false, dodged: false, statusText: 'Spell damage +35% for the next 2 attacks' },
+            {
+              actor: 'MONSTER',
+              actorName: opponent.monster.name,
+              action: 'SKILL',
+              skillId: 'soul-renewal',
+              skillName: 'Soul Renewal',
+              effect: 'heal',
+              damage: 0,
+              critical: false,
+              dodged: false,
+              healing: 20,
+            },
+            {
+              actor: 'MONSTER',
+              actorName: opponent.monster.name,
+              action: 'ATTACK',
+              skillId: 'frost-bolt',
+              skillName: 'Frost Bolt',
+              effect: 'ice',
+              damage: 10,
+              critical: false,
+              dodged: false,
+            },
           ];
-          opponent.monster.statuses = { empower: { hits: 2, percent: 35 } };
+          opponent.monster.health += 20;
+          next.player.health -= 10;
           next.tactical.turn++;
         } else if (command.action === 'DEFEND' && enemySpell) {
           events = [
@@ -367,6 +446,8 @@
         setup: () => ({
           state,
           normal,
+          quickPending,
+          quickBattle,
           drink,
           attack,
           standard: new URLSearchParams(location.search).has('standard'),
@@ -375,7 +456,7 @@
           blacksmith: new URLSearchParams(location.search).has('blacksmith'),
         }),
         template:
-          '<header class="preview-header">Fairy World · visual test</header><aside class="preview-sidebar">Menu</aside><main class="preview-content" style="display:flex;flex-direction:column"><Blacksmith v-if="blacksmith"/><Profile v-else-if="profile"/><Settings v-else-if="settings"/><Battle v-else-if="standard" :battle="normal" player-name="Preview Hero" :loading="false" @use-potion="drink"/><Dungeon v-else :battle="state" player-name="Preview Hero" :loading="false" @attack="attack" @use-potion="drink"/></main>',
+          '<header class="preview-header">Fairy World · visual test</header><aside class="preview-sidebar">Menu</aside><main class="preview-content" style="display:flex;flex-direction:column"><Blacksmith v-if="blacksmith"/><Profile v-else-if="profile"/><Settings v-else-if="settings"/><Battle v-else-if="standard" :battle="normal" player-name="Preview Hero" :loading="quickPending" @quick-battle="quickBattle" @use-potion="drink"/><Dungeon v-else :battle="state" player-name="Preview Hero" :loading="false" @attack="attack" @use-potion="drink"/></main>',
       })
         .use(pinia)
         .use(Quasar)

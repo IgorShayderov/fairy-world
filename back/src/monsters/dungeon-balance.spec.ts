@@ -1,6 +1,32 @@
-import { fortifySlowDungeonMinion, strengthenDungeonEnemy } from './dungeon-balance';
+import {
+  fortifySlowDungeonMinion,
+  strengthenDungeonEnemy,
+  rebalanceIceboundDamage,
+  reduceMageMinionDodge,
+} from './dungeon-balance';
 
 describe('dungeon enemy strength', () => {
+  it('halves mage minion dodge without changing bosses or melee minions', () => {
+    const mage = { dodge: 20 };
+    reduceMageMinionDodge(mage, 'Frost Wraith', false);
+    expect(mage.dodge).toBe(10);
+    for (const [name, boss] of [
+      ['Icebound Sovereign', true],
+      ['Cinder Stone Brute', false],
+    ] as const) {
+      const enemy = { dodge: 20 };
+      reduceMageMinionDodge(enemy, name, boss);
+      expect(enemy.dodge).toBe(20);
+    }
+  });
+  it('reduces Icebound Sovereign damage by at least 30% without changing durability', () => {
+    const enemy = { health: 4233, maxHealth: 4695, damage: 201, defense: 60 };
+    rebalanceIceboundDamage(enemy, 'Icebound Sovereign');
+    expect(enemy).toEqual({ health: 4233, maxHealth: 4695, damage: 140, defense: 60 });
+    const other = { ...enemy, damage: 200 };
+    rebalanceIceboundDamage(other, 'The Hollow King');
+    expect(other.damage).toBe(200);
+  });
   it('gives the one-step Cinder Stone Brute tank durability', () => {
     const enemy = { health: 70, maxHealth: 896, damage: 100, defense: 30, movement: 1 };
     fortifySlowDungeonMinion(enemy, 'Cinder Stone Brute', false);

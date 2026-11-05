@@ -3,7 +3,18 @@ import { api } from '@shared/api';
 
 export type PlayerClass = 'WARRIOR' | 'SCOUT' | 'MAGE';
 export type SkillEffect =
-  'slash' | 'heal' | 'empower' | 'shockwave' | 'arrow' | 'pierce' | 'volley' | 'fire' | 'ice' | 'arcane' | 'frost-arrow' | 'poison';
+  | 'slash'
+  | 'heal'
+  | 'empower'
+  | 'shockwave'
+  | 'arrow'
+  | 'pierce'
+  | 'volley'
+  | 'fire'
+  | 'ice'
+  | 'arcane'
+  | 'frost-arrow'
+  | 'poison';
 export interface SkillDefinition {
   id: string;
   class: PlayerClass;
@@ -19,6 +30,11 @@ export interface SkillDefinition {
   effect?: SkillEffect;
   canCrit?: boolean;
   manaCost?: number;
+  nextRankManaCost?: number;
+  nextRank?: {
+    rank: number;
+    changes: { label: string; before: string | null; after: string }[];
+  };
   cooldown?: number;
   range?: number;
 }

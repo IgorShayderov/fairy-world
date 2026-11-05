@@ -60,7 +60,7 @@ export const SKILLS: readonly SkillDefinition[] = [
     id: 'warrior-cleave',
     class: 'WARRIOR',
     name: 'Cleave',
-    description: 'A heavy melee cut: 140% damage, +4% per additional rank.',
+    description: 'A heavy melee cut: 140% damage, +4 percentage points and +2 mana per additional rank.',
     icon: 'sports_martial_arts',
     tier: 1,
     branch: 1,
@@ -92,7 +92,7 @@ export const SKILLS: readonly SkillDefinition[] = [
     id: 'warrior-recovery',
     class: 'WARRIOR',
     name: 'Second Wind',
-    description: 'Restore 15% maximum HP, +1% per additional rank. Consumes your attack.',
+    description: 'Restore 15% maximum HP, +1 percentage point and +2 mana per additional rank. Consumes your attack.',
     icon: 'favorite',
     tier: 2,
     branch: 1,
@@ -125,7 +125,7 @@ export const SKILLS: readonly SkillDefinition[] = [
     id: 'warrior-slam',
     class: 'WARRIOR',
     name: 'Earthshatter',
-    description: 'A melee shockwave: 190% damage, +4% per additional rank.',
+    description: 'A melee shockwave: 190% damage, +4 percentage points and +2 mana per additional rank.',
     icon: 'landslide',
     tier: 3,
     branch: 1,
@@ -157,7 +157,7 @@ export const SKILLS: readonly SkillDefinition[] = [
     class: 'SCOUT',
     name: 'Frost Arrow',
     description:
-      '90% weapon damage. On hit, slows movement by 2 hexes for 3 enemy turns (minimum 1). +1 slow per 5 additional ranks. Requires matching ammunition. Cannot crit.',
+      '90% weapon damage, +4 percentage points and +2 mana per additional rank. On hit, slows movement by 2 hexes for 3 enemy turns (minimum 2). +1 slow per 5 additional ranks. Requires matching ammunition. Cannot crit.',
     icon: 'ac_unit',
     tier: 1,
     branch: 1,
@@ -165,7 +165,7 @@ export const SKILLS: readonly SkillDefinition[] = [
     requiredLevel: 1,
     effect: 'frost-arrow',
     manaCost: 24,
-    cooldown: 2,
+    cooldown: 5,
     multiplier: 0.9,
   },
   {
@@ -187,7 +187,7 @@ export const SKILLS: readonly SkillDefinition[] = [
     class: 'SCOUT',
     name: 'Piercing Shot',
     description:
-      '100% weapon damage. On hit, reduces enemy armor by 30% for the next 3 successful hits. +1% armor reduction per additional rank. Does not stack. Cannot crit.',
+      '100% weapon damage, +4 percentage points and +2 mana per additional rank. On hit, reduces enemy armor by 30% for the next 3 successful hits. +1 percentage point of armor reduction per additional rank. Does not stack. Cannot crit.',
     icon: 'broken_image',
     tier: 2,
     branch: 1,
@@ -221,7 +221,7 @@ export const SKILLS: readonly SkillDefinition[] = [
     class: 'SCOUT',
     name: 'Poisoned Arrow',
     description:
-      '80% weapon damage. On hit, 35% chance to petrify the enemy, preventing movement and attack on its next turn. +2% chance per additional rank. Cannot crit.',
+      '80% weapon damage, +4 percentage points and +2 mana per additional rank. On hit, 35% chance to petrify the enemy, preventing movement and attack on its next turn. +2 percentage points of chance per additional rank. Cannot crit.',
     icon: 'science',
     tier: 3,
     branch: 1,
@@ -250,7 +250,7 @@ export const SKILLS: readonly SkillDefinition[] = [
     class: 'MAGE',
     name: 'Fireball',
     description:
-      '140% spell power, +4% per additional rank. Ignores defense. Spell power uses level and Wisdom, not your weapon.',
+      '140% spell power, +4 percentage points and +2 mana per additional rank. Ignores defense. Spell power uses level and Wisdom, not your weapon.',
     icon: 'local_fire_department',
     tier: 1,
     branch: 1,
@@ -282,7 +282,7 @@ export const SKILLS: readonly SkillDefinition[] = [
     class: 'MAGE',
     name: 'Frost Lance',
     description:
-      '120% spell power, +4% per additional rank. Ignores defense. Reduces enemy movement by 2 for its next turn (minimum 1).',
+      '120% spell power, +4 percentage points and +2 mana per additional rank. Ignores defense. Reduces enemy movement by 2 for its next turn (minimum 2).',
     icon: 'ac_unit',
     tier: 2,
     branch: 1,
@@ -316,7 +316,7 @@ export const SKILLS: readonly SkillDefinition[] = [
     id: 'mage-nova',
     class: 'MAGE',
     name: 'Arcane Nova',
-    description: '210% spell power, +4% per additional rank. Ignores defense.',
+    description: '210% spell power, +4 percentage points and +2 mana per additional rank. Ignores defense.',
     icon: 'flare',
     tier: 3,
     branch: 1,
@@ -331,6 +331,15 @@ export const SKILLS: readonly SkillDefinition[] = [
     multiplier: 2.1,
   },
 ];
+
+/** Rank one keeps its base cost; each upgrade costs two additional mana before discounts. */
+export function skillBaseManaCost(skill: SkillDefinition, rank: number): number {
+  return skill.effect ? (skill.manaCost ?? 0) + Math.max(0, Math.min(skill.maxRank, rank) - 1) * 2 : 0;
+}
+
+export function skillDamageMultiplier(skill: SkillDefinition, rank: number): number {
+  return (skill.multiplier ?? 1) + Math.max(0, Math.min(skill.maxRank, rank) - 1) * 0.04;
+}
 
 export function skillRanks(playerClass: string | null | undefined, value: unknown): Record<string, number> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};

@@ -27,7 +27,7 @@ import {
 } from './dungeon-tactics';
 import { monsterMovement, slowMonsterDamage } from './battle-movement';
 import { canShoot, weaponAttackRange } from './battle-range';
-import { chooseMonsterShot, monsterCombatView, monsterBuffEvent, monsterSpellDamage } from './monster-combat';
+import { chooseMonsterShot, monsterCombatView, monsterSupportAction, slowBossDebuff } from './monster-combat';
 import {
   effectiveDefense,
   effectiveMovement,
@@ -36,7 +36,13 @@ import {
   type CombatStatuses,
 } from '../skills/combat-status';
 import { isMagicSpell, SKILLS } from '../skills/skills.catalog';
-import { DUNGEON_BALANCE_VERSION, fortifySlowDungeonMinion, strengthenDungeonEnemy } from './dungeon-balance';
+import {
+  DUNGEON_BALANCE_VERSION,
+  fortifySlowDungeonMinion,
+  strengthenDungeonEnemy,
+  rebalanceIceboundDamage,
+  reduceMageMinionDodge,
+} from './dungeon-balance';
 import {
   castDungeonSkill,
   dungeonSkillSnapshot,
@@ -47,6 +53,7 @@ import {
 } from '../skills/dungeon-skills';
 
 type Combatant = {
+  debuffCooldown?: number;
   buffCooldown?: number;
   rangedSkillCooldown?: number;
   attackStyle?: 'MELEE' | 'RANGED';
@@ -118,6 +125,7 @@ type DungeonPartyLoot = {
   deadlineAt?: string;
 };
 export type DungeonPartyMemberView = {
+  statuses?: CombatStatuses;
   movement?: number;
   attackRange?: number;
   skillState?: DungeonSkillState;
@@ -872,6 +880,7 @@ export class DungeonRunsService {
     const eventStart = state.latestEvents.length;
     const moved = this.playerAction(state, opponent, attacker, currentProfileId, action, skillId);
     actingMember.health = attacker.health;
+    actingMember.statuses = attacker.statuses;
     if (moved) {
       this.recordExchange(state, opponent, eventStart, currentProfileId, actingMember.name, true);
       await tx.dungeonRun.update({ where: { id: party.id }, data: { state: this.json(state) } });
@@ -897,6 +906,7 @@ export class DungeonRunsService {
           action.action === 'DEFEND' && target.profileId === currentProfileId,
         );
         target.health = defender.health;
+        target.statuses = defender.statuses;
         state.partyTurn = (targetIndex + 1) % members.length;
       }
     }
@@ -1193,6 +1203,8 @@ export class DungeonRunsService {
     strengthenDungeonEnemy(opponent.monster, isBoss);
     fortifySlowDungeonMinion(opponent.monster, name, isBoss);
     opponent.monster.damage = slowMonsterDamage(opponent.monster.damage, name);
+    rebalanceIceboundDamage(opponent.monster, name);
+    reduceMageMinionDodge(opponent.monster, name, isBoss);
     return opponent;
   }
 
@@ -1345,6 +1357,7 @@ export class DungeonRunsService {
   private partyMemberCombatant(member: DungeonPartyMemberView): Combatant {
     return {
       movement: member.movement ?? 3,
+      statuses: member.statuses,
       attackRange: member.attackRange ?? 1,
       name: member.name,
       health: member.health ?? 0,
@@ -1416,14 +1429,34 @@ export class DungeonRunsService {
       state.bossBalanceVersion = 3;
       changed = true;
     }
-    if ((state.bossBalanceVersion ?? 0) < DUNGEON_BALANCE_VERSION) {
+    if ((state.bossBalanceVersion ?? 0) < 4) {
       if (state.status === 'ACTIVE') {
         for (const opponent of state.opponents) {
           if (opponent.status === 'DEFEATED' || opponent.monster.health <= 0) continue;
           opponent.monster.damage = slowMonsterDamage(opponent.monster.damage, opponent.monsterType);
         }
       }
-      state.bossBalanceVersion = DUNGEON_BALANCE_VERSION;
+      state.bossBalanceVersion = 4;
+      changed = true;
+    }
+    if ((state.bossBalanceVersion ?? 0) < 5) {
+      if (state.status === 'ACTIVE') {
+        for (const opponent of state.opponents) {
+          if (opponent.status === 'DEFEATED' || opponent.monster.health <= 0) continue;
+          rebalanceIceboundDamage(opponent.monster, opponent.monsterType);
+        }
+      }
+      state.bossBalanceVersion = 5;
+      changed = true;
+    }
+    if ((state.bossBalanceVersion ?? 0) < 6) {
+      if (state.status === 'ACTIVE') {
+        for (const opponent of state.opponents) {
+          if (opponent.status === 'DEFEATED' || opponent.monster.health <= 0) continue;
+          reduceMageMinionDodge(opponent.monster, opponent.monsterType, opponent.isBoss);
+        }
+      }
+      state.bossBalanceVersion = 6;
       changed = true;
     }
     // Apply balance changes to saved runs too, without resetting combat progress.
@@ -1498,7 +1531,7 @@ export class DungeonRunsService {
         throw new BadRequestException('Your companion must finish their action first');
       if (action === 'MOVE') {
         state.latestEvents.push({
-          ...moveDungeonPlayer(tactics, command.targetCell, player.movement ?? 3),
+          ...moveDungeonPlayer(tactics, command.targetCell, effectiveMovement(player, 1)),
           actorName: player.name,
         });
         tactics.movingProfileId = profileId;
@@ -1522,7 +1555,16 @@ export class DungeonRunsService {
         opponent.monster,
         state.latestEvents,
         (source, target, ignoresDefense) =>
-          this.strike(source, target, 'PLAYER', state.latestEvents, player.name, opponent.monster.name, ignoresDefense),
+          this.strike(
+            source,
+            target,
+            'PLAYER',
+            state.latestEvents,
+            player.name,
+            opponent.monster.name,
+            ignoresDefense,
+            true,
+          ),
         player.name,
       );
     } else if (action === 'DEFEND') {
@@ -1535,6 +1577,7 @@ export class DungeonRunsService {
         dodged: false,
       });
     } else this.strike(player, opponent.monster, 'PLAYER', state.latestEvents, player.name, opponent.monster.name);
+    finishStatusTurn(player);
     return false;
   }
 
@@ -1553,18 +1596,14 @@ export class DungeonRunsService {
       finishStatusTurn(opponent.monster);
       return;
     }
-    const shot = chooseMonsterShot(
-      opponent.monsterType,
-      opponent.monster,
-      !state.tactical || dungeonNeighbors(state.tactical.monsterPosition).includes(state.tactical.playerPosition),
-      true,
-    );
+    const support = monsterSupportAction(opponent.monsterType, opponent.monster);
+    if (support) state.latestEvents.push({ ...support, actorName: opponent.monster.name });
+    const adjacent =
+      !state.tactical || dungeonNeighbors(state.tactical.monsterPosition).includes(state.tactical.playerPosition);
+    const debuff = slowBossDebuff(opponent.monsterType, opponent.monster, defender, adjacent);
+    if (debuff) state.latestEvents.push({ ...debuff, actorName: opponent.monster.name, targetName: defender.name });
+    const shot = chooseMonsterShot(opponent.monsterType, opponent.monster, adjacent, true);
     Object.assign(opponent.monster, monsterCombatView(opponent.monsterType, opponent.monster));
-    if (shot?.effect === 'empower') {
-      state.latestEvents.push({ ...monsterBuffEvent(shot), actorName: opponent.monster.name });
-      finishStatusTurn(opponent.monster);
-      return;
-    }
     if (state.tactical && !shot) {
       const move = moveDungeonEnemy(state.tactical, effectiveMovement(opponent.monster));
       if (move.fromCell !== move.toCell) state.latestEvents.push({ ...move, actorName: opponent.monster.name });
@@ -1579,7 +1618,7 @@ export class DungeonRunsService {
       shot
         ? {
             ...opponent.monster,
-            damage: monsterSpellDamage(opponent.monster, opponent.monster.damage * shot.multiplier),
+            damage: opponent.monster.damage * shot.multiplier,
             criticalChance: 0,
           }
         : opponent.monster,
@@ -1589,6 +1628,7 @@ export class DungeonRunsService {
       opponent.monster.name,
       defender.name,
       isMagicSpell(shot?.effect),
+      !!shot,
     );
     if (shot)
       Object.assign(state.latestEvents[state.latestEvents.length - 1], {
@@ -1651,8 +1691,9 @@ export class DungeonRunsService {
     actorName?: string,
     targetName?: string,
     ignoresDefense = false,
+    cannotBeDodged = ignoresDefense,
   ) {
-    if (!ignoresDefense && Math.random() * 100 < defender.dodge) {
+    if (!cannotBeDodged && Math.random() * 100 < defender.dodge) {
       events.push({ actor, damage: 0, critical: false, dodged: true, actorName, targetName });
       return;
     }

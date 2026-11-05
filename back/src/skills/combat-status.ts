@@ -6,9 +6,9 @@ export type CombatStatuses = {
 };
 export type StatusTarget = { statuses?: CombatStatuses; defense: number; movement?: number };
 
-export function effectiveMovement(target: StatusTarget): number {
+export function effectiveMovement(target: StatusTarget, minimum = 2): number {
   if (target.statuses?.petrify?.turns) return 0;
-  return Math.max(1, (target.movement ?? 2) - (target.statuses?.slow?.reduction ?? 0));
+  return Math.max(minimum, (target.movement ?? 2) - (target.statuses?.slow?.reduction ?? 0));
 }
 export function effectiveDefense(target: StatusTarget): number {
   return target.defense * (1 - (target.statuses?.armorBreak?.percent ?? 0) / 100);

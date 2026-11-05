@@ -84,11 +84,15 @@ test('extra slots are locked without premium and usable with premium', async ({ 
   await page.goto(base);
   await expect(page.locator('.potion-use')).toHaveCount(8);
   await expect(page.locator('.potion-locked')).toHaveCount(3);
-  await page.getByRole('button', { name: 'Configure potion slot 6', exact: true }).click();
-  await expect(page.locator('.potion-picker')).toContainText('Active premium is required');
-  await expect(page.locator('.potion-picker').getByRole('button', { name: /Minor Health Potion/ })).toHaveCount(0);
+  for (const slot of await page.locator('.potion-locked').all()) await expect(slot).toBeDisabled();
+  await expect(page.locator('.potion-belt')).not.toContainText('Premium');
+  await page.locator('.belt-slot--locked').first().hover();
+  await expect(page.getByRole('tooltip')).toHaveText('Available only with a premium subscription');
+  await page.locator('.belt-slot--locked').first().click();
+  await expect(page.locator('.potion-picker')).toHaveCount(0);
   await page.goto(base + '&premium=1');
   await expect(page.locator('.potion-locked')).toHaveCount(0);
+  await expect(page.locator('.potion-belt')).not.toContainText('Premium');
   const lastSlot = page.getByRole('button', { name: 'Configure potion slot 8', exact: true });
   await lastSlot.click();
   await page.locator('.potion-picker').getByRole('button', { name: /Minor Health Potion/ }).click();

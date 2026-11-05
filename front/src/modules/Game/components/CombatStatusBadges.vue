@@ -1,9 +1,13 @@
 <template>
-  <div v-if="statuses?.slow || statuses?.armorBreak || statuses?.petrify || statuses?.empower" class="status-badges" aria-label="Enemy status effects">
+  <div
+    v-if="statuses?.slow || statuses?.armorBreak || statuses?.petrify || statuses?.empower"
+    class="status-badges"
+    :aria-label="label ?? 'Enemy status effects'"
+  >
     <span v-if="statuses?.empower" title="Arcane Focus boosts the next two spell attacks"
       >✦ Spell damage +{{ statuses.empower.percent }}% · {{ statuses.empower.hits }} attacks</span
     >
-    <span v-if="statuses?.slow" title="Reduced movement; expires after enemy turns"
+    <span v-if="statuses?.slow" title="Reduced movement; expires after the affected character's turns"
       >❄ Slowed −{{ statuses.slow.reduction }} · {{ statuses.slow.turns }} turns</span
     >
     <span v-if="statuses?.armorBreak" title="Armor reduced until this many successful hits land"
@@ -14,7 +18,7 @@
 </template>
 <script setup lang="ts">
 import type { BattleCombatant } from '@/modules/Monsters/api';
-defineProps<{ statuses?: BattleCombatant['statuses'] }>();
+defineProps<{ statuses?: BattleCombatant['statuses']; label?: string }>();
 </script>
 <style scoped>
 .status-badges {

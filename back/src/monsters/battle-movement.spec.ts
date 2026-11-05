@@ -17,20 +17,20 @@ describe('tactical movement stats', () => {
   });
   it('defines a movement range for every monster archetype', () => {
     for (const { name } of MONSTER_ARCHETYPES) {
-      expect(MONSTER_MOVEMENT[name]).toBeGreaterThanOrEqual(1);
+      expect(MONSTER_MOVEMENT[name]).toBeGreaterThanOrEqual(2);
       expect(MONSTER_MOVEMENT[name]).toBeLessThanOrEqual(5);
     }
-    expect(monsterMovement('Stone Golem')).toBe(1);
+    expect(monsterMovement('Stone Golem')).toBe(2);
     expect(monsterMovement('Dire Wolf')).toBe(5);
     expect(monsterMovement('Storm Harpy')).toBe(5);
     expect(monsterMovement('Unknown')).toBe(2);
   });
   it('assigns every dungeon minion and boss its own movement instead of a low-speed fallback', () => {
     for (const roster of Object.values(DUNGEON_ROSTERS)) {
-      for (const role of roster) expect(MONSTER_MOVEMENT[role.name]).toBeDefined();
+      for (const role of roster) expect(MONSTER_MOVEMENT[role.name]).toBeGreaterThanOrEqual(2);
     }
     expect(monsterMovement('Hollowfang Stalker')).toBe(5);
-    expect(monsterMovement('Cinder Stone Brute')).toBe(1);
+    expect(monsterMovement('Cinder Stone Brute')).toBe(2);
     expect(monsterMovement('Rimeclaw Hunter')).toBeGreaterThan(monsterMovement('Icebound Sovereign'));
     expect(monsterMovement('The Raven Lich')).toBeGreaterThan(monsterMovement('Icebound Sovereign'));
   });

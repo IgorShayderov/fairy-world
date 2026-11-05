@@ -158,6 +158,7 @@ model AdminSession {
 }
 
 model GameProfile {
+  castle Castle?
   skillTree GameProfileSkillTree?
   id Int @id @default(autoincrement())
   premiumAccount PremiumAccount?
@@ -195,6 +196,65 @@ model GameProfile {
   auctionSales      AuctionListing[] @relation("AuctionSeller")
   auctionPurchases  AuctionListing[] @relation("AuctionBuyer")
   notifications    PlayerNotification[]
+}
+
+model Castle {
+  id String @id @default(uuid())
+  profileId Int @unique
+  profile GameProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  name String @db.VarChar(40)
+  x Float
+  y Float
+  city String
+  keep Int @default(1)
+  lumberMill Int @default(0)
+  quarry Int @default(0)
+  storehouse Int @default(0)
+  barracks Int @default(0)
+  forge Int @default(0)
+  wood Float @default(200)
+  stone Float @default(150)
+  producedAt DateTime @default(now())
+  construction String?
+  constructionEndsAt DateTime?
+  sentinels Int @default(0)
+  rangers Int @default(0)
+  arcanists Int @default(0)
+  training String?
+  trainingCount Int @default(0)
+  trainingEndsAt DateTime?
+  rating Int @default(100)
+  victories Int @default(0)
+  raidTarget String?
+  raidSentinels Int @default(0)
+  raidRangers Int @default(0)
+  raidArcanists Int @default(0)
+  raidPower Int @default(0)
+  raidEndsAt DateTime?
+  raidCooldownUntil DateTime?
+  protectedUntil DateTime?
+  createdAt DateTime @default(now())
+  reports CastleReport[]
+
+  @@index([rating(sort: Desc), victories(sort: Desc)])
+  @@index([raidEndsAt])
+}
+
+model CastleReport {
+  id String @id @default(uuid())
+  castleId String
+  castle Castle @relation(fields: [castleId], references: [id], onDelete: Cascade)
+  target String
+  victory Boolean
+  kind String @default("ATTACK")
+  wood Int
+  stone Int
+  lostSentinels Int
+  lostRangers Int
+  lostArcanists Int
+  createdAt DateTime @default(now())
+
+  @@index([castleId, createdAt(sort: Desc)])
 }
 
 model GameProfileSkillTree {

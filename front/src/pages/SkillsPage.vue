@@ -104,20 +104,44 @@
                 <span>{{
                   requirement(skill) || (rank(skill) === skill.maxRank ? 'Mastered' : '1 point per rank')
                 }}</span
-                ><button
-                  :disabled="
-                    busy ||
-                    tree.locked ||
-                    tree.class !== selected ||
-                    !!requirement(skill) ||
-                    rank(skill) >= skill.maxRank ||
-                    tree.points.available < 1
-                  "
-                  :aria-label="`Upgrade ${skill.name}`"
-                  @click="upgrade(skill)"
-                >
-                  <QIcon name="add" /> {{ rank(skill) ? 'Improve' : 'Learn' }}
-                </button>
+                ><span
+                  class="upgrade-preview"
+                  :tabindex="upgradeDisabled(skill) ? 0 : undefined"
+                  :aria-label="`${skill.name} upgrade preview`"
+                  @focusin="focusedSkill = skill.id"
+                  @focusout="focusedSkill = null"
+                  ><button
+                    :disabled="upgradeDisabled(skill)"
+                    :aria-label="`Upgrade ${skill.name}`"
+                    @click="upgrade(skill)"
+                  >
+                    <QIcon name="add" /> {{ rank(skill) ? 'Improve' : 'Learn' }}
+                  </button>
+                  <QTooltip
+                    :model-value="focusedSkill === skill.id"
+                    @update:model-value="focusedSkill = $event ? skill.id : null"
+                    anchor="top middle"
+                    self="bottom middle"
+                    :offset="[0, 10]"
+                    max-width="340px"
+                    class="skill-upgrade-tooltip"
+                  >
+                    <strong
+                      >{{ skill.name }} ·
+                      {{ skill.nextRank ? `Rank ${rank(skill)} → ${skill.nextRank.rank}` : 'Mastered' }}</strong
+                    >
+                    <dl v-if="skill.nextRank" class="upgrade-changes">
+                      <template v-for="change in skill.nextRank.changes" :key="change.label">
+                        <dt>{{ change.label }}</dt>
+                        <dd>
+                          <template v-if="change.before !== null">{{ change.before }} → </template>{{ change.after }}
+                        </dd>
+                      </template>
+                    </dl>
+                    <p v-if="skill.nextRank">Costs 1 skill point.</p>
+                    <p v-else>Maximum rank reached.</p>
+                  </QTooltip>
+                </span>
               </footer>
             </article>
           </div>
@@ -153,7 +177,7 @@
 </template>
 
 <script setup lang="ts">
-import { QIcon, QDialog, QCard, QCardActions, QBtn } from 'quasar';
+import { QIcon, QDialog, QCard, QCardActions, QBtn, QTooltip } from 'quasar';
 import { computed, onMounted, ref } from 'vue';
 
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
@@ -190,11 +214,20 @@ const selected = ref<PlayerClass>('WARRIOR');
 const selectedClass = computed(() => classes.find((entry) => entry.id === selected.value)!);
 const visibleSkills = computed(() => tree.value?.catalog.filter((skill) => skill.class === selected.value) ?? []);
 const busy = ref(false);
+const focusedSkill = ref<string | null>(null);
 const error = ref('');
 const confirmReset = ref(false);
 const user = useCurrentUserStore();
 const rankById = (id: string) => tree.value?.ranks[id] ?? 0;
 const rank = (skill: SkillDefinition) => rankById(skill.id);
+const upgradeDisabled = (skill: SkillDefinition) =>
+  busy.value ||
+  !tree.value ||
+  tree.value.locked ||
+  tree.value.class !== selected.value ||
+  !!requirement(skill) ||
+  rank(skill) >= skill.maxRank ||
+  tree.value.points.available < 1;
 function requirement(skill: SkillDefinition) {
   if ((tree.value?.level ?? 1) < skill.requiredLevel) return `Requires level ${skill.requiredLevel}`;
   if (skill.prerequisite && rankById(skill.prerequisite) < (skill.prerequisiteRank ?? 1)) {
@@ -484,6 +517,37 @@ h2 {
   font-weight: 600;
   font-size: 12px;
   white-space: nowrap;
+}
+.upgrade-preview {
+  display: inline-flex;
+  border-radius: 7px;
+}
+.upgrade-preview:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+.upgrade-preview button:disabled {
+  pointer-events: none;
+}
+:global(.skill-upgrade-tooltip) {
+  background: #102b35;
+  color: #e5efed;
+  border: 1px solid #6ad5ad;
+  border-radius: 10px;
+  padding: 14px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.upgrade-changes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 16px;
+  margin: 10px 0;
+}
+.upgrade-changes dd {
+  margin: 0;
+  color: #8ce5c4;
+  font-weight: 600;
 }
 .branch-line {
   position: absolute;

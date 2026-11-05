@@ -12,13 +12,12 @@ export function dungeonAttackHint(battle: BattleState): string {
     arena.rows,
     arena.blockedCells
   ).length;
-  const summary = `${range > 1 ? 'Range: unlimited' : 'Range: 1 hex'} · Target: ${distance} hexes`;
-  if (arena.canAttack) return `${summary} — ready to attack`;
+  if (arena.canAttack) return 'Ready to attack';
   if (distance > range) {
     const steps = distance - range;
-    return `${summary} — move ${steps} ${steps === 1 ? 'hex' : 'hexes'} closer${arena.playerHasMoved ? ' next turn' : ''}`;
+    return `Move ${steps} ${steps === 1 ? 'hex' : 'hexes'} closer${arena.playerHasMoved ? ' next turn' : ''}`;
   }
-  return summary;
+  return 'Attack unavailable';
 }
 
 /** Maps a persisted dungeon wave onto the shared battlefield; legality is checked by the server. */
@@ -38,8 +37,10 @@ export function dungeonBattle(run: DungeonRunState, userId: number | undefined, 
         health: member.health ?? 0,
         maxHealth: member.maxHealth ?? 1,
         movement: member.movement ?? 3,
+        statuses: member.statuses ?? {},
       }
     : { ...run.player, movement: run.player.movement ?? 3 };
+  player.movement = Math.max(1, player.movement - (player.statuses?.slow?.reduction ?? 0));
   // Legacy encounters had no movement phase: both combatants were in melee.
   // Match the server's legacy restoration instead of inventing distant spawns.
   const playerPosition = replay?.playerPosition ?? run.tactical?.playerPosition ?? 40;
@@ -48,7 +49,7 @@ export function dungeonBattle(run: DungeonRunState, userId: number | undefined, 
   const range = (player.attackRange ?? 1) > 1 ? Number.MAX_SAFE_INTEGER : 1;
   const enemyMovement = opponent.monster.statuses?.petrify?.turns
     ? 0
-    : Math.max(1, (opponent.monster.movement ?? 2) - (opponent.monster.statuses?.slow?.reduction ?? 0));
+    : Math.max(2, (opponent.monster.movement ?? 2) - (opponent.monster.statuses?.slow?.reduction ?? 0));
   const path = battleMovementPath(playerPosition, monsterPosition, 11, 7, []);
   const active = run.status === 'ACTIVE' && !exchange && player.health > 0;
   return {

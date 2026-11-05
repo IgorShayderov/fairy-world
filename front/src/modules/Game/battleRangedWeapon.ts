@@ -10,7 +10,7 @@ const crossbowLeftRotation = gripRotation(new T.Vector3(0, 0, 1), new T.Vector3(
 const carryFrames = new WeakMap<T.Object3D, { chest: T.Object3D; offset: T.Matrix4 }>();
 
 /** Calibrate in the ready pose, then inherit the animated torso's bob, twist and recoil. */
-function crossbowCarryFrame(root: T.Object3D) {
+function rangedCarryFrame(root: T.Object3D) {
   let frame = carryFrames.get(root);
   if (!frame) {
     const chest = root.getObjectByName('Rig_Chest');
@@ -27,7 +27,7 @@ export function updateCrossbowGrip(root: T.Object3D, weapon: T.Object3D, bash = 
   const left = root.getObjectByName('Rig_hand_L');
   if (!right || !left) return;
   root.updateMatrixWorld(true);
-  const carryFrame = crossbowCarryFrame(root);
+  const carryFrame = rangedCarryFrame(root);
   const solveHand = (side: 'R' | 'L', hand: T.Object3D, target: T.Vector3, rotation: T.Quaternion) => {
     const upper = root.getObjectByName(`Rig_Upper_Arm_${side}`);
     const lower = root.getObjectByName(`Rig_Lower_Arm_${side}`);
@@ -68,6 +68,67 @@ export function updateCrossbowGrip(root: T.Object3D, weapon: T.Object3D, bash = 
       weapon.localToWorld(CROSSBOW_LEFT_GRIP.clone()),
       weapon.quaternion.clone().multiply(crossbowLeftRotation)
     );
+  }
+}
+
+const bowLeftRotation = gripRotation(new T.Vector3(0, 1, 0), new T.Vector3(0, 0, 1), 'L');
+const bowRightRotation = gripRotation(new T.Vector3(0, 1, 0), new T.Vector3(0, 0, 1), 'R');
+
+/** The left palm owns the bow; the drawing hand and string share the same socket.
+ * Targets follow the animated chest, rather than freezing both arms in actor space.
+ */
+export function updateBowGrip(root: T.Object3D, weapon: T.Object3D, shotProgress?: number, bash = 0, falling = false) {
+  const left = root.getObjectByName('Rig_hand_L');
+  const right = root.getObjectByName('Rig_hand_R');
+  if (!left || !right) return;
+  root.updateMatrixWorld(true);
+  const frame = rangedCarryFrame(root);
+  const orientation = new T.Quaternion().setFromRotationMatrix(new T.Matrix4().extractRotation(frame));
+  const solve = (side: 'L' | 'R', hand: T.Object3D, target: T.Vector3, rotation: T.Quaternion) => {
+    const upper = root.getObjectByName(`Rig_Upper_Arm_${side}`);
+    const lower = root.getObjectByName(`Rig_Lower_Arm_${side}`);
+    if (!upper || !lower) return;
+    const offset = palmGrip.clone().multiply(hand.getWorldScale(new T.Vector3())).applyQuaternion(rotation);
+    placeArm(
+      upper,
+      lower,
+      hand,
+      target.clone().sub(offset),
+      new T.Vector3(side === 'L' ? 0.7 : -0.7, 1.65, 0.2).applyMatrix4(frame)
+    );
+    hand.quaternion.copy(hand.parent!.getWorldQuaternion(new T.Quaternion()).invert().multiply(rotation));
+    hand.updateMatrixWorld(true);
+    closeGrip(root, side);
+  };
+  if (!falling) {
+    solve(
+      'L',
+      left,
+      new T.Vector3(0.22, 1.76, 0.48 + Math.min(bash, 0.04)).applyMatrix4(frame),
+      orientation.clone().multiply(bowLeftRotation)
+    );
+  }
+  weapon.position.copy(left.localToWorld(palmGrip.clone()));
+  weapon.quaternion.copy(left.getWorldQuaternion(new T.Quaternion())).multiply(bowLeftRotation.clone().invert());
+  weapon.updateMatrixWorld(true);
+  const draw =
+    shotProgress === undefined
+      ? 0
+      : shotProgress <= 0.3
+        ? Math.sin(((Math.max(0, shotProgress) / 0.3) * Math.PI) / 2)
+        : Math.max(0, 1 - (shotProgress - 0.3) / 0.12);
+  const stringSocket = new T.Vector3(0, 0, -0.16 - draw * 0.3);
+  if (!falling) {
+    solve('R', right, weapon.localToWorld(stringSocket.clone()), weapon.quaternion.clone().multiply(bowRightRotation));
+    // Use the solved hand so the string cannot float away if an authored pose limits reach.
+    stringSocket.copy(weapon.worldToLocal(right.localToWorld(palmGrip.clone())));
+  }
+  const string = weapon.getObjectByName('Bowstring') as T.Line | undefined;
+  if (string) {
+    const positions = string.geometry.getAttribute('position') as T.BufferAttribute;
+    positions.setXYZ(1, stringSocket.x, stringSocket.y, stringSocket.z);
+    positions.needsUpdate = true;
+    string.geometry.computeBoundingSphere();
   }
 }
 

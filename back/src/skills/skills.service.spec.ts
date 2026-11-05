@@ -39,6 +39,14 @@ describe('paid skill resets', () => {
       data: { class: 'MAGE', ranks: {}, version: { increment: 1 } },
     });
   });
+  it('shows current and next rank mana costs in the skill tree', async () => {
+    const tree = await service.get(7);
+    expect(tree.catalog.find((skill) => skill.id === 'mage-fireball')).toMatchObject({
+      manaCost: 34,
+      nextRankManaCost: 36,
+    });
+    expect(tree.catalog.find((skill) => skill.id === 'scout-aim')).toMatchObject({ manaCost: 24, cooldown: 5 });
+  });
   it('rejects insufficient funds without changing the tree', async () => {
     db.gameProfile.updateMany.mockResolvedValueOnce({ count: 0 });
     await expect(service.change(7, { reset: true })).rejects.toThrow('500 gems');

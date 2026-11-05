@@ -13,7 +13,7 @@ export const MONSTER_MOVEMENT: Readonly<Record<string, number>> = {
   'Forest Troll': 2,
   'Shadow Stalker': 4,
   'Storm Harpy': 5,
-  'Stone Golem': 1,
+  'Stone Golem': 2,
   'Void Wraith': 3,
   'Infernal Minotaur': 3,
   'Arcane Chimera': 4,
@@ -21,11 +21,11 @@ export const MONSTER_MOVEMENT: Readonly<Record<string, number>> = {
   Dragon: 4,
   'Lake Serpent': 3,
   'Drowned Siren': 2,
-  'Bog Lurker': 1,
+  'Bog Lurker': 2,
   'Mire Hag': 2,
   // Dungeon roles use their own archetypes, not the randomly generated stat donor.
   'Flamebound Stalker': 5,
-  'Cinder Stone Brute': 1,
+  'Cinder Stone Brute': 2,
   'Ember Wraith': 4,
   'Warden of the First Flame': 3,
   'Hollowfang Stalker': 5,
@@ -43,11 +43,14 @@ export const MONSTER_MOVEMENT: Readonly<Record<string, number>> = {
 };
 
 export function monsterMovement(type: string): number {
-  return Math.max(1, MONSTER_MOVEMENT[type] ?? 2);
+  return Math.max(2, MONSTER_MOVEMENT[type] ?? 2);
 }
+
+// Preserve these heavy archetypes' existing health/damage budgets when changing speed.
+export const HEAVY_MONSTERS = new Set(['Stone Golem', 'Bog Lurker', 'Cinder Stone Brute']);
 
 /** Compensate natural slowness; status effects must never increase attack power. */
 export function slowMonsterDamage(damage: number, type: string): number {
   const movement = monsterMovement(type);
-  return Math.ceil(damage * (movement === 1 ? 1.5 : movement === 2 ? 1.25 : 1));
+  return Math.ceil(damage * (HEAVY_MONSTERS.has(type) ? 1.5 : movement === 2 ? 1.25 : 1));
 }

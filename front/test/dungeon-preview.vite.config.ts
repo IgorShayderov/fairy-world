@@ -4,6 +4,7 @@ import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
+  cacheDir: 'node_modules/.vite-dungeon-preview',
   root: fileURLToPath(new URL('..', import.meta.url)),
   plugins: [vue({ template: { transformAssetUrls: { includeAbsolute: false } } }), tailwindcss()],
   resolve: {

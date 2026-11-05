@@ -22,6 +22,7 @@ import { SkillsModule } from './skills/skills.module';
 import { AuctionModule } from './auction/auction.module';
 import { FeedbackModule } from './feedback/feedback.module';
 import { AdminUsersModule } from './admin-users/admin-users.module';
+import { CastlesModule } from './castles/castles.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { AdminUsersModule } from './admin-users/admin-users.module';
     AuctionModule,
     FeedbackModule,
     AdminUsersModule,
+    CastlesModule,
     MailerModule.forRoot({
       transport: {
         host: process.env.SMTP_HOST,

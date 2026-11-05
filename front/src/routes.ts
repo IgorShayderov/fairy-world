@@ -5,6 +5,7 @@ const BASE_AUTH_PATH = `${BASE_API_PATH}/auth`;
 
 const routes = {
   api: {
+    castles: { path: (action = '') => `${BASE_API_PATH}/castles${action ? `/${action}` : ''}` },
     gemPricesPath: () => `${BASE_API_PATH}/game/gem-prices`,
     auction: {
       path: () => `${BASE_API_PATH}/auction`,
@@ -133,6 +134,7 @@ const routes = {
     },
   },
   rootPath: () => '/',
+  castlePath: () => '/castle',
   auctionPath: () => '/auction',
   notificationsPath: () => '/notifications',
   settingsPath: () => '/settings',
