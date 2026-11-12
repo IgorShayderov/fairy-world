@@ -8,8 +8,7 @@
         {{ showCreate ? 'Close creation form' : 'Create user' }}
       </button>
     </div>
-    <p v-if="error" role="alert" class="feedback-error">{{ error }}</p>
-    <p v-if="notice" role="status" class="feedback-success">{{ notice }}</p>
+    <ActionToasts :error="error" :success="notice" />
     <form v-if="showCreate" class="feedback-card feedback-stack" aria-label="Create user" @submit.prevent="create">
       <h2>Create player account</h2>
       <p class="feedback-muted">
@@ -107,7 +106,6 @@
   </section>
 </template>
 <script setup lang="ts">
-import { Notify } from 'quasar';
 import { onMounted, ref } from 'vue';
 
 import type {
@@ -119,6 +117,8 @@ import type {
   AdminUserDetail,
   AdminUserSummary,
 } from './adminUsersTypes';
+
+import ActionToasts from '@/components/ActionToasts';
 
 import { adminApi } from './adminApi';
 import AdminUserEditor from './AdminUserEditor.vue';
@@ -145,7 +145,6 @@ async function run(operation: () => Promise<void>) {
     await operation();
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Request failed.';
-    Notify.create({ type: 'negative', message: error.value });
   } finally {
     busy.value = false;
   }

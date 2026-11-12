@@ -1,0 +1,37 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Skill tooltips — isolated test data</title>
+    <style>
+      html,
+      body,
+      #app {
+        margin: 0;
+        height: 100%;
+      }
+      #app {
+        display: flex;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module">
+      import { createApp } from 'vue';
+      import { createPinia } from 'pinia';
+      import { Quasar, Notify } from 'quasar';
+      import 'quasar/dist/quasar.css';
+      import '@quasar/extras/material-icons/material-icons.css';
+      import '/src/css/app.scss';
+      import '/test/castle-preview.css';
+      import SkillsPage from '/src/pages/SkillsPage.vue';
+      import { skillsApi } from '/src/modules/Skills/api';
+      import { useCurrentUserStore } from '/src/modules/Auth/store/currentUser';
+      const pinia = createPinia();
+      useCurrentUserStore(pinia).fetchCurrentUser = async () => ({});
+      skillsApi.get = async () => (await fetch('/preview-skills')).json();
+      skillsApi.upgrade = async () => (await fetch('/preview-skills', { method: 'POST' })).json();
+      createApp(SkillsPage).use(pinia).use(Quasar, { plugins: { Notify } }).mount('#app');
+    </script>
+  </body>
+</html>

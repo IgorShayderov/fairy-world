@@ -37,8 +37,7 @@
           My feedback
         </button>
       </nav>
-      <p v-if="error" role="alert" class="feedback-error">{{ error }}</p>
-      <p v-if="notice" role="status" class="feedback-success">{{ notice }}</p>
+      <ActionToasts :error="error" :success="notice" />
       <form v-if="tab === 'write'" class="feedback-stack" @submit.prevent="submit">
         <label
           >Category<select v-model="category" :disabled="busy">
@@ -123,6 +122,7 @@ import { useTranslation } from 'i18next-vue';
 import { QDialog, QIcon } from 'quasar';
 import { ref, watch } from 'vue';
 
+import ActionToasts from '@/components/ActionToasts';
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 
 import { feedbackApi, type FeedbackCategory, type FeedbackDetail, type FeedbackPage } from './api';

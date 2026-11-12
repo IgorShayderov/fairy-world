@@ -429,7 +429,14 @@ export class ShopService implements OnModuleInit {
         });
       }
       const inventoryEntry = await tx.inventoryItem.findFirst({
-        where: { gameProfileId: profile.id, itemId: dto.itemId, isEquiped: false },
+        where: {
+          gameProfileId: profile.id,
+          itemId: dto.itemId,
+          isEquiped: false,
+          hasSocket: false,
+          upgradeType: null,
+          upgradeValue: null,
+        },
         select: { id: true },
       });
       if (inventoryEntry) {

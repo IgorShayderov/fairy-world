@@ -33,6 +33,12 @@ export class CastlesController {
   @Post('train') train(@Req() req: RequestWithUser, @Body() dto: CastleTrainingDto) {
     return this.castles.train(req.user.sub, dto.unit, dto.count);
   }
+  @Post('mine') mine(@Req() req: RequestWithUser) {
+    return this.castles.startMining(req.user.sub);
+  }
+  @Post('mine/collect') collect(@Req() req: RequestWithUser) {
+    return this.castles.collectGem(req.user.sub);
+  }
   @Post('raid') raid(@Req() req: RequestWithUser, @Body() dto: CastleRaidDto) {
     return this.castles.raid(req.user.sub, dto);
   }

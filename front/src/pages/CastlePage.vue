@@ -1,24 +1,26 @@
 <template>
-  <main class="castle-page">
+  <main class="castle-page" :class="{ 'castle-page--estate': castle && activeTab === 'estate' }">
     <header class="castle-heading">
-      <div>
-        <p class="eyebrow">Your private domain</p>
+      <div class="castle-title-line">
         <h1>{{ castle?.name ?? 'A kingdom of your own' }}</h1>
-        <p>
-          {{
-            castle
-              ? `Near ${castle.city} · Only you can see this castle on the map`
-              : 'Raise a stronghold. Gather resources. Lead your own army.'
-          }}
-        </p>
+        <span
+          v-if="castle?.protectedUntil && Date.parse(castle.protectedUntil) > now"
+          class="castle-protection"
+          tabindex="0"
+          @focus="hint = 'protection'"
+          @blur="setHint('protection', false)"
+        >
+          <QIcon name="shield" /> Protected · {{ remainingTime(castle.protectedUntil, now) }}
+          <QTooltip :model-value="hint === 'protection'" @update:model-value="setHint('protection', $event)">
+            Protected from raids. Launching an attack ends your protection.
+          </QTooltip>
+        </span>
       </div>
       <div class="heading-actions">
-        <RouterLink :to="castle ? { path: '/', query: { castle: 'locate' } } : '/'">World map</RouterLink
-        ><button :disabled="pending || loading" @click="load()">Refresh</button>
+        <button :disabled="pending || loading" @click="load()">Refresh</button>
       </div>
     </header>
-    <p v-if="error" role="alert" class="castle-error">{{ error }}</p>
-    <p v-if="message" role="status" class="castle-success">{{ message }}</p>
+    <ActionToasts :error="error" :success="message" />
     <p v-if="!state && loading" role="status">Opening your estate…</p>
     <section v-else-if="state && !castle" class="founding-panel">
       <CastleEstate :levels="emptyLevels" />
@@ -47,37 +49,69 @@
       </div>
     </section>
     <template v-if="castle">
-      <p v-if="castle.protectedUntil && Date.parse(castle.protectedUntil) > now" class="queue">
-        Protected from raids · {{ remainingTime(castle.protectedUntil, now) }}. Launching an attack ends your
-        protection.
-      </p>
       <section class="resource-strip" aria-label="Castle resources">
-        <div>
+        <div
+          tabindex="0"
+          :aria-label="`Wood: ${castle.wood} of ${castle.capacity}, +${castle.production.wood} per hour`"
+          @focus="hint = 'wood'"
+          @blur="setHint('wood', false)"
+        >
           <span>Wood</span
           ><strong
             >{{ castle.wood.toLocaleString() }} <small>/ {{ castle.capacity.toLocaleString() }}</small></strong
-          ><progress :value="castle.wood" :max="castle.capacity" /><small>+{{ castle.production.wood }}/hour</small>
+          ><progress :value="castle.wood" :max="castle.capacity" aria-label="Wood storage" />
+          <QTooltip :model-value="hint === 'wood'" @update:model-value="setHint('wood', $event)">
+            +{{ castle.production.wood }}/hour · Production continues offline until storage is full.
+          </QTooltip>
         </div>
-        <div>
+        <div
+          tabindex="0"
+          :aria-label="`Stone: ${castle.stone} of ${castle.capacity}, +${castle.production.stone} per hour`"
+          @focus="hint = 'stone'"
+          @blur="setHint('stone', false)"
+        >
           <span>Stone</span
           ><strong
             >{{ castle.stone.toLocaleString() }} <small>/ {{ castle.capacity.toLocaleString() }}</small></strong
-          ><progress :value="castle.stone" :max="castle.capacity" /><small>+{{ castle.production.stone }}/hour</small>
+          ><progress :value="castle.stone" :max="castle.capacity" aria-label="Stone storage" />
+          <QTooltip :model-value="hint === 'stone'" @update:model-value="setHint('stone', $event)">
+            +{{ castle.production.stone }}/hour · Production continues offline until storage is full.
+          </QTooltip>
         </div>
-        <div>
+        <div
+          tabindex="0"
+          :aria-label="`Army capacity: ${usedCapacity(castle)} of ${castle.armyCapacity}, including training and deployed units`"
+          @focus="hint = 'army'"
+          @blur="setHint('army', false)"
+        >
           <span>Army capacity</span
           ><strong
             >{{ usedCapacity(castle) }} <small>/ {{ castle.armyCapacity }}</small></strong
-          ><small>Includes training and deployed units</small>
-        </div>
-        <div>
-          <span>Castle rating</span><strong>{{ castle.rating.toLocaleString() }}</strong
-          ><small>{{ castle.victories }} raid victories</small>
+          >
+          <QTooltip :model-value="hint === 'army'" @update:model-value="setHint('army', $event)">
+            Includes training and deployed units.
+          </QTooltip>
         </div>
       </section>
-      <nav class="castle-tabs" aria-label="Castle sections">
-        <button v-for="tab in tabs" :key="tab.key" :aria-pressed="activeTab === tab.key" @click="activeTab = tab.key">
-          {{ tab.label }}
+      <nav class="castle-section-nav" aria-label="Castle sections">
+        <button
+          type="button"
+          aria-label="Previous castle section"
+          :title="`Previous: ${adjacentTab(-1).label}`"
+          @click="changeSection(-1)"
+        >
+          <QIcon name="chevron_left" size="24px" />
+        </button>
+        <span class="castle-section-label" aria-live="polite">{{
+          tabs.find((tab) => tab.key === activeTab)?.label
+        }}</span>
+        <button
+          type="button"
+          aria-label="Next castle section"
+          :title="`Next: ${adjacentTab(1).label}`"
+          @click="changeSection(1)"
+        >
+          <QIcon name="chevron_right" size="24px" />
         </button>
       </nav>
       <section v-if="activeTab === 'estate'" class="estate-layout">
@@ -112,17 +146,66 @@
           <template v-if="selectedBuilding.nextCost"
             ><h3>Level {{ selectedBuilding.level + 1 }}</h3>
             <p class="cost">{{ selectedBuilding.nextCost.wood }} wood · {{ selectedBuilding.nextCost.stone }} stone</p>
-            <p>{{ duration(selectedBuilding.nextCost.seconds) }} construction time</p>
+            <p>
+              {{
+                selectedBuilding.nextCost.seconds === 0
+                  ? 'Instant construction · development mode'
+                  : `${duration(selectedBuilding.nextCost.seconds)} construction time`
+              }}
+            </p>
             <button
               class="primary"
               :disabled="pending || !!upgradeReason"
-              @click="run(() => castlesApi.upgrade(selected), 'Construction started.')"
+              @click="
+                run(
+                  () => castlesApi.upgrade(selected),
+                  selectedBuilding.nextCost.seconds === 0 ? 'Construction completed.' : 'Construction started.'
+                )
+              "
             >
               {{ selectedBuilding.level ? 'Upgrade building' : 'Construct building' }}
             </button>
             <p v-if="upgradeReason" class="hint">{{ upgradeReason }}</p>
           </template>
           <p v-else class="gold">Fully upgraded</p>
+          <section v-if="selected === 'gemMine'" class="gem-mining">
+            <h3>Gem expeditions</h3>
+            <p>
+              Find one random damage, defense or health gem. Higher mine levels produce stronger gems. These are
+              equipment gems, not gem currency.
+            </p>
+            <template v-if="castle.gemMine > 0">
+              <p v-if="castle.miningEndsAt">
+                {{
+                  Date.parse(castle.miningEndsAt) <= now
+                    ? 'Your gem is ready.'
+                    : remainingTime(castle.miningEndsAt, now)
+                }}
+              </p>
+              <p v-else>
+                {{ castle.miningCost.wood }} wood · {{ castle.miningCost.stone }} stone ·
+                {{ duration(castle.miningCost.seconds) }}
+              </p>
+              <button
+                v-if="castle.miningEndsAt"
+                :disabled="pending || Date.parse(castle.miningEndsAt) > now"
+                @click="run(() => castlesApi.collectGem(), 'Gem collected. Visit the Blacksmith to insert it.')"
+              >
+                Collect gem
+              </button>
+              <button v-else :disabled="pending" @click="run(() => castlesApi.mine(), 'Mining expedition started.')">
+                Start mining expedition
+              </button>
+            </template>
+            <h3>Gem storage ({{ castle.equipmentGems?.length ?? 0 }}/100)</h3>
+            <p v-if="!castle.equipmentGems?.length">No equipment gems yet.</p>
+            <ul>
+              <li v-for="gem in castle.equipmentGems" :key="gem.id">
+                ◆ +{{ gem.value }} {{ gem.type.toLowerCase() }} · mine level {{ gem.mineLevel }}
+              </li>
+            </ul>
+            <p>Visit the Blacksmith to add sockets and insert gems into equipment.</p>
+          </section>
         </aside>
       </section>
       <section v-else-if="activeTab === 'army'">
@@ -310,10 +393,11 @@
   </main>
 </template>
 <script setup lang="ts">
-import { QDialog } from 'quasar';
+import { QDialog, QIcon, QTooltip } from 'quasar';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
 
+import ActionToasts from '@/components/ActionToasts';
 import {
   castlesApi,
   type CastleState,
@@ -342,6 +426,16 @@ const tabs = [
 const route = useRoute();
 const activeTab = ref<string>(route.query.tab === 'ranking' ? 'ranking' : 'estate'),
   selected = ref<BuildingKey>('keep');
+const adjacentTab = (direction: number) =>
+  tabs[(tabs.findIndex((tab) => tab.key === activeTab.value) + direction + tabs.length) % tabs.length]!;
+function changeSection(direction: number) {
+  activeTab.value = adjacentTab(direction).key;
+}
+const hint = ref<string | null>(null);
+function setHint(key: string, visible: boolean) {
+  if (visible) hint.value = key;
+  else if (hint.value === key) hint.value = null;
+}
 const pending = ref(false),
   loading = ref(false),
   error = ref(''),
@@ -365,7 +459,7 @@ const upgradeReason = computed(() => {
     b = selectedBuilding.value;
   if (!c || !b?.nextCost) return 'Maximum level reached.';
   if (c.construction) return 'Wait for the current construction to finish.';
-  if (!b.unlocked) return 'Upgrade Crownkeep first.';
+  if (!b.unlocked) return `Requires Crownkeep level ${Math.max(b.requiredKeep || 1, b.level + 1)}.`;
   if (c.wood < b.nextCost.wood || c.stone < b.nextCost.stone) return 'Not enough wood or stone.';
   return '';
 });

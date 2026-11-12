@@ -19,7 +19,7 @@
       <p class="mt-3 text-sm text-[#efca72]">
         {{ t(kind === 'sanctum' ? `fantasy.landmark.blessings.${landmark.name}` : `fantasy.landmark.${kind}.effect`) }}
       </p>
-      <p v-if="message" role="status" class="mt-4 rounded-lg bg-white/10 p-3 text-sm">{{ message }}</p>
+      <ActionToasts :info="message" />
       <p v-if="coolingDown" class="mt-3 text-sm text-amber-200">
         {{
           t(kind === 'sanctum' ? 'fantasy.landmark.blessingCooldown' : 'fantasy.landmark.cooldown', {
@@ -107,6 +107,7 @@ import { useTranslation } from 'i18next-vue';
 import { QIcon } from 'quasar';
 import { computed, ref, onMounted, onUnmounted, watch } from 'vue';
 
+import ActionToasts from '@/components/ActionToasts';
 import type { Landmark } from '@/modules/Game/composables/useMapObjects';
 import { useGemPrices } from '@/modules/GemPrices/useGemPrices';
 

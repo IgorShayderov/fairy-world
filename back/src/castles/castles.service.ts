@@ -1,9 +1,10 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
+import { randomInt } from 'node:crypto';
 import { Castle, Prisma } from '../../generated/client';
 import { PrismaService } from '../prisma.service';
 import { CastleRaidDto, CreateCastleDto } from './castles.dto';
-import { castleSite, CASTLE_CITIES, CASTLE_CITY_RADIUS, CASTLE_CLEARANCE } from './castle-terrain';
+import { castleSite, uncrowdedCastleSite, CASTLE_CITIES, CASTLE_CITY_RADIUS, CASTLE_CLEARANCE } from './castle-terrain';
 import {
   accrue,
   armyCapacity,
@@ -29,12 +30,19 @@ import {
   MAX_KEEP_DIFFERENCE,
   defensePower,
   raidLoot,
+  requiredKeep,
+  miningCost,
 } from './castle-rules';
 
 @Injectable()
 export class CastlesService {
   private readonly logger = new Logger(CastlesService.name);
   constructor(private readonly prisma: PrismaService) {}
+
+  private buildingCost(building: Parameters<typeof upgradeCost>[0], level: number) {
+    const cost = upgradeCost(building, level);
+    return { ...cost, seconds: process.env.NODE_ENV === 'development' ? 0 : cost.seconds };
+  }
 
   private async withOwner<T>(
     userId: number,
@@ -55,7 +63,11 @@ export class CastlesService {
       if (!profile) throw new NotFoundException('Game profile not found');
       const now = new Date();
       const castle = await tx.castle.findUnique({ where: { profileId: profile.id } });
-      if (castle) await this.settleGrowth(tx, castle, now);
+      if (castle) {
+        const clearSite = uncrowdedCastleSite(castle);
+        if (clearSite) Object.assign(castle, clearSite);
+        await this.settleGrowth(tx, castle, now);
+      }
       return work(tx, profile, castle, now);
     });
   }
@@ -63,7 +75,13 @@ export class CastlesService {
   /** Split offline production at upgrades; never apply the new rate retroactively. */
   private async settleGrowth(tx: Prisma.TransactionClient, castle: Castle, now: Date) {
     const events = [
-      { kind: 'build', at: castle.constructionEndsAt },
+      {
+        kind: 'build',
+        at:
+          process.env.NODE_ENV === 'development' && castle.constructionEndsAt && castle.constructionEndsAt > now
+            ? now
+            : castle.constructionEndsAt,
+      },
       { kind: 'training', at: castle.trainingEndsAt },
     ]
       .filter((e) => e.at && e.at <= now)
@@ -118,12 +136,18 @@ export class CastlesService {
             armyCapacity: armyCapacity(castle.barracks),
             armyPower: armyPower(castle, castle.forge),
             defensePower: defensePower(castle),
+            miningCost: miningCost(castle.gemMine),
+            equipmentGems: await tx.equipmentGem.findMany({
+              where: { gameProfileId: profile.id },
+              orderBy: { createdAt: 'desc' },
+            }),
             buildings: buildingKeys.map((key) => ({
               key,
               ...BUILDINGS[key],
               level: castle[key],
-              nextCost: castle[key] < MAX_BUILDING_LEVEL ? upgradeCost(key, castle[key] + 1) : null,
-              unlocked: key === 'keep' || castle[key] < castle.keep,
+              nextCost: castle[key] < MAX_BUILDING_LEVEL ? this.buildingCost(key, castle[key] + 1) : null,
+              requiredKeep: requiredKeep(key),
+              unlocked: castle.keep >= requiredKeep(key) && (key === 'keep' || castle[key] < castle.keep),
             })),
             units: unitKeys.map((key) => ({ key, ...UNITS[key], count: castle[key] })),
             reports: await tx.castleReport.findMany({
@@ -172,17 +196,56 @@ export class CastlesService {
       this.requireCastle(castle);
       if (castle.construction) throw new BadRequestException('Your builders are already working');
       if (castle[building] >= MAX_BUILDING_LEVEL) throw new BadRequestException('Maximum building level reached');
+      if (castle.keep < requiredKeep(building))
+        throw new BadRequestException(`Requires Crownkeep level ${requiredKeep(building)}`);
       if (building !== 'keep' && castle[building] >= castle.keep)
         throw new BadRequestException('Upgrade Crownkeep first');
-      const cost = upgradeCost(building, castle[building] + 1);
+      const cost = this.buildingCost(building, castle[building] + 1);
       if (castle.wood < cost.wood || castle.stone < cost.stone)
         throw new BadRequestException('Not enough wood or stone');
       castle.wood -= cost.wood;
       castle.stone -= cost.stone;
       castle.construction = building;
       castle.constructionEndsAt = new Date(now.getTime() + cost.seconds * 1000);
+      await this.settleGrowth(tx, castle, now);
+      return { success: true };
+    });
+  }
+
+  startMining(userId: number) {
+    return this.withOwner(userId, async (tx, profile, castle, now) => {
+      this.requireCastle(castle);
+      if (castle.keep < 5 || castle.gemMine < 1)
+        throw new BadRequestException('Build the Gem Mine after Crownkeep level 5');
+      if (castle.miningEndsAt) throw new BadRequestException('Collect the current expedition before starting another');
+      if ((await tx.equipmentGem.count({ where: { gameProfileId: profile.id } })) >= 100)
+        throw new BadRequestException('Gem storage is full (100). Insert some gems before mining again');
+      const cost = miningCost(castle.gemMine);
+      if (castle.wood < cost.wood || castle.stone < cost.stone)
+        throw new BadRequestException('Not enough wood or stone');
+      castle.wood -= cost.wood;
+      castle.stone -= cost.stone;
+      castle.miningLevel = castle.gemMine;
+      castle.miningEndsAt = new Date(now.getTime() + cost.seconds * 1000);
       await this.save(tx, castle);
       return { success: true };
+    });
+  }
+
+  collectGem(userId: number) {
+    return this.withOwner(userId, async (tx, profile, castle, now) => {
+      this.requireCastle(castle);
+      if (!castle.miningEndsAt || castle.miningEndsAt > now)
+        throw new BadRequestException('The mining expedition is not complete');
+      const type = (['DAMAGE', 'DEFENSE', 'HEALTH'] as const)[randomInt(3)];
+      const value = (castle.miningLevel * 2 + randomInt(2, 6)) * (type === 'HEALTH' ? 5 : 1);
+      const gem = await tx.equipmentGem.create({
+        data: { gameProfileId: profile.id, type, value, mineLevel: castle.miningLevel },
+      });
+      castle.miningEndsAt = null;
+      castle.miningLevel = 0;
+      await this.save(tx, castle);
+      return gem;
     });
   }
 

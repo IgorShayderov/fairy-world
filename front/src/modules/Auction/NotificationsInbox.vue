@@ -13,10 +13,7 @@
           >Auction house</RouterLink
         >
       </header>
-      <div v-if="error" role="alert" class="auction-error">
-        {{ error }} <button class="underline" @click="load">Retry</button>
-      </div>
-      <p v-if="notice" role="status" class="auction-notice">{{ notice }}</p>
+      <ActionToasts :error="error" :success="notice" :retry="load" />
       <p v-if="loading" role="status">Loading notifications…</p>
       <div v-else-if="!data?.notifications.length" class="auction-empty">
         No notifications yet. Sales and returns will appear here.
@@ -76,6 +73,7 @@ import { QIcon } from 'quasar';
 import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { RouterLink } from 'vue-router';
 
+import ActionToasts from '@/components/ActionToasts';
 import { auctionApi, timeLeft, type AuctionNotification, type NotificationPage } from '@/modules/Auction/api';
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 import routes from '@/routes';

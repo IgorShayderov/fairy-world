@@ -5,9 +5,7 @@
         <h1 class="font-serif text-3xl font-semibold">{{ t('quests.title') }}</h1>
         <p class="mt-2 text-gray-500">{{ t('quests.intro') }}</p>
       </header>
-      <p v-if="error" role="alert" class="rounded-lg bg-red-50 p-4 text-red-700">
-        {{ error }} <button class="ml-3 underline" :disabled="loading" @click="load">{{ t('quests.retry') }}</button>
-      </p>
+      <ActionToasts :error="error" :retry="load" :retry-label="t('quests.retry')" />
       <p v-if="loading" role="status">{{ t('shop.loading') }}</p>
       <template v-else-if="journal">
         <QTabs v-model="tab" align="left" active-color="primary" indicator-color="primary" no-caps>
@@ -111,6 +109,7 @@ import { useTranslation } from 'i18next-vue';
 import { QTab, QTabs, QTabPanel, QTabPanels } from 'quasar';
 import { onMounted, ref } from 'vue';
 
+import ActionToasts from '@/components/ActionToasts';
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 import type { Quest, QuestJournal } from '@/modules/Quests/api';
 import { cancelQuest, deliverQuest, getQuests } from '@/modules/Quests/api';

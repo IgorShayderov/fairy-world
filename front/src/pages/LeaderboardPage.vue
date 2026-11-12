@@ -35,12 +35,9 @@
         </button>
       </nav>
 
-      <p v-if="error" role="alert" class="mt-5 rounded-xl border border-red-400/30 bg-red-950/40 p-4 text-red-200">
-        {{ error }}
-      </p>
+      <ActionToasts :error="error" />
 
       <div
-        v-else
         class="leaderboard-table mt-5 overflow-x-auto rounded-2xl border border-[#d8bd75]/25 bg-[#0b2530] shadow-xl"
       >
         <table v-if="activeTab === 'players'" class="w-full min-w-[760px] border-collapse text-left">
@@ -143,6 +140,7 @@ import { QIcon } from 'quasar';
 import { onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 
+import ActionToasts from '@/components/ActionToasts';
 import { usersApi, type LeaderboardEntry } from '@/modules/Auth/api/users';
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 import { clansApi, type ClanLeaderboardEntry } from '@/modules/Clans/api';

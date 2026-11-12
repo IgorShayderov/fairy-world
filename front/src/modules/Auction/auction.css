@@ -167,22 +167,6 @@
   text-align: center;
   color: #a5bdc1;
 }
-.auction-error {
-  background: #3b232b;
-  border: 1px solid #a35a5f;
-  border-radius: 0.75rem;
-  padding: 1rem;
-  color: #ffd2c8;
-  margin-bottom: 1rem;
-}
-.auction-notice {
-  padding: 1rem;
-  background: #17352f;
-  border: 1px solid #386f5d;
-  border-radius: 0.75rem;
-  margin-bottom: 1rem;
-  color: #a6efd0;
-}
 .auction-form {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));

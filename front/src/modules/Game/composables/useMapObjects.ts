@@ -363,6 +363,40 @@ const drawPath = (ctx: CanvasRenderingContext2D, points: Point[]) => {
   ctx.quadraticCurveTo(penultimate.x, penultimate.y, last.x, last.y);
 };
 
+// Follow the same quadratic curves as drawPath, rather than the control-point
+// polygon used for movement checks. Cache the samples outside the render loop.
+const riverWaterSegments = rivers.flatMap((points) => {
+  const segments: Array<[Point, Point]> = [];
+  let start = points[0]!;
+  for (let index = 1; index < points.length - 1; index++) {
+    const control = points[index]!;
+    const next = points[index + 1]!;
+    const end = index === points.length - 2 ? next : { x: (control.x + next.x) / 2, y: (control.y + next.y) / 2 };
+    let previous = start;
+    for (let step = 1; step <= 32; step++) {
+      const t = step / 32;
+      const point = {
+        x: (1 - t) ** 2 * start.x + 2 * (1 - t) * t * control.x + t ** 2 * end.x,
+        y: (1 - t) ** 2 * start.y + 2 * (1 - t) * t * control.y + t ** 2 * end.y,
+      };
+      segments.push([previous, point]);
+      previous = point;
+    }
+    start = end;
+  }
+  return segments;
+});
+
+export const isTreeInWater = (x: number, y: number, size: number) => {
+  // drawTree places the foot of the trunk below its drawing origin.
+  const root = { x, y: y + size * 0.32 };
+  const clearance = size * 0.12;
+  return (
+    riverWaterSegments.some(([start, end]) => distanceToSegment(root, start, end) <= 14 + clearance) ||
+    [...lakes, ...frozenLakes].some((lake) => isInsideFeature(lake, root.x, root.y, clearance))
+  );
+};
+
 export function useMapObjects() {
   const drawBackground = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
     const ocean = ctx.createLinearGradient(0, 0, width, height);
@@ -926,10 +960,9 @@ export function useMapObjects() {
       const size = 22 + random() * 24;
       const blocksRoad = isPointOnRoute(x, y, 30 + size * 0.5);
       const blocksLandmark = landmarks.some((landmark) => Math.hypot(x - landmark.x, y - landmark.y) < 64 + size);
-      const insideLake = [...lakes, ...frozenLakes].some(
-        (lake) => Math.hypot((x - lake.x) / lake.rx, (y - lake.y) / lake.ry) < 1.15
-      );
-      if (blocksRoad || blocksLandmark || insideLake) continue;
+      const blocksMountain =
+        isPointInMountain(x, y, size * 0.12) || isPointInMountain(x, y + size * 0.32, size * 0.12);
+      if (blocksRoad || blocksLandmark || blocksMountain || isTreeInWater(x, y, size)) continue;
       trees.push({ x, y, size, color: colors[Math.floor(random() * colors.length)]! });
     }
     trees.sort((a, b) => a.y - b.y);

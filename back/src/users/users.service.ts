@@ -12,6 +12,7 @@ import { getPotionEffect, getPotionRequiredLevel, POTION_BUFF_DURATION_MS } from
 import { CRAFTING_MIN_LEVEL } from '../crafting/crafting.catalog';
 import { isTwoHandedWeapon, matchingAmmunition, rangedWeapon } from '../items/weapon-types';
 import { assignPotionSlot } from '../items/potion-slots';
+import { matchingStack } from '../items/inventory-stack';
 
 const SLOT_TYPES: Record<EquipmentSlotId, EquipmentType[]> = {
   head: [EquipmentType.HELMET],
@@ -177,7 +178,12 @@ export class UsersService {
               (ammo && !matchingAmmunition(source.item.name, rightHand.item.name)))
           ) {
             const backpackEntry = await tx.inventoryItem.findFirst({
-              where: { gameProfileId: profile.id, itemId: rightHand.itemId, isEquiped: false },
+              where: {
+                gameProfileId: profile.id,
+                itemId: rightHand.itemId,
+                isEquiped: false,
+                ...matchingStack(rightHand),
+              },
               select: { id: true },
             });
             if (backpackEntry) {
@@ -209,7 +215,12 @@ export class UsersService {
           }
           if (leftHand && isTwoHandedWeapon(leftHand.item.name)) {
             const backpackEntry = await tx.inventoryItem.findFirst({
-              where: { gameProfileId: profile.id, itemId: leftHand.itemId, isEquiped: false },
+              where: {
+                gameProfileId: profile.id,
+                itemId: leftHand.itemId,
+                isEquiped: false,
+                ...matchingStack(leftHand),
+              },
               select: { id: true },
             });
             if (backpackEntry) {
@@ -246,7 +257,7 @@ export class UsersService {
 
         if (target) {
           const backpackEntry = await tx.inventoryItem.findFirst({
-            where: { gameProfileId: profile.id, itemId: target.itemId, isEquiped: false },
+            where: { gameProfileId: profile.id, itemId: target.itemId, isEquiped: false, ...matchingStack(target) },
             select: { id: true },
           });
           if (backpackEntry) {
@@ -266,7 +277,15 @@ export class UsersService {
         if (source.quantity > 1) {
           await tx.inventoryItem.update({ where: { id: source.id }, data: { quantity: { decrement: 1 } } });
           await tx.inventoryItem.create({
-            data: { gameProfileId: profile.id, itemId: source.itemId, quantity: 1, isEquiped: true, slot: dto.slot },
+            data: {
+              gameProfileId: profile.id,
+              itemId: source.itemId,
+              quantity: 1,
+              isEquiped: true,
+              slot: dto.slot,
+              upgradeType: source.upgradeType,
+              upgradeValue: source.upgradeValue,
+            },
           });
         } else {
           await tx.inventoryItem.update({
@@ -378,7 +397,7 @@ export class UsersService {
         });
         if (!equipped) throw new NotFoundException('Equipped item not found');
         const backpackEntry = await tx.inventoryItem.findFirst({
-          where: { gameProfileId: profile.id, itemId: equipped.itemId, isEquiped: false },
+          where: { gameProfileId: profile.id, itemId: equipped.itemId, isEquiped: false, ...matchingStack(equipped) },
           select: { id: true },
         });
         if (backpackEntry) {

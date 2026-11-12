@@ -125,15 +125,9 @@
           {{ t('pvp.opponentsTitle') }}
         </h2>
 
-        <div
-          v-if="error"
-          role="alert"
-          class="rounded-xl border border-red-500/30 bg-red-950/60 p-5 text-sm text-red-200"
-        >
-          {{ error }}
-        </div>
+        <ActionToasts :error="error ?? ''" />
 
-        <div v-else-if="loading && !opponents.length" class="flex justify-center py-16">
+        <div v-if="loading && !opponents.length" class="flex justify-center py-16">
           <div class="flex items-center gap-3 text-amber-200">
             <QIcon name="hourglass_empty" size="28px" class="animate-spin" />
             <span class="text-sm font-medium tracking-wide uppercase">{{ t('pvp.refreshing') }}</span>
@@ -366,6 +360,7 @@ import { useTranslation } from 'i18next-vue';
 import { Notify, QIcon } from 'quasar';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 
+import ActionToasts from '@/components/ActionToasts';
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 import { useGemPrices } from '@/modules/GemPrices/useGemPrices';
 import {

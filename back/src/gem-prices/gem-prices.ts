@@ -2,6 +2,13 @@ import { ConflictException } from '@nestjs/common';
 import type { Prisma } from '../../generated/client';
 
 export const GEM_ACTIONS = {
+  BLACKSMITH_SOCKET_GOLD: { label: 'Add socket — gold per item level', defaultCost: 500, unit: 'gold / item level' },
+  BLACKSMITH_SOCKET_GEMS: { label: 'Add socket — gems', defaultCost: 10, unit: 'gems' },
+  BLACKSMITH_SOCKET_REMOVE_GOLD: {
+    label: 'Remove socket — gold per item level',
+    defaultCost: 100,
+    unit: 'gold / item level',
+  },
   PREMIUM_ACCOUNT: { label: 'Premium account (30 days)', defaultCost: 200 },
   SHOP_REFRESH: { label: 'Refresh shop stock', defaultCost: 10 },
   QUEST_REFRESH: { label: 'Refresh town quests', defaultCost: 30 },

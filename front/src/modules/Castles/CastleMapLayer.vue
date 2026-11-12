@@ -1,5 +1,6 @@
 <template>
   <div class="castle-map-layer">
+    <ActionToasts :error="error" />
     <svg v-if="placing && state" class="castle-ranges" aria-hidden="true">
       <circle
         v-for="city in state.placement.cities"
@@ -16,31 +17,33 @@
     <button
       v-if="state?.castle"
       class="private-castle-marker"
-      :style="pointStyle(state.castle)"
+      :style="{ ...pointStyle(state.castle), '--marker-scale': camera.scale }"
       :aria-label="`Open ${state.castle.name}, your castle`"
       @pointerdown.stop
       @click="router.push('/castle')"
     >
-      <svg width="52" height="54" viewBox="0 0 64 64" aria-hidden="true">
+      <svg width="76" height="80" viewBox="0 0 64 64" aria-hidden="true">
         <path d="m5 50 27-10 27 10-27 12Z" fill="#18343e" />
         <path d="M10 48V23h9v-6h26v6h9v25L32 57Z" fill="#819a90" stroke="#e1c581" stroke-width="2" />
         <path d="M23 18V7h18v11M8 24V12h13v12M43 24V12h13v12" fill="#255865" stroke="#e1c581" stroke-width="2" />
         <path d="M26 54V38q6-12 12 0v16" fill="#0d2831" />
         <path d="M32 7V0l13 4-13 5" fill="#84dbc0" stroke="#e1c581" /></svg
-      ><span>{{ state.castle.name }}</span
-      ><small>Your castle · Level {{ state.castle.keep }}</small>
+      ><span :title="state.castle.name">{{ state.castle.name }}</span>
     </button>
     <div v-if="!placing && !state?.castle" class="castle-map-entry">
       <button :disabled="!state?.eligible" @click="begin">
-        {{ state?.eligible ? 'Build a castle' : 'Castle · Level 25' }}</button
-      ><span v-if="error" role="alert">{{ error }}</span>
+        {{ state?.eligible ? 'Build a castle' : 'Castle · Level 25' }}
+      </button>
     </div>
     <section v-if="placing" class="castle-placement" aria-label="Castle placement">
       <header>
         <h2>Found your castle</h2>
         <button aria-label="Cancel castle placement" @click="cancel">×</button>
       </header>
-      <p>Click open ground inside a city’s dashed ring. Avoid forests, bogs, mountains and water.</p>
+      <p>
+        Click open ground inside a city’s dashed ring, at least {{ state?.placement.clearance }} map units from city and
+        landmark icons. Avoid forests, bogs, mountains and water.
+      </p>
       <button class="current-plot" :disabled="pending" @click="pick(position)">Check my current position</button>
       <p v-if="pending" role="status">Checking this plot…</p>
       <p v-else-if="site" :class="site.valid ? 'site-valid' : 'site-invalid'" role="status">
@@ -61,7 +64,6 @@
         </button>
         <p v-if="state.gold < state.foundationGold" class="site-invalid">Not enough gold.</p></template
       >
-      <p v-if="error" class="site-invalid" role="alert">{{ error }}</p>
     </section>
     <span
       v-if="placing && chosen"
@@ -77,6 +79,7 @@
 import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
+import ActionToasts from '@/components/ActionToasts';
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 
 import { castlesApi, type CastleState, type CastleSite } from './api';
@@ -207,7 +210,7 @@ defineExpose({ pick });
 }
 .private-castle-marker {
   position: absolute;
-  transform: translate(-50%, -80%);
+  transform: translate(-50%, -50%) scale(var(--marker-scale, 1));
   display: flex;
   align-items: center;
   flex-direction: column;
@@ -216,26 +219,23 @@ defineExpose({ pick });
   filter: drop-shadow(0 4px 6px #0007);
   border: 0;
   background: transparent;
-  max-width: 200px;
+  width: max-content;
+  max-width: 140px;
+  padding: 0;
   color: #f5dea1;
 }
 .private-castle-marker span {
-  padding: 4px 9px;
+  padding: 3px 7px;
   background: #102b33ed;
   border: 1px solid #b09b65;
   border-radius: 7px;
   font:
-    16px Georgia,
+    13px Georgia,
     serif;
-  max-width: 200px;
-  overflow-wrap: anywhere;
-}
-.private-castle-marker small {
-  background: #183842e8;
-  padding: 2px 7px;
-  border-radius: 5px;
-  color: #9ce3c9;
-  font-size: 10px;
+  max-width: 140px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .castle-placement {
   pointer-events: auto;

@@ -75,8 +75,7 @@
   resize: vertical;
   min-height: 140px;
 }
-.feedback-error,
-.feedback-success {
+.feedback-error {
   padding: 12px;
   border-radius: 8px;
 }
@@ -84,11 +83,6 @@
   color: #ffcbc6;
   background: #3b232b;
   border: 1px solid #97554c;
-}
-.feedback-success {
-  color: #b0ead4;
-  background: #17382f;
-  border: 1px solid #3d7362;
 }
 .feedback-stack {
   display: flex;

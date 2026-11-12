@@ -46,6 +46,7 @@
                 max-height="70vh"
                 max-width="32rem"
                 hover
+                :hover-delay="1000"
                 :hover-hide-delay="300"
                 no-focus
                 no-refocus

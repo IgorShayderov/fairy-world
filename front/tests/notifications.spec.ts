@@ -74,10 +74,10 @@ for (const width of [1440, 390]) {
     await expect(drawer.getByRole('button', { name: 'Mark as read' })).toHaveCount(0);
     await expect(bell.locator('.notification-badge')).toHaveText('1');
     await drawer.getByRole('button', { name: 'Move to inventory' }).click();
-    await expect(drawer.getByRole('alert')).toContainText('Your inventory is full');
+    await expect(page.getByRole('alert')).toContainText('Your inventory is full');
     await expect(drawer.getByRole('button', { name: 'Move to inventory' })).toBeEnabled();
     await drawer.getByRole('button', { name: 'Move to inventory' }).click();
-    await expect(drawer.getByRole('status')).toHaveText('Item moved to your inventory.');
+    await expect(page.locator('[data-action-toast]').filter({ hasText: 'Item moved to your inventory.' })).toBeVisible();
     await expect(bell.locator('.notification-badge')).toHaveCount(0);
     await expect(drawer.getByRole('button', { name: 'Move to inventory' })).toHaveCount(0);
     await drawer.getByRole('button', { name: 'Close notifications' }).click();

@@ -41,10 +41,10 @@
   <body>
     <div id="app"></div>
     <script type="module">
-      import { createApp, ref } from 'vue';
+      import { createApp, onMounted, ref } from 'vue';
       import { createPinia } from 'pinia';
       import { createRouter, createMemoryHistory } from 'vue-router';
-      import { Quasar } from 'quasar';
+      import { Quasar, Notify } from 'quasar';
       import I18nextVue from 'i18next-vue';
       import 'quasar/dist/quasar.css';
       import '@quasar/extras/material-icons/material-icons.css';
@@ -54,6 +54,8 @@
       import AppMenu from '/src/components/AppMenu.vue';
       import CastlePage from '/src/pages/CastlePage.vue';
       import CastleMapLayer from '/src/modules/Castles/CastleMapLayer.vue';
+      import SocketWorkshop from '/src/modules/Game/components/SocketWorkshop.vue';
+      import { useMapObjects } from '/src/modules/Game/composables/useMapObjects';
       import { castlesApi } from '/src/modules/Castles/api';
       import { useCurrentUserStore } from '/src/modules/Auth/store/currentUser';
       const params = new URLSearchParams(location.search);
@@ -66,12 +68,18 @@
         ['storehouse', 'Vaulted Storehouse', 'Increases storage capacity.', 1],
         ['barracks', 'Oathguard Barracks', 'Trains your army. Rangers unlock at level 2; arcanists at level 3.', 3],
         ['forge', 'Starfire Forge', 'Adds 10% strength to every unit per level.', 1],
+        ['gates', 'Dawnsteel Gates', 'Adds 100 defense per level.', 1],
+        ['arrowTower1', 'West Arrow Tower', 'Adds 100 defense per level.', 1],
+        ['arrowTower2', 'East Arrow Tower', 'Adds 100 defense per level.', 2],
+        ['mageTower1', 'North Mage Tower', 'Adds 150 defense per level. Requires Crownkeep level 9.', 0],
+        ['mageTower2', 'South Mage Tower', 'Adds 150 defense per level. Requires Crownkeep level 9.', 0],
+        ['gemMine', 'Starlight Gem Mine', 'Mine equipment gems. Requires Crownkeep level 5.', params.has('mining') ? 1 : 0],
       ];
       const castle = {
         id: 'own',
         name: 'Moonward Keep',
         x: 1100,
-        y: 650,
+        y: 770,
         city: 'AURELIA',
         keep: 3,
         lumberMill: 2,
@@ -79,6 +87,8 @@
         storehouse: 1,
         barracks: 3,
         forge: 1,
+        gates: 1, arrowTower1: 1, arrowTower2: 2, mageTower1: 0, mageTower2: 0, gemMine: params.has('mining') ? 1 : 0,
+        miningEndsAt: null, miningLevel: 0, miningCost: { wood: 100, stone: 80, seconds: 1920 }, equipmentGems: [],
         wood: 1950,
         stone: 1220,
         capacity: 11000,
@@ -100,7 +110,7 @@
         raidTarget: null,
         raidEndsAt: null,
         raidCooldownUntil: null,
-        protectedUntil: null,
+        protectedUntil: params.has('protected') ? new Date(Date.now() + 86400000).toISOString() : null,
         rating: 480,
         victories: 4,
         buildings: definitions.map(([key, name, description, level]) => ({
@@ -108,8 +118,9 @@
           name,
           description,
           level,
-          nextCost: { wood: 300, stone: 200, seconds: 240 },
-          unlocked: true,
+          nextCost: { wood: 300, stone: 200, seconds: params.has('instant') ? 0 : 240 },
+          requiredKeep: key === 'gemMine' ? 5 : key.startsWith('mageTower') ? 9 : 1,
+          unlocked: !key.startsWith('mageTower') && (key !== 'gemMine' || params.has('mining')),
         })),
         units: [
           {
@@ -153,12 +164,14 @@
         serverTime: new Date().toISOString(),
         eligible: !params.has('locked'),
         minLevel: 25,
-        foundationGold: 2500,
-        gold: 5000,
+        foundationGold: 10000,
+        gold: 15000,
         castle: hasCastle ? structuredClone(castle) : null,
-        placement: { cities: [{ name: 'AURELIA', x: 940, y: 620 }], radius: 350, clearance: 110 },
+        placement: { cities: [{ name: 'AURELIA', x: 940, y: 620 }], radius: 260, clearance: 180 },
       });
       castlesApi.get = async () => state();
+      castlesApi.mine = async () => { castle.miningEndsAt = new Date(Date.now() - 1000).toISOString(); castle.wood -= 100; castle.stone -= 80; };
+      castlesApi.collectGem = async () => { castle.miningEndsAt = null; const gem = { id: 'test-gem', type: 'DAMAGE', value: 5, mineLevel: 1 }; castle.equipmentGems.push(gem); return gem; };
       castlesApi.leaderboard = async () =>
         params.has('noRankings')
           ? []
@@ -191,8 +204,14 @@
                 : []),
             ];
       castlesApi.upgrade = async (building) => {
+        if (params.has('upgradeError')) throw new Error('Not enough wood or stone');
         castle.wood -= 300;
         castle.stone -= 200;
+        if (params.has('instant')) {
+          castle[building]++;
+          castle.buildings.find((b) => b.key === building).level++;
+          return;
+        }
         castle.construction = building;
         castle.constructionEndsAt = new Date(Date.now() + 240000).toISOString();
       };
@@ -250,24 +269,36 @@
         components: { CastleMapLayer },
         setup() {
           const control = ref(null);
+          const mapCanvas = ref(null);
+          const camera = { x: -400, y: -100, scale: Number(params.get('zoom') || 0.7) };
+          const mapObjects = useMapObjects();
+          onMounted(() => {
+            const ctx = mapCanvas.value.getContext('2d');
+            ctx.translate(camera.x, camera.y);
+            ctx.scale(camera.scale, camera.scale);
+            mapObjects.drawRegionalDecorations(ctx);
+            mapObjects.drawCastlesAndCities(ctx);
+          });
           return {
             control,
-            camera: { x: -400, y: -100, scale: 0.7 },
-            position: { x: 1100, y: 650 },
-            pick: () => control.value?.pick({ x: 1100, y: 650 }),
+            mapCanvas,
+            camera,
+            position: { x: 1100, y: 770 },
+            pick: () => control.value?.pick({ x: 1100, y: 770 }),
             bad: () => control.value?.pick({ x: 900, y: 650 }),
           };
         },
-        template: `<div class="preview-map"><h2>Placement preview</h2><button @click="pick">Select open ground</button><button @click="bad">Select forest</button><CastleMapLayer ref="control" :camera="camera" :position="position"/></div>`,
+        template: `<div class="preview-map"><canvas ref="mapCanvas" width="1800" height="1400" style="position:absolute;inset:0;pointer-events:none"/><h2>Placement preview</h2><button @click="pick">Select open ground</button><button @click="bad">Select forest</button><CastleMapLayer ref="control" :camera="camera" :position="position"/></div>`,
       };
       const router = createRouter({
         history: createMemoryHistory(),
         routes: [
           { path: '/', component: MapPreview },
           { path: '/castle', component: CastlePage },
+          { path: '/sockets', component: SocketWorkshop },
         ],
       });
-      await router.push(params.has('map') ? '/?castle=place' : '/castle');
+      await router.push(params.has('sockets') ? '/sockets' : params.has('map') ? '/?castle=place' : '/castle');
       await router.isReady();
       createApp({
         components: { AppMenu },
@@ -276,7 +307,7 @@
       })
         .use(pinia)
         .use(router)
-        .use(Quasar)
+        .use(Quasar, { plugins: { Notify } })
         .use(I18nextVue, { i18next: i18n })
         .mount('#app');
     </script>

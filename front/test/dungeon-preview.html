@@ -7,7 +7,7 @@
     <script type="module">
       import { createApp, ref } from '/node_modules/vue/dist/vue.esm-bundler.js';
       import { createPinia } from 'pinia';
-      import { Quasar } from 'quasar';
+      import { Quasar, Notify } from 'quasar';
       import I18nextVue from 'i18next-vue';
       import { createRouter, createMemoryHistory } from 'vue-router';
       import 'quasar/dist/quasar.css';
@@ -459,7 +459,7 @@
           '<header class="preview-header">Fairy World · visual test</header><aside class="preview-sidebar">Menu</aside><main class="preview-content" style="display:flex;flex-direction:column"><Blacksmith v-if="blacksmith"/><Profile v-else-if="profile"/><Settings v-else-if="settings"/><Battle v-else-if="standard" :battle="normal" player-name="Preview Hero" :loading="quickPending" @quick-battle="quickBattle" @use-potion="drink"/><Dungeon v-else :battle="state" player-name="Preview Hero" :loading="false" @attack="attack" @use-potion="drink"/></main>',
       })
         .use(pinia)
-        .use(Quasar)
+        .use(Quasar, { plugins: { Notify } })
         .use(I18nextVue, { i18next: i18n })
         .use(
           createRouter({ history: createMemoryHistory(), routes: [{ path: '/', component: { template: '<div />' } }] })

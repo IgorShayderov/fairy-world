@@ -22,9 +22,7 @@
         </div>
       </div>
 
-      <p v-if="error" class="mt-4 rounded-lg border border-red-400/30 bg-red-950/35 p-3 text-sm text-red-200">
-        {{ error }}
-      </p>
+      <ActionToasts :error="error" />
 
       <section v-if="lobby.currentParty" class="mt-5 rounded-xl border border-[#46636d] bg-[#0b2029] p-4">
         <div class="flex items-center justify-between gap-3">
@@ -112,6 +110,7 @@
 import { useTranslation } from 'i18next-vue';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 
+import ActionToasts from '@/components/ActionToasts';
 import {
   createDungeonParty,
   getActiveDungeon,

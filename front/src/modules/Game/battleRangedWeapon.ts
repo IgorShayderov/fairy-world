@@ -72,7 +72,7 @@ export function updateCrossbowGrip(root: T.Object3D, weapon: T.Object3D, bash = 
 }
 
 const bowLeftRotation = gripRotation(new T.Vector3(0, 1, 0), new T.Vector3(0, 0, 1), 'L');
-const bowRightRotation = gripRotation(new T.Vector3(0, 1, 0), new T.Vector3(0, 0, 1), 'R');
+const bowRightRotation = gripRotation(new T.Vector3(0, 1, 0), new T.Vector3(0, 0, -1), 'R');
 
 /** The left palm owns the bow; the drawing hand and string share the same socket.
  * Targets follow the animated chest, rather than freezing both arms in actor space.
@@ -94,17 +94,26 @@ export function updateBowGrip(root: T.Object3D, weapon: T.Object3D, shotProgress
       lower,
       hand,
       target.clone().sub(offset),
-      new T.Vector3(side === 'L' ? 0.7 : -0.7, 1.65, 0.2).applyMatrix4(frame)
+      new T.Vector3(side === 'L' ? 0.5 : -0.65, 1.76, side === 'L' ? 0.35 : -0.25).applyMatrix4(frame)
     );
     hand.quaternion.copy(hand.parent!.getWorldQuaternion(new T.Quaternion()).invert().multiply(rotation));
     hand.updateMatrixWorld(true);
-    closeGrip(root, side);
+    if (side === 'L') closeGrip(root, side);
+    else {
+      // Three fingers hook the string; the drawing hand is not a sword fist.
+      for (const finger of ['Index', 'Middle', 'Ring', 'Pinky']) {
+        for (const [suffix, curl] of [['', -0.25], ['_1', -1.1], ['_2', -0.8]] as const) {
+          const bone = root.getObjectByName(`Rig_${finger}${suffix}_R`);
+          if (bone) bone.rotation.set(finger === 'Pinky' ? -0.2 : curl, 0, 0);
+        }
+      }
+    }
   };
   if (!falling) {
     solve(
       'L',
       left,
-      new T.Vector3(0.22, 1.76, 0.48 + Math.min(bash, 0.04)).applyMatrix4(frame),
+      new T.Vector3(0.12, 1.78, 0.7 + Math.min(bash, 0.04)).applyMatrix4(frame),
       orientation.clone().multiply(bowLeftRotation)
     );
   }
@@ -117,7 +126,7 @@ export function updateBowGrip(root: T.Object3D, weapon: T.Object3D, shotProgress
       : shotProgress <= 0.3
         ? Math.sin(((Math.max(0, shotProgress) / 0.3) * Math.PI) / 2)
         : Math.max(0, 1 - (shotProgress - 0.3) / 0.12);
-  const stringSocket = new T.Vector3(0, 0, -0.16 - draw * 0.3);
+  const stringSocket = new T.Vector3(0, 0, -0.18 - draw * 0.42);
   if (!falling) {
     solve('R', right, weapon.localToWorld(stringSocket.clone()), weapon.quaternion.clone().multiply(bowRightRotation));
     // Use the solved hand so the string cannot float away if an authored pose limits reach.
@@ -141,10 +150,14 @@ export function createRangedWeapon(crossbow: boolean) {
   if (crossbow) return createCrossbow();
   const group = new T.Group();
   const wood = new T.MeshStandardMaterial({ color: '#785032', roughness: 0.7 });
-  const points = [new T.Vector3(0, -0.68, 0.18), new T.Vector3(0, 0, 0), new T.Vector3(0, 0.68, 0.18)];
-  group.add(new T.Mesh(new T.TubeGeometry(new T.CatmullRomCurve3(points), 24, 0.032, 8, false), wood));
+  // +Z aims at the enemy. The grip is forward of the limb tips, and
+  // the string sits behind it, toward the archer (-Z).
+  const points = [new T.Vector3(0, -0.68, -0.18), new T.Vector3(0, 0, 0), new T.Vector3(0, 0.68, -0.18)];
+  const limbs = new T.Mesh(new T.TubeGeometry(new T.CatmullRomCurve3(points), 24, 0.032, 8, false), wood);
+  limbs.name = 'BowLimbs';
+  group.add(limbs);
   const string = new T.Line(
-    new T.BufferGeometry().setFromPoints([points[0]!, new T.Vector3(0, 0, -0.16), points[2]!]),
+    new T.BufferGeometry().setFromPoints([points[0]!, new T.Vector3(0, 0, -0.18), points[2]!]),
     new T.LineBasicMaterial({ color: '#dbd5bc' })
   );
   string.name = 'Bowstring';

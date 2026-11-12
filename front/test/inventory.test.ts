@@ -37,6 +37,7 @@ describe('profile inventory hydration', () => {
     expect(store.inventory).toEqual([
       {
         inventoryItemId: 9,
+        hasSocket: false, socketGemType: null, socketGemValue: null,
         level: 1,
         requiredPlayerLevel: 1,
         id: 2,

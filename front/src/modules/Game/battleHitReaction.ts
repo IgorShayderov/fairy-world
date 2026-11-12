@@ -2,7 +2,7 @@ import { Bone, Quaternion, Vector3 } from 'three';
 
 import type { Object3D } from 'three';
 
-import { hitReactionWeight } from './battleAnimation';
+import { hitReactionWeight, hitRecoveryWeight } from './battleAnimation';
 
 /** Offset the live animated pose, with the head/shoulders following the torso's impact. */
 export function createCreatureHitPose(root: Object3D, direction: Vector3, strength = 1) {
@@ -23,7 +23,7 @@ export function createCreatureHitPose(root: Object3D, direction: Vector3, streng
   const entries = [
     ...(splitSpine ? [{ bone: lowerSpine, angle: 0.1, delay: 0 }] : []),
     ...(torso ? [{ bone: torso, angle: splitSpine ? 0.16 : 0.26, delay: 0.025 }] : []),
-    ...(head ? [{ bone: head, angle: 0.12, delay: 0.085 }] : []),
+    ...(head ? [{ bone: head, angle: 0.15, delay: 0.085 }] : []),
     ...shoulders.map((bone) => ({ bone, angle: -0.1, delay: 0.055 })),
   ].map(({ bone, angle, delay }) => ({
     bone,
@@ -49,7 +49,10 @@ export function createCreatureHitPose(root: Object3D, direction: Vector3, streng
       // keeps playing underneath rather than being frozen at the impact pose.
       for (const entry of entries) entry.base.copy(entry.bone.quaternion);
       for (const entry of entries) {
-        const weight = hitReactionWeight((progress - entry.delay) / (1 - entry.delay));
+        const phase = (progress - entry.delay) / (1 - entry.delay);
+        // Follow-through, then a restrained counter-bend rather than a rigid
+        // slide back to idle. Delayed joints settle at different times.
+        const weight = hitReactionWeight(phase) - 0.3 * hitRecoveryWeight(phase);
         entry.bone.parent!.getWorldQuaternion(parentRotation).invert();
         axis.copy(worldAxis).applyQuaternion(parentRotation);
         rotation.setFromAxisAngle(axis, entry.angle * weight);

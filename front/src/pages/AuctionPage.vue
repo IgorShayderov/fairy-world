@@ -28,16 +28,13 @@
             ><QIcon name="notifications_none" /> Notifications</RouterLink
           >
         </nav>
-        <div v-if="error" role="alert" class="auction-error">
-          {{ error }} <button class="underline" @click="refresh">Retry</button>
-        </div>
-        <div v-if="notice" role="status" class="auction-notice">{{ notice }}</div>
+        <ActionToasts :error="error" :success="notice" :retry="refresh" />
         <template v-if="tab === 'sell'">
           <form class="auction-card auction-sell" @submit.prevent="submitListing">
             <h2 class="text-xl text-[#f3dfaa]">List an item</h2>
             <p class="auction-muted">
               Only unequipped items can be listed. The item leaves your backpack until it sells or expires. Up to 24
-              active listings.
+              active listings. Socketed items cannot be listed; remove the socket at the Blacksmith first.
             </p>
             <div class="auction-form">
               <label class="col-span-full"
@@ -182,6 +179,7 @@ import { QDialog, QIcon } from 'quasar';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { RouterLink } from 'vue-router';
 
+import ActionToasts from '@/components/ActionToasts';
 import { auctionApi, purchaseBlock, timeLeft, type AuctionListing, type ListingPage } from '@/modules/Auction/api';
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 import routes from '@/routes';
@@ -212,7 +210,7 @@ const selectedId = ref(0),
   durationHours = ref(12);
 const sellable = computed(() =>
   (user.user?.inventory ?? []).filter(
-    (entry) => !entry.isEquiped && entry.quantity > 0 && entry.item.rarity !== 'QUEST'
+    (entry) => !entry.isEquiped && !entry.hasSocket && entry.quantity > 0 && entry.item.rarity !== 'QUEST'
   )
 );
 const selected = computed(() => sellable.value.find((entry) => entry.id === selectedId.value));

@@ -201,6 +201,17 @@ export class UserView {
     }
 
     let goldBonusPercent = 0;
+    for (const entry of activeEquipment) {
+      if (!entry.hasSocket || !entry.socketGemType || !entry.socketGemValue) continue;
+      const stat = { DAMAGE: StatType.DAMAGE, DEFENSE: StatType.DEFENSE, HEALTH: StatType.HEALTH }[
+        entry.socketGemType as 'DAMAGE' | 'DEFENSE' | 'HEALTH'
+      ];
+      const property = stat ? properties.get(stat) : undefined;
+      if (property) {
+        property.equipmentBonus += entry.socketGemValue;
+        property.value += entry.socketGemValue;
+      }
+    }
     let experienceBonusPercent = 0;
     for (const entry of activeEquipment) {
       if (!entry.upgradeType || !entry.upgradeValue) continue;

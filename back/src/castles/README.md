@@ -6,12 +6,16 @@ Raids are timed, server-resolved army expeditions, not character tactical battle
 
 ## Starting balance
 
-- Foundation: 2,500 gold; one castle per profile. Includes level 1 Crownkeep, lumber mill and quarry,
+- Foundation: 10,000 gold; one castle per profile. Includes level 1 Crownkeep, lumber mill and quarry,
   200 wood and 150 stone. Both production buildings are included to prevent spending the starter
   resources from permanently blocking progression.
-- Placement: open mainland within 350 map units of Aurelia, Moonfall, Westmere or Larkhaven,
-  with a 26-unit footprint and 110-unit clearance from towns/landmarks. Water, forest, bog and
+- Placement: open mainland within 260 map units of Aurelia, Moonfall, Westmere or Larkhaven,
+  with a 26-unit footprint and 180-unit minimum clearance from towns/landmarks, plus rectangular
+  guards for wide labels and the Moonward Stones. Water, forest, bog and
   mountains are rejected on the server. Plots are private and may overlap between players.
+  Existing crowded or distant castles move to a nearby valid plot around the same city on their next owner read/action;
+  buildings, resources, armies and timers stay intact. Map markers scale with the atlas at every zoom,
+  with icons slightly smaller than landmarks and a compact name label (no level).
 - Six buildings, maximum level 10: keep, lumber mill, quarry, storehouse, barracks and forge.
   Other buildings cannot exceed the keep level. One construction and one training queue at a time.
 - Wood: 120/hour per mill level. Stone: 90/hour per quarry level. Offline production stops at
@@ -46,6 +50,10 @@ Production is calculated from server timestamps on reads/actions. A 15-second sc
 due raids for offline players; player reads/actions also settle due incoming/outgoing expeditions.
 
 ## Deployment and checks
+
+With `NODE_ENV=development` (`npm run start:dev`), construction and upgrades finish immediately,
+including an existing construction queue on the next castle read/action. Resource costs, prerequisites,
+training and raids are unchanged. Production, test and unset environments retain normal construction timers.
 
 From `back`, run `npx prisma migrate deploy`, `npx prisma generate`, then build/restart the backend
 and deploy the rebuilt frontend. The migration `20261103120000_player_castles` adds only new castle

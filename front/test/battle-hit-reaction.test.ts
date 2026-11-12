@@ -4,6 +4,17 @@ import { describe, expect, it } from 'vitest';
 import { createCreatureHitPose } from '../src/modules/Game/battleHitReaction';
 
 describe('creature skeletal hit reactions', () => {
+  it('counterbalances late in recovery without changing facing or leaving a pose offset', () => {
+    const root = new Group(), torso = new Bone();
+    torso.name = 'Chest'; root.add(torso);
+    const pose = createCreatureHitPose(root, new Vector3(1, 0, 0));
+    pose.apply(0.88);
+    const up = new Vector3(0, 1, 0).applyQuaternion(torso.quaternion);
+    expect(up.x).toBeLessThan(0);
+    pose.apply(1); pose.restore();
+    expect(torso.quaternion.angleTo(new Quaternion())).toBeCloseTo(0);
+    expect(root.rotation.y).toBe(0);
+  });
   it.each(['Back', 'Spine1', 'spine_3', 'chest', 'body', 'back2', 'Rig_Chest', 'mixamorig:Spine1'])(
     'bends %s rigs and restores their exact pose without accumulating rotations',
     (name) => {

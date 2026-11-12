@@ -62,11 +62,17 @@ export function smoothStep(value: number): number {
 export function hitReactionProfile(model: string, critical = false) {
   const heavy = /golem|giant|warden|dragon|brute|troll|minotaur|bog-lurker/i.test(model);
   const beast = /wolf|hound|chimera|boar|spider/i.test(model);
+  const floating = /harpy|wraith|ghost|bat/i.test(model);
   return {
     duration: (heavy ? 1.02 : beast ? 0.84 : 0.94) + (critical ? 0.14 : 0),
-    distance: (heavy ? 0.1 : beast ? 0.25 : 0.22) * (critical ? 1.35 : 1),
+    distance: (heavy ? 0.07 : floating ? 0.24 : beast ? 0.18 : 0.14) * (critical ? 1.35 : 1),
     lean: (heavy ? 0.085 : beast ? 0.14 : 0.18) * (critical ? 1.2 : 1),
   };
+}
+/** Small counter-motion as the body regains its balance; zero at both ends. */
+export function hitRecoveryWeight(progress: number): number {
+  if (progress <= 0.6 || progress >= 1) return 0;
+  return Math.sin(((progress - 0.6) / 0.4) * Math.PI) ** 2;
 }
 export function hitReactionWeight(progress: number) {
   if (progress <= 0 || progress >= 1) return 0;

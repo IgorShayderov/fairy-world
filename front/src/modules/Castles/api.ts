@@ -1,7 +1,20 @@
 import routes from '@/routes';
 import { api } from '@/shared/api';
 
-export type BuildingKey = 'keep' | 'lumberMill' | 'quarry' | 'storehouse' | 'barracks' | 'forge';
+export type BuildingKey =
+  | 'keep'
+  | 'lumberMill'
+  | 'quarry'
+  | 'storehouse'
+  | 'barracks'
+  | 'forge'
+  | 'gates'
+  | 'arrowTower1'
+  | 'arrowTower2'
+  | 'mageTower1'
+  | 'mageTower2'
+  | 'gemMine';
+export type EquipmentGem = { id: string; type: 'DAMAGE' | 'DEFENSE' | 'HEALTH'; value: number; mineLevel: number };
 export type UnitKey = 'sentinels' | 'rangers' | 'arcanists';
 export type Army = Record<UnitKey, number>;
 export type Cost = { wood: number; stone: number; seconds: number };
@@ -12,6 +25,7 @@ export type CastleBuilding = {
   level: number;
   nextCost: Cost | null;
   unlocked: boolean;
+  requiredKeep: number;
 };
 export type CastleUnit = Cost & {
   key: UnitKey;
@@ -49,6 +63,10 @@ export type CastleReport = {
 export type Castle = Army &
   Record<BuildingKey, number> & {
     id: string;
+    miningEndsAt: string | null;
+    miningLevel: number;
+    miningCost: Cost;
+    equipmentGems: EquipmentGem[];
     name: string;
     x: number;
     y: number;
@@ -100,6 +118,12 @@ export type CastleRanking = {
   protectedUntil: string | null;
 };
 export const castlesApi = {
+  async mine() {
+    await api.post(routes.api.castles.path('mine'));
+  },
+  async collectGem() {
+    return (await api.post<EquipmentGem>(routes.api.castles.path('mine/collect'))).data;
+  },
   async get() {
     return (await api.get<CastleState>(routes.api.castles.path('me'))).data;
   },

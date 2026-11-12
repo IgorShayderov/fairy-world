@@ -16,9 +16,7 @@
           {{ t('fantasy.landmark.leave') }}
         </button>
       </div>
-      <p v-if="error" role="alert" class="mb-3 text-sm text-red-300">
-        {{ error }} <button class="underline" :disabled="pending" @click="load">{{ t('quests.retry') }}</button>
-      </p>
+      <ActionToasts :error="error" :retry="load" :retry-label="t('quests.retry')" />
       <p v-if="loading" role="status" class="text-sm">{{ t('shop.loading') }}</p>
       <template v-else-if="journal">
         <p v-if="!journal.town" class="text-sm">{{ t('quests.visitTown') }}</p>
@@ -91,6 +89,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import type { Quest, QuestJournal } from './api';
 
+import ActionToasts from '@/components/ActionToasts';
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 
 import { acceptQuest, getQuests, refreshQuests } from './api';
