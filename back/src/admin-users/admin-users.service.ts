@@ -296,7 +296,11 @@ export class AdminUsersService {
         throw new NotFoundException('Item not found');
       const stack = profile.inventory.find(
         (entry) =>
-          !entry.isEquiped && entry.itemId === dto.itemId && entry.upgradeType === null && entry.upgradeValue === null,
+          !entry.isEquiped &&
+          !entry.hasSocket &&
+          entry.itemId === dto.itemId &&
+          entry.upgradeType === null &&
+          entry.upgradeValue === null,
       );
       if (stack) {
         if (stack.quantity + dto.quantity > 9999) throw new BadRequestException('Maximum stack quantity is 9999');

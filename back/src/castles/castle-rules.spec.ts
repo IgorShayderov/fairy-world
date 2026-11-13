@@ -1,5 +1,5 @@
 import { accrue, armyPower, defensePower, raidLoot, raidResult, storageCapacity, upgradeCost } from './castle-rules';
-import { castleSite, castleMountains, CASTLE_CITIES } from './castle-terrain';
+import { castleSite, castleMountains, castleHasClearance, uncrowdedCastleSite, CASTLE_CITIES } from './castle-terrain';
 
 describe('castle rules', () => {
   const base = () => ({
@@ -36,6 +36,21 @@ describe('castle rules', () => {
     expect(armyPower({ sentinels: 10, rangers: 0, arcanists: 0 }, 2)).toBe(120);
     expect(defensePower({ keep: 2, forge: 2, sentinels: 10, rangers: 0, arcanists: 0 })).toBe(220);
   });
+  it('gives independent towers their defense, with exactly double mage costs and time', () => {
+    const base = { keep: 9, forge: 0, sentinels: 0, rangers: 0, arcanists: 0 };
+    expect(defensePower({ ...base, arrowTower1: 2, arrowTower2: 1, mageTower1: 2, mageTower2: 1, gates: 1 })).toBe(
+      1300,
+    );
+    for (let level = 1; level <= 10; level++) {
+      const arrow = upgradeCost('arrowTower1', level);
+      expect(upgradeCost('mageTower1', level)).toEqual({
+        wood: arrow.wood * 2,
+        stone: arrow.stone * 2,
+        seconds: arrow.seconds * 2,
+      });
+      expect(upgradeCost('mageTower2', level)).toEqual(upgradeCost('mageTower1', level));
+    }
+  });
   it('limits actual transferred loot to 10% and free storage', () => {
     expect(raidLoot({ wood: 999, stone: 1000 }, { wood: 10, stone: 500 })).toEqual({ wood: 10, stone: 100 });
   });
@@ -51,7 +66,24 @@ describe('castle rules', () => {
 
 describe('castle placement', () => {
   it('allows clear land near a city', () => {
-    expect(castleSite(1100, 650)).toMatchObject({ valid: true, city: 'AURELIA' });
+    expect(castleSite(1100, 770)).toMatchObject({ valid: true, city: 'AURELIA' });
+  });
+  it('allows closer plots without covering wide landmark labels or the Moonward Stones', () => {
+    expect(castleSite(940, 810).valid).toBe(true);
+    expect(castleHasClearance(1140, 620)).toBe(false);
+    expect(castleHasClearance(1220, 600)).toBe(false);
+    expect(castleSite(940, 900).valid).toBe(false);
+  });
+  it.each([
+    [1100, 650],
+    [1220, 600],
+    [940, 920],
+  ])('relocates legacy plot %s,%s once, close to its original city', (x, y) => {
+    const moved = uncrowdedCastleSite({ x, y, city: 'AURELIA' });
+    expect(moved).not.toBeNull();
+    expect(castleSite(moved!.x, moved!.y)).toMatchObject({ valid: true, city: 'AURELIA' });
+    expect(Math.hypot(moved!.x - 940, moved!.y - 620)).toBeLessThanOrEqual(260);
+    expect(uncrowdedCastleSite({ ...moved!, city: 'AURELIA' })).toBeNull();
   });
   it.each([
     [NaN, 650],

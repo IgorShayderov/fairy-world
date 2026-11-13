@@ -27,7 +27,7 @@
             })
           }}
         </button>
-        <p v-if="premiumError" role="alert" class="mt-3 text-red-300">{{ t('gemStore.premiumError') }}</p>
+        <ActionToasts :error="premiumError ? t('gemStore.premiumError') : ''" />
       </section>
       <button
         v-if="isDev"
@@ -37,7 +37,7 @@
       >
         {{ t('gemStore.devClaim') }}
       </button>
-      <p v-if="claimError" role="alert" class="mt-3 text-amber-200">{{ t('gemStore.devError') }}</p>
+      <ActionToasts :error="claimError ? t('gemStore.devError') : ''" />
       <div role="status" class="mt-6 rounded-xl border border-amber-300/30 bg-amber-200/10 p-4 text-sm text-amber-100">
         {{ t('gemStore.pending') }}
       </div>
@@ -63,6 +63,7 @@
 import { useTranslation } from 'i18next-vue';
 import { onMounted, ref } from 'vue';
 
+import ActionToasts from '@/components/ActionToasts';
 import { usersApi } from '@/modules/Auth/api/users';
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 import { useGemPrices } from '@/modules/GemPrices/useGemPrices';

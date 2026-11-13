@@ -11,7 +11,7 @@ function castle(id = 'a', profileId = 1): Castle {
     profileId,
     name: `Keep ${id}`,
     x: 1100,
-    y: 650,
+    y: 770,
     city: 'AURELIA',
     keep: 2,
     lumberMill: 1,
@@ -19,6 +19,14 @@ function castle(id = 'a', profileId = 1): Castle {
     storehouse: 0,
     barracks: 2,
     forge: 0,
+    gates: 0,
+    arrowTower1: 0,
+    arrowTower2: 0,
+    mageTower1: 0,
+    mageTower2: 0,
+    gemMine: 0,
+    miningEndsAt: null,
+    miningLevel: 0,
     wood: 1000,
     stone: 1000,
     producedAt: now,
@@ -45,12 +53,14 @@ function castle(id = 'a', profileId = 1): Castle {
 }
 
 describe('castle service ownership and economy', () => {
+  const originalEnv = process.env.NODE_ENV;
   let service: CastlesService,
     db: Map<string, Castle>,
     reports: Record<string, unknown>[],
     profile: { id: number; level: number; gold: number },
     prisma: any;
   beforeEach(() => {
+    process.env.NODE_ENV = 'test';
     jest.useFakeTimers().setSystemTime(now);
     db = new Map([
       ['a', castle()],
@@ -61,6 +71,11 @@ describe('castle service ownership and economy', () => {
     const lookup = (where: any) =>
       [...db.values()].find((c) => (where.id ? c.id === where.id : c.profileId === where.profileId));
     prisma = {
+      equipmentGem: {
+        findMany: jest.fn(async () => []),
+        count: jest.fn(async () => 0),
+        create: jest.fn(async ({ data }: any) => ({ id: 'gem-1', ...data })),
+      },
       $executeRaw: jest.fn().mockResolvedValue(1),
       gameProfile: {
         findUnique: jest.fn(async () => ({ ...profile })),
@@ -122,26 +137,136 @@ describe('castle service ownership and economy', () => {
     });
     service = new CastlesService(prisma as PrismaService);
   });
-  afterEach(() => jest.useRealTimers());
+  afterEach(() => {
+    jest.useRealTimers();
+    if (originalEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = originalEnv;
+  });
+  it('repositions a distant castle once without changing progress or another player’s castle', async () => {
+    db.get('a')!.y = 920;
+    const before = { ...db.get('a')! };
+    const other = { ...db.get('b')! };
+    await service.get(1);
+    const moved = { ...db.get('a')! };
+    expect(Math.hypot(moved.x - 940, moved.y - 620)).toBeLessThanOrEqual(260);
+    expect(moved).toEqual({ ...before, x: moved.x, y: moved.y });
+    await service.get(1);
+    expect(db.get('a')).toEqual(moved);
+    expect(db.get('b')).toEqual(other);
+  });
+  it('completes development construction immediately, charges resources and awards rating once', async () => {
+    process.env.NODE_ENV = 'development';
+    expect((await service.get(1)).castle?.buildings.find((b) => b.key === 'storehouse')?.nextCost?.seconds).toBe(0);
+    await service.upgrade(1, 'storehouse');
+    expect(db.get('a')).toMatchObject({
+      storehouse: 1,
+      wood: 900,
+      stone: 920,
+      rating: 125,
+      construction: null,
+      constructionEndsAt: null,
+    });
+    await service.get(1);
+    expect(db.get('a')?.rating).toBe(125);
+    await service.train(1, 'sentinels', 1);
+    expect(db.get('a')?.trainingEndsAt?.getTime()).toBe(now.getTime() + 45000);
+  });
+  it('finishes an existing development build at the current time without retroactive production', async () => {
+    process.env.NODE_ENV = 'development';
+    Object.assign(db.get('a')!, {
+      construction: 'lumberMill',
+      constructionEndsAt: new Date(now.getTime() + 60000),
+      producedAt: new Date(now.getTime() - 3600000),
+    });
+    await service.get(1);
+    expect(db.get('a')).toMatchObject({
+      lumberMill: 2,
+      wood: 1120,
+      rating: 150,
+      construction: null,
+      constructionEndsAt: null,
+    });
+  });
+  it.each(['production', 'test', undefined])('keeps real construction timers in %s', async (env) => {
+    if (env === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = env;
+    expect((await service.get(1)).castle?.buildings.find((b) => b.key === 'storehouse')?.nextCost?.seconds).toBe(120);
+    await service.upgrade(1, 'storehouse');
+    expect(db.get('a')).toMatchObject({
+      storehouse: 0,
+      construction: 'storehouse',
+      constructionEndsAt: new Date(now.getTime() + 120000),
+      rating: 100,
+    });
+  });
+  it('retains development resource and prerequisite checks', async () => {
+    process.env.NODE_ENV = 'development';
+    db.get('a')!.wood = 0;
+    await expect(service.upgrade(1, 'storehouse')).rejects.toThrow('Not enough');
+    await expect(service.upgrade(1, 'barracks')).rejects.toThrow('Crownkeep');
+    expect(db.get('a')?.rating).toBe(100);
+  });
+  it('enforces mine and mage tower unlocks and upgrades each defense independently', async () => {
+    process.env.NODE_ENV = 'development';
+    await expect(service.upgrade(1, 'gemMine')).rejects.toThrow('level 5');
+    await expect(service.upgrade(1, 'mageTower1')).rejects.toThrow('level 9');
+    db.get('a')!.keep = 9;
+    await service.upgrade(1, 'mageTower1');
+    expect(db.get('a')).toMatchObject({ mageTower1: 1, mageTower2: 0, arrowTower1: 0, wood: 760, stone: 680 });
+    await service.upgrade(1, 'arrowTower2');
+    expect(db.get('a')).toMatchObject({ mageTower1: 1, mageTower2: 0, arrowTower1: 0, arrowTower2: 1 });
+  });
+  it('mines one gem on a server timer, snapshots mine level and prevents duplicate collection', async () => {
+    await expect(service.startMining(1)).rejects.toThrow('Gem Mine');
+    Object.assign(db.get('a')!, { keep: 5, gemMine: 2 });
+    await service.startMining(1);
+    expect(db.get('a')).toMatchObject({
+      miningLevel: 2,
+      wood: 800,
+      stone: 840,
+      miningEndsAt: new Date(now.getTime() + 2040000),
+    });
+    await expect(service.startMining(1)).rejects.toThrow('Collect');
+    await expect(service.collectGem(1)).rejects.toThrow('not complete');
+    db.get('a')!.gemMine = 4;
+    jest.setSystemTime(new Date(now.getTime() + 2040000));
+    const results = await Promise.allSettled([service.collectGem(1), service.collectGem(1)]);
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    expect(prisma.equipmentGem.create).toHaveBeenCalledTimes(1);
+    expect(prisma.equipmentGem.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ gameProfileId: 1, mineLevel: 2, value: expect.any(Number) }),
+    });
+    expect(db.get('a')?.miningEndsAt).toBeNull();
+  });
+  it('rejects mining with full gem storage or insufficient resources', async () => {
+    Object.assign(db.get('a')!, { keep: 5, gemMine: 1 });
+    prisma.equipmentGem.count.mockResolvedValue(100);
+    await expect(service.startMining(1)).rejects.toThrow('storage is full');
+    prisma.equipmentGem.count.mockResolvedValue(0);
+    db.get('a')!.wood = 0;
+    await expect(service.startMining(1)).rejects.toThrow('Not enough');
+    expect(db.get('a')?.miningEndsAt).toBeNull();
+  });
   it('requires level 25 and charges foundation once', async () => {
     db.delete('a');
+    profile.gold = 15000;
     profile.level = 24;
-    await expect(service.create(1, { name: 'New Keep', x: 1100, y: 650 })).rejects.toThrow('level 25');
-    expect(profile.gold).toBe(5000);
+    await expect(service.create(1, { name: 'New Keep', x: 1100, y: 770 })).rejects.toThrow('level 25');
+    expect(profile.gold).toBe(15000);
     profile.level = 25;
-    await service.create(1, { name: 'New Keep', x: 1100, y: 650 });
-    expect(profile.gold).toBe(2500);
+    await service.create(1, { name: 'New Keep', x: 1100, y: 770 });
+    expect(profile.gold).toBe(5000);
     expect(prisma.castle.create).toHaveBeenCalledWith({
       data: expect.objectContaining({ lumberMill: 1, quarry: 1 }),
     });
-    await expect(service.create(1, { name: 'Other Keep', x: 1100, y: 650 })).rejects.toThrow('already');
-    expect(profile.gold).toBe(2500);
+    await expect(service.create(1, { name: 'Other Keep', x: 1100, y: 770 })).rejects.toThrow('already');
+    expect(profile.gold).toBe(5000);
   });
   it('rejects invalid terrain and insufficient gold without creating a castle', async () => {
     db.delete('a');
     await expect(service.create(1, { name: 'Bad Keep', x: 940, y: 620 })).rejects.toThrow('space');
-    profile.gold = 100;
-    await expect(service.create(1, { name: 'Poor Keep', x: 1100, y: 650 })).rejects.toThrow('gold');
+    profile.gold = 9999;
+    await expect(service.create(1, { name: 'Poor Keep', x: 1100, y: 770 })).rejects.toThrow('gold');
     expect(db.size).toBe(1);
   });
   it('serializes duplicate construction requests and deducts once', async () => {

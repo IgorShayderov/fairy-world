@@ -2,22 +2,23 @@
   <section class="feedback-stack" aria-label="Gem prices">
     <div class="feedback-actions justify-between">
       <p class="feedback-muted">
-        Set gem prices for premium accounts, skipping timers, and refreshing timed content. Changes apply to all
-        players.
+        Set prices for premium accounts, timed content and Blacksmith sockets. Changes apply to all players.
       </p>
       <button class="feedback-button" :disabled="busy" @click="load">Reload prices</button>
     </div>
     <p class="feedback-muted">Use a whole number from 0 to 100,000. A price of 0 makes the action free.</p>
-    <p v-if="error" class="feedback-error" role="alert">{{ error }}</p>
-    <p v-if="notice" class="feedback-success" role="status">{{ notice }}</p>
+    <ActionToasts :error="error" :success="notice" />
     <p v-if="busy && !prices.length" role="status">Loading prices…</p>
     <div class="gem-price-grid">
       <form v-for="price in prices" :key="price.key" class="feedback-card feedback-stack" @submit.prevent="save(price)">
         <h2>{{ price.label }}</h2>
-        <p class="feedback-muted">Current: {{ price.cost }} gems · Default: {{ price.defaultCost }} gems</p>
+        <p class="feedback-muted">
+          Current: {{ price.cost }} {{ price.unit || 'gems' }} · Default: {{ price.defaultCost }}
+          {{ price.unit || 'gems' }}
+        </p>
         <div class="gem-price-controls">
           <label :for="`price-${price.key}`"
-            >Price in gems
+            >Price in {{ price.unit || 'gems' }}
             <input
               :id="`price-${price.key}`"
               v-model.number="drafts[price.key]"
@@ -27,7 +28,7 @@
               step="1"
               required
               :disabled="busy"
-              :aria-label="`${price.label} price in gems`"
+              :aria-label="`${price.label} price in ${price.unit || 'gems'}`"
             />
           </label>
           <button class="feedback-button feedback-button--primary" :disabled="busy || drafts[price.key] === price.cost">
@@ -41,6 +42,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 
+import ActionToasts from '@/components/ActionToasts';
 import type { GemAction, GemPrice } from '@/modules/GemPrices/api';
 
 import { adminApi } from './adminApi';
@@ -72,7 +74,7 @@ async function save(price: GemPrice) {
   try {
     prices.value = await adminApi.saveGemPrice(price.key, cost);
     drafts.value[price.key] = prices.value.find(({ key }) => key === price.key)?.cost ?? cost;
-    notice.value = `${price.label}: saved at ${cost} gems.`;
+    notice.value = `${price.label}: saved at ${cost} ${price.unit || 'gems'}.`;
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Could not save the price.';
   } finally {

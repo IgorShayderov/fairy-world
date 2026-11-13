@@ -127,8 +127,16 @@ export const castleMountains = (() => {
   );
 })();
 
-export const CASTLE_CITY_RADIUS = 350;
-export const CASTLE_CLEARANCE = 110;
+export const CASTLE_CITY_RADIUS = 260;
+// Compact icon spacing, with separate rectangular guards for the wider atlas labels.
+export const CASTLE_CLEARANCE = 180;
+const protectedLandmarks = [...TOWNS, ...Object.values(encounterLandmarks)];
+export const castleHasClearance = (x: number, y: number) =>
+  protectedLandmarks.every(
+    (p) => Math.hypot(x - p.x, y - p.y) >= CASTLE_CLEARANCE && (Math.abs(x - p.x) >= 250 || Math.abs(y - p.y) >= 150),
+  ) &&
+  // The Moonward Stones are decorative, but their stones and title also need space.
+  !(x > 1105 && x < 1545 && y > 510 && y < 850);
 // Villages are not cities: Aurelia, Moonfall, Westmere and Larkhaven qualify.
 export const CASTLE_CITIES = TOWNS.filter((town) => [2, 3, 5, 7].includes(town.shopId));
 export function castleSite(x: number, y: number) {
@@ -137,9 +145,9 @@ export function castleSite(x: number, y: number) {
     return invalid('Choose a point inside the world map.');
   const nearest = [...CASTLE_CITIES].sort((a, b) => Math.hypot(x - a.x, y - a.y) - Math.hypot(x - b.x, y - b.y))[0];
   if (Math.hypot(x - nearest.x, y - nearest.y) > CASTLE_CITY_RADIUS)
-    return invalid('Build within 350 map units of a city: Aurelia, Moonfall, Westmere or Larkhaven.');
-  if ([...TOWNS, ...Object.values(encounterLandmarks)].some((p) => Math.hypot(x - p.x, y - p.y) < CASTLE_CLEARANCE))
-    return invalid('Leave space around cities and other landmarks (110 map units).');
+    return invalid(`Build within ${CASTLE_CITY_RADIUS} map units of a city: Aurelia, Moonfall, Westmere or Larkhaven.`);
+  if (!castleHasClearance(x, y))
+    return invalid(`Leave space around city and landmark icons and labels (${CASTLE_CLEARANCE} map units).`);
   // Check the whole footprint, not just its center, against terrain and coastline.
   const footprint = [
     { x, y },
@@ -175,4 +183,22 @@ export function castleSite(x: number, y: number) {
       return invalid('Choose ground outside the mountains.');
   }
   return { valid: true, reason: 'Open ground suitable for your castle.', city: nearest.name as string | null };
+}
+
+/** Move legacy crowded or distant plots locally, retaining their city and all castle progress. */
+export function uncrowdedCastleSite(point: Point & { city: string }): Point | null {
+  const city = CASTLE_CITIES.find((candidate) => candidate.name === point.city);
+  if (!city) return null;
+  if (castleHasClearance(point.x, point.y) && Math.hypot(point.x - city.x, point.y - city.y) <= CASTLE_CITY_RADIUS)
+    return null;
+  // Search nearest rings first, allowing for the former 350-unit build radius.
+  for (let radius = 10; radius <= 350 + CASTLE_CITY_RADIUS; radius += 10) {
+    for (let angle = 0; angle < 360; angle += 5) {
+      const x = Math.round(point.x + radius * Math.cos((angle * Math.PI) / 180));
+      const y = Math.round(point.y + radius * Math.sin((angle * Math.PI) / 180));
+      const site = castleSite(x, y);
+      if (site.valid && site.city === point.city) return { x, y };
+    }
+  }
+  return null;
 }

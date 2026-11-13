@@ -68,6 +68,7 @@
       max-height="70vh"
       max-width="32rem"
       hover
+      :hover-delay="1000"
       :hover-hide-delay="300"
       no-focus
       no-refocus
@@ -135,6 +136,15 @@
         }}
       </div>
 
+      <div v-if="displayItem.hasSocket" class="mt-2 rounded border border-sky-400/30 p-2 text-xs text-sky-200">
+        ◆
+        {{
+          displayItem.socketGemType
+            ? `+${displayItem.socketGemValue} ${displayItem.socketGemType.toLowerCase()}`
+            : 'Empty gem socket'
+        }}
+        <div>Remove socket at the Blacksmith before auctioning.</div>
+      </div>
       <div v-if="comparisonItem" class="mt-3 border-t border-gray-600 pt-3">
         <div class="mb-2 text-xs font-semibold text-gray-200">{{ $t('shop.comparedWithEquipped') }}</div>
         <div class="flex items-center gap-2">

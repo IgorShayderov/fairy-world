@@ -23,7 +23,7 @@ test('admin can work without a game login and expiry does not invoke game authen
   expired = true;
   await page.getByRole('button', { name: 'Refresh', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Admin sign in' })).toBeVisible();
-  await expect(page.getByRole('alert')).toHaveText('Admin session expired or revoked');
+  await expect(page.getByRole('alert')).toContainText('Admin session expired or revoked');
   expect(await page.evaluate(() => sessionStorage.getItem('fw_admin_token'))).toBeNull();
   expect(requests.every(path => path.includes('/admin/'))).toBe(true);
   await expect(page).toHaveURL(/\/admin$/);
@@ -95,7 +95,7 @@ for (const width of [1440, 390]) {
     await page.getByRole('button').filter({ hasText: entry().message }).click();
     await page.getByLabel('Reply to player').fill('Thanks! We will improve the quest descriptions.');
     await page.getByRole('button', { name: 'Send reply', exact: true }).click();
-    await expect(page.getByRole('status')).toHaveText('Reply sent to the player.');
+    await expect(page.locator('[data-action-toast]').filter({ hasText: 'Reply sent to the player.' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Admin replies (1)' })).toBeVisible();
     await page.getByRole('button', { name: 'Close feedback', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Reopen feedback' })).toBeVisible();

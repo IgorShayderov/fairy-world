@@ -51,12 +51,12 @@ for (const width of [1440, 390]) {
     await expect(premium).toHaveValue('200');
     await premium.fill('350');
     await page.locator('form').filter({ has: premium }).getByRole('button', { name: 'Save price' }).click();
-    await expect(page.getByRole('status')).toContainText('saved at 350 gems');
+    await expect(page.locator('[data-action-toast]').filter({ hasText: 'saved at 350 gems' })).toBeVisible();
     expect(saves.pop()).toEqual({ key: 'PREMIUM_ACCOUNT', cost: 350 });
     await quests.fill('45'); // unrelated unsaved edits survive saving another action
     await shop.fill('17');
     await shopForm.getByRole('button', { name: 'Save price' }).click();
-    await expect(page.getByRole('status')).toContainText('saved at 17 gems');
+    await expect(page.locator('[data-action-toast]').filter({ hasText: 'saved at 17 gems' })).toBeVisible();
     await expect(quests).toHaveValue('45');
     expect(saves).toEqual([{ key: 'SHOP_REFRESH', cost: 17 }]);
     await shop.fill('-1');
@@ -65,7 +65,7 @@ for (const width of [1440, 390]) {
     expect(saves).toHaveLength(1);
     await shop.fill('0');
     await shopForm.getByRole('button', { name: 'Save price' }).click();
-    await expect(page.getByRole('status')).toContainText('saved at 0 gems');
+    await expect(page.locator('[data-action-toast]').filter({ hasText: 'saved at 0 gems' })).toBeVisible();
     await page.reload();
     await page.getByRole('button', { name: 'Gem prices', exact: true }).click();
     await expect(shop).toHaveValue('0');

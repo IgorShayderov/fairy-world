@@ -5,6 +5,7 @@
     aria-label="Health potion quick slots"
     @keydown.esc="editing = null"
   >
+    <ActionToasts :error="error" />
     <div
       v-for="(entry, index) in slots"
       :key="index"
@@ -84,7 +85,6 @@
           >
         </button>
         <button v-if="slots[editing]" :disabled="pending" @click="assign(null)">Return potion to backpack</button>
-        <p v-if="error" role="alert">{{ error }}</p>
       </div>
     </QDialog>
   </section>
@@ -94,6 +94,7 @@ import { useTranslation } from 'i18next-vue';
 import { QDialog, QTooltip } from 'quasar';
 import { computed, ref } from 'vue';
 
+import ActionToasts from '@/components/ActionToasts';
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 import { getHealthPotionRestore, getPotionRequiredLevel } from '@/modules/Inventory/utils/potions';
 import routes from '@/routes';

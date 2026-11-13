@@ -21,15 +21,15 @@ async function main() {
       users.push(user.id);
     }
     const attempts = await Promise.allSettled([
-      service.create(users[0], { name: 'Test Keep A', x: 1100, y: 650 }),
-      service.create(users[0], { name: 'Duplicate Keep', x: 1100, y: 650 }),
+      service.create(users[0], { name: 'Test Keep A', x: 1100, y: 770 }),
+      service.create(users[0], { name: 'Duplicate Keep', x: 1100, y: 770 }),
     ]);
     assert.equal(attempts.filter((a) => a.status === 'fulfilled').length, 1);
     let a = (await service.get(users[0])).castle!;
     assert.equal(a.lumberMill, 1);
     assert.equal(a.quarry, 1);
     assert.equal((await service.get(users[0])).gold, 2500);
-    await service.create(users[1], { name: 'Test Keep B', x: 1100, y: 650 }); // private plots may overlap
+    await service.create(users[1], { name: 'Test Keep B', x: 1100, y: 770 }); // private plots may overlap
     const b = (await service.get(users[1])).castle!;
     await prisma.castle.update({
       where: { id: a.id },

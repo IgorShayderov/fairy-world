@@ -143,13 +143,13 @@ for (const width of [1440, 390]) {
     await profile.getByLabel('Experience (current level)').fill('0');
     await profile.getByLabel('Level', { exact: true }).fill('10');
     await profile.getByRole('button', { name: 'Save profile' }).click();
-    await expect(page.getByRole('status')).toHaveText('Profile saved.');
+    await expect(page.locator('[data-action-toast]').filter({ hasText: 'Profile saved.' })).toBeVisible();
     expect(user?.gameProfile?.gold).toBe(1200);
     await reason.fill('Check stale edit');
     await profile.getByLabel('Gold', { exact: true }).fill('1500');
     stale = true;
     await profile.getByRole('button', { name: 'Save profile' }).click();
-    await expect(page.locator('.feedback-error')).toContainText('Player data changed');
+    await expect(page.locator('[data-action-toast]').filter({ hasText: 'Player data changed' })).toBeVisible();
     await expect(page.locator('.q-notification').filter({ hasText: 'Player data changed' })).toBeVisible();
     await expect(profile.getByLabel('Gold', { exact: true })).toHaveValue('1500');
     await page.getByRole('button', { name: 'Reload player' }).click();
@@ -160,7 +160,7 @@ for (const width of [1440, 390]) {
     await reason.fill('Grant quest reward');
     await page.getByLabel('Grant quantity').fill('2');
     await page.getByRole('button', { name: 'Add to backpack' }).click();
-    await expect(page.getByRole('status')).toHaveText('Item added to the backpack.');
+    await expect(page.locator('[data-action-toast]').filter({ hasText: 'Item added to the backpack.' })).toBeVisible();
     const quantity = page.getByLabel('Quantity for Silver Sword entry 77');
     await expect(quantity).toHaveValue('2');
     await reason.fill('Adjust reward quantity');

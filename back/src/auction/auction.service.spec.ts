@@ -67,6 +67,13 @@ describe('AuctionService', () => {
     tx.auctionListing.findMany.mockResolvedValue([]);
   });
   afterEach(() => jest.useRealTimers());
+  it.each([null, 'DAMAGE'])('rejects socketed listings even when the socket is %s', async (socketGemType) => {
+    tx.auctionListing.findUnique.mockResolvedValue(null);
+    tx.inventoryItem.findFirst.mockResolvedValue({ id: 5, item, quantity: 1, hasSocket: true, socketGemType });
+    await expect(service.create(11, input)).rejects.toThrow('Remove the item socket');
+    expect(tx.auctionListing.create).not.toHaveBeenCalled();
+    expect(tx.inventoryItem.delete).not.toHaveBeenCalled();
+  });
 
   it.each([
     { mapPositionX: 0, mapPositionY: 0 },
@@ -208,7 +215,14 @@ describe('AuctionService', () => {
     tx.inventoryItem.findFirst.mockResolvedValue({ id: 99, quantity: 1 });
     await service.buy(11, listing.id);
     expect(tx.inventoryItem.findFirst).toHaveBeenLastCalledWith({
-      where: { gameProfileId: 2, itemId: 8, isEquiped: false, upgradeType: 'DAMAGE', upgradeValue: 7 },
+      where: {
+        gameProfileId: 2,
+        itemId: 8,
+        isEquiped: false,
+        hasSocket: false,
+        upgradeType: 'DAMAGE',
+        upgradeValue: 7,
+      },
     });
     expect(tx.inventoryItem.update).toHaveBeenCalledWith({ where: { id: 99 }, data: { quantity: { increment: 1 } } });
   });

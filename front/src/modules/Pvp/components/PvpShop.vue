@@ -21,16 +21,10 @@
       </div>
     </header>
 
+    <ActionToasts :error="error ?? ''" :retry="loadShop" :retry-label="t('pvp.shopRetry')" />
     <div v-if="loading" class="flex items-center justify-center gap-3 py-20 text-amber-200">
       <QIcon name="hourglass_empty" size="28px" class="animate-spin" />
       <span class="text-sm font-semibold tracking-wide uppercase">{{ t('pvp.shopLoading') }}</span>
-    </div>
-
-    <div v-else-if="error" role="alert" class="m-6 rounded-xl border border-red-500/30 bg-red-950/50 p-5 text-red-200">
-      {{ error }}
-      <button class="ml-3 font-bold text-amber-200 underline" type="button" @click="loadShop">
-        {{ t('pvp.shopRetry') }}
-      </button>
     </div>
 
     <div v-else class="p-6">
@@ -101,6 +95,7 @@ import { onMounted, ref } from 'vue';
 
 import type { InventoryItemType } from '@/modules/Inventory/types';
 
+import ActionToasts from '@/components/ActionToasts';
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 import { getRarityTextClass } from '@/modules/Inventory/utils/rarity';
 import type { PvpShop, PvpShopOffer } from '@/modules/Pvp/api';

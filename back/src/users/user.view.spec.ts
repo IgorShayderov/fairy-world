@@ -121,6 +121,9 @@ describe('UserView.renderCurrent', () => {
             isEquiped: true,
             upgradeType: null,
             upgradeValue: null,
+            hasSocket: false,
+            socketGemType: null,
+            socketGemValue: null,
             createdAt: new Date('2026-09-10T00:00:00Z'),
             updatedAt: new Date('2026-09-10T00:00:00Z'),
             item: {
@@ -166,6 +169,9 @@ describe('UserView.renderCurrent', () => {
             isEquiped: false,
             upgradeType: 'HEALTH',
             upgradeValue: 30,
+            hasSocket: false,
+            socketGemType: null,
+            socketGemValue: null,
             createdAt: new Date('2026-09-10T00:00:00Z'),
             updatedAt: new Date('2026-09-10T00:00:00Z'),
             item: {
@@ -182,6 +188,13 @@ describe('UserView.renderCurrent', () => {
     } satisfies CurrentUserModel;
 
     const result = UserView.renderCurrent(user);
+    const socketed: CurrentUserModel = structuredClone(user);
+    Object.assign(socketed.gameProfile!.inventory[0], { hasSocket: true, socketGemType: 'DAMAGE', socketGemValue: 12 });
+    const enhanced = UserView.renderCurrent(socketed);
+    const baseDamage = result.properties.find((p) => p.name === 'DAMAGE')!;
+    const gemDamage = enhanced.properties.find((p) => p.name === 'DAMAGE')!;
+    expect(gemDamage.value - baseDamage.value).toBe(12);
+    expect(gemDamage.equipmentBonus - baseDamage.equipmentBonus).toBe(12);
     expect(result.killedMonsters).toBe(42);
     expect(result.dungeonsCleared).toBe(2);
     expect(result.accomplishedQuests).toBe(3);

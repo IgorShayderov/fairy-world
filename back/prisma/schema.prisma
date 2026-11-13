@@ -158,6 +158,7 @@ model AdminSession {
 }
 
 model GameProfile {
+  equipmentGems EquipmentGem[]
   castle Castle?
   skillTree GameProfileSkillTree?
   id Int @id @default(autoincrement())
@@ -212,6 +213,14 @@ model Castle {
   storehouse Int @default(0)
   barracks Int @default(0)
   forge Int @default(0)
+  gates Int @default(0)
+  arrowTower1 Int @default(0)
+  arrowTower2 Int @default(0)
+  mageTower1 Int @default(0)
+  mageTower2 Int @default(0)
+  gemMine Int @default(0)
+  miningEndsAt DateTime?
+  miningLevel Int @default(0)
   wood Float @default(200)
   stone Float @default(150)
   producedAt DateTime @default(now())
@@ -742,12 +751,27 @@ model InventoryItem {
   isEquiped     Boolean
   upgradeType   CraftUpgradeType?
   upgradeValue  Float?
+  hasSocket Boolean @default(false)
+  socketGemType CraftUpgradeType?
+  socketGemValue Int?
 
   gameProfile GameProfile @relation(fields: [gameProfileId], references: [id], onDelete: Cascade)
   item        Item        @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
   @@unique([gameProfileId, slot])
   @@index([gameProfileId, itemId])
+}
+
+model EquipmentGem {
+  id String @id @default(uuid())
+  gameProfileId Int
+  gameProfile GameProfile @relation(fields: [gameProfileId], references: [id], onDelete: Cascade)
+  type CraftUpgradeType
+  value Int
+  mineLevel Int
+  createdAt DateTime @default(now())
+
+  @@index([gameProfileId])
 }
 
 model Location {

@@ -39,7 +39,7 @@ for (const width of [1440, 700]) {
     await page.locator('.auction-page').screenshot({ path: `/tmp/auction-${width}.png` });
     await page.getByRole('button', { name: 'Buy item', exact: true }).click();
     await page.getByRole('button', { name: 'Confirm purchase', exact: true }).click();
-    await expect(page.getByRole('status')).toContainText('Purchase complete');
+    await expect(page.locator('[data-action-toast]').filter({ hasText: 'Purchase complete' })).toBeVisible();
     expect(bought).toBe(true);
     await expect(page.locator('.auction-balance')).toContainText('750 gold');
     await page.getByRole('button', { name: 'Sell an item', exact: true }).click();
@@ -47,7 +47,7 @@ for (const width of [1440, 700]) {
     await page.getByLabel('Total price (gold)').fill('333');
     await page.getByLabel('Listing duration').selectOption('24');
     await page.getByRole('button', { name: 'List item', exact: true }).click();
-    await expect(page.getByRole('status')).toContainText('now listed');
+    await expect(page.locator('[data-action-toast]').filter({ hasText: 'now listed' })).toBeVisible();
     expect(listed).toBe(true);
     await expect(page.getByText('333 gold', { exact: true })).toBeVisible();
     await page.getByRole('link', { name: 'Notifications', exact: true }).click();
@@ -57,7 +57,7 @@ for (const width of [1440, 700]) {
     await expect(page.getByRole('button', { name: 'Mark as read' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Move to inventory' })).toBeVisible();
     await page.getByRole('button', { name: 'Move to inventory' }).click();
-    await expect(page.getByRole('status')).toHaveText('Item moved to your inventory.');
+    await expect(page.locator('[data-action-toast]').filter({ hasText: 'Item moved to your inventory.' })).toBeVisible();
     expect(claimed).toBe(true);
     await expect(page.getByRole('button', { name: 'Move to inventory' })).toHaveCount(0);
     expect(await page.locator('.auction-page').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);

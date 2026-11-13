@@ -6,54 +6,60 @@
         <h2>{{ t('blacksmith.title') }}</h2>
         <button :disabled="pending" :aria-label="t('blacksmith.close')" @click="emit('close')">×</button>
       </header>
-      <p>{{ t('blacksmith.description') }}</p>
-      <p v-if="offer" class="forge-gold">
-        {{ t('blacksmith.price', { cost: offer.cost, gemCost: offer.gemCost, gold: offer.gold, gems: offer.gems }) }}
-      </p>
-      <p v-if="message" role="status">{{ message }}</p>
-      <p v-if="error" role="alert" class="forge-error">{{ error }}</p>
-      <button v-if="!offer && !pending" class="forge-action" @click="load">{{ t('blacksmith.retry') }}</button>
-      <p v-if="pending && !offer">{{ t('shop.loading') }}</p>
-      <p v-if="offer && !offer.items.length">{{ t('blacksmith.empty') }}</p>
-      <article v-for="item in offer?.items ?? []" :key="item.id" class="forge-item">
-        <div>
-          <strong>{{ item.name }}</strong
-          ><small
-            >{{ item.rarity }} · {{ t('blacksmith.level', { level: item.level })
-            }}<span v-if="item.equipped"> · {{ t('blacksmith.equipped') }}</span></small
-          >
-          <p class="forge-bonus">
-            +{{ item.upgradeValue }}{{ ['GOLD', 'EXPERIENCE'].includes(item.upgradeType) ? '%' : '' }}
-            {{ t(`blacksmith.bonuses.${item.upgradeType}`) }}
-          </p>
-        </div>
-        <button class="forge-action" :disabled="pending || !canAfford" @click="selected = item.id">
-          {{ t('blacksmith.removeWithCost', { cost: offer!.cost, gemCost: offer!.gemCost }) }}
-        </button>
-      </article>
-      <div
-        v-if="selected !== null && offer"
-        class="forge-confirm"
-        role="alertdialog"
-        :aria-label="t('blacksmith.confirmTitle')"
-      >
-        <strong>{{ t('blacksmith.confirmTitle') }}</strong>
-        <p>
-          {{
-            t('blacksmith.warning', {
-              name: offer.items.find((item) => item.id === selected)?.name,
-              cost: offer.cost,
-              gemCost: offer.gemCost,
-            })
-          }}
+      <nav class="forge-tabs" aria-label="Blacksmith services">
+        <button class="forge-action" :aria-pressed="tab === 'bonus'" @click="tab = 'bonus'">Crafting bonuses</button
+        ><button class="forge-action" :aria-pressed="tab === 'sockets'" @click="tab = 'sockets'">Gem sockets</button>
+      </nav>
+      <SocketWorkshop v-if="tab === 'sockets'" />
+      <template v-else>
+        <p>{{ t('blacksmith.description') }}</p>
+        <p v-if="offer" class="forge-gold">
+          {{ t('blacksmith.price', { cost: offer.cost, gemCost: offer.gemCost, gold: offer.gold, gems: offer.gems }) }}
         </p>
-        <div>
-          <button :disabled="pending" @click="selected = null">{{ t('blacksmith.cancel') }}</button>
-          <button class="forge-action" :disabled="pending || !canAfford" @click="remove">
-            {{ t('blacksmith.confirm', { cost: offer.cost, gemCost: offer.gemCost }) }}
+        <ActionToasts :error="error" :success="message" />
+        <button v-if="!offer && !pending" class="forge-action" @click="load">{{ t('blacksmith.retry') }}</button>
+        <p v-if="pending && !offer">{{ t('shop.loading') }}</p>
+        <p v-if="offer && !offer.items.length">{{ t('blacksmith.empty') }}</p>
+        <article v-for="item in offer?.items ?? []" :key="item.id" class="forge-item">
+          <div>
+            <strong>{{ item.name }}</strong
+            ><small
+              >{{ item.rarity }} · {{ t('blacksmith.level', { level: item.level })
+              }}<span v-if="item.equipped"> · {{ t('blacksmith.equipped') }}</span></small
+            >
+            <p class="forge-bonus">
+              +{{ item.upgradeValue }}{{ ['GOLD', 'EXPERIENCE'].includes(item.upgradeType) ? '%' : '' }}
+              {{ t(`blacksmith.bonuses.${item.upgradeType}`) }}
+            </p>
+          </div>
+          <button class="forge-action" :disabled="pending || !canAfford" @click="selected = item.id">
+            {{ t('blacksmith.removeWithCost', { cost: offer!.cost, gemCost: offer!.gemCost }) }}
           </button>
+        </article>
+        <div
+          v-if="selected !== null && offer"
+          class="forge-confirm"
+          role="alertdialog"
+          :aria-label="t('blacksmith.confirmTitle')"
+        >
+          <strong>{{ t('blacksmith.confirmTitle') }}</strong>
+          <p>
+            {{
+              t('blacksmith.warning', {
+                name: offer.items.find((item) => item.id === selected)?.name,
+                cost: offer.cost,
+                gemCost: offer.gemCost,
+              })
+            }}
+          </p>
+          <div>
+            <button :disabled="pending" @click="selected = null">{{ t('blacksmith.cancel') }}</button>
+            <button class="forge-action" :disabled="pending || !canAfford" @click="remove">
+              {{ t('blacksmith.confirm', { cost: offer.cost, gemCost: offer.gemCost }) }}
+            </button>
+          </div>
         </div>
-      </div>
+      </template>
     </div>
   </QDialog>
 </template>
@@ -62,12 +68,16 @@ import { useTranslation } from 'i18next-vue';
 import { QDialog, QIcon } from 'quasar';
 import { computed, onMounted, ref } from 'vue';
 
+import ActionToasts from '@/components/ActionToasts';
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 import { getBlacksmithOffer, removeItemBonus, type BlacksmithOffer } from '@/modules/Locations/api';
+
+import SocketWorkshop from './SocketWorkshop.vue';
 
 const emit = defineEmits<{ close: [] }>();
 const { t } = useTranslation();
 const user = useCurrentUserStore();
+const tab = ref<'bonus' | 'sockets'>('bonus');
 const offer = ref<BlacksmithOffer | null>(null);
 const canAfford = computed(
   () => !!offer.value && offer.value.gold >= offer.value.cost && offer.value.gems >= offer.value.gemCost
@@ -107,6 +117,14 @@ async function remove() {
 onMounted(load);
 </script>
 <style scoped>
+.forge-tabs {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.forge-tabs [aria-pressed='true'] {
+  background: #30535c;
+}
 .forge-panel {
   width: min(640px, calc(100vw - 32px));
   max-height: calc(100dvh - 48px);
@@ -139,9 +157,6 @@ p {
 .forge-gold,
 .forge-bonus {
   color: #efca72;
-}
-.forge-error {
-  color: #ff9c8e;
 }
 .forge-item {
   display: flex;

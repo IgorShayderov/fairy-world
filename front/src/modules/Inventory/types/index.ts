@@ -52,6 +52,9 @@ export interface EffectiveModifier extends ItemModifier {
 export interface InventoryItemType {
   level?: number;
   requiredPlayerLevel?: number;
+  hasSocket?: boolean;
+  socketGemType?: CraftUpgradeType | null;
+  socketGemValue?: number | null;
   inventoryItemId?: number;
   id?: number;
   nameKey: string;
@@ -78,6 +81,9 @@ export interface InventoryItemType {
 }
 
 export interface InventoryEntry {
+  hasSocket?: boolean;
+  socketGemType?: CraftUpgradeType | null;
+  socketGemValue?: number | null;
   id: number;
   item: {
     level?: number;

@@ -130,6 +130,8 @@ export class AuctionService implements OnApplicationBootstrap {
         include: { item: true },
       });
       if (!entry) throw new BadRequestException('Choose an unequipped item from your inventory');
+      if (entry.hasSocket)
+        throw new BadRequestException('Remove the item socket at the Blacksmith before listing it in the auction');
       if (entry.quantity < dto.quantity) throw new BadRequestException('Not enough items in this stack');
       if (entry.item.rarity === 'QUEST') throw new BadRequestException('Quest items cannot be sold');
       const now = new Date();
@@ -162,6 +164,7 @@ export class AuctionService implements OnApplicationBootstrap {
         gameProfileId: profileId,
         itemId: listing.itemId,
         isEquiped: false,
+        hasSocket: false,
         upgradeType: listing.upgradeType,
         upgradeValue: listing.upgradeValue,
       },

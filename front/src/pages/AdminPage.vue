@@ -19,8 +19,7 @@
         ><RouterLink :to="routes.rootPath()" class="feedback-button">Back to game</RouterLink>
       </div>
     </header>
-    <p v-if="error" role="alert" class="feedback-error mb-4">{{ error }}</p>
-    <p v-if="notice" role="status" class="feedback-success mb-4">{{ notice }}</p>
+    <ActionToasts :error="error" :success="notice" />
     <p v-if="checking" role="status">Checking admin session…</p>
     <form v-else-if="!admin" class="admin-login feedback-card feedback-stack" @submit.prevent="login">
       <h2>Admin sign in</h2>
@@ -205,6 +204,7 @@ import { QIcon } from 'quasar';
 import { onMounted, ref, watch } from 'vue';
 import { RouterLink } from 'vue-router';
 
+import ActionToasts from '@/components/ActionToasts';
 import { adminApi, adminToken, type AdminIdentity } from '@/modules/Feedback/adminApi';
 import type { FeedbackDetail, FeedbackPage, FeedbackStatus } from '@/modules/Feedback/api';
 import routes from '@/routes';

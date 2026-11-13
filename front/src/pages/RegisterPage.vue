@@ -65,7 +65,7 @@
               />
             </template>
           </QInput>
-          <p v-if="error" role="alert" class="text-sm text-red-600">{{ error }}</p>
+          <ActionToasts :error="error" />
           <QBtn type="submit" color="primary" class="w-full" :label="t('auth.buttons.register')" :loading="loading" />
         </QForm>
         <RouterLink :to="routes.loginPath()" class="mt-6 block text-center text-sm text-blue-600 hover:underline">{{
@@ -83,6 +83,7 @@ import { reactive, ref } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 
 import { socket } from '@/boot/socket';
+import ActionToasts from '@/components/ActionToasts';
 import { signUp } from '@/modules/Auth/api';
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 import routes from '@/routes';

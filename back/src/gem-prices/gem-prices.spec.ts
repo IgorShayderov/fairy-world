@@ -29,7 +29,7 @@ describe('gem action prices', () => {
   it('lists defaults and persisted overrides, and saves only the selected key', async () => {
     const updatedAt = new Date();
     findMany.mockResolvedValue([{ key: 'SHOP_REFRESH', cost: 7, updatedAt }]);
-    expect(await gemActionCosts(prisma)).toHaveLength(6);
+    expect(await gemActionCosts(prisma)).toHaveLength(Object.keys(GEM_ACTIONS).length);
     const result = await new AdminGemPricesController(prisma).save({ key: 'SHOP_REFRESH', cost: 7 });
     expect(upsert).toHaveBeenCalledWith({
       where: { key: 'SHOP_REFRESH' },

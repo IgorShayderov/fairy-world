@@ -63,6 +63,7 @@ export class PvpShopService {
             gameProfileId: profile.id,
             itemId: offer.item.id,
             isEquiped: false,
+            hasSocket: false,
             upgradeType: offer.upgradeType,
             upgradeValue: offer.upgradeValue,
           },

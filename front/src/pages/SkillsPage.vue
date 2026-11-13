@@ -12,7 +12,7 @@
           ><span>POINTS AVAILABLE</span><small>{{ tree.points.spent }} spent · Level {{ tree.level }}</small>
         </div>
       </header>
-      <p v-if="error" role="alert" class="error">{{ error }} <button @click="load">Retry</button></p>
+      <ActionToasts :error="error" :retry="load" />
       <p v-if="!tree && !error" role="status">Loading skill trees…</p>
       <template v-if="tree">
         <nav class="class-tabs" aria-label="Class skill trees">
@@ -119,7 +119,7 @@
                   </button>
                   <QTooltip
                     :model-value="focusedSkill === skill.id"
-                    @update:model-value="focusedSkill = $event ? skill.id : null"
+                    @update:model-value="updateTooltip(skill.id, $event)"
                     anchor="top middle"
                     self="bottom middle"
                     :offset="[0, 10]"
@@ -180,6 +180,7 @@
 import { QIcon, QDialog, QCard, QCardActions, QBtn, QTooltip } from 'quasar';
 import { computed, onMounted, ref } from 'vue';
 
+import ActionToasts from '@/components/ActionToasts';
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 import { skillsApi, type PlayerClass, type SkillDefinition, type SkillTree } from '@/modules/Skills/api';
 
@@ -215,6 +216,10 @@ const selectedClass = computed(() => classes.find((entry) => entry.id === select
 const visibleSkills = computed(() => tree.value?.catalog.filter((skill) => skill.class === selected.value) ?? []);
 const busy = ref(false);
 const focusedSkill = ref<string | null>(null);
+function updateTooltip(id: string, visible: boolean) {
+  if (visible) focusedSkill.value = id;
+  else if (focusedSkill.value === id) focusedSkill.value = null;
+}
 const error = ref('');
 const confirmReset = ref(false);
 const user = useCurrentUserStore();
@@ -579,20 +584,12 @@ h2 {
   border-top: 1px solid #30444b;
   color: #8aa5ab;
 }
-.lock-notice,
-.error {
+.lock-notice {
   background: #402c22;
   border: 1px solid #a97642;
   padding: 14px;
   border-radius: 10px;
   margin-bottom: 22px;
-}
-.error {
-  color: #ffb6b6;
-}
-.error button {
-  text-decoration: underline;
-  margin-left: 10px;
 }
 button {
   cursor: pointer;

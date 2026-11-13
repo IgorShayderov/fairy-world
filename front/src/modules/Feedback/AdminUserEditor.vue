@@ -132,7 +132,7 @@
               :disabled="busy || catalogBusy" /></label
           ><button class="feedback-button" :disabled="busy || catalogBusy">Find items</button>
         </form>
-        <p v-if="catalogError" role="alert" class="feedback-error">{{ catalogError }}</p>
+        <ActionToasts :error="catalogError" />
         <p v-if="catalogBusy" role="status">Searching items…</p>
         <template v-if="catalog">
           <p class="feedback-muted">{{ catalog.total }} items · Page {{ catalog.page }}</p>
@@ -211,6 +211,8 @@ import type {
   AdminUserDetail,
   AttributeName,
 } from './adminUsersTypes';
+
+import ActionToasts from '@/components/ActionToasts';
 
 import { adminApi } from './adminApi';
 
