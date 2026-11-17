@@ -1,3 +1,4 @@
+import { monsterClass, MonsterClass } from './monster-class';
 import { Injectable } from '@nestjs/common';
 import { AttributeType } from '../../generated/client';
 import { MONSTER_ARCHETYPES, MONSTER_RANKS, MonsterRank } from './monster-generator.config';
@@ -5,6 +6,7 @@ import { EXCLUSIVE_HABITAT_MONSTERS, habitatAt } from './monster-habitats';
 
 export interface GeneratedMonster {
   monsterType: string;
+  class?: MonsterClass;
   id: number;
   name: string;
   description: string;
@@ -28,6 +30,7 @@ export class MonsterGeneratorService {
 
     return {
       monsterType: archetype.name,
+      class: monsterClass(archetype.name),
       id: this.randomInt(1_000_000, 2_000_000_000),
       name: `${rank.name} ${archetype.name}`,
       description: `${archetype.description} This ${rank.name.toLowerCase()} creature is level ${level}.`,

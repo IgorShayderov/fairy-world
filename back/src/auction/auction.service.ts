@@ -1,4 +1,12 @@
-import { BadRequestException, Injectable, Logger, NotFoundException, OnApplicationBootstrap } from '@nestjs/common';
+import { ChatGateway } from '../chat/chat.gateway';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  OnApplicationBootstrap,
+  Optional,
+} from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { AuctionStatus, NotificationKind, Prisma, type AuctionListing, type Item } from '../../generated/client';
 import { ItemView } from '../common/views/item.view';
@@ -27,15 +35,31 @@ function auctionRequiredLevel(item: Pick<Item, 'equipmentType' | 'isConsumable' 
 @Injectable()
 export class AuctionService implements OnApplicationBootstrap {
   private readonly logger = new Logger(AuctionService.name);
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly gateway?: ChatGateway,
+  ) {}
 
   // All inventory, escrow and gold changes commit together. Retrying also handles simultaneous slot/stack creation.
-  private async atomic<T>(operation: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+  private async atomic<T>(operation: (tx: Prisma.TransactionClient, changed: Set<number>) => Promise<T>): Promise<T> {
     for (let attempt = 0; ; attempt++) {
       try {
-        return await this.prisma.$transaction(operation, {
+        const changed = new Set<number>();
+        const result = await this.prisma.$transaction((tx) => operation(tx, changed), {
           isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
         });
+        if (this.gateway && changed.size) {
+          try {
+            const owners = await this.prisma.gameProfile.findMany({
+              where: { id: { in: [...changed] } },
+              select: { userId: true },
+            });
+            for (const owner of owners) this.gateway.notificationsChanged(owner.userId);
+          } catch (error) {
+            this.logger.warn('Could not publish notification changes', error);
+          }
+        }
+        return result;
       } catch (error) {
         if (
           error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -190,7 +214,7 @@ export class AuctionService implements OnApplicationBootstrap {
   }
 
   async buy(userId: number, id: string) {
-    return this.atomic(async (tx) => {
+    return this.atomic(async (tx, changed) => {
       const buyer = await this.profile(tx, userId);
       this.requireTown(buyer);
       const listing = await tx.auctionListing.findUnique({ where: { id }, include: { item: true } });
@@ -225,12 +249,14 @@ export class AuctionService implements OnApplicationBootstrap {
           { gameProfileId: buyer.id, listingId: id, kind: NotificationKind.AUCTION_BOUGHT },
         ],
       });
+      changed.add(listing.sellerId);
+      changed.add(buyer.id);
       return { success: true };
     });
   }
 
   async expireListing(id: string) {
-    return this.atomic(async (tx) => {
+    return this.atomic(async (tx, changed) => {
       const listing = await tx.auctionListing.findUnique({ where: { id } });
       const now = new Date();
       if (!listing || listing.status !== AuctionStatus.ACTIVE || listing.expiresAt > now) return;
@@ -250,6 +276,7 @@ export class AuctionService implements OnApplicationBootstrap {
           claimExpiresAt: returned ? null : claimExpiresAt,
         },
       });
+      changed.add(listing.sellerId);
       await tx.playerNotification.create({
         data: {
           gameProfileId: listing.sellerId,
@@ -265,7 +292,7 @@ export class AuctionService implements OnApplicationBootstrap {
   }
 
   async claim(userId: number, notificationId: string) {
-    return this.atomic(async (tx) => {
+    return this.atomic(async (tx, changed) => {
       const profile = await this.profile(tx, userId);
       const notification = await tx.playerNotification.findFirst({
         where: { id: notificationId, gameProfileId: profile.id },
@@ -292,6 +319,7 @@ export class AuctionService implements OnApplicationBootstrap {
         where: { id: notificationId },
         data: { kind: NotificationKind.AUCTION_RETURNED, readAt: now },
       });
+      changed.add(profile.id);
       return { success: true };
     });
   }
@@ -335,6 +363,7 @@ export class AuctionService implements OnApplicationBootstrap {
       where: { id, gameProfile: { userId }, readAt: null },
       data: { readAt: new Date() },
     });
+    this.gateway?.notificationsChanged(userId);
     return { success: true };
   }
 
@@ -354,8 +383,12 @@ export class AuctionService implements OnApplicationBootstrap {
         this.logger.error(`Could not return auction ${listing.id}`, error instanceof Error ? error.stack : undefined);
       }
     }
-    await this.atomic(async (tx) => {
+    await this.atomic(async (tx, changed) => {
       const due = { status: AuctionStatus.RETURN_PENDING, claimExpiresAt: { lte: now } };
+      if (this.gateway) {
+        const listings = await tx.auctionListing.findMany({ where: due, select: { sellerId: true } });
+        for (const listing of listings) changed.add(listing.sellerId);
+      }
       await tx.playerNotification.updateMany({
         where: { listing: due, kind: NotificationKind.AUCTION_RETURN_PENDING },
         data: { kind: NotificationKind.AUCTION_RETURN_EXPIRED, readAt: null },

@@ -1,10 +1,11 @@
+import { ChatGateway } from '../chat/chat.gateway';
 import { AuctionService, AUCTION_RETURN_MS } from './auction.service';
 import { PrismaService } from '../prisma.service';
 import { Prisma } from '../../generated/client';
 
 describe('AuctionService', () => {
   const tx = {
-    gameProfile: { findUnique: jest.fn(), updateMany: jest.fn() },
+    gameProfile: { findMany: jest.fn(), findUnique: jest.fn(), updateMany: jest.fn() },
     inventoryItem: { findFirst: jest.fn(), count: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn() },
     auctionListing: {
       findUnique: jest.fn(),
@@ -67,6 +68,37 @@ describe('AuctionService', () => {
     tx.auctionListing.findMany.mockResolvedValue([]);
   });
   afterEach(() => jest.useRealTimers());
+  it('notifies buyer and seller only after the purchase commits', async () => {
+    const notificationsChanged = jest.fn();
+    const liveService = new AuctionService(
+      prisma as unknown as PrismaService,
+      { notificationsChanged } as unknown as ChatGateway,
+    );
+    tx.gameProfile.findMany.mockResolvedValue([{ userId: 11 }, { userId: 22 }]);
+    prisma.$transaction.mockImplementation(async (operation: (client: typeof tx) => Promise<unknown>) => {
+      const result = await operation(tx);
+      expect(notificationsChanged).not.toHaveBeenCalled();
+      return result;
+    });
+    await liveService.buy(11, listing.id);
+    expect(notificationsChanged.mock.calls).toEqual([[11], [22]]);
+    expect(tx.gameProfile.findMany).toHaveBeenCalledWith({ where: { id: { in: [1, 2] } }, select: { userId: true } });
+  });
+
+  it('does not publish a rolled-back purchase', async () => {
+    const notificationsChanged = jest.fn();
+    const liveService = new AuctionService(
+      prisma as unknown as PrismaService,
+      { notificationsChanged } as unknown as ChatGateway,
+    );
+    prisma.$transaction.mockImplementation(async (operation: (client: typeof tx) => Promise<unknown>) => {
+      await operation(tx);
+      throw new Error('Rollback');
+    });
+    await expect(liveService.buy(11, listing.id)).rejects.toThrow('Rollback');
+    expect(notificationsChanged).not.toHaveBeenCalled();
+  });
+
   it.each([null, 'DAMAGE'])('rejects socketed listings even when the socket is %s', async (socketGemType) => {
     tx.auctionListing.findUnique.mockResolvedValue(null);
     tx.inventoryItem.findFirst.mockResolvedValue({ id: 5, item, quantity: 1, hasSocket: true, socketGemType });

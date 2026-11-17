@@ -9,6 +9,8 @@ export const isPotion = (
 
 export const isHealthPotion = (item: InventoryItemType): boolean =>
   isPotion(item) && (item.name ?? item.nameKey ?? '').includes('Health Potion');
+export const isManaPotion = (item: InventoryItemType): boolean =>
+  isPotion(item) && (item.name ?? item.nameKey ?? '').includes('Mana Potion');
 
 export const POTION_REQUIRED_LEVELS: Record<string, number> = {
   'Minor Health Potion': 1,
@@ -17,6 +19,12 @@ export const POTION_REQUIRED_LEVELS: Record<string, number> = {
   'Mild Health Potion': 30,
   'Greater Health Potion': 40,
   'Higher Health Potion': 50,
+  'Minor Mana Potion': 1,
+  'Lesser Mana Potion': 10,
+  'Medium Mana Potion': 20,
+  'Mild Mana Potion': 30,
+  'Greater Mana Potion': 40,
+  'Higher Mana Potion': 50,
 
   'Lesser Experience Potion': 10,
   'Lesser Attack Potion': 10,
@@ -55,8 +63,10 @@ export const HEALTH_POTION_RESTORE: Record<string, number> = {
 };
 
 export const getHealthPotionRestore = (name?: string): number => (name ? (HEALTH_POTION_RESTORE[name] ?? 0) : 0);
+export const getRestorationPotionRestore = (name?: string): number => getHealthPotionRestore(name?.replace('Mana Potion', 'Health Potion'));
+export const potionResourceLabel = (name: string): string => name.includes('Mana Potion') ? 'MP' : 'HP';
 
-export type PotionCategory = 'ATTACK' | 'DEFENSE' | 'EXPERIENCE' | 'FREE_ATTRIBUTE' | 'HEALTH' | 'UNKNOWN';
+export type PotionCategory = 'ATTACK' | 'DEFENSE' | 'EXPERIENCE' | 'FREE_ATTRIBUTE' | 'HEALTH' | 'MANA' | 'UNKNOWN';
 
 export interface PotionColorScheme {
   category: PotionCategory;
@@ -70,6 +80,7 @@ export const getPotionCategory = (name?: string, description?: string): PotionCa
   const text = `${name ?? ''} ${description ?? ''}`.toLowerCase();
   if (text.includes('free attribute') || text.includes('attribute point')) return 'FREE_ATTRIBUTE';
   if (text.includes('health') || text.includes('heal')) return 'HEALTH';
+  if (text.includes('mana')) return 'MANA';
   if (text.includes('attack') || text.includes('damage')) return 'ATTACK';
   if (text.includes('defense')) return 'DEFENSE';
   if (text.includes('experience')) return 'EXPERIENCE';
@@ -86,6 +97,7 @@ export const getPotionTier = (name?: string, level?: number): number => {
 };
 
 const CATEGORY_COLORS: Record<PotionCategory, Omit<PotionColorScheme, 'category'>> = {
+  MANA: { liquidTop: '#818cf8', liquidBottom: '#4338ca', surfaceGlow: '#e0e7ff', glowColor: 'rgba(99, 102, 241, 0.5)' },
   ATTACK: {
     liquidTop: '#facc15',
     liquidBottom: '#a16207',

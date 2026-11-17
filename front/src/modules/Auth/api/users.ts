@@ -1,5 +1,6 @@
 import type { CraftInventoryItem, EffectiveModifier, EquipmentSlotId, InventoryEntry } from '@/modules/Inventory/types';
 
+import type { EquipmentGem } from '@/modules/Castles/api';
 import type { EncounterRoll } from '@/modules/Monsters/api';
 import type { PlayerClass } from '@/modules/Skills/api';
 import routes from '@/routes';
@@ -41,6 +42,7 @@ export type CurrentUser = {
   attributes: EffectiveModifier[];
   properties: EffectiveModifier[];
   craftInventory: CraftInventoryItem[];
+  equipmentGems?: EquipmentGem[];
   rewardBonuses?: { goldPercent: number; experiencePercent: number };
   activeClanBannerCode?: string | null;
   activeClanBannerPvpBonusPercent?: number;

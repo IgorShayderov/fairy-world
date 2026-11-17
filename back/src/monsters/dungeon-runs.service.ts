@@ -1,3 +1,4 @@
+import { monsterDefenseCap, monsterDodgeCap } from './monster-class';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 
@@ -157,6 +158,7 @@ type PartyWithMembers = Prisma.DungeonPartyGetPayload<{
   include: { members: { include: { gameProfile: { include: { user: true } } } } };
 }>;
 export type DungeonRunState = {
+  combatStarted?: boolean;
   potionTurns?: Record<string, number>;
   potionUsedThisTurn?: boolean;
   bossBalanceVersion?: number;
@@ -343,6 +345,7 @@ export class DungeonRunsService {
       const activeRun = await tx.dungeonRun.findUnique({ where: { id: partyId } });
       if (activeRun) {
         const activeState = this.parseState(activeRun.state);
+        this.requireDepartureAllowed(activeState);
         if (activeState.partyLoot?.status === 'CHOOSING') {
           throw new BadRequestException('Submit your loot choices before leaving the dungeon');
         }
@@ -668,7 +671,7 @@ export class DungeonRunsService {
     });
     if (membership) return this.leaveParty(userId, runId);
     return this.prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${userId})`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${runId}))`;
       const profile = await tx.gameProfile.findUnique({
         where: { userId },
         include: { dungeonRun: true },
@@ -676,6 +679,7 @@ export class DungeonRunsService {
       if (!profile?.dungeonRun || profile.dungeonRun.id !== runId) {
         throw new NotFoundException('Active dungeon run not found');
       }
+      this.requireDepartureAllowed(this.parseState(profile.dungeonRun.state));
       await tx.dungeonRun.delete({ where: { id: runId } });
       return { success: true };
     });
@@ -701,13 +705,10 @@ export class DungeonRunsService {
         const partyMember = state.party?.members.find(({ profileId }) => profileId === profile.id);
         const currentHealth = partyMember?.health ?? state.player.health;
         const maxHealth = partyMember?.maxHealth ?? state.player.maxHealth;
-        if (currentHealth >= maxHealth) {
-          throw new BadRequestException('Health is already full');
-        }
         if (currentHealth <= 0) throw new BadRequestException('A defeated player cannot drink a potion');
         const potionTurn = state.tactical?.turn ?? state.partyTurn ?? 1;
         if (state.potionTurns?.[String(profile.id)] === potionTurn)
-          throw new BadRequestException('Only one health potion per turn');
+          throw new BadRequestException('Only one potion per turn');
 
         const inventoryEntry = await tx.inventoryItem.findFirst({
           where: { id: inventoryItemId, gameProfileId: profile.id, isEquiped: false },
@@ -718,18 +719,26 @@ export class DungeonRunsService {
           throw new BadRequestException('Assign one health potion to a quick slot first');
         await ensurePotionSlotAccess(tx, profile.id, inventoryEntry.slot);
         const effect = getPotionEffect(inventoryEntry.item.name);
-        if (!inventoryEntry.item.isConsumable || effect?.kind !== 'HEALTH') {
-          throw new BadRequestException('This item is not a health potion');
+        if (!inventoryEntry.item.isConsumable || (effect?.kind !== 'HEALTH' && effect?.kind !== 'MANA')) {
+          throw new BadRequestException('This item is not a health or mana potion');
         }
         const requiredLevel = getPotionRequiredLevel(inventoryEntry.item.name);
         if (profile.level < requiredLevel) {
           throw new BadRequestException(`This potion requires player level ${requiredLevel}`);
         }
 
-        const healed = Math.min(effect.restore, maxHealth - currentHealth);
+        const skillState = partyMember?.skillState ?? state.player.skillState;
+        const missing =
+          effect.kind === 'MANA' ? (skillState?.maxMana ?? 0) - (skillState?.mana ?? 0) : maxHealth - currentHealth;
+        if (missing <= 0)
+          throw new BadRequestException(effect.kind === 'MANA' ? 'Mana is already full' : 'Health is already full');
+        const healed = Math.min(effect.restore, missing);
         state.potionTurns ??= {};
         state.potionTurns[String(profile.id)] = potionTurn;
-        if (partyMember) {
+        if (effect.kind === 'MANA' && skillState) {
+          skillState.mana += healed;
+          if (partyMember) partyMember.mana = skillState.mana;
+        } else if (partyMember) {
           partyMember.health = currentHealth + healed;
           this.syncPartySummary(state);
         } else {
@@ -740,8 +749,8 @@ export class DungeonRunsService {
           actorName: partyMember?.name ?? state.player.name,
           action: 'SKILL',
           effect: 'heal',
-          skillName: 'Health potion',
-          healing: healed,
+          skillName: effect.kind === 'MANA' ? 'Mana potion' : 'Health potion',
+          ...(effect.kind === 'HEALTH' ? { healing: healed } : { statusText: `Restored ${healed} mana` }),
           damage: 0,
           critical: false,
           dodged: false,
@@ -766,7 +775,7 @@ export class DungeonRunsService {
           await tx.inventoryItem.delete({ where: { id: inventoryEntry.id } });
         }
         await tx.dungeonRun.update({ where: { id: runId }, data: { state: this.json(state) } });
-        return { run: this.renderPartyRun(state, profile.id), healed };
+        return { run: this.renderPartyRun(state, profile.id), healed, resource: effect.kind };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
@@ -1191,8 +1200,10 @@ export class DungeonRunsService {
         health,
         maxHealth: health,
         damage: Math.ceil((3 + generated.level * 2 + attribute('STRENGTH')) * damageMultiplier),
-        defense: slowBoss ? 60 : Math.min(60, generated.level * 0.8 + attribute('ENDURANCE') + (isBoss ? 8 : 4)),
-        dodge: Math.min(30, generated.level * 0.3 + attribute('AGILITY')),
+        defense: slowBoss
+          ? 60
+          : Math.min(monsterDefenseCap(name), generated.level * 0.8 + attribute('ENDURANCE') + (isBoss ? 8 : 4)),
+        dodge: Math.min(monsterDodgeCap(name), generated.level * 0.3 + attribute('AGILITY')),
         blockChance: 0,
         criticalChance: Math.min(30, 4 + generated.level * 0.25 + index),
         criticalDamage: isBoss ? 175 : 150,
@@ -1200,11 +1211,12 @@ export class DungeonRunsService {
         rewardExperience: Math.max(1, Math.round(generated.rewardExperience * (isBoss ? 2.5 : 1.5))),
       },
     };
-    strengthenDungeonEnemy(opponent.monster, isBoss);
+    strengthenDungeonEnemy(opponent.monster, isBoss, monsterDefenseCap(name));
     fortifySlowDungeonMinion(opponent.monster, name, isBoss);
     opponent.monster.damage = slowMonsterDamage(opponent.monster.damage, name);
     rebalanceIceboundDamage(opponent.monster, name);
     reduceMageMinionDodge(opponent.monster, name, isBoss);
+    opponent.monster.defense = Math.min(monsterDefenseCap(name), opponent.monster.defense);
     return opponent;
   }
 
@@ -1462,6 +1474,13 @@ export class DungeonRunsService {
     // Apply balance changes to saved runs too, without resetting combat progress.
     for (const opponent of state.opponents) {
       Object.assign(opponent.monster, monsterCombatView(opponent.monsterType, opponent.monster));
+      const defense = Math.min(monsterDefenseCap(opponent.monsterType), opponent.monster.defense);
+      const dodge = Math.min(monsterDodgeCap(opponent.monsterType), opponent.monster.dodge);
+      if (defense !== opponent.monster.defense || dodge !== opponent.monster.dodge) {
+        opponent.monster.defense = defense;
+        opponent.monster.dodge = dodge;
+        changed = true;
+      }
       const movement = monsterMovement(opponent.monsterType);
       if (opponent.monster.movement !== movement) {
         opponent.monster.movement = movement;
@@ -1604,6 +1623,7 @@ export class DungeonRunsService {
     if (debuff) state.latestEvents.push({ ...debuff, actorName: opponent.monster.name, targetName: defender.name });
     const shot = chooseMonsterShot(opponent.monsterType, opponent.monster, adjacent, true);
     Object.assign(opponent.monster, monsterCombatView(opponent.monsterType, opponent.monster));
+
     if (state.tactical && !shot) {
       const move = moveDungeonEnemy(state.tactical, effectiveMovement(opponent.monster));
       if (move.fromCell !== move.toCell) state.latestEvents.push({ ...move, actorName: opponent.monster.name });
@@ -1638,6 +1658,7 @@ export class DungeonRunsService {
         effect: shot.effect,
       });
     Object.assign(opponent.monster, monsterCombatView(opponent.monsterType, opponent.monster));
+
     defender.defense = originalDefense;
     finishStatusTurn(opponent.monster);
   }
@@ -1651,6 +1672,7 @@ export class DungeonRunsService {
     moved = false,
   ) {
     const events = state.latestEvents.slice(start);
+    if (events.some((event) => event.damage > 0)) state.combatStarted = true;
     state.damageDealt ??= {};
     const score = (state.damageDealt[String(profileId)] ??= { name, damage: 0 });
     score.damage += events.filter((event) => event.actor === 'PLAYER').reduce((sum, event) => sum + event.damage, 0);
@@ -1744,6 +1766,12 @@ export class DungeonRunsService {
     return rewards;
   }
 
+  private requireDepartureAllowed(state: DungeonRunState) {
+    if (state.status === 'ACTIVE' && state.combatStarted) {
+      throw new BadRequestException('You cannot leave the dungeon after the first hit. Finish the dungeon first.');
+    }
+  }
+
   private parseState(state: Prisma.JsonValue): DungeonRunState {
     const parsed = state as unknown as DungeonRunState;
     const roster = DUNGEON_ROSTERS[parsed.dungeon];
@@ -1757,6 +1785,14 @@ export class DungeonRunsService {
     const totalExperience = parsed.totalExperience ?? calculatedTotalExperience;
     return {
       ...parsed,
+      combatStarted:
+        parsed.combatStarted === true ||
+        parsed.latestEvents.some((event) => event.damage > 0) ||
+        parsed.opponents.some(
+          (opponent) => opponent.status === 'DEFEATED' || opponent.monster.health < opponent.monster.maxHealth,
+        ) ||
+        parsed.player.health < parsed.player.maxHealth ||
+        Object.values(parsed.damageDealt ?? {}).some((entry) => entry.damage > 0),
       player: parsed.player.blockChance === undefined ? { ...parsed.player, blockChance: 0 } : parsed.player,
       party: parsed.party
         ? {

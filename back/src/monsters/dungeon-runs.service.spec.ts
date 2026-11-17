@@ -607,7 +607,7 @@ describe('DungeonRunsService', () => {
     const target = storedRun!.state.opponents[0];
     target.monster.health = 10000;
     target.monster.maxHealth = 10000;
-    target.monster.defense = 60;
+    target.monster.defense = 50;
     target.monster.dodge = 100;
     target.monster.blockChance = 0;
     inMelee(target.id);
@@ -615,7 +615,7 @@ describe('DungeonRunsService', () => {
     const result = await service.attack(7, run.id, target.id, skillId);
     expect(result.latestEvents[0].damage).toBe(Math.round(run.player.skillState!.spellPower * multiplier));
     expect(result.latestEvents[0].dodged).toBe(false);
-    expect(result.opponents[0].monster.defense).toBe(60);
+    expect(result.opponents[0].monster.defense).toBe(50);
   });
 
   it.each(['warrior-cleave', 'warrior-slam', 'scout-aim', 'scout-pierce', 'scout-volley'])(
@@ -928,6 +928,38 @@ describe('DungeonRunsService', () => {
     expect(itemGenerator.generate).toHaveBeenCalledTimes(1);
   });
 
+  it('locks departure after a real hit and keeps it locked when the event log is cleared', async () => {
+    const run = await service.enter(7, 'EMBERDEEP');
+    inMelee(run.opponents[0].id);
+    jest.spyOn(Math, 'random').mockReturnValue(0.99);
+    const result = await service.attack(7, run.id, run.opponents[0].id);
+    expect(result.combatStarted).toBe(true);
+    storedRun!.state.latestEvents = [];
+    await expect(service.leave(7, run.id)).rejects.toThrow('after the first hit');
+    expect(prisma.dungeonRun.delete).not.toHaveBeenCalled();
+  });
+
+  it.each(['PLAYER', 'MONSTER'] as const)('locks old runs after a %s hit', async (actor) => {
+    const run = await service.enter(7, 'EMBERDEEP');
+    storedRun!.state.latestEvents = [{ actor, damage: 5, critical: false, dodged: false }];
+    await expect(service.leave(7, run.id)).rejects.toThrow('after the first hit');
+  });
+
+  it('also rejects leaving through the party endpoint after combat starts', async () => {
+    const run = await service.enter(7, 'EMBERDEEP');
+    storedRun!.state.combatStarted = true;
+    prisma.dungeonParty.findUnique.mockResolvedValue({ id: run.id, members: [{ gameProfileId: 5 }] });
+    prisma.dungeonRun.findUnique.mockResolvedValue(storedRun);
+    await expect(service.leaveParty(7, run.id)).rejects.toThrow('after the first hit');
+  });
+
+  it('allows departure after the run has ended even if combat started', async () => {
+    const run = await service.enter(7, 'EMBERDEEP');
+    storedRun!.state.combatStarted = true;
+    storedRun!.state.status = 'DEFEAT';
+    await expect(service.leave(7, run.id)).resolves.toEqual({ success: true });
+  });
+
   it('permanently abandons an unfinished run without granting final rewards', async () => {
     const run = await service.enter(7, 'EMBERDEEP');
 
@@ -954,7 +986,7 @@ describe('DungeonRunsService', () => {
     expect(prisma.inventoryItem.delete).toHaveBeenCalledWith({ where: { id: 71 } });
     expect(storedRun?.state.player.health).toBe(60);
     expect(storedRun?.state.potionTurns).toEqual({ '5': 1 });
-    await expect(service.useHealthPotion(7, run.id, 72)).rejects.toThrow('one health potion per turn');
+    await expect(service.useHealthPotion(7, run.id, 72)).rejects.toThrow('one potion per turn');
     expect(prisma.inventoryItem.delete).toHaveBeenCalledTimes(1);
     storedRun!.state.tactical!.turn++;
     await expect(service.useHealthPotion(7, run.id, 72)).resolves.toMatchObject({

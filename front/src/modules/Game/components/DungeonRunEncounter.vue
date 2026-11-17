@@ -4,7 +4,12 @@
       <header class="dungeon-heading">
         <h2>{{ battle.dungeon }}</h2>
         <span>Wave {{ Math.min(defeatedCount + 1, 4) }} / 4 · Turn {{ battle.tactical?.turn ?? 1 }}</span>
-        <button v-if="battle.status === 'ACTIVE'" :disabled="loading" @click="showLeaveConfirmation = true">
+        <button
+          v-if="battle.status === 'ACTIVE'"
+          :disabled="loading || battle.combatStarted"
+          :title="battle.combatStarted ? 'You cannot leave after the first hit. Finish the dungeon first.' : undefined"
+          @click="showLeaveConfirmation = true"
+        >
           Leave dungeon
         </button>
       </header>
@@ -428,6 +433,7 @@ onUnmounted(() => {
 });
 watch(() => props.battle.partyLoot?.deadlineAt, updateLootCountdown);
 const confirmLeave = () => {
+  if (loading.value || props.battle.combatStarted) return;
   showLeaveConfirmation.value = false;
   emit('leave');
 };

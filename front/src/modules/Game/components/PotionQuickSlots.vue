@@ -2,7 +2,7 @@
   <section
     class="potion-belt"
     :class="{ 'potion-belt--manage': manage }"
-    aria-label="Health potion quick slots"
+    aria-label="Potion quick slots"
     @keydown.esc="editing = null"
   >
     <ActionToasts :error="error" />
@@ -39,12 +39,13 @@
         :disabled="locked(index) || pending || (!!entry && (disabled || usedThisTurn) && !manage)"
         :title="
           usedThisTurn && !manage
-            ? 'One health potion per turn — available next turn'
+            ? 'One potion per turn — available next turn'
             : entry
-              ? `${entry.item.name} · +${getHealthPotionRestore(entry.item.name)} HP · 1 potion`
-              : 'Empty slot — assign one HP potion'
+              ? `${entry.item.name} · +${getRestorationPotionRestore(entry.item.name)} ${potionResourceLabel(entry.item.name)} · 1 potion`
+              : 'Empty slot — assign one health or mana potion'
         "
-        @click="entry && !manage ? $emit('drink', entry.id) : openPicker(index)"
+        @click="onSlotClick(index)"
+        @dblclick.prevent="returnPotion(index)"
         @dragover="onDragOver($event, index)"
         @dragleave="hoveredSlot = null"
         @drop.prevent.stop="onDrop($event, index)"
@@ -67,20 +68,20 @@
       </button>
     </div>
     <QDialog :model-value="editing !== null" :persistent="pending" @update:model-value="!$event && (editing = null)">
-      <div v-if="editing !== null" class="potion-picker" aria-label="Assign one health potion">
+      <div v-if="editing !== null" class="potion-picker" aria-label="Assign one potion">
         <header>
           <strong>Slot {{ editing + 1 }} · one potion</strong
           ><button aria-label="Close potion picker" :disabled="pending" @click="editing = null">×</button>
         </header>
         <p v-if="locked(editing)">{{ t('potionSlots.premiumRequired') }}</p>
-        <p v-else-if="!potions.length">No eligible HP potions in your backpack.</p>
+        <p v-else-if="!potions.length">No eligible health or mana potions in your backpack.</p>
         <button
           v-for="potion in locked(editing) ? [] : potions"
           :key="potion.id"
           :disabled="pending"
           @click="assign(potion.id)"
         >
-          {{ potion.item.name }} · +{{ getHealthPotionRestore(potion.item.name) }} HP<span v-if="manage">
+          {{ potion.item.name }} · +{{ getRestorationPotionRestore(potion.item.name) }} {{ potionResourceLabel(potion.item.name) }}<span v-if="manage">
             · {{ t('potionSlots.available', { count: potion.quantity }) }}</span
           >
         </button>
@@ -92,11 +93,11 @@
 <script setup lang="ts">
 import { useTranslation } from 'i18next-vue';
 import { QDialog, QTooltip } from 'quasar';
-import { computed, ref } from 'vue';
+import { computed, ref, onUnmounted } from 'vue';
 
 import ActionToasts from '@/components/ActionToasts';
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
-import { getHealthPotionRestore, getPotionRequiredLevel } from '@/modules/Inventory/utils/potions';
+import { getRestorationPotionRestore, getPotionRequiredLevel, potionResourceLabel } from '@/modules/Inventory/utils/potions';
 import routes from '@/routes';
 import { api } from '@shared/api';
 
@@ -114,6 +115,38 @@ const pending = ref(false),
   error = ref(''),
   editing = ref<number | null>(null);
 const hoveredSlot = ref<number | null>(null);
+let pickerTimer: ReturnType<typeof setTimeout> | undefined;
+onUnmounted(() => clearTimeout(pickerTimer));
+function onSlotClick(index: number) {
+  if (!props.manage) {
+    const entry = slots.value[index];
+    if (entry) emit('drink', entry.id);
+    else openPicker(index);
+    return;
+  }
+  clearTimeout(pickerTimer);
+  if (!slots.value[index]) openPicker(index);
+  else pickerTimer = setTimeout(() => openPicker(index), 350);
+}
+async function returnPotion(index: number) {
+  if (!props.manage || !slots.value[index] || locked(index)) return;
+  clearTimeout(pickerTimer);
+  await assign(null, index);
+}
+async function addPotion(id: number) {
+  if (pending.value) return;
+  const index = slots.value.findIndex((entry, index) => !entry && !locked(index));
+  if (index < 0) {
+    error.value = 'All available quick slots are full. Return a potion to your backpack first.';
+    return;
+  }
+  if (!potions.value.some((potion) => potion.id === id)) {
+    error.value = 'This potion is not available for your level.';
+    return;
+  }
+  await assign(id, index);
+}
+defineExpose({ addPotion });
 const premium = computed(() => !!user.user?.premium?.active);
 const locked = (index: number) => index >= 5 && !premium.value;
 const slots = computed(() =>
@@ -127,7 +160,7 @@ const potions = computed(() =>
       !p.isEquiped &&
       p.slot === null &&
       p.quantity > 0 &&
-      getHealthPotionRestore(p.item.name) > 0 &&
+      getRestorationPotionRestore(p.item.name) > 0 &&
       getPotionRequiredLevel(p.item.name) <= (user.user?.level ?? 1)
   )
 );
@@ -255,7 +288,7 @@ async function assign(id: number | null, index = editing.value) {
 .potion-belt--manage .potion-use {
   width: 100%;
   min-height: 100px;
-  height: auto;
+  height: 100%;
   padding: 18px 6px 8px;
   cursor: pointer;
 }

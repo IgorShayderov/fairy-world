@@ -1,7 +1,7 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '../../generated/client';
 import type { PrismaService } from '../prisma.service';
-import { getPotionEffect, getPotionRequiredLevel } from './potion-effects';
+import { isRestorationPotion, getPotionRequiredLevel } from './potion-effects';
 import { premiumActive } from '../premium/premium.service';
 
 export const POTION_SLOTS = Array.from({ length: 8 }, (_, index) => `potion-${index + 1}`);
@@ -42,8 +42,8 @@ export async function assignPotionSlot(
             });
       if (inventoryItemId != null) {
         if (!source || source.quantity < 1) throw new NotFoundException('Potion not found in backpack');
-        if (!source.item.isConsumable || getPotionEffect(source.item.name)?.kind !== 'HEALTH')
-          throw new BadRequestException('Only health potions can be placed in quick slots');
+        if (!source.item.isConsumable || !isRestorationPotion(source.item.name))
+          throw new BadRequestException('Only health and mana potions can be placed in quick slots');
         if (profile.level < getPotionRequiredLevel(source.item.name))
           throw new BadRequestException('Your level is too low for this potion');
       }

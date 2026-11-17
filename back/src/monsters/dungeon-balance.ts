@@ -20,12 +20,12 @@ export function rebalanceIceboundDamage(enemy: DungeonEnemyStats, type: string):
 }
 
 /** Shared by new enemies and saved runs. Never revive a defeated opponent. */
-export function strengthenDungeonEnemy(enemy: DungeonEnemyStats, boss: boolean): void {
+export function strengthenDungeonEnemy(enemy: DungeonEnemyStats, boss: boolean, defenseCap = 60): void {
   const remaining = Math.max(0, Math.min(1, enemy.health / Math.max(1, enemy.maxHealth)));
   enemy.maxHealth = Math.max(1, Math.round(enemy.maxHealth * (boss ? 1.75 : 1.5)));
   enemy.health = remaining > 0 ? Math.max(1, Math.round(enemy.maxHealth * remaining)) : 0;
   enemy.damage = Math.ceil(enemy.damage * (boss ? 1.4 : 1.3));
-  enemy.defense = Math.min(60, enemy.defense + (boss ? 8 : 5));
+  enemy.defense = Math.min(defenseCap, enemy.defense + (boss ? 8 : 5));
 }
 
 /** Slow minions need a tank budget too; use base movement, never a temporary slow. */

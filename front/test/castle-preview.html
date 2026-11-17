@@ -55,6 +55,7 @@
       import CastlePage from '/src/pages/CastlePage.vue';
       import CastleMapLayer from '/src/modules/Castles/CastleMapLayer.vue';
       import SocketWorkshop from '/src/modules/Game/components/SocketWorkshop.vue';
+      import BlacksmithDialog from '/src/modules/Game/components/BlacksmithDialog.vue';
       import { useMapObjects } from '/src/modules/Game/composables/useMapObjects';
       import { castlesApi } from '/src/modules/Castles/api';
       import { useCurrentUserStore } from '/src/modules/Auth/store/currentUser';
@@ -169,6 +170,14 @@
         castle: hasCastle ? structuredClone(castle) : null,
         placement: { cities: [{ name: 'AURELIA', x: 940, y: 620 }], radius: 260, clearance: 180 },
       });
+      if (params.has('progress')) {
+        castle.miningEndsAt = new Date(Date.now() + 960000).toISOString();
+        castle.miningDurationSeconds = 1920;
+        castle.equipmentGems = Array.from({length: 50}, (_, i) => ({id: String(i), type: 'DAMAGE', value: 5, mineLevel: 1}));
+        castle.training = 'sentinels';
+        castle.trainingCount = 10;
+        castle.trainingEndsAt = new Date(Date.now() + castle.units[0].seconds * 5000).toISOString();
+      }
       castlesApi.get = async () => state();
       castlesApi.mine = async () => { castle.miningEndsAt = new Date(Date.now() - 1000).toISOString(); castle.wood -= 100; castle.stone -= 80; };
       castlesApi.collectGem = async () => { castle.miningEndsAt = null; const gem = { id: 'test-gem', type: 'DAMAGE', value: 5, mineLevel: 1 }; castle.equipmentGems.push(gem); return gem; };
@@ -295,7 +304,7 @@
         routes: [
           { path: '/', component: MapPreview },
           { path: '/castle', component: CastlePage },
-          { path: '/sockets', component: SocketWorkshop },
+          { path: '/sockets', component: params.has('dialog') ? BlacksmithDialog : SocketWorkshop },
         ],
       });
       await router.push(params.has('sockets') ? '/sockets' : params.has('map') ? '/?castle=place' : '/castle');

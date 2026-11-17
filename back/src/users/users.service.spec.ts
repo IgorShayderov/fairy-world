@@ -128,6 +128,7 @@ describe('UsersService', () => {
               buffs: true,
               dungeonVisits: true,
               sanctuaryVisits: true,
+              equipmentGems: { orderBy: { createdAt: 'asc' } },
               craftItems: {
                 where: { quantity: { gt: 0 }, craftItem: { kind: 'MATERIAL' } },
                 include: { craftItem: true },

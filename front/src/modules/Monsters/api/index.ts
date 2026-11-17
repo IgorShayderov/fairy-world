@@ -151,6 +151,7 @@ export interface DungeonOpponent {
 }
 
 export interface DungeonRunState {
+  combatStarted?: boolean;
   potionUsedThisTurn?: boolean;
   tactical?: {
     turn: number;
@@ -268,7 +269,9 @@ export const getMonster = async (id: number): Promise<Monster> => {
 };
 
 export const attackMonster = async (battleId: string): Promise<BattleState> => {
-  const { data } = await api.post<BattleState>(routes.api.monsters.battleAttackPath(battleId));
+  const { data } = await api.post<BattleState>(routes.api.monsters.battleAttackPath(battleId), undefined, {
+    timeoutMs: 30000,
+  });
   return data;
 };
 
@@ -340,8 +343,8 @@ export const leaveDungeon = async (runId: string): Promise<void> => {
 export const useDungeonHealthPotion = async (
   runId: string,
   inventoryItemId: number
-): Promise<{ run: DungeonRunState; healed: number }> => {
-  const { data } = await api.post<{ run: DungeonRunState; healed: number }>(
+): Promise<{ run: DungeonRunState; healed: number; resource?: 'HEALTH' | 'MANA' }> => {
+  const { data } = await api.post<{ run: DungeonRunState; healed: number; resource?: 'HEALTH' | 'MANA' }>(
     routes.api.monsters.dungeonHealthPotionPath(runId, inventoryItemId)
   );
   return data;
@@ -350,8 +353,8 @@ export const useDungeonHealthPotion = async (
 export const useBattleHealthPotion = async (
   battleId: string,
   inventoryItemId: number
-): Promise<{ battle: BattleState; healed: number }> => {
-  const { data } = await api.post<{ battle: BattleState; healed: number }>(
+): Promise<{ battle: BattleState; healed: number; resource?: 'HEALTH' | 'MANA' }> => {
+  const { data } = await api.post<{ battle: BattleState; healed: number; resource?: 'HEALTH' | 'MANA' }>(
     routes.api.monsters.battleHealthPotionPath(battleId, inventoryItemId)
   );
   return data;

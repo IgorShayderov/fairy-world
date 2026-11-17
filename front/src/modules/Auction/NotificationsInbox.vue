@@ -78,6 +78,8 @@ import { auctionApi, timeLeft, type AuctionNotification, type NotificationPage }
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 import routes from '@/routes';
 
+import { NOTIFICATIONS_CHANGED } from './notification-events';
+
 import AuctionItem from '@/modules/Auction/AuctionItem.vue';
 import '@/modules/Auction/auction.css';
 
@@ -146,16 +148,19 @@ watch(page, () => {
   loading.value = true;
   void load();
 });
+const refreshFromSocket = () => {
+  void load();
+};
 let timer: ReturnType<typeof setInterval> | undefined;
 onMounted(() => {
   void load();
-  let ticks = 0;
+  window.addEventListener(NOTIFICATIONS_CHANGED, refreshFromSocket);
   timer = setInterval(() => {
     now.value = Date.now() + offset;
-    if (++ticks % 30 === 0 && !busy.value && !document.hidden) void load();
   }, 1000);
 });
 onUnmounted(() => {
+  window.removeEventListener(NOTIFICATIONS_CHANGED, refreshFromSocket);
   clearInterval(timer);
   version++;
 });

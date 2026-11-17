@@ -36,3 +36,16 @@ describe('convertRatingToPercentage', () => {
     expect(convertRatingToPercentage(StatType.DEFENSE, 500, 10)).toBe(50);
   });
 });
+
+describe('Warrior defensive caps', () => {
+  it('raises maximum defense without granting free defense', () => {
+    expect(convertRatingToPercentage(StatType.DEFENSE, 10000, 25, 'WARRIOR')).toBe(65);
+    expect(convertRatingToPercentage(StatType.DEFENSE, 0, 25, 'WARRIOR')).toBe(0);
+    expect(convertRatingToPercentage(StatType.DEFENSE, 10000, 25, 'MAGE')).toBe(50);
+  });
+  it('limits dodge without changing critical chance', () => {
+    expect(convertRatingToPercentage(StatType.DODGE, 10000, 25, 'WARRIOR')).toBe(25);
+    expect(convertRatingToPercentage(StatType.CRIT, 10000, 25, 'WARRIOR')).toBe(50);
+    expect(convertRatingToPercentage(StatType.DODGE, 10000, 25, 'SCOUT')).toBe(50);
+  });
+});

@@ -13,6 +13,7 @@ describe('MonstersService', () => {
   let service: MonstersService;
 
   const mockPrismaService = {
+    storyQuestProgress: { findMany: jest.fn().mockResolvedValue([]), update: jest.fn() },
     playerQuest: { findMany: jest.fn().mockResolvedValue([]), updateMany: jest.fn() },
     gameProfileBuff: { deleteMany: jest.fn(), create: jest.fn() },
     $executeRaw: jest.fn(),
@@ -225,10 +226,10 @@ describe('MonstersService', () => {
         include: { item: true },
       });
       expect(mockPrismaService.inventoryItem.delete).toHaveBeenCalledWith({ where: { id: 9 } });
-      await expect(service.useBattleHealthPotion(7, battle.id, 9)).rejects.toThrow('already full');
+      await expect(service.useBattleHealthPotion(7, battle.id, 9)).rejects.toThrow('one potion per turn');
       expect(mockPrismaService.inventoryItem.delete).toHaveBeenCalledTimes(1);
       battle.player.health -= 10;
-      await expect(service.useBattleHealthPotion(7, battle.id, 9)).rejects.toThrow('one health potion per turn');
+      await expect(service.useBattleHealthPotion(7, battle.id, 9)).rejects.toThrow('one potion per turn');
       expect(mockPrismaService.inventoryItem.delete).toHaveBeenCalledTimes(1);
       battle.turn++;
       await expect(service.useBattleHealthPotion(8, battle.id, 9)).rejects.toThrow('not found');
