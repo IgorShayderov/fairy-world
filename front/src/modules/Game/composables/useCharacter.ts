@@ -11,6 +11,7 @@ export function useCharacter(
   const pos = reactive({ x: initialX, y: initialY });
   const target = reactive({ x: initialX, y: initialY });
   const isMoving = ref(false);
+  const interruptedDestination = ref<{ x: number; y: number } | null>(null);
   const completedTravelSteps = ref(0);
   let distanceSinceTravelStep = 0;
 
@@ -21,6 +22,7 @@ export function useCharacter(
     const nextY = Math.max(0, Math.min(y, mapHeight));
     if (!canMoveTo(nextX, nextY)) return false;
 
+    interruptedDestination.value = null;
     target.x = nextX;
     target.y = nextY;
 
@@ -29,13 +31,17 @@ export function useCharacter(
   };
 
   // Пересчет координат для одного кадра (возвращает true, если все еще идем)
-  const update = () => {
+  const update = (elapsedMs = 1000 / 60) => {
     if (!isMoving.value) return false;
 
     const dx = target.x - pos.x;
     const dy = target.y - pos.y;
     const dist = Math.hypot(dx, dy);
-    const speed = Math.max(0.01, movementSpeedAt(pos.x, pos.y));
+    // 39 map units/second on roads, independent of 60/120 Hz displays.
+    // Cap resumed frames to one old-size step so pauses cannot teleport across terrain.
+    const speed =
+      (Math.max(0.01, movementSpeedAt(pos.x, pos.y)) * 39 * Math.max(0, Math.min(elapsedMs, 1000 / 39))) / 1000;
+    if (speed === 0) return true;
 
     // Если персонаж почти дошел — примагничиваем его к цели
     if (dist <= speed) {
@@ -69,16 +75,30 @@ export function useCharacter(
   };
 
   const stop = () => {
+    interruptedDestination.value = null;
     target.x = pos.x;
     target.y = pos.y;
     isMoving.value = false;
     completedTravelSteps.value = 0;
   };
 
+  const pauseTravel = () => {
+    const destination = isMoving.value ? { x: target.x, y: target.y } : null;
+    stop();
+    interruptedDestination.value = destination;
+  };
+
+  const resumeTravel = () => {
+    const destination = interruptedDestination.value;
+    interruptedDestination.value = null;
+    return destination ? walkTo(destination.x, destination.y) : false;
+  };
+
   const setPosition = (x: number, y: number) => {
     const nextX = Math.max(0, Math.min(x, mapWidth));
     const nextY = Math.max(0, Math.min(y, mapHeight));
     if (!canMoveTo(nextX, nextY)) return false;
+    interruptedDestination.value = null;
     pos.x = nextX;
     pos.y = nextY;
     target.x = nextX;
@@ -139,6 +159,9 @@ export function useCharacter(
 
   return {
     position: pos,
+    interruptedDestination,
+    pauseTravel,
+    resumeTravel,
     isMoving,
     walkTo,
     update,

@@ -1,3 +1,4 @@
+import { monsterDefenseCap, monsterDodgeCap } from './monster-class';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../prisma.service';
@@ -10,6 +11,7 @@ import { ItemView } from '../common/views/item.view';
 import { rollMonsterLootRarity, rollQuestLootRarity } from './monster-loot';
 import { progressionAfterExperience } from '../users/level-progression';
 import { recordQuestVictory } from '../quests/quest-progress';
+import { recordStoryVictory } from '../quests/story-progress';
 import { canHuntAt, canRetreatAt, encounterChanceAt } from '../locations/map-terrain';
 import type { UpdateMapPositionDto } from '../users/dto/update-map-position.dto';
 import { CRAFTING_MIN_LEVEL, rollCraftMaterialCode } from '../crafting/crafting.catalog';
@@ -79,6 +81,7 @@ type Battle = {
   status: BattleStatus;
   turn: number;
   lastPotionTurn?: number;
+  healthPotionUsed?: boolean;
   history: Battle['events'];
   player: Combatant;
   monster: Combatant & { id: number; level: number; rewardGold: number; rewardExperience: number };
@@ -337,6 +340,7 @@ export class MonstersService {
           select: { id: true, level: true, experience: true },
         });
         const finished = await recordQuestVictory(tx, profile.id, battle.monsterType, battle.startedAt);
+        await recordStoryVictory(tx, profile.id, battle.monsterType, battle.startedAt, !battle.healthPotionUsed);
         const questGold = finished.reduce((sum, quest) => sum + quest.rewardGold, 0);
         const questExperience = finished.reduce((sum, quest) => sum + quest.rewardExperience, 0);
         if (finished.length) {
@@ -647,12 +651,11 @@ export class MonstersService {
     const battle = this.battles.get(battleId);
     if (!battle || battle.userId !== userId) throw new NotFoundException('Active battle not found');
     if (battle.status !== 'ACTIVE' || battle.player.health <= 0) throw new BadRequestException('Battle has ended');
-    if (battle.player.health >= battle.player.maxHealth) throw new BadRequestException('Health is already full');
-    if (battle.lastPotionTurn === battle.turn) throw new BadRequestException('Only one health potion per turn');
+    if (battle.lastPotionTurn === battle.turn) throw new BadRequestException('Only one potion per turn');
     if (this.potionInProgress.has(battleId)) throw new BadRequestException('Wait for the potion to finish');
     this.potionInProgress.add(battleId);
     try {
-      const healed = await this.prisma.$transaction(
+      const restored = await this.prisma.$transaction(
         async (tx) => {
           const profile = await tx.gameProfile.findUnique({ where: { userId }, select: { id: true, level: true } });
           if (!profile) throw new NotFoundException('Game profile not found');
@@ -665,18 +668,29 @@ export class MonstersService {
             throw new BadRequestException('Assign one health potion to a quick slot first');
           await ensurePotionSlotAccess(tx, profile.id, entry.slot);
           const effect = getPotionEffect(entry.item.name);
-          if (!entry.item.isConsumable || effect?.kind !== 'HEALTH')
-            throw new BadRequestException('Only health potions can be used in battle');
+          if (!entry.item.isConsumable || (effect?.kind !== 'HEALTH' && effect?.kind !== 'MANA'))
+            throw new BadRequestException('Only health and mana potions can be used in battle');
+          const missing =
+            effect.kind === 'MANA'
+              ? (battle.skills?.maxMana ?? 0) - (battle.skills?.mana ?? 0)
+              : battle.player.maxHealth - battle.player.health;
+          if (missing <= 0)
+            throw new BadRequestException(effect.kind === 'MANA' ? 'Mana is already full' : 'Health is already full');
           if (profile.level < getPotionRequiredLevel(entry.item.name))
             throw new BadRequestException('Your level is too low for this potion');
           if (entry.quantity > 1)
             await tx.inventoryItem.update({ where: { id: entry.id }, data: { quantity: { decrement: 1 } } });
           else await tx.inventoryItem.delete({ where: { id: entry.id } });
-          return Math.min(effect.restore, battle.player.maxHealth - battle.player.health);
+          return { amount: Math.min(effect.restore, missing), resource: effect.kind };
         },
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
       );
-      battle.player.health += healed;
+      const healed = restored.amount;
+      if (restored.resource === 'MANA' && battle.skills) battle.skills.mana += healed;
+      else {
+        battle.player.health += healed;
+        battle.healthPotionUsed = true;
+      }
       battle.lastPotionTurn = battle.turn;
       // Do not replay the previous attack when a potion updates the scene.
       this.beginExchange(battle);
@@ -685,14 +699,14 @@ export class MonstersService {
           actor: 'PLAYER',
           action: 'SKILL',
           effect: 'heal',
-          healing: healed,
-          skillName: 'Health potion',
+          ...(restored.resource === 'HEALTH' ? { healing: healed } : { statusText: `Restored ${healed} mana` }),
+          skillName: restored.resource === 'MANA' ? 'Mana potion' : 'Health potion',
           damage: 0,
           critical: false,
           dodged: false,
         },
       ];
-      return { battle: this.renderBattle(battle), healed };
+      return { battle: this.renderBattle(battle), healed, resource: restored.resource };
     } finally {
       this.potionInProgress.delete(battleId);
     }
@@ -767,8 +781,8 @@ export class MonstersService {
         health: monsterHealth,
         maxHealth: monsterHealth,
         damage: slowMonsterDamage(3 + monster.level * 2 + attribute('STRENGTH'), monster.monsterType),
-        defense: Math.min(45, monster.level * 0.8 + attribute('ENDURANCE')),
-        dodge: Math.min(30, monster.level * 0.3 + attribute('AGILITY')),
+        defense: Math.min(monsterDefenseCap(monster.monsterType), monster.level * 0.8 + attribute('ENDURANCE')),
+        dodge: Math.min(monsterDodgeCap(monster.monsterType), monster.level * 0.3 + attribute('AGILITY')),
         blockChance: 0,
         criticalChance: Math.min(25, 3 + monster.level * 0.2),
         criticalDamage: 140,

@@ -22,3 +22,11 @@ export function usedCapacity(castle: Castle) {
     castle.raidArcanists
   );
 }
+
+export function taskProgress(until: string | null, durationSeconds: number, now: number): number {
+  if (!until || !Number.isFinite(Date.parse(until))) return 0;
+  const remaining = Date.parse(until) - now;
+  if (remaining <= 0) return 100;
+  if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) return 0;
+  return Math.max(0, Math.min(100, (1 - remaining / (durationSeconds * 1000)) * 100));
+}

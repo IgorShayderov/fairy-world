@@ -20,6 +20,20 @@ describe('API request lifecycle', () => {
   });
   afterEach(() => vi.unstubAllGlobals());
 
+  it('allows quick battle to finish beyond the ordinary four-second timeout', async () => {
+    vi.useFakeTimers();
+    try {
+      fetchMock.mockImplementation((_url, options: RequestInit) => new Promise((resolve, reject) => {
+        options.signal?.addEventListener('abort', () => reject(new Error('aborted')));
+        setTimeout(() => resolve(new Response(null, { status: 204 })), 5000);
+      }));
+      const request = api.post('/quick-battle', undefined, { timeoutMs: 30000 });
+      await vi.advanceTimersByTimeAsync(5000);
+      await expect(request).resolves.toBeNull();
+      expect(fetchMock.mock.calls[0]![1]).not.toHaveProperty('timeoutMs');
+    } finally { vi.useRealTimers(); }
+  });
+
   it('does not log out when a retry fails after a successful refresh', async () => {
     refresh.mockResolvedValue({});
     fetchMock.mockResolvedValueOnce(new Response('', { status: 401 }))

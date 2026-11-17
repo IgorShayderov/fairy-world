@@ -13,6 +13,12 @@
 
     <div class="map-vignette pointer-events-none absolute inset-0"></div>
     <div class="map-grain pointer-events-none absolute inset-0 opacity-25"></div>
+    <QuestMapTracker
+      :active="mapReady && !activeBattle && !activeDungeonRun && !activeLandmark && !castlePlacing"
+      :camera="camera"
+      :position="position"
+      @locate="locateCastle"
+    />
     <CastleMapLayer
       v-if="mapReady"
       v-show="!activeBattle && !activeDungeonRun && !activeLandmark"
@@ -172,7 +178,9 @@
       @tactical-action="handleTacticalAction"
       @use-potion="handleBattleHealthPotion"
       @retreat="handleRetreat"
-      @close="activeBattle = null"
+      :can-continue-travel="Boolean(interruptedDestination)"
+      @continue-travel="continueExpedition"
+      @close="closeBattle"
     />
   </div>
 </template>
@@ -214,6 +222,7 @@ import BlacksmithDialog from '@/modules/Game/components/BlacksmithDialog.vue';
 import DungeonPartyLobby from '@/modules/Game/components/DungeonPartyLobby.vue';
 import DungeonRunEncounter from '@/modules/Game/components/DungeonRunEncounter.vue';
 import LandmarkEncounter from '@/modules/Game/components/LandmarkEncounter.vue';
+import QuestMapTracker from '@/modules/Quests/QuestMapTracker.vue';
 import TownQuestDialog from '@/modules/Quests/TownQuestDialog.vue';
 
 const { t } = useTranslation();
@@ -426,6 +435,9 @@ const {
   position,
   isMoving,
   walkTo,
+  interruptedDestination,
+  pauseTravel,
+  resumeTravel,
   update,
   render: renderCharacter,
   consumeTravelStep,
@@ -448,7 +460,7 @@ const persistPosition = async (): Promise<boolean> => {
     const result = await usersApi.updateMapPosition(nextPosition);
     if (currentUserStore.user) currentUserStore.user.mapPosition = result.position;
     if (result.encounter.encountered) {
-      stop();
+      pauseTravel();
       activeLandmark.value = null;
       promptLandmark.value = null;
       showQuestOffers.value = false;
@@ -488,6 +500,24 @@ const checkForEncounter = async () => {
   if (encountered) return;
 
   if (!disposed && !activeLandmark.value && isMoving.value) animationFrame = requestAnimationFrame(tick);
+};
+
+const closeBattle = () => {
+  if (battlePending.value || activeBattle.value?.status === 'ACTIVE') return;
+  stop();
+  activeBattle.value = null;
+  draw();
+};
+
+const continueExpedition = () => {
+  if (battlePending.value || activeBattle.value?.status !== 'VICTORY') return;
+  activeBattle.value = null;
+  lastMovementFrame = null;
+  if (resumeTravel()) {
+    if (animationFrame !== null) cancelAnimationFrame(animationFrame);
+    animationFrame = requestAnimationFrame(tick);
+  }
+  draw();
 };
 
 const handleAttack = async () => {
@@ -665,7 +695,10 @@ const handleDungeonHealthPotion = async (inventoryItemId: number) => {
     await currentUserStore.fetchCurrentUser(true);
     Notify.create({
       type: 'positive',
-      message: t('fantasy.dungeonRun.healthRestored', { health: result.healed }),
+      message:
+        result.resource === 'MANA'
+          ? `Restored ${result.healed} mana.`
+          : t('fantasy.dungeonRun.healthRestored', { health: result.healed }),
     });
   } catch (error) {
     Notify.create({
@@ -698,6 +731,7 @@ const handleRetreat = async () => {
   battlePending.value = true;
   try {
     await retreatFromBattle(activeBattle.value.id);
+    stop();
     activeBattle.value = null;
   } catch (error) {
     console.error('Battle retreat failed:', error);
@@ -706,9 +740,12 @@ const handleRetreat = async () => {
   }
 };
 
-const tick = () => {
+let lastMovementFrame: number | null = null;
+const tick = (timestamp: number) => {
   if (disposed || activeBattle.value || activeDungeonRun.value || activeLandmark.value) return;
-  const stillMoving = update();
+  const elapsed = lastMovementFrame === null ? 1000 / 60 : timestamp - lastMovementFrame;
+  lastMovementFrame = timestamp;
+  const stillMoving = update(elapsed);
   draw();
   const landmark = nearbyLandmark(position.x, position.y);
   if (!landmark) {
@@ -720,11 +757,15 @@ const tick = () => {
     promptLandmark.value = landmark;
   }
   if (consumeTravelStep() && !encounterPending.value) {
+    lastMovementFrame = null;
     animationFrame = null;
     void checkForEncounter();
     return;
   }
-  if (!stillMoving) void persistPosition();
+  if (!stillMoving) {
+    lastMovementFrame = null;
+    void persistPosition();
+  }
   animationFrame = stillMoving ? requestAnimationFrame(tick) : null;
 };
 

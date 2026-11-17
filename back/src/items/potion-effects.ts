@@ -4,6 +4,7 @@ export const POTION_BUFF_DURATION_MS = 4 * 60 * 60 * 1_000;
 
 export type PotionEffect =
   | { kind: 'HEALTH'; restore: number }
+  | { kind: 'MANA'; restore: number }
   | { kind: 'BUFF'; type: PlayerBuffType; value: number }
   | { kind: 'FREE_ATTRIBUTE'; value: number };
 
@@ -14,6 +15,12 @@ export const POTION_EFFECTS: Record<string, PotionEffect> = {
   'Mild Health Potion': { kind: 'HEALTH', restore: 450 },
   'Greater Health Potion': { kind: 'HEALTH', restore: 700 },
   'Higher Health Potion': { kind: 'HEALTH', restore: 1000 },
+  'Minor Mana Potion': { kind: 'MANA', restore: 50 },
+  'Lesser Mana Potion': { kind: 'MANA', restore: 120 },
+  'Medium Mana Potion': { kind: 'MANA', restore: 250 },
+  'Mild Mana Potion': { kind: 'MANA', restore: 450 },
+  'Greater Mana Potion': { kind: 'MANA', restore: 700 },
+  'Higher Mana Potion': { kind: 'MANA', restore: 1000 },
 
   // 10+ Level Potions
   'Lesser Experience Potion': { kind: 'BUFF', type: PlayerBuffType.EXPERIENCE, value: 10 },
@@ -52,6 +59,12 @@ export const POTION_LEVEL_REQUIREMENTS: Record<string, number> = {
   'Mild Health Potion': 30,
   'Greater Health Potion': 40,
   'Higher Health Potion': 50,
+  'Minor Mana Potion': 1,
+  'Lesser Mana Potion': 10,
+  'Medium Mana Potion': 20,
+  'Mild Mana Potion': 30,
+  'Greater Mana Potion': 40,
+  'Higher Mana Potion': 50,
 
   'Lesser Experience Potion': 10,
   'Lesser Attack Potion': 10,
@@ -80,4 +93,6 @@ export const POTION_LEVEL_REQUIREMENTS: Record<string, number> = {
 
 export const getPotionEffect = (name: string): PotionEffect | undefined => POTION_EFFECTS[name];
 export const isHealthPotion = (name: string): boolean => getPotionEffect(name)?.kind === 'HEALTH';
+export const isRestorationPotion = (name: string): boolean =>
+  ['HEALTH', 'MANA'].includes(getPotionEffect(name)?.kind ?? '');
 export const getPotionRequiredLevel = (name: string): number => POTION_LEVEL_REQUIREMENTS[name] ?? 1;

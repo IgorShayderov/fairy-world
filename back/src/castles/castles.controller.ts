@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from '../auth/auth.guard';
 import type { RequestWithUser } from '../auth/interfaces/request-with-user.interface';
@@ -38,6 +38,9 @@ export class CastlesController {
   }
   @Post('mine/collect') collect(@Req() req: RequestWithUser) {
     return this.castles.collectGem(req.user.sub);
+  }
+  @Delete('gems/:id') discardGem(@Req() req: RequestWithUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.castles.discardGem(req.user.sub, id);
   }
   @Post('raid') raid(@Req() req: RequestWithUser, @Body() dto: CastleRaidDto) {
     return this.castles.raid(req.user.sub, dto);

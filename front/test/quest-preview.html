@@ -1,0 +1,27 @@
+<!doctype html>
+<html><head><title>Quest preview</title><style>html,body,#app{margin:0;height:100%;background:#081b26;color:#e8dcc0}*{box-sizing:border-box}#app{display:flex;flex-direction:column}header{padding:15px;background:#1e2939}.preview-content{flex:1;min-height:0;display:flex}.preview-map{position:relative;width:100%;height:100%;background:#948967}</style></head>
+<body><div id="app"></div><script type="module">
+import { createApp } from 'vue';
+import { createPinia } from 'pinia';
+import { createRouter, createMemoryHistory } from 'vue-router';
+import { Quasar, Notify } from 'quasar';
+import I18nextVue from 'i18next-vue';
+import 'quasar/dist/quasar.css';
+import '@quasar/extras/material-icons/material-icons.css';
+import '/test/castle-preview.css';
+import { initializeI18n, i18n } from '/src/locales/i18n';
+import { useCurrentUserStore } from '/src/modules/Auth/store/currentUser';
+import QuestsPage from '/src/pages/QuestsPage.vue';
+import QuestMapTracker from '/src/modules/Quests/QuestMapTracker.vue';
+await initializeI18n();
+const pinia = createPinia();
+const user = useCurrentUserStore(pinia);
+user.user = { id: 77, name: 'Quest preview', level: 10 };
+user.fetchCurrentUser = async () => {};
+const router = createRouter({ history: createMemoryHistory(), routes: [
+  { path: '/quests', component: QuestsPage },
+  { path: '/', component: { components: { QuestMapTracker }, template: '<div class="preview-map"><QuestMapTracker active :camera="{x:-500,y:-500,scale:1}" :position="{x:1400,y:1170}"/></div>' } },
+] });
+await router.push('/quests'); await router.isReady();
+createApp({template:'<header>Fairy World · quest preview</header><div class="preview-content"><RouterView/></div>'}).use(pinia).use(router).use(Quasar,{plugins:{Notify}}).use(I18nextVue,{i18next:i18n}).mount('#app');
+</script></body></html>

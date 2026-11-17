@@ -82,6 +82,7 @@ export class UsersService {
             buffs: true,
             dungeonVisits: true,
             sanctuaryVisits: true,
+            equipmentGems: { orderBy: { createdAt: 'asc' } },
             craftItems: {
               where: { quantity: { gt: 0 }, craftItem: { kind: CraftItemKind.MATERIAL } },
               include: { craftItem: true },
@@ -341,8 +342,8 @@ export class UsersService {
         if (!inventoryEntry.item.isConsumable || !effect) {
           throw new BadRequestException('Item cannot be consumed');
         }
-        if (effect.kind === 'HEALTH') {
-          throw new BadRequestException('Health potions can only be used during an active dungeon run');
+        if (effect.kind === 'HEALTH' || effect.kind === 'MANA') {
+          throw new BadRequestException('Health and mana potions can only be used during battle');
         }
         const requiredLevel = getPotionRequiredLevel(inventoryEntry.item.name) ?? inventoryEntry.item.level ?? 1;
         if ((profile.level ?? 1) < requiredLevel) {

@@ -20,7 +20,37 @@ test('quick battle resolves without starting tactical combat and shows the compl
   await expect(page.getByRole('button', { name: 'Return to map', exact: true })).toBeVisible();
 });
 
-test('failed quick battle restores battle choices and permits a retry', async ({ page }) => {
+test('fallback icon text cannot cover the Quick Battle button', async ({ page }) => {
+  await page.setViewportSize({ width: 1000, height: 800 });
+  await page.goto(base + '?standard=1&premium=1');
+  const quick = page.getByRole('button', { name: 'Quick battle', exact: true });
+  await expect(quick).toBeVisible();
+  // Reproduce an unavailable icon glyph/font, leaving a wide ligature string.
+  await page.addStyleTag({
+    content:
+      '.encounter-panel footer .q-icon { font-family: monospace !important; font-feature-settings: "liga" 0 !important; }',
+  });
+  const tactical = page.getByRole('button', { name: 'Tactical battle', exact: true });
+  await tactical.locator('.q-icon').evaluate((el) => {
+    el.innerHTML = '<span style="position:absolute;white-space:nowrap">stadia_controller_stadia_controller</span>';
+  });
+  const box = await quick.boundingBox();
+  if (!box) throw new Error('Missing Quick Battle button');
+  for (const fraction of [0.05, 0.25, 0.5, 0.75, 0.95]) {
+    const point = { x: box.x + box.width * fraction, y: box.y + box.height / 2 };
+    await page.mouse.move(point.x, point.y);
+    expect(await quick.evaluate((el, p) => el.contains(document.elementFromPoint(p.x, p.y)), point)).toBe(true);
+    expect(await tactical.evaluate((el) => el.matches(':hover'))).toBe(false);
+  }
+  await page.mouse.click(box.x + box.width * 0.75, box.y + box.height / 2);
+  await expect(page.getByRole('status')).toContainText('Resolving quick battle…');
+  await expect(page.locator('body')).toHaveAttribute('data-quick-requests', '1');
+  await expect(page.locator('.tactical-battlefield')).toHaveCount(0);
+  await page.evaluate(() => (window as unknown as { finishQuickBattle: () => void }).finishQuickBattle());
+  await expect(page.getByRole('heading', { name: 'Victory', exact: true })).toBeVisible();
+});
+
+test('failed quick battle stays in quick mode and permits an explicit retry', async ({ page }) => {
   test.setTimeout(120_000);
   await page.goto(base + '?standard=1&premium=1');
   await page.getByRole('button', { name: 'Quick battle', exact: true }).click();
@@ -28,8 +58,9 @@ test('failed quick battle restores battle choices and permits a retry', async ({
   await page.evaluate(() =>
     (window as unknown as { finishQuickBattle: (fail: boolean) => void }).finishQuickBattle(true)
   );
-  await expect(page.getByRole('button', { name: 'Tactical battle', exact: true })).toBeEnabled();
-  await page.getByRole('button', { name: 'Quick battle', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Tactical battle', exact: true })).toHaveCount(0);
+  await expect(page.locator('.tactical-battlefield')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Retry quick battle', exact: true }).click();
   await expect(page.locator('body')).toHaveAttribute('data-quick-requests', '2');
 });
 

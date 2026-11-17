@@ -17,6 +17,7 @@
         </button>
       </div>
       <ActionToasts :error="error" :retry="load" :retry-label="t('quests.retry')" />
+      <RouterLink to="/quests" class="quest-button mb-4 inline-block" @click="emit('close')">Open story quest journal</RouterLink>
       <p v-if="loading" role="status" class="text-sm">{{ t('shop.loading') }}</p>
       <template v-else-if="journal">
         <p v-if="!journal.town" class="text-sm">{{ t('quests.visitTown') }}</p>
@@ -86,6 +87,7 @@ import { useTranslation } from 'i18next-vue';
 import { QDialog, QIcon } from 'quasar';
 import './quest-theme.css';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { RouterLink } from 'vue-router';
 
 import type { Quest, QuestJournal } from './api';
 

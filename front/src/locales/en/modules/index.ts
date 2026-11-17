@@ -63,7 +63,7 @@ const modules = {
   },
   potionSlots: {
     title: 'Potion quick slots',
-    hint: 'Drag a health potion from your backpack onto a slot, or click Add potion. Each slot holds one potion. Click a filled slot to replace it or return it to your backpack. Premium unlocks three extra slots.',
+    hint: 'Double-click a health or mana potion in your backpack to fill the first available slot, or drag it onto a slot. Double-click a filled slot to return its potion to your backpack. Click a slot to choose a potion. Premium unlocks three extra slots.',
     premiumRequired: 'Available only with a premium subscription',
     add: 'Add potion',
     configure: 'Configure potion slot {{slot}}',
@@ -452,6 +452,7 @@ const modules = {
       chooseAction: 'Choose a highlighted hex or a combat action. The enemy takes its turn afterward.',
       attack: 'Attack',
       attacking: 'Attacking…',
+      continueExpedition: 'Continue expedition',
       quickBattle: 'Quick battle',
       resolvingQuickBattle: 'Resolving quick battle…',
       tacticalBattle: 'Tactical battle',

@@ -1,5 +1,5 @@
 import { ChatGateway } from './chat.gateway';
-import type { Server } from 'socket.io';
+import type { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 
 describe('ChatGateway', () => {
@@ -31,6 +31,18 @@ describe('ChatGateway', () => {
     expect('handleMessage' in gateway).toBe(false);
   });
 
+  it('joins only the authenticated user room and sends private invalidations', () => {
+    const join = jest.fn();
+    gateway.handleConnection({ data: { userId: 17 }, join } as unknown as Socket);
+    expect(join).toHaveBeenCalledWith('user:17');
+    const emit = jest.fn();
+    const to = jest.fn().mockReturnValue({ emit });
+    gateway.server = { to } as unknown as Server;
+    gateway.notificationsChanged(17);
+    expect(to).toHaveBeenCalledWith('user:17');
+    expect(emit).toHaveBeenCalledWith('notifications_changed');
+  });
+
   it.each(['missing', 'refresh', 'invalid', 'access'])('authenticates %s connections', (type) => {
     const use = jest.fn<void, [(socket: unknown, next: (err?: Error) => void) => void]>();
     gateway.afterInit({ use } as unknown as Server);
@@ -41,7 +53,7 @@ describe('ChatGateway', () => {
         throw new Error('bad signature');
       });
     const next = jest.fn();
-    middleware({ handshake: { auth: type === 'missing' ? {} : { token: 'jwt' } } }, next);
+    middleware({ data: {}, handshake: { auth: type === 'missing' ? {} : { token: 'jwt' } } }, next);
     if (type === 'access') expect(next).toHaveBeenCalledWith();
     else expect(next).toHaveBeenCalledWith(expect.any(Error));
   });
