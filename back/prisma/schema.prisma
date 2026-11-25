@@ -175,6 +175,8 @@ model GameProfile {
   experience       Int       @default(0)
   level            Int       @default(1)
   freeAttributes   Int       @default(0)
+  onboardingStep   Int       @default(0)
+  onboardingCompleted Boolean @default(false)
   killedMonsters   Int       @default(0)
   dungeonsCleared  Int       @default(0)
   mapPositionX     Float     @default(1470)

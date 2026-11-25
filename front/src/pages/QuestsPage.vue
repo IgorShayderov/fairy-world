@@ -5,6 +5,7 @@
         <h1 class="font-serif text-3xl font-semibold">{{ t('quests.title') }}</h1>
         <p class="mt-2 text-gray-500">{{ t('quests.intro') }}</p>
       </header>
+      <TownCharacter v-if="journal?.town" service="quests" :town-name="journal.town.name" />
       <ActionToasts :error="error" :retry="load" :retry-label="t('quests.retry')" />
       <p v-if="loading" role="status">{{ t('shop.loading') }}</p>
       <template v-else-if="journal">
@@ -119,6 +120,7 @@ import { cancelQuest, deliverQuest, getQuests } from '@/modules/Quests/api';
 import { trackQuest } from '@/modules/Quests/stories';
 
 import StoryJournal from '@/modules/Quests/StoryJournal.vue';
+import TownCharacter from '@/modules/Towns/TownCharacter.vue';
 
 const { t } = useTranslation();
 const currentUser = useCurrentUserStore();

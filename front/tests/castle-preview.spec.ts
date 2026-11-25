@@ -250,7 +250,7 @@ test('level gate and private map placement reject forest before founding', async
   await expect(page.getByRole('heading', { name: 'Dawnwatch Keep' })).toBeVisible();
 });
 
-test('gem storage scrolls inside the estate and timed tasks show progress', async ({ page }) => {
+test('mine controls fit inside the estate and timed tasks show progress', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 800 });
   await page.goto(base + '?mining&progress');
   await page.locator('.castle-estate').getByRole('button', { name: /Starlight Gem Mine/ }).click();
@@ -260,7 +260,8 @@ test('gem storage scrolls inside the estate and timed tasks show progress', asyn
   const mining = page.getByRole('progressbar', { name: 'Gem expedition progress' });
   expect(Number(await mining.getAttribute('value'))).toBeGreaterThanOrEqual(50);
   await detail.evaluate(el => { el.scrollTop = el.scrollHeight; });
-  await expect(detail.getByText('Visit the Blacksmith to add sockets and insert gems into equipment.')).toBeInViewport();
+  await expect(detail.getByRole('button', { name: 'Collect gem', exact: true })).toBeInViewport();
+  await expect(detail.getByRole('heading', { name: /Gem storage/ })).toHaveCount(0);
   await page.getByRole('button', { name: /Next/ }).click();
   const training = page.getByRole('progressbar', { name: 'Army training progress' });
   await expect(training).toBeVisible();

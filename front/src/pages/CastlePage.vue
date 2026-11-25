@@ -196,15 +196,6 @@
                 Start mining expedition
               </button>
             </template>
-            <h3>Gem storage ({{ castle.equipmentGems?.length ?? 0 }}/100)</h3>
-            <p v-if="!castle.equipmentGems?.length">No equipment gems yet.</p>
-            <ul>
-              <li v-for="gem in castle.equipmentGems" :key="gem.id">
-                ◆ +{{ gem.value }} {{ gem.type.toLowerCase() }} · mine level {{ gem.mineLevel }}
-                <DiscardGemButton :gem="gem" @discarded="load(true)" />
-              </li>
-            </ul>
-            <p>Visit the Blacksmith to add sockets and insert gems into equipment.</p>
           </section>
         </aside>
       </section>
@@ -422,7 +413,6 @@ import {
 import { remainingTime, selectedPower, usedCapacity, taskProgress } from '@/modules/Castles/presentation';
 
 import CastleEstate from '@/modules/Castles/CastleEstate.vue';
-import DiscardGemButton from '@/modules/Castles/DiscardGemButton.vue';
 import '@/modules/Castles/castles.css';
 
 const state = ref<CastleState | null>(null),

@@ -399,6 +399,7 @@ export class UserView {
         !!profile?.dungeonRun || (!!profile?.dungeonParty && profile.dungeonParty.party.status !== 'WAITING'),
       dungeonCooldowns: (profile?.dungeonVisits ?? []).map(({ dungeon, nextEntryAt }) => ({ dungeon, nextEntryAt })),
       level: playerLevel,
+      onboarding: { step: profile?.onboardingStep ?? 0, completed: profile?.onboardingCompleted ?? true },
       skills: { class: profile?.skillTree?.class ?? null, ranks, points: skillPoints(playerLevel, ranks) },
       manaCostReduction,
       spellPower: Math.round(

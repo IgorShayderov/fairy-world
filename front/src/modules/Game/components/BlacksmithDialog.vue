@@ -7,6 +7,7 @@
         <button :disabled="pending" :aria-label="t('blacksmith.close')" @click="emit('close')">×</button>
       </header>
       <div class="forge-body">
+        <TownCharacter service="blacksmith" />
         <nav class="forge-tabs" aria-label="Blacksmith services">
           <button class="forge-action" :aria-pressed="tab === 'bonus'" @click="tab = 'bonus'">Crafting bonuses</button
           ><button class="forge-action" :aria-pressed="tab === 'sockets'" @click="tab = 'sockets'">Gem sockets</button>
@@ -77,6 +78,8 @@ import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 import { getBlacksmithOffer, removeItemBonus, type BlacksmithOffer } from '@/modules/Locations/api';
 
 import SocketWorkshop from './SocketWorkshop.vue';
+
+import TownCharacter from '@/modules/Towns/TownCharacter.vue';
 
 const emit = defineEmits<{ close: [] }>();
 const { t } = useTranslation();

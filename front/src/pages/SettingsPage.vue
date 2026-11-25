@@ -3,6 +3,17 @@
     <div class="mx-auto max-w-2xl">
       <h1 class="text-3xl font-bold">{{ t('settings.title') }}</h1>
       <section class="mt-6 rounded-xl border border-gray-200 bg-white p-6">
+        <h2 class="text-lg font-semibold">{{ onboardingText.reopenTitle }}</h2>
+        <p class="mt-2 text-sm text-gray-500">{{ onboardingText.reopenHint }}</p>
+        <button
+          type="button"
+          class="mt-4 rounded-lg border border-[#806f43] px-4 py-2 text-[#efca72] hover:bg-white/5"
+          @click="onboarding.restart()"
+        >
+          {{ onboardingText.reopen }}
+        </button>
+      </section>
+      <section class="mt-6 rounded-xl border border-gray-200 bg-white p-6">
         <fieldset>
           <legend class="mb-2 text-lg font-semibold">{{ t('settings.language') }}</legend>
           <p class="mb-5 text-sm text-gray-500">{{ t('settings.languageHint') }}</p>
@@ -64,8 +75,11 @@
 <script setup lang="ts">
 import '@/css/realm-pages.css';
 import { useTranslation } from 'i18next-vue';
+import { computed } from 'vue';
 
 import { changeLanguage } from '@/locales/i18n';
+import { onboardingCopy } from '@/modules/Onboarding/content';
+import { useOnboardingStore } from '@/modules/Onboarding/store';
 import { gameAudio } from '@/shared/audio/gameAudio';
 
 const soundEnabled = gameAudio.enabled;
@@ -79,6 +93,8 @@ function toggleSound() {
 }
 
 const { t, i18next } = useTranslation();
+const onboarding = useOnboardingStore();
+const onboardingText = computed(() => onboardingCopy[i18next.language.startsWith('ru') ? 'ru' : 'en']);
 const languages = [
   { value: 'en', label: 'English' },
   { value: 'ru', label: 'Русский' },

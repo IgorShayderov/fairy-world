@@ -70,6 +70,8 @@ describe('UserView.renderCurrent', () => {
         experience: 20,
         level: 3,
         freeAttributes: 0,
+        onboardingStep: 2,
+        onboardingCompleted: false,
         mapPositionX: 1600,
         mapPositionY: 900,
         buffs: [],
@@ -188,6 +190,7 @@ describe('UserView.renderCurrent', () => {
     } satisfies CurrentUserModel;
 
     const result = UserView.renderCurrent(user);
+    expect(result.onboarding).toEqual({ step: 2, completed: false });
     const socketed: CurrentUserModel = structuredClone(user);
     Object.assign(socketed.gameProfile!.inventory[0], { hasSocket: true, socketGemType: 'DAMAGE', socketGemValue: 12 });
     const enhanced = UserView.renderCurrent(socketed);

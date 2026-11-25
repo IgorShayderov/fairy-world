@@ -13,7 +13,7 @@ test('castle mine unlock, tower unlock and timed gem collection are visible', as
   await page.getByRole('button', { name: 'Start mining expedition' }).click();
   await expect(page.getByText('Your gem is ready.')).toBeVisible();
   await page.getByRole('button', { name: 'Collect gem', exact: true }).click();
-  await expect(page.getByText('◆ +5 damage · mine level 1')).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Gem storage/ })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Start mining expedition' })).toBeVisible();
 });
 
@@ -53,24 +53,4 @@ test('blacksmith shows level-based socket prices, inserts gems, and confirms des
   await page.getByRole('button', { name: 'Confirm remove' }).click();
   await expect(page.getByRole('button', { name: 'Add socket · 5000 gold + 10 gems' })).toBeVisible();
   expect(actions).toEqual(['add', 'insert', 'remove']);
-});
-
-test('discarding a stored gem requires confirmation and sends one deletion', async ({ page }) => {
-  let deletes = 0;
-  await page.route('**/castles/gems/*', async route => {
-    expect(route.request().method()).toBe('DELETE');
-    deletes++;
-    await route.fulfill({ json: { data: { success: true }, meta: {} } });
-  });
-  await page.goto(base + '?mining&progress');
-  await page.locator('.castle-estate').getByRole('button', { name: /Starlight Gem Mine/ }).click();
-  await page.getByRole('button', { name: 'Discard +5 damage gem', exact: true }).first().click();
-  await expect(page.getByRole('alertdialog')).toBeInViewport({ ratio: 1 });
-  await expect(page.getByText('This permanently destroys the gem.', { exact: false })).toBeVisible();
-  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
-  expect(deletes).toBe(0);
-  await page.getByRole('button', { name: 'Discard +5 damage gem', exact: true }).first().click();
-  await page.getByRole('button', { name: 'Discard permanently', exact: true }).click();
-  await expect(page.getByRole('alertdialog')).toHaveCount(0);
-  expect(deletes).toBe(1);
 });

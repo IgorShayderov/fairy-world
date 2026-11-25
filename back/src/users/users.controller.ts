@@ -6,6 +6,7 @@ import {
   Get,
   NotFoundException,
   Param,
+  Patch,
   ParseIntPipe,
   Post,
   Put,
@@ -21,6 +22,7 @@ import { UserView } from './user.view';
 import { EquipItemDto, EQUIPMENT_SLOTS, type EquipmentSlotId } from './dto/equip-item.dto';
 import { AllocateAttributeDto } from './dto/allocate-attribute.dto';
 import { ReplaceInventoryItemDto } from './dto/replace-inventory-item.dto';
+import { UpdateOnboardingDto } from './dto/update-onboarding.dto';
 
 @ApiTags('users')
 @Controller('users')
@@ -57,6 +59,13 @@ export class UsersController {
     }
 
     return UserView.renderCurrent(user);
+  }
+
+  @Patch('me/onboarding')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
+  updateOnboarding(@Request() req: RequestWithUser, @Body() dto: UpdateOnboardingDto) {
+    return this.usersService.updateOnboarding(req.user.sub, dto);
   }
 
   @Post('me/attributes')

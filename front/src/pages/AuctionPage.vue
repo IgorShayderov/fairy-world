@@ -14,6 +14,7 @@
         <RouterLink :to="routes.rootPath()" class="auction-button mt-4">Return to map</RouterLink>
       </div>
       <template v-else>
+        <TownCharacter service="auction" />
         <nav class="auction-tabs" aria-label="Auction views">
           <button
             v-for="option in tabs"
@@ -185,6 +186,7 @@ import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 import routes from '@/routes';
 
 import AuctionItem from '@/modules/Auction/AuctionItem.vue';
+import TownCharacter from '@/modules/Towns/TownCharacter.vue';
 import '@/modules/Auction/auction.css';
 
 const user = useCurrentUserStore();

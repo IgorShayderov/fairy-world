@@ -16,6 +16,7 @@
           {{ t('fantasy.landmark.leave') }}
         </button>
       </div>
+      <TownCharacter service="quests" :town-name="townName" />
       <ActionToasts :error="error" :retry="load" :retry-label="t('quests.retry')" />
       <RouterLink to="/quests" class="quest-button mb-4 inline-block" @click="emit('close')">Open story quest journal</RouterLink>
       <p v-if="loading" role="status" class="text-sm">{{ t('shop.loading') }}</p>
@@ -95,6 +96,8 @@ import ActionToasts from '@/components/ActionToasts';
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 
 import { acceptQuest, getQuests, refreshQuests } from './api';
+
+import TownCharacter from '@/modules/Towns/TownCharacter.vue';
 
 defineProps<{ townName: string }>();
 const emit = defineEmits<{ (event: 'close'): void }>();

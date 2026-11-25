@@ -138,3 +138,26 @@ test('extra slots are locked without premium and usable with premium', async ({ 
   await expect(lastSlot).toContainText('Minor Health Potion');
   await page.screenshot({ path: '/tmp/potion-premium-slots.png' });
 });
+
+test('discarding a stored gem requires confirmation and sends one deletion', async ({ page }) => {
+  let deletes = 0;
+  await page.route('**/castles/gems/*', async route => {
+    expect(route.request().method()).toBe('DELETE');
+    deletes++;
+    await route.fulfill({ json: { data: { success: true }, meta: {} } });
+  });
+  await page.goto(base + '&equipmentGems');
+  const next = page.locator('.profile-inventory').getByRole('button').filter({ hasText: 'chevron_right' });
+  await next.click();
+  await next.click();
+  await next.click();
+  await page.getByRole('button', { name: 'Discard +30 health gem', exact: true }).first().click();
+  await expect(page.getByRole('alertdialog')).toBeInViewport({ ratio: 1 });
+  await expect(page.getByText('This permanently destroys the gem.', { exact: false })).toBeVisible();
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  expect(deletes).toBe(0);
+  await page.getByRole('button', { name: 'Discard +30 health gem', exact: true }).first().click();
+  await page.getByRole('button', { name: 'Discard permanently', exact: true }).click();
+  await expect(page.getByRole('alertdialog')).toHaveCount(0);
+  expect(deletes).toBe(1);
+});

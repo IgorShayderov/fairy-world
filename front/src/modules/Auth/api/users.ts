@@ -6,7 +6,10 @@ import type { PlayerClass } from '@/modules/Skills/api';
 import routes from '@/routes';
 import { api } from '@shared/api';
 
+export type OnboardingState = { step: number; completed: boolean };
+
 export type CurrentUser = {
+  onboarding?: OnboardingState;
   id: number;
   name: string;
   email: string;
@@ -77,6 +80,13 @@ export type LeaderboardEntry = {
 };
 
 export const usersApi = {
+  async updateOnboarding(state: Partial<OnboardingState>): Promise<OnboardingState> {
+    const { data } = await api<OnboardingState>(`${routes.api.users.mePath()}/onboarding`, {
+      method: 'PATCH',
+      body: JSON.stringify(state),
+    });
+    return data;
+  },
   async buyPremium(expectedCost?: number): Promise<void> {
     await api.post(routes.api.premium.purchasePath(), { expectedCost });
   },
