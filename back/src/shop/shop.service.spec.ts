@@ -60,8 +60,8 @@ describe('ShopService trades', () => {
       { id: 9, gameProfileId: 5, itemId: 4, quantity: 2, item: { price: 50 } },
     ]);
     tx.item.findMany.mockResolvedValue([
-      { id: 101, equipmentType: ['POTION'] },
-      { id: 102, equipmentType: ['POTION'] },
+      { id: 101, name: 'Minor Health Potion', level: 1, equipmentType: ['POTION'] },
+      { id: 102, name: 'Minor Mana Potion', level: 1, equipmentType: ['POTION'] },
     ]);
     tx.craftRecipe.findUnique.mockResolvedValue(null);
     tx.craftRecipe.findMany.mockResolvedValue([]);
@@ -446,13 +446,13 @@ describe('ShopService trades', () => {
     expect(tx.shopStock.upsert).toHaveBeenCalledTimes(18);
     expect(tx.shopStock.upsert).toHaveBeenCalledWith({
       where: { shopId_itemId: { shopId: 2, itemId: 101 } },
-      create: { shopId: 2, itemId: 101, quantity: 1 },
-      update: { quantity: { increment: 1 } },
+      create: { shopId: 2, itemId: 101, quantity: 5 },
+      update: { quantity: { increment: 5 } },
     });
     expect(tx.shopStock.upsert).toHaveBeenCalledWith({
       where: { shopId_itemId: { shopId: 2, itemId: 102 } },
-      create: { shopId: 2, itemId: 102, quantity: 1 },
-      update: { quantity: { increment: 1 } },
+      create: { shopId: 2, itemId: 102, quantity: 5 },
+      update: { quantity: { increment: 5 } },
     });
     expect(tx.shop.update).toHaveBeenCalledWith({
       where: { id: 2 },

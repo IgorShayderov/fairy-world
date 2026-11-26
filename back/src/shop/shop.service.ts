@@ -73,7 +73,10 @@ export class ShopService implements OnModuleInit {
       data: { icon: 'icon_axe.png' },
     });
     await this.prisma.shopStock.updateMany({
-      where: { item: { OR: [{ name: { contains: 'Health Potion' } }, { name: { contains: 'Mana Potion' } }] }, quantity: { lt: 5 } },
+      where: {
+        item: { OR: [{ name: { contains: 'Health Potion' } }, { name: { contains: 'Mana Potion' } }] },
+        quantity: { lt: 5 },
+      },
       data: { quantity: 5 },
     });
   }
@@ -279,7 +282,8 @@ export class ShopService implements OnModuleInit {
     const regularPotions = eligibleConsumables.filter(
       (item) => item.name !== 'Free Attribute Potion' && !isRestorationPotion(item.name),
     );
-    const manaPotions = eligibleConsumables.filter((item) => item.name.includes('Mana Potion'))
+    const manaPotions = eligibleConsumables
+      .filter((item) => item.name.includes('Mana Potion'))
       .sort((left, right) => getPotionRequiredLevel(right.name) - getPotionRequiredLevel(left.name));
 
     const selectedPotions: typeof consumables = [];

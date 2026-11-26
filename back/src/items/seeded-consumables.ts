@@ -8,7 +8,12 @@ export const SEEDED_CONSUMABLES = [
     { grade: 'Mild', level: 30, restore: 450, price: 700, rarity: ItemRarity.MAGIC },
     { grade: 'Greater', level: 40, restore: 700, price: 1200, rarity: ItemRarity.RARE },
     { grade: 'Higher', level: 50, restore: 1000, price: 1800, rarity: ItemRarity.RARE },
-  ].map(({ grade, restore, ...item }) => ({ ...item, name: `${grade} Mana Potion`, description: `Restores up to ${restore} mana during battle.`, equipmentType: EquipmentType.POTION })),
+  ].map(({ grade, restore, ...item }) => ({
+    ...item,
+    name: `${grade} Mana Potion`,
+    description: `Restores up to ${restore} mana during battle.`,
+    equipmentType: EquipmentType.POTION,
+  })),
   // Health potions restore persistent health during an active dungeon run.
   {
     name: 'Minor Health Potion',

@@ -101,8 +101,8 @@ describe('monster ranged decisions', () => {
     expect(monsterCombatView(name, {}).attackStyle).toBe('RANGED');
   });
 
-  it('leaves ordinary melee creatures unchanged', () => {
+  it('keeps tank creatures melee-only while exposing their class', () => {
     expect(chooseMonsterShot('Stone Golem', {}, false, true)).toBeUndefined();
-    expect(monsterCombatView('Stone Golem', {})).toEqual({ attackStyle: 'MELEE' });
+    expect(monsterCombatView('Stone Golem', {})).toEqual({ attackStyle: 'MELEE', class: 'TANK' });
   });
 });
