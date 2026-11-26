@@ -43,6 +43,9 @@
         id: 7,
         name: 'Preview Hero',
         level: 20,
+        equipmentGems: new URLSearchParams(location.search).has('equipmentGems')
+          ? Array.from({ length: 13 }, (_, index) => ({ id: `gem-${index}`, type: 'HEALTH', value: 30 + index, mineLevel: 2 }))
+          : [],
         premium: { active: new URLSearchParams(location.search).has('premium'), expiresAt: '2099-01-01T00:00:00Z' },
         quickBattleAvailable: new URLSearchParams(location.search).has('premium'),
         potionSlots: new URLSearchParams(location.search).has('filledSlots')

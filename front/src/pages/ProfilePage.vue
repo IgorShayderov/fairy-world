@@ -40,6 +40,7 @@
           :drag-index="dragItemIndex"
           :is-hovered="isHoveredSlot"
           :craft-inventory="currentUserStore.user?.craftInventory ?? []"
+          :equipment-gems="currentUserStore.user?.equipmentGems ?? []"
           :crafting-available="(currentUserStore.user?.level ?? 1) >= CRAFTING_MIN_LEVEL"
           @drag-start="onInventoryDragStart"
           @drag-end="onDragEnd"
@@ -53,7 +54,7 @@
       >
         <h2 id="potion-slots-title" class="text-lg font-semibold">{{ t('potionSlots.title') }}</h2>
         <p class="mt-2 mb-4 text-sm text-[#a9bec8]">{{ t('potionSlots.hint') }}</p>
-        <PotionQuickSlots manage :drag-inventory-item-id="dragItem?.inventoryItemId" @changed="syncPotionInventory" />
+        <PotionQuickSlots ref="potionQuickSlots" manage :drag-inventory-item-id="dragItem?.inventoryItemId" @changed="syncPotionInventory" />
       </section>
     </div>
   </div>
@@ -73,7 +74,7 @@ import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 import { CRAFTING_MIN_LEVEL, craftingApi } from '@/modules/Crafting/api';
 import { useInventoryStore } from '@/modules/Inventory/store/inventory';
 import { getCompatibleEquipmentSlots, isTwoHanded } from '@/modules/Inventory/utils/equipment';
-import { getPotionRequiredLevel, isHealthPotion, isPotion } from '@/modules/Inventory/utils/potions';
+import { getPotionRequiredLevel, isHealthPotion, isManaPotion, isPotion } from '@/modules/Inventory/utils/potions';
 
 import ActiveBuffs from '@/modules/Game/components/ActiveBuffs.vue';
 import PotionQuickSlots from '@/modules/Game/components/PotionQuickSlots.vue';
@@ -82,6 +83,7 @@ import InventorySection from '@modules/Inventory/components/InventorySection.vue
 
 const inventoryStore = useInventoryStore();
 const currentUserStore = useCurrentUserStore();
+const potionQuickSlots = ref<InstanceType<typeof PotionQuickSlots> | null>(null);
 const syncPotionInventory = () =>
   inventoryStore.hydrateInventory(currentUserStore.user?.inventory ?? [], currentUserStore.user?.equippedItems ?? []);
 const { t } = useTranslation();
@@ -255,8 +257,9 @@ const equipFromInventory = async (inventoryIndex: number) => {
   }
 
   if (isPotion(item)) {
-    if (isHealthPotion(item)) {
-      $q.notify({ type: 'info', message: t('profile.healthPotionDungeonOnly') });
+    if (isHealthPotion(item) || isManaPotion(item)) {
+      if (!canEquip(item)) return;
+      await potionQuickSlots.value?.addPotion(item.inventoryItemId);
       return;
     }
     if (!canEquip(item)) return;

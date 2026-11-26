@@ -1,27 +1,21 @@
 <template>
-  <div
-    class="relative z-10 flex shrink-0 items-center justify-between border-b border-gray-200 bg-white px-4 py-3 shadow-sm"
-  >
-    <div class="flex items-center gap-3">
+  <div class="shop-toolbar">
+    <div class="shop-restock">
       <div>
-        <h2 class="text-lg font-bold text-gray-800">{{ t('shop.title') }}</h2>
-        <div v-if="nextRestockAt" class="text-xs text-gray-500">{{ t('shop.newItemsIn') }}: {{ countdown }}</div>
+        <h2 class="shop-heading">{{ t('shop.title') }}</h2>
+        <div v-if="nextRestockAt" class="shop-countdown">{{ t('shop.newItemsIn') }}: {{ countdown }}</div>
       </div>
-      <button
-        class="rounded bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
-        :disabled="refreshDisabled"
-        @click="$emit('refresh')"
-      >
+      <button class="shop-button shop-button--restock" :disabled="refreshDisabled" @click="$emit('refresh')">
         {{ t('shop.refreshItems') }} ({{ refreshCost }} 💎)
       </button>
     </div>
-    <span class="flex items-center gap-4 text-lg font-semibold">
-      <span class="text-yellow-600">💰 {{ gold }} gold</span>
-      <span class="text-violet-600">💎 {{ gems }} {{ t('shop.gems') }}</span>
+    <span class="shop-wallet">
+      <span class="wallet-gold">💰 {{ gold }} gold</span>
+      <span class="wallet-gems">💎 {{ gems }} {{ t('shop.gems') }}</span>
     </span>
     <button
-      class="rounded px-5 py-1.5 text-sm font-medium text-white shadow-sm transition-colors disabled:opacity-50"
-      :class="isSelling ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'"
+      class="shop-button shop-button--trade"
+      :class="{ 'shop-button--selling': isSelling }"
       :disabled="isSelling ? sellDisabled : disabled"
       @click="submitTrade"
     >
@@ -100,3 +94,107 @@ onBeforeUnmount(() => {
   if (timer) clearInterval(timer);
 });
 </script>
+
+<style scoped>
+.shop-toolbar {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-shrink: 0;
+  padding: 12px 24px 16px;
+  background: #102b34;
+  color: #d8e6e3;
+  border-bottom: 1px solid #bca26955;
+}
+.shop-restock,
+.shop-wallet {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.shop-heading {
+  margin: 0;
+  color: #f2d897;
+  font:
+    600 18px/1.4 Georgia,
+    serif;
+}
+.shop-countdown {
+  font-size: 12px;
+  color: #a9c3c5;
+  font-variant-numeric: tabular-nums;
+}
+.shop-wallet {
+  font-size: 16px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.wallet-gold {
+  color: #f2d897;
+}
+.wallet-gems {
+  color: #b6d7ed;
+}
+.shop-button {
+  border: 1px solid #bca26999;
+  border-radius: 8px;
+  padding: 9px 14px;
+  background: #1c4148;
+  color: #f2d897;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+.shop-button:hover:not(:disabled) {
+  background: #2a5358;
+  border-color: #f2d897;
+}
+.shop-button:focus-visible {
+  outline: 2px solid #f2d897;
+  outline-offset: 3px;
+}
+.shop-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.shop-button--trade {
+  background: #e1c477;
+  color: #102b34;
+  padding-inline: 24px;
+  font-size: 14px;
+}
+.shop-button--trade:hover:not(:disabled) {
+  background: #f2d897;
+}
+.shop-button--selling {
+  background: #244c48;
+  color: #b5e3d4;
+  border-color: #77b9a4;
+}
+.shop-button--selling:hover:not(:disabled) {
+  background: #326059;
+  border-color: #b5e3d4;
+}
+@media (max-width: 760px) {
+  .shop-toolbar {
+    padding: 12px 16px 16px;
+    gap: 12px;
+  }
+  .shop-restock {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .shop-wallet {
+    font-size: 14px;
+    gap: 8px;
+  }
+}
+</style>

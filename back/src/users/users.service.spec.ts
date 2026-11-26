@@ -128,6 +128,7 @@ describe('UsersService', () => {
               buffs: true,
               dungeonVisits: true,
               sanctuaryVisits: true,
+              equipmentGems: { orderBy: { createdAt: 'asc' } },
               craftItems: {
                 where: { quantity: { gt: 0 }, craftItem: { kind: 'MATERIAL' } },
                 include: { craftItem: true },
@@ -475,18 +476,18 @@ describe('UsersService', () => {
       expect(mockPrismaService.inventoryItem.update).not.toHaveBeenCalled();
     });
 
-    it('does not consume health potions from the backpack', async () => {
+    it.each(['Lesser Health Potion', 'Lesser Mana Potion'])('does not consume %s from the backpack', async (name) => {
       mockPrismaService.gameProfile.findUnique.mockResolvedValue({ id: 4, level: 10 });
       mockPrismaService.inventoryItem.findFirst.mockResolvedValue({
         id: 16,
         gameProfileId: 4,
         quantity: 2,
         isEquiped: false,
-        item: { name: 'Lesser Health Potion', isConsumable: true },
+        item: { name, isConsumable: true },
       });
 
       await expect(service.consumeInventoryItem(7, 16)).rejects.toThrow(
-        'Health potions can only be used during an active dungeon run',
+        'Health and mana potions can only be used during battle',
       );
       expect(mockPrismaService.inventoryItem.update).not.toHaveBeenCalled();
       expect(mockPrismaService.inventoryItem.delete).not.toHaveBeenCalled();

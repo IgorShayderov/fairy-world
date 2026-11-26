@@ -1,0 +1,96 @@
+export const onboardingCopy = {
+  en: {
+    title: 'Your first steps',
+    subtitle: 'A short guide to Fairy World',
+    skip: 'Skip guide',
+    back: 'Back',
+    next: 'Next',
+    finish: 'Begin your adventure',
+    saving: 'Saving…',
+    closeWithoutSaving: 'Continue without saving',
+    error: 'Could not save your guide progress. Please try again.',
+    reopenTitle: 'New adventurer guide',
+    reopenHint: 'Revisit the basics of travel, equipment, skills, and quests whenever you need them.',
+    reopen: 'Open guide',
+    progress: 'Step {step} of {total}',
+    steps: [
+      {
+        title: 'Welcome, adventurer',
+        body: 'Every road leads to a story. Before you set out, let us get you ready for the towns, wilds, and battles ahead.',
+        tip: 'You can skip this guide and reopen it in Settings at any time.',
+      },
+      {
+        title: 'Find your way',
+        body: 'Click the map to travel. Drag to look around and scroll to zoom. Visit a town to browse its Market, trade at the Auction house, or take a quest.',
+        tip: 'Roads are the fastest way to travel. Forests and bogs slow you down, and monsters can interrupt a journey.',
+      },
+      {
+        title: 'Pack before you leave',
+        body: 'Open Profile to manage equipment and your backpack. Hover over an item for a moment to see its details and compare it with your gear.',
+        tip: 'Double-click a health or mana potion in your backpack to put it into a free quick slot. Double-click the slot to return it.',
+      },
+      {
+        title: 'Choose how you fight',
+        body: 'Open Skills and choose Warrior, Scout, or Mage. Spend your skill points on passive bonuses or active combat abilities.',
+        tip: 'Active skills use mana and have cooldowns. Hover over Learn or Improve to see exactly what the next rank changes.',
+      },
+      {
+        title: 'Make each turn count',
+        body: 'In tactical battles, use highlighted hexes to move, then choose your attack, skill, or defense. Watch your health, mana, and the enemy’s position.',
+        tip: 'You can drink only one quick-slot potion per turn. Prepare before entering a dungeon: health carries over between its fights.',
+      },
+      {
+        title: 'Start with a story',
+        body: 'Visit a town and choose Quests to find work. Your Quest journal keeps track of accepted quests and stories, and lets you mark an objective on the map.',
+        tip: 'Accept a quest before hunting its targets. A delivery is a good reason to explore the next town.',
+      },
+    ],
+  },
+  ru: {
+    title: 'Первые шаги',
+    subtitle: 'Краткий путеводитель по Fairy World',
+    skip: 'Пропустить',
+    back: 'Назад',
+    next: 'Далее',
+    finish: 'Начать приключение',
+    saving: 'Сохранение…',
+    closeWithoutSaving: 'Продолжить без сохранения',
+    error: 'Не удалось сохранить прогресс обучения. Попробуйте ещё раз.',
+    reopenTitle: 'Путеводитель для новичка',
+    reopenHint: 'Вспомните основы путешествий, экипировки, навыков и заданий в любой момент.',
+    reopen: 'Открыть путеводитель',
+    progress: 'Шаг {step} из {total}',
+    steps: [
+      {
+        title: 'Добро пожаловать, искатель приключений',
+        body: 'Каждая дорога ведёт к новой истории. Давайте подготовимся к городам, диким землям и сражениям, которые ждут впереди.',
+        tip: 'Обучение можно пропустить и снова открыть в настройках в любой момент.',
+      },
+      {
+        title: 'Найдите свой путь',
+        body: 'Нажмите на карту, чтобы отправиться в путь. Перетаскивайте её, чтобы осмотреться, и прокручивайте для изменения масштаба. В городе можно посетить рынок, аукцион или взять задание.',
+        tip: 'По дорогам путешествовать быстрее. Леса и болота замедляют движение, а монстры могут прервать поездку.',
+      },
+      {
+        title: 'Подготовьтесь к дороге',
+        body: 'Откройте профиль, чтобы управлять экипировкой и рюкзаком. Задержите указатель на предмете, чтобы увидеть его свойства и сравнить со своим снаряжением.',
+        tip: 'Дважды нажмите на зелье здоровья или маны в рюкзаке, чтобы перенести его в свободный быстрый слот. Двойное нажатие на слот вернёт зелье обратно.',
+      },
+      {
+        title: 'Выберите свой стиль боя',
+        body: 'Откройте навыки и выберите воина, разведчика или мага. Вкладывайте очки навыков в постоянные бонусы или активные боевые способности.',
+        tip: 'Активные навыки расходуют ману и требуют перезарядки. Наведите указатель на «Изучить» или «Улучшить», чтобы узнать изменения следующего ранга.',
+      },
+      {
+        title: 'Обдумывайте каждый ход',
+        body: 'В тактическом бою перемещайтесь по подсвеченным клеткам, затем выбирайте атаку, навык или защиту. Следите за здоровьем, маной и положением противника.',
+        tip: 'За ход можно выпить только одно зелье из быстрого слота. Готовьтесь к подземелью заранее: здоровье сохраняется между его боями.',
+      },
+      {
+        title: 'Начните с истории',
+        body: 'Посетите город и выберите задания, чтобы найти работу. Журнал хранит принятые задания и истории, а также позволяет отметить цель на карте.',
+        tip: 'Примите задание до начала охоты на его цели. Доставка письма — хороший повод заглянуть в соседний город.',
+      },
+    ],
+  },
+} as const;

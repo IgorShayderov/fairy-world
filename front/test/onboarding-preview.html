@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Onboarding preview — isolated account</title>
+    <style>
+      html,
+      body,
+      #app {
+        margin: 0;
+        min-height: 100%;
+        font-family: Arial, sans-serif;
+        background: #0b202b;
+        color: #d8e6e3;
+      }
+      .preview-header {
+        padding: 18px;
+        background: #1e2939;
+      }
+      .preview-body {
+        padding: 30px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module">
+      import { createApp } from 'vue';
+      import { createPinia } from 'pinia';
+      import { Quasar } from 'quasar';
+      import I18nextVue from 'i18next-vue';
+      import 'quasar/dist/quasar.css';
+      import '/src/css/app.scss';
+      import '/test/castle-preview.css';
+      import { initializeI18n, i18n } from '/src/locales/i18n';
+      import OnboardingGuide from '/src/modules/Onboarding/OnboardingGuide.vue';
+      import { useCurrentUserStore } from '/src/modules/Auth/store/currentUser';
+      import { usersApi } from '/src/modules/Auth/api/users';
+      import { useOnboardingStore } from '/src/modules/Onboarding/store';
+      await initializeI18n();
+      const params = new URLSearchParams(location.search);
+      if (params.has('ru')) await i18n.changeLanguage('ru');
+      const player = {
+        id: 1,
+        name: 'New adventurer',
+        mapPosition: { x: 1470, y: 960 },
+        onboarding: { step: 0, completed: params.has('completed') },
+      };
+      window.onboardingWrites = [];
+      usersApi.updateOnboarding = async (state) => {
+        if (params.has('failure')) throw Error('offline');
+        window.onboardingWrites.push(state);
+        return { ...player.onboarding, ...state };
+      };
+      const app = createApp({
+        components: { OnboardingGuide },
+        setup() {
+          const guide = useOnboardingStore();
+          return { guide };
+        },
+        template:
+          '<header class="preview-header">✦ Fairy World</header><div class="preview-body"><button @click="guide.restart()">Open guide</button></div><OnboardingGuide />',
+      });
+      app.use(createPinia());
+      app.use(Quasar);
+      app.use(I18nextVue, { i18next: i18n });
+      useCurrentUserStore().user = player;
+      app.mount('#app');
+    </script>
+  </body>
+</html>

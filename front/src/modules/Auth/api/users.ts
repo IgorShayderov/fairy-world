@@ -1,11 +1,15 @@
 import type { CraftInventoryItem, EffectiveModifier, EquipmentSlotId, InventoryEntry } from '@/modules/Inventory/types';
 
+import type { EquipmentGem } from '@/modules/Castles/api';
 import type { EncounterRoll } from '@/modules/Monsters/api';
 import type { PlayerClass } from '@/modules/Skills/api';
 import routes from '@/routes';
 import { api } from '@shared/api';
 
+export type OnboardingState = { step: number; completed: boolean };
+
 export type CurrentUser = {
+  onboarding?: OnboardingState;
   id: number;
   name: string;
   email: string;
@@ -41,6 +45,7 @@ export type CurrentUser = {
   attributes: EffectiveModifier[];
   properties: EffectiveModifier[];
   craftInventory: CraftInventoryItem[];
+  equipmentGems?: EquipmentGem[];
   rewardBonuses?: { goldPercent: number; experiencePercent: number };
   activeClanBannerCode?: string | null;
   activeClanBannerPvpBonusPercent?: number;
@@ -75,6 +80,13 @@ export type LeaderboardEntry = {
 };
 
 export const usersApi = {
+  async updateOnboarding(state: Partial<OnboardingState>): Promise<OnboardingState> {
+    const { data } = await api<OnboardingState>(`${routes.api.users.mePath()}/onboarding`, {
+      method: 'PATCH',
+      body: JSON.stringify(state),
+    });
+    return data;
+  },
   async buyPremium(expectedCost?: number): Promise<void> {
     await api.post(routes.api.premium.purchasePath(), { expectedCost });
   },

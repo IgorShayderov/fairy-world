@@ -64,6 +64,7 @@ type CurrentUserModel = Omit<CurrentUserBase, 'gameProfile'> & {
     | (NonNullable<CurrentUserBase['gameProfile']> & {
         premiumAccount?: { active: boolean; expiresAt: Date } | null;
         skillTree?: { class: string; ranks: unknown } | null;
+        equipmentGems?: { id: string; type: CraftUpgradeType; value: number; mineLevel: number }[];
       })
     | null;
 };
@@ -316,17 +317,31 @@ export class UserView {
       const rating = property.value;
       const ratingWithoutEquipment = rating - property.equipmentBonus;
       const ratingWithoutEquipmentOrBuff = ratingWithoutEquipment - (property.buffBonus ?? 0);
-      const basePercentage = convertRatingToPercentage(stat, property.baseValue, playerLevel);
+      const basePercentage = convertRatingToPercentage(
+        stat,
+        property.baseValue,
+        playerLevel,
+        profile?.skillTree?.class,
+      );
       const percentageWithoutEquipmentOrBuff = convertRatingToPercentage(
         stat,
         ratingWithoutEquipmentOrBuff,
         playerLevel,
+        profile?.skillTree?.class,
       );
-      const percentageWithoutEquipment = convertRatingToPercentage(stat, ratingWithoutEquipment, playerLevel);
-      const value = convertRatingToPercentage(stat, rating, playerLevel);
+      const percentageWithoutEquipment = convertRatingToPercentage(
+        stat,
+        ratingWithoutEquipment,
+        playerLevel,
+        profile?.skillTree?.class,
+      );
+      const value = convertRatingToPercentage(stat, rating, playerLevel, profile?.skillTree?.class);
 
       return {
         ...property,
+        ...(stat === StatType.DODGE && profile?.skillTree?.class === 'WARRIOR'
+          ? { description: 'Final chance to avoid an attack, capped at 25% for Warriors.' }
+          : {}),
         rating,
         equipmentRatingBonus: property.equipmentBonus,
         baseValue: basePercentage,
@@ -384,6 +399,7 @@ export class UserView {
         !!profile?.dungeonRun || (!!profile?.dungeonParty && profile.dungeonParty.party.status !== 'WAITING'),
       dungeonCooldowns: (profile?.dungeonVisits ?? []).map(({ dungeon, nextEntryAt }) => ({ dungeon, nextEntryAt })),
       level: playerLevel,
+      onboarding: { step: profile?.onboardingStep ?? 0, completed: profile?.onboardingCompleted ?? true },
       skills: { class: profile?.skillTree?.class ?? null, ranks, points: skillPoints(playerLevel, ranks) },
       manaCostReduction,
       spellPower: Math.round(
@@ -404,6 +420,12 @@ export class UserView {
       missingAmmunition,
       attackRange: missingAmmunition || !ranged ? 1 : UNLIMITED_WEAPON_RANGE,
       craftInventory: (profile?.craftItems ?? []).map(({ craftItem, quantity }) => ({ ...craftItem, quantity })),
+      equipmentGems: (profile?.equipmentGems ?? []).map(({ id, type, value, mineLevel }) => ({
+        id,
+        type,
+        value,
+        mineLevel,
+      })),
       attributes: [...attributes.values()],
       properties: [
         ...renderedProperties,

@@ -6,60 +6,65 @@
         <h2>{{ t('blacksmith.title') }}</h2>
         <button :disabled="pending" :aria-label="t('blacksmith.close')" @click="emit('close')">×</button>
       </header>
-      <nav class="forge-tabs" aria-label="Blacksmith services">
-        <button class="forge-action" :aria-pressed="tab === 'bonus'" @click="tab = 'bonus'">Crafting bonuses</button
-        ><button class="forge-action" :aria-pressed="tab === 'sockets'" @click="tab = 'sockets'">Gem sockets</button>
-      </nav>
-      <SocketWorkshop v-if="tab === 'sockets'" />
-      <template v-else>
-        <p>{{ t('blacksmith.description') }}</p>
-        <p v-if="offer" class="forge-gold">
-          {{ t('blacksmith.price', { cost: offer.cost, gemCost: offer.gemCost, gold: offer.gold, gems: offer.gems }) }}
-        </p>
-        <ActionToasts :error="error" :success="message" />
-        <button v-if="!offer && !pending" class="forge-action" @click="load">{{ t('blacksmith.retry') }}</button>
-        <p v-if="pending && !offer">{{ t('shop.loading') }}</p>
-        <p v-if="offer && !offer.items.length">{{ t('blacksmith.empty') }}</p>
-        <article v-for="item in offer?.items ?? []" :key="item.id" class="forge-item">
-          <div>
-            <strong>{{ item.name }}</strong
-            ><small
-              >{{ item.rarity }} · {{ t('blacksmith.level', { level: item.level })
-              }}<span v-if="item.equipped"> · {{ t('blacksmith.equipped') }}</span></small
-            >
-            <p class="forge-bonus">
-              +{{ item.upgradeValue }}{{ ['GOLD', 'EXPERIENCE'].includes(item.upgradeType) ? '%' : '' }}
-              {{ t(`blacksmith.bonuses.${item.upgradeType}`) }}
-            </p>
-          </div>
-          <button class="forge-action" :disabled="pending || !canAfford" @click="selected = item.id">
-            {{ t('blacksmith.removeWithCost', { cost: offer!.cost, gemCost: offer!.gemCost }) }}
-          </button>
-        </article>
-        <div
-          v-if="selected !== null && offer"
-          class="forge-confirm"
-          role="alertdialog"
-          :aria-label="t('blacksmith.confirmTitle')"
-        >
-          <strong>{{ t('blacksmith.confirmTitle') }}</strong>
-          <p>
+      <div class="forge-body">
+        <TownCharacter service="blacksmith" />
+        <nav class="forge-tabs" aria-label="Blacksmith services">
+          <button class="forge-action" :aria-pressed="tab === 'bonus'" @click="tab = 'bonus'">Crafting bonuses</button
+          ><button class="forge-action" :aria-pressed="tab === 'sockets'" @click="tab = 'sockets'">Gem sockets</button>
+        </nav>
+        <SocketWorkshop v-if="tab === 'sockets'" />
+        <template v-else>
+          <p>{{ t('blacksmith.description') }}</p>
+          <p v-if="offer" class="forge-gold">
             {{
-              t('blacksmith.warning', {
-                name: offer.items.find((item) => item.id === selected)?.name,
-                cost: offer.cost,
-                gemCost: offer.gemCost,
-              })
+              t('blacksmith.price', { cost: offer.cost, gemCost: offer.gemCost, gold: offer.gold, gems: offer.gems })
             }}
           </p>
-          <div>
-            <button :disabled="pending" @click="selected = null">{{ t('blacksmith.cancel') }}</button>
-            <button class="forge-action" :disabled="pending || !canAfford" @click="remove">
-              {{ t('blacksmith.confirm', { cost: offer.cost, gemCost: offer.gemCost }) }}
+          <ActionToasts :error="error" :success="message" />
+          <button v-if="!offer && !pending" class="forge-action" @click="load">{{ t('blacksmith.retry') }}</button>
+          <p v-if="pending && !offer">{{ t('shop.loading') }}</p>
+          <p v-if="offer && !offer.items.length">{{ t('blacksmith.empty') }}</p>
+          <article v-for="item in offer?.items ?? []" :key="item.id" class="forge-item">
+            <div>
+              <strong>{{ item.name }}</strong
+              ><small
+                >{{ item.rarity }} · {{ t('blacksmith.level', { level: item.level })
+                }}<span v-if="item.equipped"> · {{ t('blacksmith.equipped') }}</span></small
+              >
+              <p class="forge-bonus">
+                +{{ item.upgradeValue }}{{ ['GOLD', 'EXPERIENCE'].includes(item.upgradeType) ? '%' : '' }}
+                {{ t(`blacksmith.bonuses.${item.upgradeType}`) }}
+              </p>
+            </div>
+            <button class="forge-action" :disabled="pending || !canAfford" @click="selected = item.id">
+              {{ t('blacksmith.removeWithCost', { cost: offer!.cost, gemCost: offer!.gemCost }) }}
             </button>
+          </article>
+          <div
+            v-if="selected !== null && offer"
+            class="forge-confirm"
+            role="alertdialog"
+            :aria-label="t('blacksmith.confirmTitle')"
+          >
+            <strong>{{ t('blacksmith.confirmTitle') }}</strong>
+            <p>
+              {{
+                t('blacksmith.warning', {
+                  name: offer.items.find((item) => item.id === selected)?.name,
+                  cost: offer.cost,
+                  gemCost: offer.gemCost,
+                })
+              }}
+            </p>
+            <div>
+              <button :disabled="pending" @click="selected = null">{{ t('blacksmith.cancel') }}</button>
+              <button class="forge-action" :disabled="pending || !canAfford" @click="remove">
+                {{ t('blacksmith.confirm', { cost: offer.cost, gemCost: offer.gemCost }) }}
+              </button>
+            </div>
           </div>
-        </div>
-      </template>
+        </template>
+      </div>
     </div>
   </QDialog>
 </template>
@@ -73,6 +78,8 @@ import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 import { getBlacksmithOffer, removeItemBonus, type BlacksmithOffer } from '@/modules/Locations/api';
 
 import SocketWorkshop from './SocketWorkshop.vue';
+
+import TownCharacter from '@/modules/Towns/TownCharacter.vue';
 
 const emit = defineEmits<{ close: [] }>();
 const { t } = useTranslation();
@@ -126,16 +133,28 @@ onMounted(load);
   background: #30535c;
 }
 .forge-panel {
-  width: min(640px, calc(100vw - 32px));
+  width: min(820px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
   max-height: calc(100dvh - 48px);
-  overflow-y: auto;
-  padding: 24px;
+  overflow: hidden;
+  padding: 0;
   background: #102831;
   border: 1px solid #d5a765;
   border-radius: 18px;
   color: #d6e1de;
 }
+.forge-body {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 20px;
+}
 header {
+  flex-shrink: 0;
+  padding: 18px 20px;
+  border-bottom: 1px solid #38525b;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -179,6 +198,7 @@ p {
 }
 .forge-item .forge-action {
   flex-shrink: 0;
+  max-width: 50%;
 }
 @media (max-width: 520px) {
   .forge-item {

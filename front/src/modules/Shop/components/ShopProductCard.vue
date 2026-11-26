@@ -1,7 +1,5 @@
 <template>
-  <div
-    class="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
-  >
+  <article class="shop-product-card">
     <div class="flex justify-center">
       <InventoryItem
         :item="{
@@ -21,37 +19,37 @@
         }"
         :comparison-item="item.equipmentType.includes('RECIPE') ? null : equippedItem"
         :slot-id="''"
-        class="h-24 w-24 shrink-0"
+        class="shop-product-icon"
         @double-click="$emit('add', item.id)"
       />
     </div>
 
     <div class="flex items-center justify-between gap-3">
-      <span class="min-w-0 truncate font-bold text-gray-800">
+      <span class="shop-product-name min-w-0 truncate font-bold">
         {{ itemTypeName }}
       </span>
-      <span class="shrink-0 text-lg font-bold text-green-600"> {{ item.price }}g </span>
+      <span class="shop-product-price shrink-0 text-lg font-bold"> {{ item.price }}g </span>
     </div>
 
-    <p class="text-sm text-gray-500">
-      <span class="font-semibold" :class="rarityTextClass">{{ rarityName }}</span>
+    <p class="shop-product-description text-sm">
+      <span class="shop-product-rarity font-semibold" :data-rarity="item.rarity">{{ rarityName }}</span>
       <span v-if="description" class="ml-1">{{ description }}</span>
     </p>
 
-    <div class="mt-auto flex items-center justify-between border-t border-gray-100 pt-3">
-      <div class="flex items-center gap-1 rounded bg-gray-200/50 p-1">
+    <div class="shop-product-footer mt-auto flex items-center justify-between pt-3">
+      <div class="shop-product-quantity">
         <QBtn
           flat
           dense
           round
           icon="remove"
           size="sm"
-          color="grey-7"
+          :aria-label="`Remove ${item.name} from cart`"
           :disable="cartQuantity === 0"
           @click="$emit('remove', item.id)"
         />
 
-        <span class="min-w-[40px] text-center text-sm font-medium text-gray-800">
+        <span class="min-w-[32px] text-center text-sm font-medium">
           {{ cartQuantity }}
         </span>
 
@@ -61,15 +59,15 @@
           round
           icon="add"
           size="sm"
-          color="grey-7"
+          :aria-label="`Add ${item.name} to cart`"
           :disable="cartQuantity >= item.quantity"
           @click="$emit('add', item.id)"
         />
       </div>
 
-      <span class="text-xs font-medium text-gray-400"> {{ t('shop.inStock') }} {{ item.quantity }} </span>
+      <span class="shop-product-stock text-xs font-medium"> {{ t('shop.inStock') }} {{ item.quantity }} </span>
     </div>
-  </div>
+  </article>
 </template>
 
 <script setup lang="ts">
@@ -80,7 +78,7 @@ import { computed } from 'vue';
 import type { InventoryItemType } from '@/modules/Inventory/types';
 import type { ShopItem } from '@/modules/Shop/types';
 
-import { getRarityTextClass, removeRarityPrefix } from '@/modules/Inventory/utils/rarity';
+import { removeRarityPrefix } from '@/modules/Inventory/utils/rarity';
 import { getItemTypeLocaleKey } from '@/modules/Shop/utils/itemPresentation';
 
 import InventoryItem from '@/modules/Inventory/components/InventoryItem.vue';
@@ -99,6 +97,96 @@ defineEmits<{
 const { t } = useTranslation();
 const itemTypeName = computed(() => t(getItemTypeLocaleKey(props.item.equipmentType, props.item.name)));
 const rarityName = computed(() => t(`profile.rarity.${props.item.rarity.toLowerCase()}`));
-const rarityTextClass = computed(() => getRarityTextClass(props.item.rarity));
 const description = computed(() => removeRarityPrefix(props.item.description, props.item.rarity) || '—');
 </script>
+
+<style scoped>
+.shop-product-card {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  min-width: 0;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid #bca26955;
+  border-radius: 14px;
+  background: linear-gradient(130deg, #1c4148, #0b202b);
+  color: #d8e6e3;
+  transition: border-color 160ms ease;
+}
+.shop-product-card:hover,
+.shop-product-card:focus-within {
+  border-color: #d8bd76;
+}
+/* Important base-layer rules outrank the shared item's important utility styles. */
+@layer base {
+  .shop-product-icon {
+    width: 96px;
+    height: 96px;
+    flex: 0 0 96px;
+    border: 1px solid #a3bec15c !important;
+    background: #0b202b !important;
+    box-shadow: inset 0 1px 12px #00000026 !important;
+  }
+  .shop-product-icon :deep(.q-icon),
+  .shop-product-icon :deep(svg) {
+    color: #c0d4d2 !important;
+  }
+}
+.shop-product-name {
+  color: #f2d897;
+}
+.shop-product-price {
+  color: #efd087;
+}
+.shop-product-description {
+  color: #c0d4d2;
+  line-height: 1.6;
+  margin: 0;
+}
+.shop-product-rarity {
+  color: #c0d4d2;
+}
+.shop-product-rarity[data-rarity='MAGIC'] {
+  color: #92c7f8;
+}
+.shop-product-rarity[data-rarity='RARE'] {
+  color: #d4b3f4;
+}
+.shop-product-rarity[data-rarity='UNIQUE'] {
+  color: #ffbe8a;
+}
+.shop-product-rarity[data-rarity='QUEST'] {
+  color: #f0d387;
+}
+.shop-product-footer {
+  border-top: 1px solid #a3bec12b;
+  gap: 10px;
+}
+.shop-product-quantity {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid #a3bec145;
+  border-radius: 8px;
+  background: #091d27;
+  color: #f2d897;
+}
+.shop-product-quantity :deep(.q-btn) {
+  color: #f2d897;
+}
+.shop-product-quantity :deep(.q-btn:focus-visible) {
+  outline: 2px solid #efd087;
+  outline-offset: 2px;
+}
+.shop-product-stock {
+  color: #a9c3c5;
+}
+@media (prefers-reduced-motion: reduce) {
+  .shop-product-card {
+    transition: none;
+  }
+}
+</style>

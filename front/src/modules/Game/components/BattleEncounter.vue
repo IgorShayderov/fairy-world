@@ -18,17 +18,12 @@
           :disabled="loading"
           :hand-mode="getBattlePlayerLoadout(currentUserStore.user?.equippedItems).handMode"
           :mage-staff="getBattlePlayerLoadout(currentUserStore.user?.equippedItems).primaryWeapon === 'STAFF'"
-          @busy="animating = $event"
+          @busy="mode === 'tactical' && (animating = $event)"
           @ready="onBattlefieldReady"
           @move="moveToCell"
           @attack="attackEnemy"
           @quick-battle="startQuickBattle"
-          @fallback="
-            mode = 'choose';
-            animating = false;
-            battlefieldReady = false;
-            queuedSkill = null;
-          "
+          @fallback="returnToBattleOptions"
         />
         <div v-if="battle.status === 'ACTIVE' || animating" class="battle-command-bar">
           <div class="initiative-ribbon">
@@ -124,8 +119,26 @@
         role="status"
         aria-live="polite"
       >
-        <QIcon name="fast_forward" size="36px" />
-        <p>{{ t('fantasy.encounter.resolvingQuickBattle') }}</p>
+        <QIcon :name="matFastForward" size="36px" />
+        <p>
+          {{
+            quickBattleFailed
+              ? 'Quick battle could not finish. Retry to resolve the encounter.'
+              : t('fantasy.encounter.resolvingQuickBattle')
+          }}
+        </p>
+        <button
+          v-if="quickBattleFailed"
+          type="button"
+          class="battle-action"
+          :disabled="loading"
+          @click.stop="startQuickBattle"
+        >
+          Retry quick battle
+        </button>
+        <button v-if="quickBattleFailed" type="button" :disabled="loading" @click="mode = 'choose'">
+          Return to battle options
+        </button>
       </div>
       <div
         v-else-if="mode !== 'quick'"
@@ -276,19 +289,23 @@
           }}</span>
           <button
             v-if="canQuickBattle"
+            key="quick-choice"
+            type="button"
             class="rounded-lg border border-[#dfc16d]/45 bg-[#dfc16d]/10 px-6 py-2.5 text-xs font-bold tracking-wider text-[#ffe69a] uppercase hover:bg-[#dfc16d]/20 disabled:opacity-50"
             :disabled="loading"
-            @click="startQuickBattle"
+            @click.stop="startQuickBattle"
           >
-            <QIcon name="fast_forward" size="18px" />
+            <QIcon :name="matFastForward" size="18px" />
             {{ t('fantasy.encounter.quickBattle') }}
           </button>
           <button
+            key="tactical-choice"
+            type="button"
             class="rounded-lg bg-[#bd4938] px-7 py-2.5 text-xs font-bold tracking-wider text-white uppercase shadow-lg hover:bg-[#d15743] disabled:opacity-50"
             :disabled="loading"
-            @click="mode = 'tactical'"
+            @click.stop="startTacticalBattle"
           >
-            <QIcon name="stadia_controller" size="18px" />
+            <QIcon :name="matSportsEsports" size="18px" />
             {{ t('fantasy.encounter.tacticalBattle') }}
           </button>
         </template>
@@ -298,9 +315,9 @@
             type="button"
             class="rounded-lg border border-[#dfc16d]/45 bg-[#dfc16d]/10 px-4 py-2.5 text-xs font-bold tracking-wider text-[#ffe69a] uppercase hover:bg-[#dfc16d]/20 disabled:opacity-50"
             :disabled="loading"
-            @click="startQuickBattle"
+            @click.stop="startQuickBattle"
           >
-            <QIcon name="fast_forward" size="18px" />
+            <QIcon :name="matFastForward" size="18px" />
             {{ t('fantasy.encounter.quickBattle') }}
           </button>
           <button
@@ -325,6 +342,15 @@
           @click="$emit('close')"
         >
           {{ t('fantasy.encounter.returnToMap') }}
+        </button>
+        <button
+          v-if="battle.status === 'VICTORY' && !animating && canContinueTravel"
+          type="button"
+          class="battle-action"
+          :disabled="loading"
+          @click="emit('continue-travel')"
+        >
+          {{ t('fantasy.encounter.continueExpedition') }}
         </button>
       </footer>
     </section>
@@ -451,6 +477,7 @@
 </template>
 
 <script setup lang="ts">
+import { matFastForward, matSportsEsports } from '@quasar/extras/material-icons';
 import { useTranslation } from 'i18next-vue';
 import { Notify, QIcon } from 'quasar';
 import { computed, defineAsyncComponent, defineComponent, h, ref, watch, type PropType } from 'vue';
@@ -476,16 +503,25 @@ import BattleMonsterModel from '@/modules/Game/components/BattleMonsterModel.vue
 import BattlePlayerModel from '@/modules/Game/components/BattlePlayerModel.vue';
 import InventoryItem from '@/modules/Inventory/components/InventoryItem.vue';
 
-const props = defineProps<{ battle: BattleState; playerName: string; loading: boolean }>();
+const props = defineProps<{ battle: BattleState; playerName: string; loading: boolean; canContinueTravel?: boolean }>();
 const emit = defineEmits<{
   (event: 'use-potion', inventoryItemId: number): void;
   (event: 'quick-battle'): void;
   (event: 'tactical-action', action: TacticalBattleAction): void;
   (event: 'retreat'): void;
   (event: 'close'): void;
+  (event: 'continue-travel'): void;
 }>();
 const { t } = useTranslation();
 const mode = ref<'choose' | 'quick' | 'tactical'>('choose');
+const quickBattleFailed = ref(false);
+const returnToBattleOptions = () => {
+  if (mode.value !== 'tactical') return;
+  mode.value = 'choose';
+  animating.value = false;
+  battlefieldReady.value = false;
+  queuedSkill.value = null;
+};
 const animating = ref(false);
 const battlefieldReady = ref(false);
 const queuedSkill = ref<string | null>(null);
@@ -496,7 +532,7 @@ watch(
   () => props.loading,
   (pending, wasPending) => {
     if (wasPending && !pending && mode.value === 'quick' && props.battle.status === 'ACTIVE') {
-      mode.value = 'choose';
+      quickBattleFailed.value = true;
     }
   }
 );
@@ -505,6 +541,7 @@ watch(
   () => props.battle.id,
   () => {
     mode.value = 'choose';
+    quickBattleFailed.value = false;
     animating.value = false;
     battlefieldReady.value = false;
     queuedSkill.value = null;
@@ -530,15 +567,16 @@ const replacingLootItem = ref<NonNullable<BattleState['rewards']>['items'][numbe
 const selectedBackpackItem = ref<InventoryItemType | null>(null);
 const reachableCells = computed(() => new Set(props.battle.arena.reachableCells));
 const moveToCell = (cell: number) => {
-  if (loading.value || !reachableCells.value.has(cell)) return;
+  if (mode.value !== 'tactical' || loading.value || !reachableCells.value.has(cell)) return;
   emit('tactical-action', { action: 'MOVE', targetCell: cell });
 };
 const attackEnemy = () => {
-  if (loading.value || !props.battle.arena.canAttack || props.battle.status !== 'ACTIVE') return;
+  if (mode.value !== 'tactical' || loading.value || !props.battle.arena.canAttack || props.battle.status !== 'ACTIVE')
+    return;
   emit('tactical-action', { action: 'ATTACK' });
 };
 const castSkill = (skillId: string) => {
-  if (loading.value || props.battle.status !== 'ACTIVE') return;
+  if (mode.value === 'quick' || loading.value || props.battle.status !== 'ACTIVE') return;
   const skill = props.battle.skills?.abilities.find((entry) => entry.id === skillId);
   if (!skill || skill.unavailable) return;
   if (mode.value !== 'tactical' || !battlefieldReady.value) {
@@ -550,6 +588,7 @@ const castSkill = (skillId: string) => {
   emit('tactical-action', { action: 'SKILL', skillId });
 };
 const onBattlefieldReady = () => {
+  if (mode.value !== 'tactical') return;
   battlefieldReady.value = true;
   const skillId = queuedSkill.value;
   queuedSkill.value = null;
@@ -564,8 +603,20 @@ const monsterHealthPercent = computed(() =>
 const manaPercent = computed(() =>
   Math.max(0, Math.min(100, ((props.battle.skills?.mana ?? 0) / Math.max(1, props.battle.skills?.maxMana ?? 0)) * 100))
 );
+const startTacticalBattle = () => {
+  if (mode.value !== 'choose' || loading.value || props.battle.status !== 'ACTIVE') return;
+  mode.value = 'tactical';
+};
+
 const startQuickBattle = () => {
-  if (!canQuickBattle.value || loading.value || mode.value === 'quick' || props.battle.status !== 'ACTIVE') return;
+  if (
+    !canQuickBattle.value ||
+    loading.value ||
+    (mode.value === 'quick' && !quickBattleFailed.value) ||
+    props.battle.status !== 'ACTIVE'
+  )
+    return;
+  quickBattleFailed.value = false;
   queuedSkill.value = null;
   battlefieldReady.value = false;
   animating.value = false;
@@ -793,6 +844,15 @@ const CombatantCard = defineComponent({
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+}
+/* Icon ligature fallback text must never extend a button's pointer hit area. */
+.encounter-panel > footer button {
+  overflow: hidden;
+}
+.encounter-panel > footer :deep(.q-icon) {
+  overflow: hidden;
+  pointer-events: none;
+  flex-shrink: 0;
 }
 .encounter-panel > footer {
   margin-top: auto;
@@ -1222,6 +1282,15 @@ const CombatantCard = defineComponent({
   }
   .battle-command-bar {
     min-height: 30px;
+  }
+  /* Icon ligature fallback text must never extend a button's pointer hit area. */
+  .encounter-panel > footer button {
+    overflow: hidden;
+  }
+  .encounter-panel > footer :deep(.q-icon) {
+    overflow: hidden;
+    pointer-events: none;
+    flex-shrink: 0;
   }
   .encounter-panel > footer {
     gap: 5px;

@@ -158,6 +158,7 @@ model AdminSession {
 }
 
 model GameProfile {
+  storyQuests StoryQuestProgress[]
   equipmentGems EquipmentGem[]
   castle Castle?
   skillTree GameProfileSkillTree?
@@ -174,6 +175,8 @@ model GameProfile {
   experience       Int       @default(0)
   level            Int       @default(1)
   freeAttributes   Int       @default(0)
+  onboardingStep   Int       @default(0)
+  onboardingCompleted Boolean @default(false)
   killedMonsters   Int       @default(0)
   dungeonsCleared  Int       @default(0)
   mapPositionX     Float     @default(1470)
@@ -329,6 +332,23 @@ model ClanBannerUnlock {
   clan       Clan     @relation(fields: [clanId], references: [id], onDelete: Cascade)
 
   @@id([clanId, bannerCode])
+}
+
+model StoryQuestProgress {
+  gameProfileId Int
+  code String
+  step Int @default(0)
+  progress Int @default(0)
+  rewardLevel Int
+  acceptedAt DateTime @default(now())
+  stepStartedAt DateTime @default(now())
+  completedAt DateTime?
+  claimedAt DateTime?
+  rewardChoice String?
+  bonusEarned Boolean @default(false)
+  profile GameProfile @relation(fields: [gameProfileId], references: [id], onDelete: Cascade)
+
+  @@id([gameProfileId, code])
 }
 
 model Quest {

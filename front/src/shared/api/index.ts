@@ -15,10 +15,11 @@ const dispatchRequest = async (config: RequestConfig) => {
   const abort = () => controller.abort(callerSignal?.reason);
   if (callerSignal?.aborted) abort();
   else callerSignal?.addEventListener('abort', abort, { once: true });
-  const timeoutId = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT);
+  const { timeoutMs = DEFAULT_TIMEOUT, ...requestOptions } = config.options;
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   const finalOptions: RequestInit = {
-    ...config.options,
+    ...requestOptions,
     signal: controller.signal,
   };
 

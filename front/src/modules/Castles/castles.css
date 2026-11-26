@@ -5,7 +5,7 @@
   flex: 1;
   min-width: 0;
   min-height: 0;
-  overflow: auto;
+  overflow: auto !important;
   padding: clamp(16px, 2.5vw, 36px);
   color: #c1d4d2;
   background: radial-gradient(ellipse at top left, #163a43, #081a25 75%);
@@ -251,28 +251,7 @@
   font-size: 12px;
   color: #99b9b5;
 }
-.building-selector {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  padding: 16px;
-}
-.building-selector button {
-  font-size: 12px;
-  padding: 10px 8px;
-  text-align: left;
-  border-color: #3a5960;
-}
-.building-selector span {
-  display: block;
-  color: #7eb7a8;
-  font-size: 11px;
-  margin-top: 4px;
-}
-.building-selector button[aria-pressed='true'] {
-  border-color: #d3b976;
-  background: #24464c;
-}
+
 .level-badge {
   display: inline-block;
   border: 1px solid #5e7c70;
@@ -403,6 +382,7 @@
   .castle-page--estate {
     display: flex;
     flex-direction: column;
+    flex-wrap: nowrap;
     justify-content: flex-start;
     gap: 12px;
     padding: 16px 22px;
@@ -426,14 +406,18 @@
   }
   .castle-page--estate .estate-layout {
     flex: 1;
-    min-height: 340px;
+    min-height: 420px;
+    grid-template-rows: minmax(0, 1fr);
     gap: 16px;
     align-items: stretch;
   }
   .castle-page--estate .estate-art {
     display: grid;
-    grid-template-rows: minmax(0, 1fr) auto auto;
+    grid-template-rows: minmax(0, 1fr) auto;
     min-height: 0;
+    /* The SVG's intrinsic aspect ratio must not enlarge the grid beyond the
+       space left below the header. Its viewBox scales inside the first row. */
+    contain: size;
   }
   .castle-page--estate .castle-estate {
     height: 100%;
@@ -443,20 +427,13 @@
   .castle-page--estate .estate-art > p {
     margin: 4px 0;
   }
-  .castle-page--estate .building-selector {
-    padding: 10px;
-    gap: 6px;
-  }
-  .castle-page--estate .building-selector button {
-    padding: 6px 8px;
-  }
-  .castle-page--estate .building-selector span {
-    display: inline;
-    margin-left: 4px;
-  }
+
   .castle-page--estate .building-detail {
     padding: 16px;
+    min-height: 0;
+    contain: size;
     overflow-y: auto;
+    overscroll-behavior: contain;
   }
   .castle-page--estate .building-detail h2 {
     font-size: 23px;
@@ -520,9 +497,7 @@
   .castle-heading h1 {
     font-size: 30px;
   }
-  .building-selector {
-    grid-template-columns: 1fr 1fr;
-  }
+
   .castle-card {
     padding: 18px;
   }
@@ -536,4 +511,25 @@
   .raid-report > div {
     flex-direction: column;
   }
+}
+
+.castle-task-progress {
+  display: block;
+  width: 100%;
+  height: 10px;
+  margin: 10px 0;
+  accent-color: #69cbb4;
+  border: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #081e28;
+}
+.castle-task-progress::-webkit-progress-bar {
+  background: #081e28;
+}
+.castle-task-progress::-webkit-progress-value {
+  background: #69cbb4;
+}
+.castle-task-progress::-moz-progress-bar {
+  background: #69cbb4;
 }

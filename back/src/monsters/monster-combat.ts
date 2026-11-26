@@ -1,3 +1,4 @@
+import { monsterClass } from './monster-class';
 import type { SkillEffect } from '../skills/skills.catalog';
 import type { CombatStatuses } from '../skills/combat-status';
 import { monsterMovement } from './battle-movement';
@@ -121,6 +122,7 @@ export function chooseMonsterShot(
 export function monsterCombatView(type: string, state: EnemyState) {
   const skill = BOSS_RANGED_SKILLS[type];
   return {
+    class: monsterClass(type),
     attackStyle: RANGED_MONSTERS[type] ? ('RANGED' as const) : ('MELEE' as const),
     ...(skill ? { rangedSkill: { name: skill.name, cooldown: state.rangedSkillCooldown ?? 1 } } : {}),
     ...(skill && monsterMovement(type) <= 2

@@ -5,19 +5,23 @@
         <h1 class="font-serif text-3xl font-semibold">{{ t('quests.title') }}</h1>
         <p class="mt-2 text-gray-500">{{ t('quests.intro') }}</p>
       </header>
+      <TownCharacter v-if="journal?.town" service="quests" :town-name="journal.town.name" />
       <ActionToasts :error="error" :retry="load" :retry-label="t('quests.retry')" />
       <p v-if="loading" role="status">{{ t('shop.loading') }}</p>
       <template v-else-if="journal">
         <QTabs v-model="tab" align="left" active-color="primary" indicator-color="primary" no-caps>
+          <QTab name="stories" label="Stories" />
           <QTab name="active" :label="`${t('quests.active')} (${journal.active.length})`" />
           <QTab name="completed" :label="`${t('quests.completed')} (${journal.completed.length})`" />
         </QTabs>
         <QTabPanels v-model="tab" class="bg-transparent">
+          <QTabPanel name="stories" class="p-0"><StoryJournal /></QTabPanel>
           <QTabPanel name="active" class="p-0">
             <p v-if="!journal.active.length" class="text-gray-500">{{ t('quests.noActive') }}</p>
             <div class="grid gap-4 md:grid-cols-2">
               <article v-for="entry in journal.active" :key="entry.questId" class="quest-card rounded-xl p-5">
                 <h3 class="text-sm leading-snug font-semibold">{{ title(entry.quest) }}</h3>
+                <button v-if="entry.quest.destination || entry.quest.huntingLocation" class="quest-button mt-3" @click="trackQuest(currentUser.user!.id, `quest:${entry.questId}`)">Track on map</button>
                 <p class="mt-2 text-sm text-gray-600">{{ description(entry.quest) }}</p>
                 <p v-if="entry.quest.huntingLocation" class="mt-2 text-sm text-blue-700">
                   {{ huntingLocation(entry.quest) }}
@@ -113,6 +117,10 @@ import ActionToasts from '@/components/ActionToasts';
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 import type { Quest, QuestJournal } from '@/modules/Quests/api';
 import { cancelQuest, deliverQuest, getQuests } from '@/modules/Quests/api';
+import { trackQuest } from '@/modules/Quests/stories';
+
+import StoryJournal from '@/modules/Quests/StoryJournal.vue';
+import TownCharacter from '@/modules/Towns/TownCharacter.vue';
 
 const { t } = useTranslation();
 const currentUser = useCurrentUserStore();
@@ -131,7 +139,7 @@ const deliver = async (id: number) => {
   }
 };
 const journal = ref<QuestJournal | null>(null);
-const tab = ref('active');
+const tab = ref('stories');
 const loading = ref(false);
 const pending = ref<number | null>(null);
 const cancelingId = ref<number | null>(null);

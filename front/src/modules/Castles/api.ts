@@ -65,6 +65,7 @@ export type Castle = Army &
     id: string;
     miningEndsAt: string | null;
     miningLevel: number;
+    miningDurationSeconds?: number;
     miningCost: Cost;
     equipmentGems: EquipmentGem[];
     name: string;
@@ -118,6 +119,9 @@ export type CastleRanking = {
   protectedUntil: string | null;
 };
 export const castlesApi = {
+  async discardGem(id: string) {
+    await api.delete(routes.api.castles.path(`gems/${encodeURIComponent(id)}`));
+  },
   async mine() {
     await api.post(routes.api.castles.path('mine'));
   },

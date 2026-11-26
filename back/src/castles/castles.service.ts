@@ -137,6 +137,7 @@ export class CastlesService {
             armyPower: armyPower(castle, castle.forge),
             defensePower: defensePower(castle),
             miningCost: miningCost(castle.gemMine),
+            miningDurationSeconds: miningCost(castle.miningLevel || castle.gemMine).seconds,
             equipmentGems: await tx.equipmentGem.findMany({
               where: { gameProfileId: profile.id },
               orderBy: { createdAt: 'desc' },
@@ -230,6 +231,12 @@ export class CastlesService {
       await this.save(tx, castle);
       return { success: true };
     });
+  }
+
+  async discardGem(userId: number, id: string) {
+    const result = await this.prisma.equipmentGem.deleteMany({ where: { id, gameProfile: { userId } } });
+    if (result.count !== 1) throw new NotFoundException('Equipment gem not found in your storage');
+    return { success: true };
   }
 
   collectGem(userId: number) {

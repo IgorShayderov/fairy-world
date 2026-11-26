@@ -47,7 +47,7 @@
       </p>
     </template>
     <QDialog :model-value="!!confirmation" :persistent="pending" @update:model-value="!$event && (confirmation = null)">
-      <section v-if="confirmation" class="socket-confirm" role="alertdialog" aria-label="Confirm socket change">
+      <div v-if="confirmation" class="socket-confirm" role="alertdialog" aria-label="Confirm socket change">
         <h3>
           {{
             confirmation.action === 'remove'
@@ -66,8 +66,10 @@
         </p>
         <p>Cost: {{ confirmation.expectedCost }} gold + {{ confirmation.expectedGemCost }} gems</p>
         <button :disabled="pending" @click="confirmation = null">Cancel</button>
-        <button :disabled="pending" @click="confirm">Confirm {{ confirmation.action }}</button>
-      </section>
+        <button class="socket-confirm-primary" :disabled="pending" @click="confirm">
+          {{ pending ? 'Working…' : `Confirm ${confirmation.action}` }}
+        </button>
+      </div>
     </QDialog>
   </section>
 </template>
@@ -132,7 +134,7 @@ function prepare(entry: Entry, action: Confirmation['action']) {
     return;
   }
   const prices = offer.value.prices;
-  confirmation.value = {
+  const nextConfirmation: Confirmation = {
     id: entry.id,
     name: entry.item.name,
     action,
@@ -145,6 +147,11 @@ function prepare(entry: Entry, action: Confirmation['action']) {
     expectedGemCost: action === 'add' ? prices.gems : 0,
     ...(action === 'insert' ? { gemId: chosenGems.value[entry.id] } : {}),
   };
+  if (offer.value.gold < nextConfirmation.expectedCost || offer.value.gems < nextConfirmation.expectedGemCost) {
+    error.value = `Not enough resources. You need ${nextConfirmation.expectedCost.toLocaleString()} gold and ${nextConfirmation.expectedGemCost} gems.`;
+    return;
+  }
+  confirmation.value = nextConfirmation;
 }
 async function confirm() {
   if (!confirmation.value || pending.value) return;
@@ -156,9 +163,9 @@ async function confirm() {
     const body = { action, expectedCost, expectedGemCost, ...(gemId ? { gemId } : {}) };
     await api.post(`${url}/${id}`, body);
     confirmation.value = null;
+    notice.value = 'Equipment socket updated.';
     offer.value = (await api.get<Offer>(url)).data;
     await user.fetchCurrentUser(true);
-    notice.value = 'Equipment socket updated.';
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Could not update the socket';
     confirmation.value = null;
@@ -180,12 +187,16 @@ onMounted(load);
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 16px;
-  padding: 18px 0;
-  border-top: 1px solid #47636a;
+  padding: 14px;
+  border: 1px solid #35535c;
+  border-radius: 12px;
+  background: #0b222c;
+  align-items: center;
 }
 .socket-actions {
   display: grid;
   gap: 8px;
+  font-size: 13px;
 }
 button,
 select {
@@ -206,11 +217,46 @@ button:disabled {
 .socket-confirm {
   padding: 24px;
   width: 480px;
-  max-width: 94vw;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+  font-size: 15px;
+  line-height: 1.5;
   color: #d4e1dc;
   background: #102e37;
   border: 1px solid #cfb575;
   border-radius: 14px;
+}
+.socket-confirm h3 {
+  font:
+    600 24px/1.25 Georgia,
+    serif;
+  margin: 0 0 12px;
+  color: #ffe4a4;
+}
+.socket-confirm p {
+  margin: 12px 0;
+}
+.socket-confirm-primary {
+  background: #d8bd75;
+  color: #102831;
+  font-weight: 700;
+}
+.socket-item strong {
+  font-size: 15px;
+}
+.socket-item p {
+  margin-top: 5px;
+  font-size: 13px;
+  color: #a8bec3;
+}
+.socket-actions button:hover {
+  background: #274b53;
+}
+.socket-price {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #09212b;
 }
 .socket-confirm button {
   margin-right: 8px;

@@ -122,17 +122,7 @@
             :construction="castle.construction"
             @select="selected = $event"
           />
-          <p>Choose a building in your estate or from the list. Production continues offline until storage is full.</p>
-          <div class="building-selector">
-            <button
-              v-for="building in castle.buildings"
-              :key="building.key"
-              :aria-pressed="selected === building.key"
-              @click="selected = building.key"
-            >
-              {{ building.name }} <span>{{ building.level }}/10</span>
-            </button>
-          </div>
+          <p>Select a building in the picture. Production continues offline until storage is full.</p>
         </div>
         <aside v-if="selectedBuilding" class="castle-card building-detail">
           <p class="eyebrow">{{ selectedBuilding.level ? 'Improve your estate' : 'New construction' }}</p>
@@ -175,6 +165,15 @@
               equipment gems, not gem currency.
             </p>
             <template v-if="castle.gemMine > 0">
+              <progress
+                v-if="castle.miningEndsAt"
+                class="castle-task-progress"
+                aria-label="Gem expedition progress"
+                max="100"
+                :value="
+                  taskProgress(castle.miningEndsAt, castle.miningDurationSeconds ?? castle.miningCost.seconds, now)
+                "
+              />
               <p v-if="castle.miningEndsAt">
                 {{
                   Date.parse(castle.miningEndsAt) <= now
@@ -197,14 +196,6 @@
                 Start mining expedition
               </button>
             </template>
-            <h3>Gem storage ({{ castle.equipmentGems?.length ?? 0 }}/100)</h3>
-            <p v-if="!castle.equipmentGems?.length">No equipment gems yet.</p>
-            <ul>
-              <li v-for="gem in castle.equipmentGems" :key="gem.id">
-                ◆ +{{ gem.value }} {{ gem.type.toLowerCase() }} · mine level {{ gem.mineLevel }}
-              </li>
-            </ul>
-            <p>Visit the Blacksmith to add sockets and insert gems into equipment.</p>
           </section>
         </aside>
       </section>
@@ -212,6 +203,18 @@
         <div v-if="castle.training" class="queue">
           <strong>Training {{ castle.trainingCount }} {{ unitName(castle.training) }}</strong
           ><span>{{ remainingTime(castle.trainingEndsAt, now) }}</span>
+          <progress
+            class="castle-task-progress"
+            aria-label="Army training progress"
+            max="100"
+            :value="
+              taskProgress(
+                castle.trainingEndsAt,
+                (castle.units.find((unit) => unit.key === castle?.training)?.seconds ?? 0) * castle.trainingCount,
+                now
+              )
+            "
+          />
         </div>
         <p class="section-intro">
           Available army strength: <strong>{{ castle.armyPower }}</strong> · Castle defense:
@@ -407,7 +410,7 @@ import {
   type Army,
   type RaidTarget,
 } from '@/modules/Castles/api';
-import { remainingTime, selectedPower, usedCapacity } from '@/modules/Castles/presentation';
+import { remainingTime, selectedPower, usedCapacity, taskProgress } from '@/modules/Castles/presentation';
 
 import CastleEstate from '@/modules/Castles/CastleEstate.vue';
 import '@/modules/Castles/castles.css';

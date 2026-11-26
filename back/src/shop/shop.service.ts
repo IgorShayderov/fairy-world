@@ -10,7 +10,7 @@ import { SEEDED_CONSUMABLES } from '../items/seeded-consumables';
 import { CRAFTING_MIN_LEVEL } from '../crafting/crafting.catalog';
 import { townAt } from '../locations/towns';
 import { requiredPlayerLevel } from '../users/level-progression';
-import { getPotionRequiredLevel } from '../items/potion-effects';
+import { getPotionRequiredLevel, isRestorationPotion } from '../items/potion-effects';
 import { gemActionCost, GEM_ACTIONS } from '../gem-prices/gem-prices';
 
 const SHOP_RESTOCK_INTERVAL_MS = 24 * 60 * 60 * 1000;
@@ -73,7 +73,10 @@ export class ShopService implements OnModuleInit {
       data: { icon: 'icon_axe.png' },
     });
     await this.prisma.shopStock.updateMany({
-      where: { item: { name: { contains: 'Health Potion' } }, quantity: { lt: 5 } },
+      where: {
+        item: { OR: [{ name: { contains: 'Health Potion' } }, { name: { contains: 'Mana Potion' } }] },
+        quantity: { lt: 5 },
+      },
       data: { quantity: 5 },
     });
   }
@@ -277,17 +280,21 @@ export class ShopService implements OnModuleInit {
           Math.max(getPotionRequiredLevel(left.name), left.level ?? 1),
       );
     const regularPotions = eligibleConsumables.filter(
-      (item) => item.name !== 'Free Attribute Potion' && !item.name?.includes('Health Potion'),
+      (item) => item.name !== 'Free Attribute Potion' && !isRestorationPotion(item.name),
     );
+    const manaPotions = eligibleConsumables
+      .filter((item) => item.name.includes('Mana Potion'))
+      .sort((left, right) => getPotionRequiredLevel(right.name) - getPotionRequiredLevel(left.name));
 
     const selectedPotions: typeof consumables = [];
     if (healthPotions.length) selectedPotions.push(healthPotions[pickWeightedIndex(healthPotions)]);
+    if (manaPotions.length) selectedPotions.push(manaPotions[pickWeightedIndex(manaPotions)]);
     if (freeAttributeItem && Math.random() < SHOP_FREE_ATTRIBUTE_POTION_CHANCE) {
       selectedPotions.push(freeAttributeItem);
     }
 
     const availableRegular = [...regularPotions];
-    const maxPotions = Math.min(2, SHOP_RESTOCK_ITEM_COUNT - stockCount);
+    const maxPotions = Math.min(3, SHOP_RESTOCK_ITEM_COUNT - stockCount);
     while (selectedPotions.length < maxPotions && availableRegular.length > 0) {
       const index = pickWeightedIndex(availableRegular);
       const [item] = availableRegular.splice(index, 1);
@@ -295,7 +302,7 @@ export class ShopService implements OnModuleInit {
     }
 
     for (const item of selectedPotions) {
-      const quantity = item.name?.includes('Health Potion') ? 5 : 1;
+      const quantity = isRestorationPotion(item.name) ? 5 : 1;
       await tx.shopStock.upsert({
         where: { shopId_itemId: { shopId, itemId: item.id } },
         create: { shopId, itemId: item.id, quantity },

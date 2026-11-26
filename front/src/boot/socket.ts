@@ -1,5 +1,6 @@
 import { io } from 'socket.io-client';
 
+import { NOTIFICATIONS_CHANGED } from '@/modules/Auction/notification-events';
 import { SESSION_CHANGED } from '@/modules/Auth/utils/session-events';
 import { useChatStore } from '@/modules/Chat/store';
 
@@ -12,8 +13,12 @@ export const socket = io(import.meta.env.VITE_BACK_URL, {
   auth: (callback) => callback({ token: localStorage.getItem('access_token') }),
 });
 
+let sessionToken: string | null = null;
 function syncSocketSession() {
-  if (!localStorage.getItem('access_token')) socket.disconnect();
+  const token = localStorage.getItem('access_token');
+  if (token !== sessionToken) socket.disconnect();
+  sessionToken = token;
+  if (!token) socket.disconnect();
   else if (!socket.connected) socket.connect();
 }
 
@@ -26,6 +31,13 @@ export default defineBoot(() => {
     const chatStore = useChatStore();
     chatStore.receiveMessage(message);
   });
+
+  const refreshNotifications = () => window.dispatchEvent(new Event(NOTIFICATIONS_CHANGED));
+  socket.off('notifications_changed');
+  socket.on('notifications_changed', refreshNotifications);
+  socket.off('connect');
+  socket.on('connect', refreshNotifications);
+  syncSocketSession();
 
   socket.off('connect_error');
   socket.on('connect_error', (err) => {

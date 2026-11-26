@@ -2,6 +2,16 @@ import { expect, test } from '@playwright/test';
 const base = 'http://127.0.0.1:5196/test/castle-preview.html';
 test.setTimeout(90_000);
 
+for (const viewport of [{ width: 1728, height: 830 }, { width: 1440, height: 800 }]) {
+  test(`complete estate fits without bottom clipping at ${viewport.width}`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await page.goto(base, { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('.castle-estate')).toBeInViewport({ ratio: 1 });
+    await expect(page.locator('.building-selector')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Upgrade building', exact: true })).toBeInViewport({ ratio: 1 });
+  });
+}
+
 for (const zoom of [0.7, 1, 1.5]) {
   test(`castle map icon stays proportionate to landmarks at zoom ${zoom}`, async ({ page }) => {
     await page.setViewportSize({ width: 1800, height: 1400 });
@@ -202,7 +212,7 @@ for (const viewport of [
     const bounds = await page.locator('.castle-estate').boundingBox();
     expect(bounds!.y + bounds!.height).toBeLessThan(viewport.height);
     await expect(page.getByRole('button', { name: 'Upgrade building', exact: true })).toBeInViewport({ ratio: 1 });
-    await expect(page.locator('.building-selector').getByRole('button').last()).toBeInViewport({ ratio: 1 });
+    await expect(page.locator('.castle-estate').getByRole('button').last()).toBeInViewport({ ratio: 1 });
     const dimensions = await page.locator('.castle-page').evaluate((el) => ({
       height: el.clientHeight,
       scroll: el.scrollHeight,
@@ -238,4 +248,22 @@ test('level gate and private map placement reject forest before founding', async
   await page.getByLabel('Castle name').fill('Dawnwatch Keep');
   await page.getByRole('button', { name: 'Found castle · 10,000 gold' }).click();
   await expect(page.getByRole('heading', { name: 'Dawnwatch Keep' })).toBeVisible();
+});
+
+test('mine controls fit inside the estate and timed tasks show progress', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 800 });
+  await page.goto(base + '?mining&progress');
+  await page.locator('.castle-estate').getByRole('button', { name: /Starlight Gem Mine/ }).click();
+  await expect(page.locator('.castle-estate')).toBeInViewport({ ratio: 1 });
+  const detail = page.locator('.building-detail');
+  await expect(detail).toBeInViewport({ ratio: 1 });
+  const mining = page.getByRole('progressbar', { name: 'Gem expedition progress' });
+  expect(Number(await mining.getAttribute('value'))).toBeGreaterThanOrEqual(50);
+  await detail.evaluate(el => { el.scrollTop = el.scrollHeight; });
+  await expect(detail.getByRole('button', { name: 'Collect gem', exact: true })).toBeInViewport();
+  await expect(detail.getByRole('heading', { name: /Gem storage/ })).toHaveCount(0);
+  await page.getByRole('button', { name: /Next/ }).click();
+  const training = page.getByRole('progressbar', { name: 'Army training progress' });
+  await expect(training).toBeVisible();
+  expect(Number(await training.getAttribute('value'))).toBeGreaterThanOrEqual(50);
 });

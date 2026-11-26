@@ -6,6 +6,7 @@ import type { EquipItemDto, EquipmentSlotId } from './dto/equip-item.dto';
 import type { AllocateAttributeDto } from './dto/allocate-attribute.dto';
 import type { UpdateMapPositionDto } from './dto/update-map-position.dto';
 import type { ReplaceInventoryItemDto } from './dto/replace-inventory-item.dto';
+import type { UpdateOnboardingDto } from './dto/update-onboarding.dto';
 import { STARTING_ATTRIBUTE_VALUE } from './player-defaults';
 import { requiredPlayerLevel } from './level-progression';
 import { getPotionEffect, getPotionRequiredLevel, POTION_BUFF_DURATION_MS } from '../items/potion-effects';
@@ -46,6 +47,28 @@ export class UsersService {
   }
   constructor(private prisma: PrismaService) {}
 
+  async updateOnboarding(userId: number, dto: UpdateOnboardingDto) {
+    if (dto.step === undefined && dto.completed === undefined) {
+      throw new BadRequestException('Provide an onboarding step or completion status');
+    }
+    return this.prisma.$transaction(async (tx) => {
+      // Completed/skipped tours stay completed, including when another tab sends stale progress.
+      await tx.gameProfile.updateMany({
+        where: { userId, onboardingCompleted: false },
+        data: {
+          ...(dto.step !== undefined ? { onboardingStep: dto.step } : {}),
+          ...(dto.completed === true ? { onboardingCompleted: true } : {}),
+        },
+      });
+      const profile = await tx.gameProfile.findUnique({
+        where: { userId },
+        select: { onboardingStep: true, onboardingCompleted: true },
+      });
+      if (!profile) throw new NotFoundException('Game profile not found');
+      return { step: profile.onboardingStep, completed: profile.onboardingCompleted };
+    });
+  }
+
   findBy(where: UserWhereInput): Promise<UserModel | null> {
     return this.prisma.user.findFirst({
       where,
@@ -82,6 +105,7 @@ export class UsersService {
             buffs: true,
             dungeonVisits: true,
             sanctuaryVisits: true,
+            equipmentGems: { orderBy: { createdAt: 'asc' } },
             craftItems: {
               where: { quantity: { gt: 0 }, craftItem: { kind: CraftItemKind.MATERIAL } },
               include: { craftItem: true },
@@ -341,8 +365,8 @@ export class UsersService {
         if (!inventoryEntry.item.isConsumable || !effect) {
           throw new BadRequestException('Item cannot be consumed');
         }
-        if (effect.kind === 'HEALTH') {
-          throw new BadRequestException('Health potions can only be used during an active dungeon run');
+        if (effect.kind === 'HEALTH' || effect.kind === 'MANA') {
+          throw new BadRequestException('Health and mana potions can only be used during battle');
         }
         const requiredLevel = getPotionRequiredLevel(inventoryEntry.item.name) ?? inventoryEntry.item.level ?? 1;
         if ((profile.level ?? 1) < requiredLevel) {

@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Market preview — isolated data</title>
+    <style>
+      html,
+      body,
+      #app {
+        height: 100%;
+        margin: 0;
+        font-family: Arial, sans-serif;
+      }
+      #app {
+        display: flex;
+        flex-direction: column;
+      }
+      .preview-header {
+        flex: none;
+        background: #1e2939;
+        padding: 16px 24px;
+        color: #fff;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module">
+      import { createApp } from 'vue';
+      import { createPinia } from 'pinia';
+      import { Quasar, Notify } from 'quasar';
+      import I18nextVue from 'i18next-vue';
+      import 'quasar/dist/quasar.css';
+      import '@quasar/extras/material-icons/material-icons.css';
+      import '/src/css/app.scss';
+      import '/test/castle-preview.css';
+      import { initializeI18n, i18n } from '/src/locales/i18n';
+      import ShopPage from '/src/pages/ShopPage.vue';
+      import { useCurrentUserStore } from '/src/modules/Auth/store/currentUser';
+      import { api } from '/src/shared/api';
+      await initializeI18n();
+      const items = [
+        ['Experience Potion', 'COMMON', ['POTION'], 100, 'Increases experience gained by 10% for 4 hours.'],
+        ['Medium Health Potion', 'MAGIC', ['POTION'], 360, 'Restores up to 250 Health during a dungeon expedition.'],
+        [
+          'Arrows',
+          'COMMON',
+          ['AMMUNITION'],
+          175,
+          'Level 21 arrows. Second-hand slot only. Infinite ammunition; never consumed. Use with a matching bow.',
+        ],
+        [
+          'Bolts',
+          'COMMON',
+          ['AMMUNITION'],
+          149,
+          'Level 19 bolts. Second-hand slot only. Infinite ammunition; never consumed. Use with a matching crossbow.',
+        ],
+        ['Gloves of Wisdom', 'RARE', ['GLOVES'], 454, 'Enchanted gloves, stitched with silver thread.'],
+        ['Mage Robe', 'UNIQUE', ['BODY'], 750, 'Level 25 mage robe.'],
+      ].map(([name, rarity, equipmentType, price, description], i) => ({
+        id: i + 1,
+        name,
+        rarity,
+        equipmentType,
+        price,
+        description,
+        level: 20,
+        requiredPlayerLevel: 1,
+        quantity: 5,
+        icon: 'inventory_2',
+        attributes: [],
+        properties: [],
+      }));
+      const player = {
+        id: 1,
+        level: 30,
+        currentShopId: 1,
+        mapPosition: { x: 1470, y: 960 },
+        gold: 28685,
+        gems: 4740,
+        equippedItems: [],
+        inventory: items.map((item) => ({ id: item.id, item, quantity: 35, isEquiped: false })),
+      };
+      api.get = async () => ({
+        data: {
+          id: 1,
+          name: 'EVERCROSS Market',
+          gold: 1000000,
+          refreshCost: 10,
+          nextRestockAt: new Date(Date.now() + 86400000).toISOString(),
+          items,
+        },
+      });
+      api.post = async () => ({ data: { success: true } });
+      const app = createApp({
+        components: { ShopPage },
+        template: '<header class="preview-header">✦ Fairy World</header><ShopPage />',
+      });
+      app.use(createPinia());
+      app.use(Quasar, { plugins: { Notify } });
+      app.use(I18nextVue, { i18next: i18n });
+      const store = useCurrentUserStore();
+      store.user = player;
+      store.fetchCurrentUser = async () => player;
+      app.mount('#app');
+    </script>
+  </body>
+</html>

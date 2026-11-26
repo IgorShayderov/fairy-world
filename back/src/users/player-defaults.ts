@@ -10,12 +10,19 @@ const CRITICAL_DAMAGE_RATING_PIVOT = 6;
 
 const roundPercentage = (value: number) => Math.round(value * 10) / 10;
 
-export const convertRatingToPercentage = (stat: StatType, rating: number, level: number): number => {
+export const convertRatingToPercentage = (
+  stat: StatType,
+  rating: number,
+  level: number,
+  characterClass?: string | null,
+): number => {
   const nonNegativeRating = Math.max(0, rating);
   const scaledRating = (nonNegativeRating * 20) / Math.max(35, level);
 
   if (stat === StatType.CRIT || stat === StatType.DODGE) {
-    return roundPercentage(Math.min(MAX_CHANCE_PERCENT, scaledRating));
+    return roundPercentage(
+      Math.min(stat === StatType.DODGE && characterClass === 'WARRIOR' ? 25 : MAX_CHANCE_PERCENT, scaledRating),
+    );
   }
   if (stat === StatType.CRIT_DAMAGE) {
     const effectiveRating = (nonNegativeRating * 15) / Math.max(70, level);
@@ -26,7 +33,7 @@ export const convertRatingToPercentage = (stat: StatType, rating: number, level:
   if (stat === StatType.DEFENSE) {
     const levelPressure = Math.max(7, level) * 10;
     const percentage = (nonNegativeRating / (nonNegativeRating + levelPressure)) * 100;
-    return roundPercentage(Math.min(50, percentage));
+    return roundPercentage(Math.min(characterClass === 'WARRIOR' ? 65 : 50, percentage));
   }
 
   return rating;

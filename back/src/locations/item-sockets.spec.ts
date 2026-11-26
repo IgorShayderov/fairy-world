@@ -53,7 +53,12 @@ describe('equipment sockets', () => {
     await service.change(7, 42, 'add', { expectedCost: 5000, expectedGemCost: 10 });
     expect(tx.inventoryItem.update).toHaveBeenCalledWith({ where: { id: 42 }, data: { quantity: { decrement: 1 } } });
     expect(tx.inventoryItem.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({ quantity: 1, hasSocket: true, upgradeType: 'HEALTH', upgradeValue: 30 }) as unknown,
+      data: expect.objectContaining({
+        quantity: 1,
+        hasSocket: true,
+        upgradeType: 'HEALTH',
+        upgradeValue: 30,
+      }) as unknown,
     });
   });
   it('uses admin prices and rejects stale client quotes', async () => {

@@ -9,6 +9,7 @@
     </div>
 
     <ChatWindow class="shrink-0" />
+    <OnboardingGuide />
   </div>
 </template>
 
@@ -18,6 +19,7 @@ import { RouterView } from 'vue-router';
 
 import { useCurrentUserStore } from '@/modules/Auth/store/currentUser';
 
+import OnboardingGuide from '@/modules/Onboarding/OnboardingGuide.vue';
 import AppMenu from '@components/AppMenu.vue';
 import ChatWindow from '@components/ChatWindow.vue';
 

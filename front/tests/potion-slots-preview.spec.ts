@@ -4,6 +4,45 @@ const base = 'http://127.0.0.1:5193/test/dungeon-preview.html?profile=1';
 test.use({ viewport: { width: 1440, height: 800 } });
 test.setTimeout(120_000);
 
+test('mined equipment gems appear in inventory with pagination and socket guidance', async ({ page }) => {
+  await page.goto(base + '&equipmentGems', { waitUntil: 'domcontentloaded' });
+  const inventory = page.locator('.profile-inventory');
+  const next = inventory.getByRole('button').filter({ hasText: 'chevron_right' });
+  await next.click();
+  await next.click();
+  await next.click();
+  await expect(inventory.getByRole('heading')).toHaveText('Equipment gems (13/100)');
+  await expect(inventory.getByText('+30 health', { exact: true })).toBeVisible();
+  const contained = await inventory.locator('.equipment-gem-slot').evaluateAll(slots => slots.every(slot => {
+    const button = slot.querySelector('.discard-gem');
+    if (!button) return true;
+    const card = slot.getBoundingClientRect(), action = button.getBoundingClientRect();
+    return action.left >= card.left && action.right <= card.right && action.top >= card.top && action.bottom <= card.bottom;
+  }));
+  expect(contained).toBe(true);
+  await inventory.getByText('+30 health', { exact: true }).hover();
+  await expect(page.getByRole('tooltip')).toContainText('Visit the Blacksmith');
+  await next.click();
+  await expect(inventory.getByText('+42 health', { exact: true })).toBeVisible();
+  await expect(next).toBeDisabled();
+});
+
+test('double-click transfers one potion each way and empty cards match filled heights', async ({ page }) => {
+  await page.goto(base, { waitUntil: 'domcontentloaded' });
+  const potion = page.locator('[draggable="true"]').filter({ hasText: '×2' }).first();
+  await potion.dblclick();
+  const first = page.getByRole('button', { name: 'Configure potion slot 1', exact: true });
+  await expect(first).toContainText('Minor Health Potion');
+  await expect(page.locator('.potion-picker')).toHaveCount(0);
+  const heights = await page.locator('.potion-use').evaluateAll((slots) => slots.map((slot) => slot.getBoundingClientRect().height));
+  expect(Math.max(...heights) - Math.min(...heights)).toBeLessThan(1);
+  await first.dblclick();
+  await expect(first).toContainText('Add potion');
+  await expect(potion).toBeVisible();
+  await page.waitForTimeout(400);
+  await expect(page.locator('.potion-picker')).toHaveCount(0);
+});
+
 test('buffs sit beside inventory and every potion slot fits on a notebook screen', async ({ page }) => {
   await page.goto(base + '&buffs=1&premium=1');
   const buffs = page.getByRole('region', { name: 'Active buffs' });
@@ -98,4 +137,27 @@ test('extra slots are locked without premium and usable with premium', async ({ 
   await page.locator('.potion-picker').getByRole('button', { name: /Minor Health Potion/ }).click();
   await expect(lastSlot).toContainText('Minor Health Potion');
   await page.screenshot({ path: '/tmp/potion-premium-slots.png' });
+});
+
+test('discarding a stored gem requires confirmation and sends one deletion', async ({ page }) => {
+  let deletes = 0;
+  await page.route('**/castles/gems/*', async route => {
+    expect(route.request().method()).toBe('DELETE');
+    deletes++;
+    await route.fulfill({ json: { data: { success: true }, meta: {} } });
+  });
+  await page.goto(base + '&equipmentGems');
+  const next = page.locator('.profile-inventory').getByRole('button').filter({ hasText: 'chevron_right' });
+  await next.click();
+  await next.click();
+  await next.click();
+  await page.getByRole('button', { name: 'Discard +30 health gem', exact: true }).first().click();
+  await expect(page.getByRole('alertdialog')).toBeInViewport({ ratio: 1 });
+  await expect(page.getByText('This permanently destroys the gem.', { exact: false })).toBeVisible();
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  expect(deletes).toBe(0);
+  await page.getByRole('button', { name: 'Discard +30 health gem', exact: true }).first().click();
+  await page.getByRole('button', { name: 'Discard permanently', exact: true }).click();
+  await expect(page.getByRole('alertdialog')).toHaveCount(0);
+  expect(deletes).toBe(1);
 });
